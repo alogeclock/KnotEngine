@@ -165,6 +165,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Core\pch.cpp" />
     <ClCompile Include="Source\Engine\Render\Renderer.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui_demo.cpp" />
@@ -177,6 +178,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Core\CoreTypes.h" />
+    <ClInclude Include="Source\Core\Math\Matrix.h" />
+    <ClInclude Include="Source\Core\Geometry\OBB.h" />
+    <ClInclude Include="Source\Core\Math\Vector.h" />
+    <ClInclude Include="Source\Core\pch.h" />
     <ClInclude Include="Source\Engine\Components\BoxComponent.h" />
     <ClInclude Include="Source\Engine\Components\PrimitiveComponent.h" />
     <ClInclude Include="Source\Engine\Components\SceneComponent.h" />

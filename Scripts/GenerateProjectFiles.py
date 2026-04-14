@@ -1,6 +1,14 @@
 """
-GenerateProjectFiles.py — Auto-generate .vcxproj, .vcxproj.filters
+GenerateProjectFiles.py — Auto-generate .vcxproj, .vcxproj.filters, .sln
 for SimpleEngine from the on-disk folder structure.
+
+Project layout:
+    ROOT/                        ← repo root (SimpleEngine.sln lives here)
+    ├── main.cpp                 ← entry point (outside the VS project folder)
+    └── SimpleEngine/            ← PROJECT_DIR (.vcxproj lives here)
+        ├── Source/
+        ├── ThirdParty/ImGui/
+        └── Shaders/
 
 Usage:
     python Scripts/GenerateProjectFiles.py
@@ -15,9 +23,9 @@ from pathlib import Path
 # Constants
 # ──────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
+PROJECT_DIR = ROOT / "SimpleEngine"   # directory that contains SimpleEngine.vcxproj
 
 PROJECT_NAME = "SimpleEngine"
-PROJECT_DIR = ROOT          # .vcxproj / .sln / .filters live at the repo root
 PROJECT_GUID = "{55068e81-c0a0-49f9-ab7b-54aea968722b}"
 ROOT_NAMESPACE = "SimpleEngine"
 
@@ -31,13 +39,13 @@ CONFIGURATIONS = [
     ("Release", "x64"),
 ]
 
-# Directories to recursively scan for source/header files
+# Directories to recursively scan for source/header files (relative to PROJECT_DIR)
 SCAN_DIRS = ["Source"]
 
 # Directories to scan at the top level ONLY (no recursion) — e.g. ImGui
 FLAT_SCAN_DIRS = ["ThirdParty\\ImGui"]
 
-# Directories to scan for shader files
+# Directories to scan for shader files (relative to PROJECT_DIR)
 SHADER_DIRS = ["Shaders"]
 
 # File extensions to include
@@ -47,10 +55,16 @@ SHADER_EXTS = {".hlsl", ".hlsli"}
 NATVIS_EXTS = {".natvis"}
 NONE_EXTS = {".natstepfilter", ".config"}
 
-# Root-level files to include (relative to project dir)
-ROOT_FILES = ["main.cpp"]
+# Files outside PROJECT_DIR to include — paths relative to PROJECT_DIR
+# main.cpp sits one level above PROJECT_DIR (at ROOT), so it's "..\main.cpp"
+EXTRA_SOURCE_FILES = [r"..\main.cpp"]
 
-# Include paths (relative to project dir)
+# Name of the PCH header (must match the filename in Source\Core\)
+PCH_HEADER = "pch.h"
+# Path to pch.cpp relative to PROJECT_DIR
+PCH_CPP = r"Source\Core\pch.cpp"
+
+# Include paths (relative to PROJECT_DIR)
 INCLUDE_PATHS = [
     "Source",
     "Source\\Engine",
@@ -60,11 +74,14 @@ INCLUDE_PATHS = [
     ".",
 ]
 
-# Library paths (relative to project dir)
+# Library paths (relative to PROJECT_DIR)
 LIBRARY_PATHS = []
 
-# NuGet packages (id, version) — restored via packages.config
+# NuGet packages (id, version)
 NUGET_PACKAGES = []
+
+# ImGui source prefix — these files must NOT use the PCH
+IMGUI_PREFIX = "ThirdParty\\ImGui\\"
 
 NS = "http://schemas.microsoft.com/developer/msbuild/2003"
 
@@ -76,10 +93,7 @@ def scan_files(project_dir: Path) -> dict[str, list[str]]:
     """Scan directories and collect files grouped by type."""
     result = {"ClCompile": [], "ClInclude": [], "FxCompile": [], "Natvis": [], "None": []}
 
-    def classify(full: Path):
-        rel = full.relative_to(project_dir)
-        rel_str = str(rel).replace("/", "\\")
-        ext = full.suffix.lower()
+    def classify(rel_str: str, ext: str):
         if ext in SOURCE_EXTS:
             result["ClCompile"].append(rel_str)
         elif ext in HEADER_EXTS:
@@ -96,7 +110,9 @@ def scan_files(project_dir: Path) -> dict[str, list[str]]:
             continue
         for dirpath, _, filenames in os.walk(full_dir):
             for fname in sorted(filenames):
-                classify(Path(dirpath) / fname)
+                full = Path(dirpath) / fname
+                rel_str = str(full.relative_to(project_dir)).replace("/", "\\")
+                classify(rel_str, full.suffix.lower())
 
     # Top-level only scan (no recursion into sub-directories)
     for scan_dir in FLAT_SCAN_DIRS:
@@ -106,7 +122,8 @@ def scan_files(project_dir: Path) -> dict[str, list[str]]:
         for fname in sorted(os.listdir(full_dir)):
             full = full_dir / fname
             if full.is_file():
-                classify(full)
+                rel_str = str(full.relative_to(project_dir)).replace("/", "\\")
+                classify(rel_str, full.suffix.lower())
 
     # Scan shader directories
     for shader_dir in SHADER_DIRS:
@@ -116,22 +133,23 @@ def scan_files(project_dir: Path) -> dict[str, list[str]]:
         for dirpath, _, filenames in os.walk(full_dir):
             for fname in sorted(filenames):
                 full = Path(dirpath) / fname
-                rel = full.relative_to(project_dir)
-                rel_str = str(rel).replace("/", "\\")
+                rel_str = str(full.relative_to(project_dir)).replace("/", "\\")
                 if full.suffix.lower() in SHADER_EXTS:
                     result["FxCompile"].append(rel_str)
 
-    # Add root-level files
-    for root_file in ROOT_FILES:
-        full = project_dir / root_file
-        if full.exists():
-            result["ClCompile"].append(root_file.replace("/", "\\"))
+    # Add extra files that live outside PROJECT_DIR (e.g. main.cpp at ROOT)
+    for extra in EXTRA_SOURCE_FILES:
+        result["ClCompile"].append(extra)
 
     return result
 
 
 def get_filter(rel_path: str) -> str:
-    """Return the filter (directory portion) from a relative path."""
+    r"""Return the filter (directory portion) from a relative path.
+    Files outside the project dir (e.g. ..\main.cpp) have no filter.
+    """
+    if rel_path.startswith(".."):
+        return ""
     parts = rel_path.replace("/", "\\").rsplit("\\", 1)
     return parts[0] if len(parts) > 1 else ""
 
@@ -238,8 +256,8 @@ def generate_vcxproj(files: dict[str, list[str]]):
     for cfg, plat in CONFIGURATIONS:
         cond = f"'$(Configuration)|$(Platform)'=='{cfg}|{plat}'"
         pg = ET.SubElement(proj, "PropertyGroup", Condition=cond)
-        ET.SubElement(pg, "OutDir").text = f"$(ProjectDir)Bin\\$(Configuration)\\"
-        ET.SubElement(pg, "IntDir").text = f"$(ProjectDir)Build\\$(Configuration)\\"
+        ET.SubElement(pg, "OutDir").text = "$(ProjectDir)Bin\\$(Configuration)\\"
+        ET.SubElement(pg, "IntDir").text = "$(ProjectDir)Build\\$(Configuration)\\"
         ET.SubElement(pg, "IncludePath").text = include_path_value
         ET.SubElement(pg, "LibraryPath").text = library_path_value
         ET.SubElement(pg, "LocalDebuggerWorkingDirectory").text = "$(ProjectDir)"
@@ -272,6 +290,11 @@ def generate_vcxproj(files: dict[str, list[str]]):
         ET.SubElement(cl, "AdditionalOptions").text = "/utf-8 %(AdditionalOptions)"
         ET.SubElement(cl, "ExceptionHandling").text = "Async"
         ET.SubElement(cl, "LanguageStandard").text = "stdcpp20"
+        # PCH: all files use pch.h by default; pch.cpp overrides to Create below
+        ET.SubElement(cl, "PrecompiledHeader").text = "Use"
+        ET.SubElement(cl, "PrecompiledHeaderFile").text = PCH_HEADER
+
+        ET.SubElement(cl, "ForcedIncludeFiles").text = f"{PCH_HEADER};%(ForcedIncludeFiles)"
 
         link = ET.SubElement(idg, "Link")
         ET.SubElement(link, "SubSystem").text = "Windows" if is_x64 else "Console"
@@ -280,7 +303,15 @@ def generate_vcxproj(files: dict[str, list[str]]):
     # ClCompile items
     ig = ET.SubElement(proj, "ItemGroup")
     for f in files["ClCompile"]:
-        ET.SubElement(ig, "ClCompile", Include=f)
+        elem = ET.SubElement(ig, "ClCompile", Include=f)
+        if f == PCH_CPP:
+            # pch.cpp creates the PCH binary
+            ET.SubElement(elem, "PrecompiledHeader").text = "Create"
+        elif f.startswith(IMGUI_PREFIX):
+            # Third-party files must not use our PCH
+            ET.SubElement(elem, "PrecompiledHeader").text = "NotUsing"
+            # [여기에 추가] 서드파티 라이브러리에는 강제 포함을 비활성화 (빈 값으로 덮어쓰기)
+            ET.SubElement(elem, "ForcedIncludeFiles").text = ""
 
     # ClInclude items
     ig = ET.SubElement(proj, "ItemGroup")
@@ -318,20 +349,6 @@ def generate_vcxproj(files: dict[str, list[str]]):
             ET.SubElement(ext_targets, "Import",
                           Project=targets_path,
                           Condition=f"Exists('{targets_path}')")
-        ensure = ET.SubElement(proj, "Target",
-                               Name="EnsureNuGetPackageBuildImports",
-                               BeforeTargets="PrepareForBuild")
-        pg = ET.SubElement(ensure, "PropertyGroup")
-        ET.SubElement(pg, "ErrorText").text = (
-            "This project references NuGet package(s) that are missing on this computer. "
-            "Use NuGet Package Restore to download them.  For more information, see "
-            "http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}."
-        )
-        for pkg_id, pkg_ver in NUGET_PACKAGES:
-            targets_path = f"packages\\{pkg_id}.{pkg_ver}\\build\\native\\{pkg_id}.targets"
-            ET.SubElement(ensure, "Error",
-                          Condition=f"!Exists('{targets_path}')",
-                          Text=f"$([System.String]::Format('$(ErrorText)', '{targets_path}'))")
     else:
         ET.SubElement(proj, "ImportGroup", Label="ExtensionTargets")
 
@@ -379,10 +396,11 @@ def generate_sln():
     lines.append("MinimumVisualStudioVersion = 10.0.40219.1")
 
     guid_upper = PROJECT_GUID.upper()
-    # .vcxproj is at the repo root — no subdirectory prefix
+    # .vcxproj is inside the SimpleEngine\ subdirectory, one level below the .sln
+    vcxproj_rel = f"{PROJECT_NAME}\\{PROJECT_NAME}.vcxproj"
     lines.append(
         f'Project("{VS_PROJECT_TYPE}") = "{PROJECT_NAME}", '
-        f'"{PROJECT_NAME}.vcxproj", "{guid_upper}"'
+        f'"{vcxproj_rel}", "{guid_upper}"'
     )
     lines.append("EndProject")
 
@@ -421,7 +439,9 @@ def generate_sln():
 # Main
 # ──────────────────────────────────────────────
 def main():
-    print(f"Scanning project files in {PROJECT_DIR}...")
+    print(f"Project dir : {PROJECT_DIR}")
+    print(f"Repo root   : {ROOT}")
+    print(f"Scanning project files...")
 
     files = scan_files(PROJECT_DIR)
 
@@ -434,13 +454,13 @@ def main():
     print("Generating project files...")
 
     generate_vcxproj(files)
-    print(f"  {PROJECT_NAME}.vcxproj")
+    print(f"  {PROJECT_DIR / (PROJECT_NAME + '.vcxproj')}")
 
     generate_filters(files)
-    print(f"  {PROJECT_NAME}.vcxproj.filters")
+    print(f"  {PROJECT_DIR / (PROJECT_NAME + '.vcxproj.filters')}")
 
     generate_sln()
-    print(f"  {PROJECT_NAME}.sln")
+    print(f"  {ROOT / (PROJECT_NAME + '.sln')}")
 
     print("Done!")
 

@@ -25,6 +25,9 @@
     <Filter Include="ThirdParty\ImGui">
       <UniqueIdentifier>{6f7a0197-8417-0e60-b399-a9f461b2bb7f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Core\Geometry">
+      <UniqueIdentifier>{f195b649-fb8e-468f-b4b8-169d2be54dd7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common.hlsl">
@@ -57,6 +60,7 @@
       <Filter>ThirdParty\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Source\Core\pch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Core\CoreTypes.h">
@@ -101,5 +105,9 @@
     <ClInclude Include="ThirdParty\ImGui\imstb_truetype.h">
       <Filter>ThirdParty\ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Core\Geometry\OBB.h" />
+    <ClInclude Include="Source\Core\Math\Matrix.h" />
+    <ClInclude Include="Source\Core\Math\Vector.h" />
+    <ClInclude Include="Source\Core\pch.h" />
   </ItemGroup>
 </Project>

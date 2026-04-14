@@ -1,6 +1,6 @@
 # SimpleEngine Project
 
-본 프로젝트는 Windows 환경에서 동작하는 고성능 3D 게임 엔진을 개발하는 것을 목적으로 합니다.
+SimpleEngine 프로젝트는 Windows 환경에서 동작하는 고성능 3D 게임 엔진을 개발하는 것을 목적으로 한다. Direct3D 11 기반 렌더링, ImGui 기반 에디터 UI, PIR 지원, OBJ 메시 파이프라인을 갖추고 있다. Windows 전용이며 SSE/AVX SIMD를 활용하여 레이캐스트 및 컬링 성능을 최적화한다.
 
 ---
 
