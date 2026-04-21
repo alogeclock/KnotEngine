@@ -60,9 +60,9 @@ NONE_EXTS = {".natstepfilter", ".config"}
 EXTRA_SOURCE_FILES = [r"..\main.cpp"]
 
 # Name of the PCH header (must match the filename in Source\Core\)
-PCH_HEADER = "pch.h"
+PCH_HEADER = "CoreMinimal.h"
 # Path to pch.cpp relative to PROJECT_DIR
-PCH_CPP = r"Source\Core\pch.cpp"
+PCH_CPP = r"Source\Core\CoreMinimal.cpp"
 
 # Include paths (relative to PROJECT_DIR)
 INCLUDE_PATHS = [
@@ -70,7 +70,7 @@ INCLUDE_PATHS = [
     "Source\\Engine",
     "Source\\Editor",
     "Source\\Core",
-    "ThirdParty\\ImGui",
+    "ThirdParty",
     ".",
 ]
 

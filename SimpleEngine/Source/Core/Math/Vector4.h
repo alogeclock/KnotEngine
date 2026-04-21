@@ -1,214 +1,200 @@
 #pragma once
-#pragma once
 
-#include "Vector.h"
-#include "Utils.h"
+#include <cassert>
+#include <cmath>
+
+#include "Core/CoreTypes.h"
+#include "Math/Utils.h"
+#include "Math/Vector.h"
 
 struct FMatrix;
 
+/**
+ * 4차원 벡터 구조체(X, Y, Z, W).
+ * 동차 좌표계(Homogeneous Coordinates)를 지원하며 점(Point, W=1)과 벡터(Vector, W=0)를 구분합니다.
+ */
 struct FVector4
 {
 public:
-	// ────── Constructor ──────
-	constexpr FVector4(const float InX = 0.0f, const float InY = 0.0f, const float InZ = 0.0f, const float InW = 0.0f) noexcept
+	union
+	{
+		struct { float X, Y, Z, W; };
+		float XYZW[4];
+	};
+
+	// ──────────── Constructors ────────────
+public:
+	/** 기본 생성자 및 성분별 생성자 */
+	constexpr FVector4(float InX = 0.0f, float InY = 0.0f, float InZ = 0.0f, float InW = 0.0f) noexcept
 		: X(InX), Y(InY), Z(InZ), W(InW)
 	{
 	}
-	constexpr FVector4(const FVector& InVec, const float InW = 0.0f) noexcept
+
+	/** FVector와 W 성분을 이용한 생성자 */
+	constexpr FVector4(const FVector& InVec, float InW = 0.0f) noexcept
 		: X(InVec.X), Y(InVec.Y), Z(InVec.Z), W(InW)
 	{
 	}
-	~FVector4() = default;
 
-	//======================================//
-	//				static helper			//
-	//======================================//
-	static constexpr FVector4 ZeroVector() { return { 0.0f, 0.0f, 0.0f, 0.0f }; }
-	static constexpr FVector4 ZeroPoint() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
-	static constexpr FVector4 UpVector() { return { 0.0f, 0.0f, 1.0f, 0.0f }; }
+	~FVector4() = default;
+	
+	// ──────────── Static Helpers ────────────
+public:
+	/** 영벡터 (0,0,0,0) */
+	static constexpr FVector4 ZeroVector()  { return { 0.0f, 0.0f, 0.0f, 0.0f }; }
+	/** 영점 (0,0,0,1) */
+	static constexpr FVector4 ZeroPoint()   { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
+	/** 상단 벡터 (0,0,1,0) */
+	static constexpr FVector4 UpVector()    { return { 0.0f, 0.0f, 1.0f, 0.0f }; }
+	/** 우측 벡터 (0,1,0,0) */
 	static constexpr FVector4 RightVector() { return { 0.0f, 1.0f, 0.0f, 0.0f }; }
-	static constexpr FVector4 ForwardVector() { return { 1.0f, 0.0f, 0.0f, 0.0f }; }
-	static constexpr FVector4 Zero() { return ZeroVector(); }
-	static constexpr FVector4 Up() { return UpVector(); }
-	static constexpr FVector4 Right() { return RightVector(); }
+	/** 전방 벡터 (1,0,0,0) */
+	static constexpr FVector4 ForwardVector(){ return { 1.0f, 0.0f, 0.0f, 0.0f }; }
+
+	static constexpr FVector4 Zero()    { return ZeroVector(); }
+	static constexpr FVector4 Up()      { return UpVector(); }
+	static constexpr FVector4 Right()   { return RightVector(); }
 	static constexpr FVector4 Forward() { return ForwardVector(); }
-	static constexpr FVector4 Point() { return ZeroPoint(); }
-	static constexpr FVector4 Point(const float InX, const float InY, const float InZ)
+	static constexpr FVector4 Point()   { return ZeroPoint(); }
+
+	/** 특정 좌표의 점(W=1)을 생성합니다. */
+	static constexpr FVector4 Point(float InX, float InY, float InZ)
 	{
 		return { InX, InY, InZ, 1.0f };
 	}
-	static constexpr FVector4 Vector(const float InX, const float InY, const float InZ)
+
+	/** 특정 좌표의 벡터(W=0)를 생성합니다. */
+	static constexpr FVector4 Vector(float InX, float InY, float InZ)
 	{
 		return { InX, InY, InZ, 0.0f };
 	}
 
-	//======================================//
-	//				operators				//
-	//======================================//
-	[[nodiscard]] float Dot(const FVector4& Other) const noexcept
+	// ──────────── Operators ────────────
+public:
+	/** 덧셈 연산자. 점+점은 허용되지 않습니다. */
+	FVector4 operator+(const FVector4& Other) const noexcept
 	{
-		const DirectX::XMVECTOR D = DirectX::XMVector3Dot(ToXMVector(), Other.ToXMVector());
-		return DirectX::XMVectorGetX(D);
-
-		// return X * Other.X + Y * Other.Y + Z * Other.Z;
+		const bool bThisPoint  = IsPoint();
+		const bool bOtherPoint = Other.IsPoint();
+		assert(!(bThisPoint && bOtherPoint) && "FVector4: Point + Point is invalid.");
+		const float ResultW = (bThisPoint || bOtherPoint) ? 1.0f : 0.0f;
+		return { X + Other.X, Y + Other.Y, Z + Other.Z, ResultW };
 	}
 
+	/** 뺄셈 연산자. 벡터-점은 허용되지 않습니다. */
+	FVector4 operator-(const FVector4& Other) const noexcept
+	{
+		const bool bThisPoint  = IsPoint();
+		const bool bOtherPoint = Other.IsPoint();
+		assert((bThisPoint || !bOtherPoint) && "FVector4: Vector - Point is invalid.");
+		const float ResultW = (bThisPoint && !bOtherPoint) ? 1.0f : 0.0f;
+		return { X - Other.X, Y - Other.Y, Z - Other.Z, ResultW };
+	}
+
+	/** 스칼라 곱셈 연산자 */
+	FVector4 operator*(float S) const noexcept
+	{
+		return { X * S, Y * S, Z * S, W * S };
+	}
+
+	/** 스칼라 나눗셈 연산자 */
+	FVector4 operator/(float S) const noexcept
+	{
+		assert(std::abs(S) >= MathUtil::Epsilon && "Division by zero in FVector4::operator/");
+		const float Inv = 1.0f / S;
+		return { X * Inv, Y * Inv, Z * Inv, W * Inv };
+	}
+
+	/** 동등 비교 연산자 (허용 오차 사용) */
+	bool operator==(const FVector4& Other) const noexcept { return IsNearlyEqual(Other); }
+
+	/** 행렬 곱셈 연산자 (순환 의존성 해결 후 정의됨) */
+	inline FVector4 operator*(const struct FMatrix& Mat) const noexcept;
+
+	// ──────────── Methods ────────────
+public:
+	/** 3D 벡터 내적 (W 성분 제외) */
+	[[nodiscard]] float Dot(const FVector4& Other) const noexcept
+	{
+		return DirectX::XMVectorGetX(DirectX::XMVector3Dot(ToXMVector(), Other.ToXMVector()));
+	}
+
+	/** 3D 벡터 외적 (W 성분은 0으로 설정) */
 	[[nodiscard]] FVector4 Cross(const FVector4& Other) const noexcept
 	{
 		const DirectX::XMVECTOR C = DirectX::XMVector3Cross(ToXMVector(), Other.ToXMVector());
 		DirectX::XMFLOAT3 T;
 		DirectX::XMStoreFloat3(&T, C);
 		return { T.x, T.y, T.z, 0.0f };
-
-		// return {Y * Other.Z - Z * Other.Y, Z * Other.X - X * Other.Z, X * Other.Y - Y * Other.X};
 	}
 
-	FVector4 operator+(const FVector4& Other) const noexcept
-	{
-		// Homogeneous rules:
-		// Point + Vector => Point
-		// Vector + Point => Point
-		// Vector + Vector => Vector
-		// Point + Point => invalid
-		const bool bThisPoint = IsPoint();
-		const bool bOtherPoint = Other.IsPoint();
-		assert(!(bThisPoint && bOtherPoint) && "FVector4: Point + Point is invalid.");
-
-		const float ResultW = (bThisPoint || bOtherPoint) ? 1.0f : 0.0f;
-		return { X + Other.X, Y + Other.Y, Z + Other.Z, ResultW };
-
-		// return {X + Other.X, Y + Other.Y, Z + Other.Z, W + Other.W};
-		// return {X + Other.X, Y + Other.Y, Z + Other.Z};
-	}
-
-	FVector4 operator-(const FVector4& Other) const noexcept
-	{
-		// Homogeneous rules:
-		// Point - Point => Vector
-		// Point - Vector => Point
-		// Vector - Vector => Vector
-		// Vector - Point => invalid
-		const bool bThisPoint = IsPoint();
-		const bool bOtherPoint = Other.IsPoint();
-		assert((bThisPoint || !bOtherPoint) && "FVector4: Vector - Point is invalid.");
-
-		const float ResultW = (bThisPoint && !bOtherPoint) ? 1.0f : 0.0f;
-		return { X - Other.X, Y - Other.Y, Z - Other.Z, ResultW };
-
-		// return {X - Other.X, Y - Other.Y, Z - Other.Z, W - Other.W};
-		// return {X - Other.X, Y - Other.Y, Z - Other.Z};
-	}
-
-	FVector4 operator*(const float S) const noexcept
-	{
-		return { X * S, Y * S, Z * S, W * S };
-
-		// return {X * S, Y * S, Z * S};
-	}
-
-	FVector4 operator/(const float S) const noexcept
-	{
-		if (std::abs(S) < MathUtil::Epsilon)
-		{
-			assert(S != 0.0f && "Division by zero in FVector4::operator/");
-			return ZeroVector();
-		}
-		const float Denominator = 1.0f / S;
-		return { X * Denominator, Y * Denominator, Z * Denominator, W * Denominator };
-
-		// float Denominator = 1.0f / S;
-		// return {X * Denominator, Y * Denominator, Z * Denominator};
-	}
-
+	/** 허용 오차 내에서 다른 벡터와 같은지 확인합니다. */
 	[[nodiscard]] bool IsNearlyEqual(const FVector4& Other) const noexcept
 	{
 		return DirectX::XMVector4NearEqual(
 			ToXMVector(),
 			Other.ToXMVector(),
 			DirectX::XMVectorReplicate(MathUtil::Epsilon));
-
-		// return (std::abs(X - Other.X) < FMath::Epsilon) && (std::abs(Y - Other.Y) < FMath::Epsilon) &&
-		//        (std::abs(Z - Other.Z) < FMath::Epsilon);
 	}
 
-	bool operator==(const FVector4& Other) const noexcept { return IsNearlyEqual(Other); }
-
-	//======================================//
-	//				  method				//
-	//======================================//
+	/** 3D 방향 벡터 정규화 (W는 0으로 유지) */
 	[[nodiscard]] FVector4 Normalize() const noexcept
 	{
 		const DirectX::XMVECTOR V = DirectX::XMVectorSet(X, Y, Z, 0.0f);
-		const float SquareSum = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(V));
-		const float Denominator = std::sqrt(SquareSum);
-
-		if (std::abs(Denominator) < MathUtil::Epsilon)
+		const float Len = DirectX::XMVectorGetX(DirectX::XMVector3Length(V));
+		if (std::abs(Len) < MathUtil::Epsilon)
 		{
 			return ZeroVector();
 		}
-
 		const DirectX::XMVECTOR N = DirectX::XMVector3Normalize(V);
 		DirectX::XMFLOAT3 T;
 		DirectX::XMStoreFloat3(&T, N);
 		return { T.x, T.y, T.z, 0.0f };
-
-		// float SquareSum = X * X + Y * Y + Z * Z;
-		// float Denominator = std::sqrt(SquareSum);
-		//
-		// if (std::abs(Denominator) < FMath::Epsilon)
-		// {
-		//     return ZeroVector();
-		// }
-		// Denominator = 1.0f / Denominator;
-		//
-		// return {X * Denominator, Y * Denominator, Z * Denominator};
 	}
 
+	/** 3D 벡터의 길이 (W 성분 제외) */
 	[[nodiscard]] float Length() const noexcept
 	{
-		const DirectX::XMVECTOR V = DirectX::XMVectorSet(X, Y, Z, 0.0f);
-		return DirectX::XMVectorGetX(DirectX::XMVector3Length(V));
-
-		// return std::sqrt(X * X + Y * Y + Z * Z);
+		return DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSet(X, Y, Z, 0.0f)));
 	}
 
-	[[nodiscard]] bool IsPoint(float Tolerance = 1.e-6f) const noexcept
+	/** 이 벡터가 점(Point, W=1)인지 확인합니다. */
+	[[nodiscard]] bool IsPoint(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		return std::abs(W - 1.0f) <= Tolerance;
 	}
 
-	[[nodiscard]] bool IsVector(float Tolerance = 1.e-6f) const noexcept
+	/** 이 벡터가 방향 벡터(Vector, W=0)인지 확인합니다. */
+	[[nodiscard]] bool IsVector(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		return std::abs(W) <= Tolerance;
 	}
 
-	// Homogeneous -> 3D: point uses perspective divide, vector passes through.
-	[[nodiscard]] FVector ToVector3(float Tolerance = 1.e-6f) const noexcept
+	/** 동차 좌표계를 3D 벡터로 변환합니다. 점인 경우 Perspective Divide(X/W, Y/W, Z/W)를 수행합니다. */
+	[[nodiscard]] FVector ToVector3(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		if (std::abs(W) <= Tolerance)
 		{
 			return FVector(X, Y, Z);
 		}
-
 		const float InvW = 1.0f / W;
 		return FVector(X * InvW, Y * InvW, Z * InvW);
 	}
 
+	/** DirectX Math XMVECTOR 형식으로 변환 */
 	XMVector ToXMVector() const noexcept { return DirectX::XMVectorSet(X, Y, Z, W); }
-
-	FVector4 operator*(const FMatrix& Mat) const noexcept;
-
-public:
-	union
-	{
-		struct
-		{
-			float X;
-			float Y;
-			float Z;
-			float W;
-		};
-
-		float XYZW[4];
-	};
 };
+
+// ============================================================================
+// FMatrix 순환 의존 구현
+// ============================================================================
+#include "Math/Matrix.h"
+
+/** 4D 벡터와 4x4 행렬의 곱셈을 수행합니다. */
+inline FVector4 FVector4::operator*(const FMatrix& Mat) const noexcept
+{
+	const DirectX::XMVECTOR R = DirectX::XMVector4Transform(ToXMVector(), Mat.ToXMMatrix());
+	DirectX::XMFLOAT4 T;
+	DirectX::XMStoreFloat4(&T, R);
+	return { T.x, T.y, T.z, T.w };
+}

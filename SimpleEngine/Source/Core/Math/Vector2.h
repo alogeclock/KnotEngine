@@ -1,7 +1,8 @@
 #pragma once
-#pragma once
 
 #include "Core/CoreTypes.h"
+
+struct FVector;
 
 struct FVector2
 {
@@ -14,7 +15,7 @@ public:
 			float Y;
 		};
 
-		float XY[2];
+		float Data[2];
 	};
 
 	static const FVector2 ZeroVector;
@@ -25,9 +26,7 @@ public:
 	static inline FVector2 UnitX() { return { 1.f, 0.f }; }
 	static inline FVector2 UnitY() { return { 0.f, 1.f }; }
 
-	//======================================//
-	//				constructor				//
-	//======================================//
+	// ──────────── Constructor ────────────
 public:
 	constexpr FVector2() noexcept : X(0.f), Y(0.f)
 	{
@@ -53,9 +52,7 @@ public:
 	FVector2(const FVector2&) noexcept = default;
 	FVector2(FVector2&&) noexcept = default;
 
-	//======================================//
-	//				operators				//
-	//======================================//
+	// ──────────── Operators ────────────
 public:
 	FVector2& operator=(const FVector2&) noexcept = default;
 	FVector2& operator=(FVector2&&) noexcept = default;
@@ -63,13 +60,13 @@ public:
 	float& operator[](int32_t Index) noexcept
 	{
 		assert(Index >= 0 && Index < 2);
-		return XY[Index];
+		return Data[Index];
 	}
 
 	const float& operator[](int32_t Index) const noexcept
 	{
 		assert(Index >= 0 && Index < 2);
-		return XY[Index];
+		return Data[Index];
 	}
 
 	constexpr bool operator==(const FVector2& Other) const noexcept
@@ -137,9 +134,7 @@ public:
 		return *this;
 	}
 
-	//======================================//
-	//				  method				//
-	//======================================//
+	// ──────────── Methods ────────────
 public:
 	// 현재 벡터를 DirectX::XMFLOAT2 형식으로 변환함
 	DirectX::XMFLOAT2 ToXMFLOAT2() const noexcept
@@ -198,7 +193,9 @@ public:
 		const float SquareSum = DirectX::XMVectorGetX(DirectX::XMVector2LengthSq(Vector));
 		if (SquareSum > Tolerance)
 		{
-			*this = FVector2(DirectX::XMVector3Normalize(Vector));
+			const XMVector NormalizedV = DirectX::XMVector2Normalize(Vector);
+			X = DirectX::XMVectorGetX(NormalizedV);
+			Y = DirectX::XMVectorGetY(NormalizedV);
 			return true;
 		}
 
@@ -230,10 +227,8 @@ public:
 	}
 
 	// 두 벡터의 외적(Cross Product)을 구함
-	static FVector CrossProduct(const FVector2& A, const FVector2& B) noexcept
-	{
-		return FVector(DirectX::XMVector2Cross(A.ToXMVector(), B.ToXMVector()));
-	}
+	// 구현은 Vector.h 하단에서 수행함
+	static FVector CrossProduct(const FVector2& A, const FVector2& B) noexcept;
 
 	// 두 벡터 사이 거리의 제곱 값을 구함
 	// 거리 비교만 필요할 때 Dist()보다 효율적임
@@ -265,3 +260,5 @@ namespace std
 	};
 }
 
+ inline constexpr FVector2 FVector2::ZeroVector(0.f, 0.f);
+ inline constexpr FVector2 FVector2::OneVector(1.f, 1.f);

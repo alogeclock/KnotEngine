@@ -1,140 +1,479 @@
-﻿#pragma once
+#pragma once
 
-#include "Vector.h"
-#include "Core/EngineTypes.h"
+#include <cassert>
+#include <cmath>
+#include <algorithm>
 
-struct FMatrix;
+#include "Core/CoreTypes.h"
+#include "Math/Utils.h"
+#include "Math/Vector.h"
+
 struct FRotator;
+struct FMatrix;
 
 struct FQuat
 {
-	float X = 0.0f;
-	float Y = 0.0f;
-	float Z = 0.0f;
-	float W = 1.0f;
+public:
+	float X, Y, Z, W;
 
-	// 항등 쿼터니언입니다. 회전이 없는 상태를 나타냅니다.
 	static const FQuat Identity;
 
-	//======================================//
-	//				constructor				//
-	//======================================//
-	constexpr FQuat() noexcept = default;
+	// ──────────── Constructor ────────────
+public:
+	constexpr FQuat() noexcept
+		: X(0.f), Y(0.f), Z(0.f), W(1.f) {}
 
-	// 원시 XYZW 성분으로부터 쿼터니언을 생성합니다.
 	constexpr FQuat(float InX, float InY, float InZ, float InW) noexcept
-		: X(InX), Y(InY), Z(InZ), W(InW)
+		: X(InX), Y(InY), Z(InZ), W(InW) {}
+
+	explicit FQuat(FXMVector InVector) noexcept
+		: X(0.f), Y(0.f), Z(0.f), W(1.f)
 	{
+		DirectX::XMFLOAT4 Temp;
+		DirectX::XMStoreFloat4(&Temp, InVector);
+		X = Temp.x; Y = Temp.y; Z = Temp.z; W = Temp.w;
 	}
 
-	// {X, Y, Z, W}를 담고 있는 DirectX 벡터로부터 쿼터니언을 생성합니다.
-	explicit FQuat(FXMVector InVector) noexcept;
-	// 도 단위의 엔진 로테이터로부터 쿼터니언을 생성합니다.
+	FQuat(const FVector& Axis, float AngleRad) noexcept
+		: X(0.f), Y(0.f), Z(0.f), W(1.f)
+	{
+		const FVector NormalizedAxis = Axis.GetSafeNormal();
+		if (!NormalizedAxis.IsNearlyZero())
+		{
+			*this = FQuat(DirectX::XMQuaternionRotationAxis(NormalizedAxis.ToXMVector(), AngleRad));
+			Normalize();
+		}
+	}
+
+	// Defined after #include "Rotator.h" / "Matrix.h"
 	explicit FQuat(const FRotator& InRotator) noexcept;
-	// 회전 행렬로부터 쿼터니언을 생성합니다. 입력 행렬은 순수 회전 행렬이라고 가정합니다.
 	explicit FQuat(const FMatrix& InMatrix) noexcept;
-	// 단위 축과 라디안 각도로부터 쿼터니언을 생성합니다.
-	FQuat(const FVector& Axis, float AngleRad) noexcept;
 
-	// 엔진 오일러 각도 {Roll, Pitch, Yaw} 도 단위 값으로부터 쿼터니언을 생성합니다.
-	static FQuat MakeFromEuler(const FVector& InEulerDegrees) noexcept;
-	// 두 쿼터니언 사이의 4차원 내적을 반환합니다.
-	static float DotProduct(const FQuat& A, const FQuat& B) noexcept;
-	// 최단 호 기준의 구면 선형 보간으로 두 쿼터니언 사이를 보간합니다.
-	static FQuat Slerp(const FQuat& A, const FQuat& B, float Alpha) noexcept;
+	FQuat(const FQuat&) noexcept = default;
+	FQuat(FQuat&&) noexcept = default;
 
-	// 각 성분이 완전히 같은지 반환합니다.
-	bool operator==(const FQuat& Other) const noexcept;
-	// 각 성분 중 하나라도 다르면 true를 반환합니다.
-	bool operator!=(const FQuat& Other) const noexcept;
-	// 부호가 반전된 쿼터니언을 반환합니다. -Q는 Q와 같은 회전을 나타냅니다.
-	FQuat operator-() const noexcept;
-	// 두 쿼터니언을 성분별로 더합니다.
-	FQuat operator+(const FQuat& Other) const noexcept;
-	// 두 쿼터니언을 성분별로 뺍니다.
-	FQuat operator-(const FQuat& Other) const noexcept;
-	// 모든 성분에 스칼라를 곱합니다.
-	FQuat operator*(float Scale) const noexcept;
-	// 모든 성분을 스칼라로 나눕니다.
-	FQuat operator/(float Scale) const noexcept;
-	// 엔진의 row-vector 규약 기준으로 두 회전을 합성합니다.
-	FQuat operator*(const FQuat& Other) const noexcept;
-	// 이 쿼터니언으로 벡터를 회전시킵니다.
-	FVector operator*(const FVector& InVector) const noexcept;
+	// ──────────── Operators ────────────
+public:
+	FQuat& operator=(const FQuat&) noexcept = default;
+	FQuat& operator=(FQuat&&) noexcept = default;
 
-	FQuat& operator+=(const FQuat& Other) noexcept;
-	// 다른 쿼터니언을 성분별로 현재 값에서 뺍니다.
-	FQuat& operator-=(const FQuat& Other) noexcept;
-	// 모든 성분에 스칼라를 제자리에서 곱합니다.
-	FQuat& operator*=(float Scale) noexcept;
-	// 모든 성분을 스칼라로 제자리에서 나눕니다.
-	FQuat& operator/=(float Scale) noexcept;
-	// 다른 회전을 현재 쿼터니언에 제자리에서 합성합니다.
-	FQuat& operator*=(const FQuat& Other) noexcept;
+	bool operator==(const FQuat& Other) const noexcept
+	{
+		return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
+	}
 
-	// 다른 쿼터니언과의 4차원 내적을 반환합니다.
-	float operator|(const FQuat& Other) const noexcept;
+	bool operator!=(const FQuat& Other) const noexcept { return !(*this == Other); }
 
-	//======================================//
-	//				  method				//
-	//======================================//
-	// 이 쿼터니언을 {X, Y, Z, W} 형태의 DirectX 벡터로 변환합니다.
-	XMVector ToXMVector() const noexcept;
-	// 허용 오차 내에서 회전적으로 같은지 반환합니다. Q와 -Q는 같은 회전으로 취급합니다.
-	bool Equals(const FQuat& Other, float Tolerance = 1.e-6f) const noexcept;
-	// 이 쿼터니언이 항등 회전에 가깝다면 true를 반환합니다.
-	bool IsIdentity(float Tolerance = 1.e-6f) const noexcept;
-	// 성분 중 하나라도 NaN 또는 무한대이면 true를 반환합니다.
-	bool ContainsNaN() const noexcept;
-	// 쿼터니언 크기의 제곱을 반환합니다.
-	float SizeSquared() const noexcept;
-	// 쿼터니언의 크기를 반환합니다.
-	float Size() const noexcept;
-	// 쿼터니언 크기가 1에 가깝다면 true를 반환합니다.
-	bool IsNormalized(float Tolerance = 1.e-4f) const noexcept;
-	// 이 쿼터니언을 정규화합니다. 길이가 너무 작으면 항등 쿼터니언이 됩니다.
-	void Normalize(float Tolerance = 1.e-8f) noexcept;
-	// 정규화된 복사본을 반환합니다. 길이가 너무 작으면 항등 쿼터니언을 반환합니다.
-	FQuat GetNormalized(float Tolerance = 1.e-8f) const noexcept;
-	// 켤레 쿼터니언 {-X, -Y, -Z, W}를 반환합니다.
-	FQuat Conjugate() const noexcept;
-	// 역 쿼터니언을 반환합니다. 길이가 너무 작으면 항등 쿼터니언을 반환합니다.
-	FQuat Inverse() const noexcept;
-	// 이 쿼터니언으로 벡터를 회전시킵니다.
-	FVector RotateVector(const FVector& InVector) const noexcept;
-	// 이 쿼터니언의 역회전으로 벡터를 회전시킵니다.
-	FVector UnrotateVector(const FVector& InVector) const noexcept;
-	// 회전 각도를 라디안 단위로 반환합니다.
-	float GetAngle() const noexcept;
-	// 단위 회전축을 반환합니다. 축이 퇴화한 경우 전방 축으로 대체합니다.
-	FVector GetRotationAxis(float Tolerance = 1.e-8f) const noexcept;
-	// 엔진 오일러 각도 {Roll, Pitch, Yaw}를 도 단위로 반환합니다.
-	FVector Euler() const noexcept;
-	// 회전된 로컬 X축을 반환합니다.
-	FVector GetAxisX() const noexcept;
-	// 회전된 로컬 Y축을 반환합니다.
-	FVector GetAxisY() const noexcept;
-	// 회전된 로컬 Z축을 반환합니다.
-	FVector GetAxisZ() const noexcept;
-	// 회전된 전방 벡터(+X)를 반환합니다.
-	FVector GetForwardVector() const noexcept;
-	// 회전된 오른쪽 벡터(+Y)를 반환합니다.
-	FVector GetRightVector() const noexcept;
-	// 회전된 위쪽 벡터(+Z)를 반환합니다.
-	FVector GetUpVector() const noexcept;
-	// 다른 쿼터니언까지의 최소 각거리(rad)를 반환합니다.
-	float AngularDistance(const FQuat& Other) const noexcept;
-	// Other와의 관계에서 최단 호를 유지하도록 필요하면 부호를 뒤집습니다.
-	void EnforceShortestArcWith(const FQuat& Other) noexcept;
-	// 이 쿼터니언을 4x4 회전 행렬로 변환합니다.
-	FMatrix ToMatrix() const noexcept;
+	FQuat operator-() const noexcept { return FQuat(-X, -Y, -Z, -W); }
 
-	// 이 쿼터니언을 도 단위의 엔진 로테이터로 변환합니다.
-	FRotator Rotator() const noexcept;
+	FQuat operator+(const FQuat& Other) const noexcept
+	{
+		return FQuat(X + Other.X, Y + Other.Y, Z + Other.Z, W + Other.W);
+	}
+
+	FQuat operator-(const FQuat& Other) const noexcept
+	{
+		return FQuat(X - Other.X, Y - Other.Y, Z - Other.Z, W - Other.W);
+	}
+
+	FQuat operator*(float Scale) const noexcept
+	{
+		return FQuat(X * Scale, Y * Scale, Z * Scale, W * Scale);
+	}
+
+	FQuat operator/(float Scale) const noexcept
+	{
+		assert(std::fabs(Scale) > MathUtil::SmallNumber);
+		return FQuat(X / Scale, Y / Scale, Z / Scale, W / Scale);
+	}
+
+	FQuat operator*(const FQuat& Other) const noexcept
+	{
+		return FQuat(DirectX::XMQuaternionMultiply(ToXMVector(), Other.ToXMVector()));
+	}
+
+	FVector operator*(const FVector& InVector) const noexcept
+	{
+		return RotateVector(InVector);
+	}
+
+	FQuat& operator+=(const FQuat& Other) noexcept
+	{
+		X += Other.X; Y += Other.Y; Z += Other.Z; W += Other.W;
+		return *this;
+	}
+
+	FQuat& operator-=(const FQuat& Other) noexcept
+	{
+		X -= Other.X; Y -= Other.Y; Z -= Other.Z; W -= Other.W;
+		return *this;
+	}
+
+	FQuat& operator*=(float Scale) noexcept
+	{
+		X *= Scale; Y *= Scale; Z *= Scale; W *= Scale;
+		return *this;
+	}
+
+	FQuat& operator/=(float Scale) noexcept
+	{
+		assert(std::fabs(Scale) > MathUtil::SmallNumber);
+		X /= Scale; Y /= Scale; Z /= Scale; W /= Scale;
+		return *this;
+	}
+
+	FQuat& operator*=(const FQuat& Other) noexcept
+	{
+		*this = *this * Other;
+		return *this;
+	}
+
+	float operator|(const FQuat& Other) const noexcept
+	{
+		return DotProduct(*this, Other);
+	}
+
+	// ──────────── Methods ────────────
+public:
+	XMVector ToXMVector() const noexcept
+	{
+		return DirectX::XMVectorSet(X, Y, Z, W);
+	}
+
+	bool Equals(const FQuat& Other, float Tolerance = MathUtil::SmallNumber) const noexcept
+	{
+		const bool bSameSign =
+			std::fabs(X - Other.X) <= Tolerance && std::fabs(Y - Other.Y) <= Tolerance &&
+			std::fabs(Z - Other.Z) <= Tolerance && std::fabs(W - Other.W) <= Tolerance;
+
+		const bool bNegatedSign =
+			std::fabs(X + Other.X) <= Tolerance && std::fabs(Y + Other.Y) <= Tolerance &&
+			std::fabs(Z + Other.Z) <= Tolerance && std::fabs(W + Other.W) <= Tolerance;
+
+		return bSameSign || bNegatedSign;
+	}
+
+	bool IsIdentity(float Tolerance = MathUtil::SmallNumber) const noexcept
+	{
+		return Equals(Identity, Tolerance);
+	}
+
+	bool ContainsNaN() const noexcept
+	{
+		return !std::isfinite(X) || !std::isfinite(Y) || !std::isfinite(Z) || !std::isfinite(W);
+	}
+
+	float SizeSquared() const noexcept
+	{
+		return DirectX::XMVectorGetX(DirectX::XMVector4LengthSq(ToXMVector()));
+	}
+
+	float Size() const noexcept
+	{
+		return DirectX::XMVectorGetX(DirectX::XMVector4Length(ToXMVector()));
+	}
+
+	bool IsNormalized(float Tolerance = MathUtil::SmallNumber) const noexcept
+	{
+		return std::fabs(SizeSquared() - 1.0f) <= Tolerance;
+	}
+
+	void Normalize(float Tolerance = MathUtil::SmallNumber) noexcept
+	{
+		const XMVector QuatVector = ToXMVector();
+		const float SquaredSize = DirectX::XMVectorGetX(DirectX::XMVector4LengthSq(QuatVector));
+		if (SquaredSize > Tolerance)
+		{
+			*this = FQuat(DirectX::XMQuaternionNormalize(QuatVector));
+			return;
+		}
+		*this = Identity;
+	}
+
+	FQuat GetNormalized(float Tolerance = MathUtil::SmallNumber) const noexcept
+	{
+		FQuat Result = *this;
+		Result.Normalize(Tolerance);
+		return Result;
+	}
+
+	FQuat Conjugate() const noexcept
+	{
+		return FQuat(DirectX::XMQuaternionConjugate(ToXMVector()));
+	}
+
+	FQuat Inverse() const noexcept
+	{
+		const float SquaredSize = SizeSquared();
+		if (SquaredSize <= MathUtil::SmallNumber)
+		{
+			return Identity;
+		}
+		return Conjugate() / SquaredSize;
+	}
+
+	FVector RotateVector(const FVector& InVector) const noexcept
+	{
+		return FVector(DirectX::XMVector3Rotate(InVector.ToXMVector(), GetNormalized().ToXMVector()));
+	}
+
+	FVector UnrotateVector(const FVector& InVector) const noexcept
+	{
+		return FVector(DirectX::XMVector3InverseRotate(InVector.ToXMVector(), GetNormalized().ToXMVector()));
+	}
+
+	float GetAngle() const noexcept
+	{
+		const FQuat NormalizedQuat = GetNormalized();
+		const float ClampedW = std::clamp(NormalizedQuat.W, -1.0f, 1.0f);
+		return 2.0f * std::acos(ClampedW);
+	}
+
+	FVector GetRotationAxis(float Tolerance = MathUtil::SmallNumber) const noexcept
+	{
+		const FQuat NormalizedQuat = GetNormalized();
+		const float AxisSquared = NormalizedQuat.X * NormalizedQuat.X
+			+ NormalizedQuat.Y * NormalizedQuat.Y
+			+ NormalizedQuat.Z * NormalizedQuat.Z;
+		if (AxisSquared <= Tolerance)
+		{
+			return FVector::ForwardVector;
+		}
+		const float InvAxisSize = 1.0f / std::sqrt(AxisSquared);
+		return FVector(
+			NormalizedQuat.X * InvAxisSize,
+			NormalizedQuat.Y * InvAxisSize,
+			NormalizedQuat.Z * InvAxisSize);
+	}
+
+	FVector GetAxisX() const noexcept { return RotateVector(FVector::ForwardVector); }
+	FVector GetAxisY() const noexcept { return RotateVector(FVector::RightVector); }
+	FVector GetAxisZ() const noexcept { return RotateVector(FVector::UpVector); }
+
+	FVector GetForwardVector() const noexcept { return GetAxisX(); }
+	FVector GetRightVector()   const noexcept { return GetAxisY(); }
+	FVector GetUpVector()      const noexcept { return GetAxisZ(); }
+
+	float AngularDistance(const FQuat& Other) const noexcept
+	{
+		const float ClampedAbsDot = std::clamp(
+			std::fabs(DotProduct(GetNormalized(), Other.GetNormalized())), -1.0f, 1.0f);
+		return 2.0f * std::acos(ClampedAbsDot);
+	}
+
+	void EnforceShortestArcWith(const FQuat& Other) noexcept
+	{
+		if (DotProduct(*this, Other) < 0.0f)
+		{
+			X = -X; Y = -Y; Z = -Z; W = -W;
+		}
+	}
+
+	// Defined after #include "Rotator.h" / "Matrix.h"
+	inline FVector  Euler()    const noexcept;
+	inline FRotator Rotator()  const noexcept;
+	inline FMatrix  ToMatrix() const noexcept;
+
+	// ──────────── static methods ────────────
+public:
+	static float DotProduct(const FQuat& A, const FQuat& B) noexcept
+	{
+		return DirectX::XMVectorGetX(DirectX::XMVector4Dot(A.ToXMVector(), B.ToXMVector()));
+	}
+
+	static FQuat Slerp(const FQuat& A, const FQuat& B, float Alpha) noexcept
+	{
+		FQuat AdjustedB = B;
+		if (DotProduct(A, B) < 0.0f)
+		{
+			AdjustedB = -AdjustedB;
+		}
+		return FQuat(DirectX::XMQuaternionSlerp(
+			A.GetNormalized().ToXMVector(),
+			AdjustedB.GetNormalized().ToXMVector(),
+			Alpha)).GetNormalized();
+	}
+
+	// Defined after #include "Rotator.h"
+	static inline FQuat MakeFromEuler(const FVector& InEulerDegrees) noexcept;
+
+	// ──────────── private helpers ────────────
+private:
+	static bool BuildOrthonormalBasisFromXY(
+		const FVector& InX, const FVector& InY,
+		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
+	{
+		OutX = InX.GetSafeNormal(MathUtil::SmallNumber);
+		if (OutX.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		const FVector ProjectedY = InY - OutX * FVector::DotProduct(InY, OutX);
+		OutY = ProjectedY.GetSafeNormal(MathUtil::SmallNumber);
+		if (OutY.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::SmallNumber);
+		if (OutZ.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::SmallNumber);
+		return !OutY.IsNearlyZero(MathUtil::SmallNumber);
+	}
+
+	static bool BuildOrthonormalBasisFromXZ(
+		const FVector& InX, const FVector& InZ,
+		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
+	{
+		OutX = InX.GetSafeNormal(MathUtil::SmallNumber);
+		if (OutX.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		const FVector ProjectedZ = InZ - OutX * FVector::DotProduct(InZ, OutX);
+		OutZ = ProjectedZ.GetSafeNormal(MathUtil::SmallNumber);
+		if (OutZ.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::SmallNumber);
+		if (OutY.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::SmallNumber);
+		return !OutZ.IsNearlyZero(MathUtil::SmallNumber);
+	}
+
+	static bool BuildOrthonormalBasisFromYZ(
+		const FVector& InY, const FVector& InZ,
+		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
+	{
+		OutY = InY.GetSafeNormal(MathUtil::SmallNumber);
+		if (OutY.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		const FVector ProjectedZ = InZ - OutY * FVector::DotProduct(InZ, OutY);
+		OutZ = ProjectedZ.GetSafeNormal(MathUtil::SmallNumber);
+		if (OutZ.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		OutX = FVector::CrossProduct(OutY, OutZ).GetSafeNormal(MathUtil::SmallNumber);
+		if (OutX.IsNearlyZero(MathUtil::SmallNumber)) return false;
+
+		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::SmallNumber);
+		return !OutZ.IsNearlyZero(MathUtil::SmallNumber);
+	}
 };
 
-// 스칼라가 왼쪽에 오는 형태로 모든 성분에 스칼라를 곱합니다.
-inline FQuat operator*(float Scale, const FQuat& Quat) noexcept
+inline constexpr FQuat FQuat::Identity { 0.f, 0.f, 0.f, 1.f };
+
+inline FQuat operator*(float Scale, const FQuat& Q) noexcept { return Q * Scale; }
+
+
+// ──────────── Circular-dependency inline implementations ────────────
+// FRotator <-> FQuat, FMatrix <-> FQuat 순환 의존성을 끊기 위해
+// FQuat 크기가 확정된 이후 이곳에서 헤더를 포함합니다.
+// ────────────────────────────────────────────────────────────────────
+#include "Math/Rotator.h"
+#include "Math/Matrix.h"
+
+inline FQuat::FQuat(const FRotator& InRotator) noexcept
+	: FQuat(InRotator.Quaternion())
 {
-	return Quat * Scale;
+}
+
+inline FQuat::FQuat(const FMatrix& InMatrix) noexcept
+	: X(0.f), Y(0.f), Z(0.f), W(1.f)
+{
+	DirectX::XMVECTOR OutScale, OutRotation, OutTranslation;
+	if (DirectX::XMMatrixDecompose(&OutScale, &OutRotation, &OutTranslation, InMatrix.ToXMMatrix()))
+	{
+		*this = FQuat(OutRotation);
+		Normalize();
+		return;
+	}
+
+	const FMatrix RotationSource = InMatrix.GetMatrixWithoutTranslation();
+	const FVector XAxis = RotationSource.GetScaledAxis(EAxis::X);
+	const FVector YAxis = RotationSource.GetScaledAxis(EAxis::Y);
+	const FVector ZAxis = RotationSource.GetScaledAxis(EAxis::Z);
+
+	FVector OrthoX, OrthoY, OrthoZ;
+	if (BuildOrthonormalBasisFromXY(XAxis, YAxis, OrthoX, OrthoY, OrthoZ)
+		|| BuildOrthonormalBasisFromXZ(XAxis, ZAxis, OrthoX, OrthoY, OrthoZ)
+		|| BuildOrthonormalBasisFromYZ(YAxis, ZAxis, OrthoX, OrthoY, OrthoZ))
+	{
+		FMatrix OrthonormalMatrix = FMatrix::Identity;
+		OrthonormalMatrix.SetAxes(OrthoX, OrthoY, OrthoZ);
+		*this = FQuat(DirectX::XMQuaternionRotationMatrix(OrthonormalMatrix.ToXMMatrix()));
+		Normalize();
+		return;
+	}
+
+	*this = Identity;
+}
+
+inline FQuat FQuat::MakeFromEuler(const FVector& InEulerDegrees) noexcept
+{
+	return FQuat(FRotator::MakeFromEuler(InEulerDegrees));
+}
+
+inline FVector FQuat::Euler() const noexcept
+{
+	return Rotator().Euler();
+}
+
+inline FRotator FQuat::Rotator() const noexcept
+{
+	const FMatrix RotationMatrix = ToMatrix();
+	const float ClampedPitchSin  = std::clamp(RotationMatrix.M[2][0], -1.0f, 1.0f);
+	const float PitchRadians     = std::asin(ClampedPitchSin);
+	const float CosPitch         = std::cos(PitchRadians);
+
+	float YawRadians  = 0.0f;
+	float RollRadians = 0.0f;
+
+	if (std::fabs(CosPitch) > MathUtil::Epsilon)
+	{
+		YawRadians  = std::atan2(-RotationMatrix.M[1][0], RotationMatrix.M[0][0]);
+		RollRadians = std::atan2(-RotationMatrix.M[2][1], RotationMatrix.M[2][2]);
+	}
+	else
+	{
+		YawRadians = std::atan2(RotationMatrix.M[0][1], RotationMatrix.M[1][1]);
+	}
+
+	FRotator Result(
+		MathUtil::RadiansToDegrees(PitchRadians),
+		MathUtil::RadiansToDegrees(YawRadians),
+		MathUtil::RadiansToDegrees(RollRadians));
+	Result.Normalize();
+	return Result;
+}
+
+inline FMatrix FQuat::ToMatrix() const noexcept
+{
+	return FMatrix(DirectX::XMMatrixRotationQuaternion(GetNormalized().ToXMVector()));
+}
+
+// ============================================================================
+// FRotator methods that depend on FQuat — defined here to break circular include
+// ============================================================================
+inline FRotator::FRotator(const FQuat& InQuat) noexcept
+	: FRotator(InQuat.Rotator())
+{
+}
+
+inline FQuat FRotator::Quaternion() const noexcept
+{
+	const FMatrix RotationMatrix =
+		FMatrix::MakeRotationZ(MathUtil::DegreesToRadians(Yaw))
+		* FMatrix::MakeRotationY(MathUtil::DegreesToRadians(Pitch))
+		* FMatrix::MakeRotationX(MathUtil::DegreesToRadians(Roll));
+
+	return FQuat(DirectX::XMQuaternionRotationMatrix(RotationMatrix.ToXMMatrix())).GetNormalized();
+}
+
+inline FVector FRotator::RotateVector(const FVector& InVector) const noexcept
+{
+	return Quaternion().RotateVector(InVector);
+}
+
+inline FVector FRotator::UnrotateVector(const FVector& InVector) const noexcept
+{
+	return Quaternion().UnrotateVector(InVector);
+}
+
+inline FRotator FRotator::GetInverse() const noexcept
+{
+	return Quaternion().Inverse().Rotator();
 }

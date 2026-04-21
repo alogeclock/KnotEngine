@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Core/CoreTypes.h"
 #include "Math/Vector.h"
@@ -12,9 +12,7 @@ public:
 	FVector A;
 	FVector B;
 
-	//======================================//
-	//				constructor				//
-	//======================================//
+	// ──────────── Constructor ────────────
 public:
 	constexpr FEdge() noexcept : A(), B() {}
 
@@ -26,9 +24,7 @@ public:
 	FEdge(const FEdge&) noexcept = default;
 	FEdge(FEdge&&) noexcept = default;
 
-	//======================================//
-	//				operators				//
-	//======================================//
+	// ──────────── Operators ────────────
 public:
 	FEdge& operator=(const FEdge&) noexcept = default;
 	FEdge& operator=(FEdge&&) noexcept = default;
@@ -45,9 +41,7 @@ public:
 		return !(*this == Other);
 	}
 
-	//======================================//
-	//				  method				//
-	//======================================//
+	// ──────────── Methods ────────────
 public:
 	// 간선의 중간 지점을 반환함
 	FVector Midpoint() const noexcept
@@ -108,9 +102,7 @@ public:
     uint32 A;
     uint32 B;
 
-    //======================================//
-    //                constructor           //
-    //======================================//
+    // ──────────── Constructor ────────────
 public:
     constexpr FIndexEdge() noexcept : A(0), B(0) {}
 
@@ -122,9 +114,7 @@ public:
     FIndexEdge(const FIndexEdge&) noexcept = default;
     FIndexEdge(FIndexEdge&&) noexcept = default;
 
-    //======================================//
-    //                operators             //
-    //======================================//
+	// ──────────── Operators ────────────
 public:
     FIndexEdge& operator=(const FIndexEdge&) noexcept = default;
     FIndexEdge& operator=(FIndexEdge&&) noexcept = default;
@@ -141,9 +131,7 @@ public:
         return !(*this == Other);
     }
 
-    //======================================//
-    //                 method               //
-    //======================================//
+    // ──────────── Methods ────────────
 public:
     // 두 인덱스 중 더 작은 쪽이 A가 되도록 정규화된 복사본을 반환함
     FIndexEdge Canonical() const noexcept

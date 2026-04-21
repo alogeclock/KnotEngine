@@ -16,6 +16,12 @@
     <Filter Include="Source\Core\Math">
       <UniqueIdentifier>{7c949674-23c1-b5eb-73e7-3c5a2a14ef43}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Editor">
+      <UniqueIdentifier>{1992555a-5ec1-d79c-ff0c-65d04448186f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Editor\Viewport">
+      <UniqueIdentifier>{822a0262-6e54-28b0-138e-174699e9baf0}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Engine">
       <UniqueIdentifier>{55df2863-c0d4-5113-919a-fb7268b1146d}</UniqueIdentifier>
     </Filter>
@@ -38,44 +44,32 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Core\pch.cpp">
+    <ClCompile Include="Source\Core\CoreMinimal.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Geometry\AABB.cpp">
-      <Filter>Source\Core\Geometry</Filter>
+    <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp">
+      <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Geometry\Frustum.cpp">
-      <Filter>Source\Core\Geometry</Filter>
+    <ClCompile Include="Source\Editor\Viewport\LevelViewportClient.cpp">
+      <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Geometry\OBB.cpp">
-      <Filter>Source\Core\Geometry</Filter>
+    <ClCompile Include="Source\Editor\Viewport\Viewport.cpp">
+      <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Geometry\Plane.cpp">
-      <Filter>Source\Core\Geometry</Filter>
+    <ClCompile Include="Source\Engine\Components\ActorComponent.cpp">
+      <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Geometry\Transform.cpp">
-      <Filter>Source\Core\Geometry</Filter>
+    <ClCompile Include="Source\Engine\Components\CubeComponent.cpp">
+      <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Math\Color.cpp">
-      <Filter>Source\Core\Math</Filter>
+    <ClCompile Include="Source\Engine\Components\PrimitiveComponent.cpp">
+      <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Math\Matrix.cpp">
-      <Filter>Source\Core\Math</Filter>
+    <ClCompile Include="Source\Engine\Components\SceneComponent.cpp">
+      <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Core\Math\Quat.cpp">
-      <Filter>Source\Core\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Core\Math\Rotator.cpp">
-      <Filter>Source\Core\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Core\Math\Vector.cpp">
-      <Filter>Source\Core\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Core\Math\Vector2.cpp">
-      <Filter>Source\Core\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Core\Math\Vector4.cpp">
-      <Filter>Source\Core\Math</Filter>
+    <ClCompile Include="Source\Engine\Components\SphereComponent.cpp">
+      <Filter>Source\Engine\Components</Filter>
     </ClCompile>
     <ClCompile Include="Source\Engine\Render\Renderer.cpp">
       <Filter>Source\Engine\Render</Filter>
@@ -110,13 +104,7 @@
     <ClInclude Include="Source\Core\CoreTypes.h">
       <Filter>Source\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Core\pch.h">
-      <Filter>Source\Core</Filter>
-    </ClInclude>
     <ClInclude Include="Source\Core\Geometry\AABB.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Core\Geometry\Edge.h">
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\Geometry\Frustum.h">
@@ -132,9 +120,6 @@
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\Geometry\Transform.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Core\Geometry\Triangle.h">
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\Math\Color.h">
@@ -164,7 +149,19 @@
     <ClInclude Include="Source\Core\Math\Vector4.h">
       <Filter>Source\Core\Math</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Components\BoxComponent.h">
+    <ClInclude Include="Source\Editor\Viewport\EditorViewportClient.h">
+      <Filter>Source\Editor\Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\Viewport\LevelViewportClient.h">
+      <Filter>Source\Editor\Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Editor\Viewport\Viewport.h">
+      <Filter>Source\Editor\Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Components\ActorComponent.h">
+      <Filter>Source\Engine\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Components\CubeComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Components\PrimitiveComponent.h">
@@ -177,6 +174,9 @@
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
     <ClInclude Include="Source\Engine\Render\Renderer.h">
+      <Filter>Source\Engine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Render\VertexLayouts.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\ImGui\imconfig.h">

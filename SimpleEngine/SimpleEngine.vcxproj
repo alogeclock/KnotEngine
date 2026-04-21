@@ -71,28 +71,28 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty\ImGui;.;$(IncludePath)</IncludePath>
+    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty;.;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty\ImGui;.;$(IncludePath)</IncludePath>
+    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty;.;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty\ImGui;.;$(IncludePath)</IncludePath>
+    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty;.;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(ProjectDir)Bin\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\</IntDir>
-    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty\ImGui;.;$(IncludePath)</IncludePath>
+    <IncludePath>Source;Source\Engine;Source\Editor;Source\Core;ThirdParty;.;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
@@ -107,8 +107,8 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>CoreMinimal.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>CoreMinimal.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,8 +128,8 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>CoreMinimal.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>CoreMinimal.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -147,8 +147,8 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>CoreMinimal.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>CoreMinimal.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -168,8 +168,8 @@
       <ExceptionHandling>Async</ExceptionHandling>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>CoreMinimal.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>CoreMinimal.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -177,21 +177,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Core\pch.cpp">
+    <ClCompile Include="Source\Core\CoreMinimal.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Source\Core\Geometry\AABB.cpp" />
-    <ClCompile Include="Source\Core\Geometry\Frustum.cpp" />
-    <ClCompile Include="Source\Core\Geometry\OBB.cpp" />
-    <ClCompile Include="Source\Core\Geometry\Plane.cpp" />
-    <ClCompile Include="Source\Core\Geometry\Transform.cpp" />
-    <ClCompile Include="Source\Core\Math\Color.cpp" />
-    <ClCompile Include="Source\Core\Math\Matrix.cpp" />
-    <ClCompile Include="Source\Core\Math\Quat.cpp" />
-    <ClCompile Include="Source\Core\Math\Rotator.cpp" />
-    <ClCompile Include="Source\Core\Math\Vector.cpp" />
-    <ClCompile Include="Source\Core\Math\Vector2.cpp" />
-    <ClCompile Include="Source\Core\Math\Vector4.cpp" />
+    <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp" />
+    <ClCompile Include="Source\Editor\Viewport\LevelViewportClient.cpp" />
+    <ClCompile Include="Source\Editor\Viewport\Viewport.cpp" />
+    <ClCompile Include="Source\Engine\Components\ActorComponent.cpp" />
+    <ClCompile Include="Source\Engine\Components\CubeComponent.cpp" />
+    <ClCompile Include="Source\Engine\Components\PrimitiveComponent.cpp" />
+    <ClCompile Include="Source\Engine\Components\SceneComponent.cpp" />
+    <ClCompile Include="Source\Engine\Components\SphereComponent.cpp" />
     <ClCompile Include="Source\Engine\Render\Renderer.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -226,15 +222,12 @@
   <ItemGroup>
     <ClInclude Include="Source\Core\CoreMinimal.h" />
     <ClInclude Include="Source\Core\CoreTypes.h" />
-    <ClInclude Include="Source\Core\pch.h" />
     <ClInclude Include="Source\Core\Geometry\AABB.h" />
-    <ClInclude Include="Source\Core\Geometry\Edge.h" />
     <ClInclude Include="Source\Core\Geometry\Frustum.h" />
     <ClInclude Include="Source\Core\Geometry\OBB.h" />
     <ClInclude Include="Source\Core\Geometry\Plane.h" />
     <ClInclude Include="Source\Core\Geometry\Ray.h" />
     <ClInclude Include="Source\Core\Geometry\Transform.h" />
-    <ClInclude Include="Source\Core\Geometry\Triangle.h" />
     <ClInclude Include="Source\Core\Math\Color.h" />
     <ClInclude Include="Source\Core\Math\Edge.h" />
     <ClInclude Include="Source\Core\Math\Matrix.h" />
@@ -244,11 +237,16 @@
     <ClInclude Include="Source\Core\Math\Vector.h" />
     <ClInclude Include="Source\Core\Math\Vector2.h" />
     <ClInclude Include="Source\Core\Math\Vector4.h" />
-    <ClInclude Include="Source\Engine\Components\BoxComponent.h" />
+    <ClInclude Include="Source\Editor\Viewport\EditorViewportClient.h" />
+    <ClInclude Include="Source\Editor\Viewport\LevelViewportClient.h" />
+    <ClInclude Include="Source\Editor\Viewport\Viewport.h" />
+    <ClInclude Include="Source\Engine\Components\ActorComponent.h" />
+    <ClInclude Include="Source\Engine\Components\CubeComponent.h" />
     <ClInclude Include="Source\Engine\Components\PrimitiveComponent.h" />
     <ClInclude Include="Source\Engine\Components\SceneComponent.h" />
     <ClInclude Include="Source\Engine\Components\SphereComponent.h" />
     <ClInclude Include="Source\Engine\Render\Renderer.h" />
+    <ClInclude Include="Source\Engine\Render\VertexLayouts.h" />
     <ClInclude Include="ThirdParty\ImGui\imconfig.h" />
     <ClInclude Include="ThirdParty\ImGui\imgui.h" />
     <ClInclude Include="ThirdParty\ImGui\imgui_impl_dx11.h" />

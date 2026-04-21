@@ -1,43 +1,42 @@
 #pragma once
-#pragma once
 
 //=============================================================================
-// Platform Types
+// Platform Types & Containers
 // Basic integer and platform-dependent types.
-// Example: int32, uint32, TCHAR.
+// Example: TArray, TMap, int32, uint32, TCHAR.
 //=============================================================================
 #include "CoreTypes.h"
 
 //=============================================================================
-// Containers
-// Core containers and string types.
+// Target Windows Version Settings & DirectX Header
 //=============================================================================
-#include "Containers/Array.h"
-#include "Containers/LinkedList.h"
-#include "Containers/Map.h"
-#include "Containers/Pair.h"
-#include "Containers/Queue.h"
-#include "Containers/Set.h"
-#include "Containers/StaticArray.h"
-#include "Containers/String.h"
+#define WIN32_LEAN_AND_MEAN 
+#define NOMINMAX
+#include <SDKDDKVer.h>
+#include <Windows.h>
+#include <iostream>
+#include <d3d11.h>
+#include <d3dcompiler.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
 
 //=============================================================================
 // Math
 // Core math types and utilities.
 // Vector, matrix, rotation, transform, color, etc.
 //=============================================================================
+#include "Math/Vector2.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
 #include "Math/Color.h"
 #include "Math/Utils.h"
 #include "Math/Matrix.h"
 #include "Math/Quat.h"
 #include "Math/Rotator.h"
-#include "Math/Vector.h"
-#include "Math/Vector4.h"
-#include "Math/Vector2.h"
 
 //=============================================================================
 // Geometry
-// 기하 프리미티브 및 기하 유틸리티
+// Geometry Primitives & Utility
 // AABB, Ray, Segment, Triangle, 교차 판정, Bounds 보조 함수 등
 //=============================================================================
 #include "Geometry/Transform.h"
@@ -45,6 +44,5 @@
 #include "Geometry/OBB.h"
 #include "Geometry/Ray.h"
 #include "Geometry/Plane.h"
-#include "Geometry/Triangle.h"
 #include "Geometry/Frustum.h"
 #include "Geometry/Edge.h"
