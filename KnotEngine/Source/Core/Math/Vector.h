@@ -301,6 +301,19 @@ public:
     static float Distance(const FVector& A, const FVector& B) noexcept { return Dist(A, B); }
 };
 
+// --- Definitions of static members ---
+inline const FVector FVector::ZeroVector{ 0.f, 0.f, 0.f };
+inline const FVector FVector::OneVector{ 1.f, 1.f, 1.f };
+inline const FVector FVector::UpVector{ 0.f, 1.f, 0.f };
+inline const FVector FVector::DownVector{ 0.f, -1.f, 0.f };
+inline const FVector FVector::ForwardVector{ 1.f, 0.f, 0.f };
+inline const FVector FVector::BackwardVector{ -1.f, 0.f, 0.f };
+inline const FVector FVector::RightVector{ 1.f, 0.f, 0.f };
+inline const FVector FVector::LeftVector{ -1.f, 0.f, 0.f };
+inline const FVector FVector::XAxisVector{ 1.f, 0.f, 0.f };
+inline const FVector FVector::YAxisVector{ 0.f, 1.f, 0.f };
+inline const FVector FVector::ZAxisVector{ 0.f, 0.f, 1.f };
+
 // Vector2 CrossProduct Implementation
 inline FVector FVector2::CrossProduct(const FVector2& A, const FVector2& B) noexcept
 {
@@ -321,23 +334,3 @@ struct hash<FVector>
     }
 };
 }
-
-inline constexpr FVector ZeroVector{ 0.f, 0.f, 0.f };
-inline constexpr FVector OneVector{ 1.f, 1.f, 1.f };
-
-// 수직축 (Vertical)
-inline constexpr FVector UpVector{ 0.f, 1.f, 0.f };
-inline constexpr FVector DownVector{ 0.f, -1.f, 0.f };
-
-// 전후축 (Depth / Forward) - UE5 왼손 좌표계에서는 +X가 전방
-inline constexpr FVector ForwardVector{ 1.f, 0.f, 0.f };
-inline constexpr FVector BackwardVector{ -1.f, 0.f, 0.f };
-
-// 좌우축 (Horizontal)
-inline constexpr FVector RightVector{ 1.f, 0.f, 0.f };
-inline constexpr FVector LeftVector{ -1.f, 0.f, 0.f };
-
-// 축별 기본 벡터 (Basic Axes)
-inline constexpr FVector XAxisVector{ 1.f, 0.f, 0.f };
-inline constexpr FVector YAxisVector{ 0.f, 1.f, 0.f };
-inline constexpr FVector ZAxisVector{ 0.f, 0.f, 1.f };

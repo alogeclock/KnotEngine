@@ -450,12 +450,12 @@ FodyWeavers.xsd
 CMakeLists.txt
 
 # ignore Build Files
-SimpleEngine/Build/
-SimpleEngine/Saves/**
+KnotEngine/Build/
+KnotEngine/Saves/**
 
 # Asset 폴더 관련 (그때그때 필요한 파일만 저장하도록 변경)
-!SimpleEngine/Asset/Mesh/**
-!SimpleEngine/Asset/**/*.meta
+!KnotEngine/Asset/Mesh/**
+!KnotEngine/Asset/**/*.meta
 
-SimpleEngine/Asset/Mesh/Bin/**
-SimpleEngine/Asset/Scene/**
+KnotEngine/Asset/Mesh/Bin/**
+KnotEngine/Asset/Scene/**

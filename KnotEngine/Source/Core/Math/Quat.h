@@ -14,7 +14,10 @@ struct FMatrix;
 struct FQuat
 {
 public:
-	float X, Y, Z, W;
+	float X = 0.0f;
+	float Y = 0.0f;
+	float Z = 0.0f;
+	float W = 0.0f;
 
 	static const FQuat Identity;
 
@@ -367,8 +370,8 @@ inline FQuat operator*(float Scale, const FQuat& Q) noexcept { return Q * Scale;
 #include "Math/Matrix.h"
 
 inline FQuat::FQuat(const FRotator& InRotator) noexcept
-	: FQuat(InRotator.Quaternion())
 {
+	*this = InRotator.Quaternion();
 }
 
 inline FQuat::FQuat(const FMatrix& InMatrix) noexcept
@@ -449,8 +452,8 @@ inline FMatrix FQuat::ToMatrix() const noexcept
 // FRotator methods that depend on FQuat — defined here to break circular include
 // ============================================================================
 inline FRotator::FRotator(const FQuat& InQuat) noexcept
-	: FRotator(InQuat.Rotator())
 {
+	*this = InQuat.Rotator();
 }
 
 inline FQuat FRotator::Quaternion() const noexcept

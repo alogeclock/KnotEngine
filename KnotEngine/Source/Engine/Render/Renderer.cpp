@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "CoreMinimal.h"
 #include "Renderer.h"
 
 // 링커 옵션 또는 Pragma를 통해 라이브러리 연결
@@ -42,10 +42,12 @@ void URenderer::CreateDeviceAndSwapChain(HWND hWindow)
 
 void URenderer::CreateFrameBuffer()
 {
-    if (!SwapChain)
+    if (!SwapChain || !Device)
         return;
 
-    SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&FrameBuffer);
+    HRESULT hr = SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&FrameBuffer);
+    if (FAILED(hr) || !FrameBuffer)
+        return;
 
     D3D11_RENDER_TARGET_VIEW_DESC framebufferRTVdesc = {};
     framebufferRTVdesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;

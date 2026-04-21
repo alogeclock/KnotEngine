@@ -1,22 +1,6 @@
 #include "CoreMinimal.h"
 #include "Render/Renderer.h"
 
-#pragma comment(lib, "user32")
-#pragma comment(lib, "d3d11")
-#pragma comment(lib, "d3dcompiler")
-
-#include "ImGui/imgui.h"
-#include "ImGui/imgui_internal.h"
-#include "ImGui/imgui_impl_dx11.h"
-#include "ImGui/imgui_impl_win32.h"
-
-// Renderer.h에서 참조하는 Vertex 구조체 정의
-struct FVertexSimple
-{
-	float x, y, z;
-	float r, g, b, a;
-};
-
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -38,9 +22,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+// ──────────── Microsoft 소스코드 주석 시그니쳐 ────────────
+// _In_: 데이터 읽기만 허용, NULL 반환 금지
+// _In_opt_: _In_과 동일 사양, NULL 전달 허용
+// ────────────────────────────────────────────────────────
+int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
-	WCHAR WindowClass[] = L"JungleWindowClass";
+	WCHAR WindowClass[] = L"SimpleWindowClass";
 	WCHAR Title[] = L"SimpleEngine - ImGui Window";
 	WNDCLASSW wndclass = { 0, WndProc, 0, 0, 0, 0, 0, 0, 0, WindowClass };
 
@@ -60,6 +48,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	ImGui_ImplWin32_Init((void*)hWnd);
+	ImGui_ImplDX11_Init(renderer.GetDevice(), renderer.GetDeviceContext());
 
 	bool bIsExit = false;
 	MSG msg;
@@ -86,8 +75,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		ImGui::NewFrame();
 
 		// ImGui 테스트 창
-		ImGui::Begin("Jungle Property Window");
-		ImGui::Text("Hello, Jungle!");
+		ImGui::Begin("Simple Property Window");
+		ImGui::Text("Hello, Simple!");
 		ImGui::Separator();
 		static float clear_color[4] = { 0.025f, 0.025f, 0.025f, 1.0f };
 		ImGui::ColorEdit4("Background Color", clear_color);

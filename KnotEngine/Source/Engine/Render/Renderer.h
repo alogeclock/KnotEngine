@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h" 
+#include "VertexLayouts.h"
 
 /**
  * URenderer
@@ -35,6 +36,10 @@ public:
     void PrepareShader();
     void RenderPrimitive(ID3D11Buffer* pBuffer, UINT numVertices);
 
+    // 게터
+    ID3D11Device* GetDevice() const { return Device; }
+    ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
+
 private:
     // 내부 초기화 메서드 (SRP 준수)
     void CreateDeviceAndSwapChain(HWND hWindow);
@@ -52,7 +57,6 @@ private:
     {
         FVector Offset;
         float Scale;
-        float Padding[0]; // 16바이트 정렬을 위한 패딩 (필요시 추가)
     };
 
     // D3D 기본 객체

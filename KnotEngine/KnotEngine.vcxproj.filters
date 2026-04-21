@@ -2,40 +2,40 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Shaders">
-      <UniqueIdentifier>{97623f42-1e0d-5877-7f7d-018e5ba5d44f}</UniqueIdentifier>
+      <UniqueIdentifier>{97cbede3-93fb-7ba4-a1a6-00b9ae8a3a41}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source">
-      <UniqueIdentifier>{314f81bf-d6b0-74e3-2a9d-4bbc20966ebe}</UniqueIdentifier>
+      <UniqueIdentifier>{3c2855a9-3872-3ed4-4cd8-92f35c5ba60e}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Core">
-      <UniqueIdentifier>{817f88b9-4b2c-f83c-d9b4-6a701efe102b}</UniqueIdentifier>
+      <UniqueIdentifier>{e0e4ea99-6596-02d0-9d91-35c934af56dd}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Core\Geometry">
-      <UniqueIdentifier>{11c03dc0-868a-ece5-630c-3ac263c73a4c}</UniqueIdentifier>
+      <UniqueIdentifier>{f2ddba27-69cd-45b8-bfee-fc38857c91ad}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Core\Math">
-      <UniqueIdentifier>{7c949674-23c1-b5eb-73e7-3c5a2a14ef43}</UniqueIdentifier>
+      <UniqueIdentifier>{82edaa73-97e0-ab15-659a-bc5a14e575ae}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Editor">
-      <UniqueIdentifier>{1992555a-5ec1-d79c-ff0c-65d04448186f}</UniqueIdentifier>
+      <UniqueIdentifier>{7cb564b8-9562-69cd-aed8-a109686cc5f9}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Editor\Viewport">
-      <UniqueIdentifier>{822a0262-6e54-28b0-138e-174699e9baf0}</UniqueIdentifier>
+      <UniqueIdentifier>{f9f7994b-e0f4-a39e-f82a-089aef4d9c88}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Engine">
-      <UniqueIdentifier>{55df2863-c0d4-5113-919a-fb7268b1146d}</UniqueIdentifier>
+      <UniqueIdentifier>{efa37d23-148e-cf40-dce5-9f7a70519fef}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Engine\Components">
-      <UniqueIdentifier>{b82cbe88-99c9-4556-fa1e-78287302474f}</UniqueIdentifier>
+      <UniqueIdentifier>{79ebad1d-515e-072b-2b73-8851b1cf00ce}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Engine\Render">
-      <UniqueIdentifier>{56762063-ab44-f694-9fd9-65fdd18f82d2}</UniqueIdentifier>
+      <UniqueIdentifier>{0e2a7bc0-8978-a5a2-ff41-c221358b14a3}</UniqueIdentifier>
     </Filter>
     <Filter Include="ThirdParty">
-      <UniqueIdentifier>{a4ff6f49-1f8a-e67b-a9f4-61c07a3cc096}</UniqueIdentifier>
+      <UniqueIdentifier>{5d2cf434-b977-392b-addc-9c63f80f07e7}</UniqueIdentifier>
     </Filter>
     <Filter Include="ThirdParty\ImGui">
-      <UniqueIdentifier>{6f7a0197-8417-0e60-b399-a9f461b2bb7f}</UniqueIdentifier>
+      <UniqueIdentifier>{2a13a8b0-de04-7232-c9a6-fcc2892ed626}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -107,6 +107,9 @@
     <ClInclude Include="Source\Core\Geometry\AABB.h">
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Core\Geometry\Edge.h">
+      <Filter>Source\Core\Geometry</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Core\Geometry\Frustum.h">
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
@@ -123,9 +126,6 @@
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\Math\Color.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Core\Math\Edge.h">
       <Filter>Source\Core\Math</Filter>
     </ClInclude>
     <ClInclude Include="Source\Core\Math\Matrix.h">

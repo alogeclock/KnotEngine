@@ -8,10 +8,17 @@
 #include "CoreTypes.h"
 
 //=============================================================================
+// ImGui Headers
+//=============================================================================
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_internal.h"
+#include "ImGui/imgui_impl_dx11.h"
+#include "ImGui/imgui_impl_win32.h"
+
+//=============================================================================
 // Target Windows Version Settings & DirectX Header
 //=============================================================================
 #define WIN32_LEAN_AND_MEAN 
-#define NOMINMAX
 #include <SDKDDKVer.h>
 #include <Windows.h>
 #include <iostream>

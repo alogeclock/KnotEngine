@@ -22,7 +22,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{55068e81-c0a0-49f9-ab7b-54aea968722b}</ProjectGuid>
-    <RootNamespace>SimpleEngine</RootNamespace>
+    <RootNamespace>KnotEngine</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

@@ -1,11 +1,11 @@
 """
 GenerateProjectFiles.py — Auto-generate .vcxproj, .vcxproj.filters, .sln
-for SimpleEngine from the on-disk folder structure.
+for KnotEngine from the on-disk folder structure.
 
 Project layout:
-    ROOT/                        ← repo root (SimpleEngine.sln lives here)
+    ROOT/                        ← repo root (KnotEngine.sln lives here)
     ├── main.cpp                 ← entry point (outside the VS project folder)
-    └── SimpleEngine/            ← PROJECT_DIR (.vcxproj lives here)
+    └── KnotEngine/              ← PROJECT_DIR (.vcxproj lives here)
         ├── Source/
         ├── ThirdParty/ImGui/
         └── Shaders/
@@ -23,11 +23,11 @@ from pathlib import Path
 # Constants
 # ──────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
-PROJECT_DIR = ROOT / "SimpleEngine"   # directory that contains SimpleEngine.vcxproj
+PROJECT_DIR = ROOT / "KnotEngine"   # directory that contains KnotEngine.vcxproj
 
-PROJECT_NAME = "SimpleEngine"
+PROJECT_NAME = "KnotEngine"
 PROJECT_GUID = "{55068e81-c0a0-49f9-ab7b-54aea968722b}"
-ROOT_NAMESPACE = "SimpleEngine"
+ROOT_NAMESPACE = "KnotEngine"
 
 SOLUTION_GUID = "{4EBC5DD2-CECA-4722-9D19-87C7CB5F481B}"
 VS_PROJECT_TYPE = "{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}"
@@ -396,7 +396,7 @@ def generate_sln():
     lines.append("MinimumVisualStudioVersion = 10.0.40219.1")
 
     guid_upper = PROJECT_GUID.upper()
-    # .vcxproj is inside the SimpleEngine\ subdirectory, one level below the .sln
+    # .vcxproj is inside the KnotEngine\ subdirectory, one level below the .sln
     vcxproj_rel = f"{PROJECT_NAME}\\{PROJECT_NAME}.vcxproj"
     lines.append(
         f'Project("{VS_PROJECT_TYPE}") = "{PROJECT_NAME}", '
