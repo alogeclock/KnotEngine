@@ -86,7 +86,7 @@ public:
 
 	FQuat operator/(float Scale) const noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::SmallNumber);
+		assert(std::fabs(Scale) > MathUtil::Epsilon);
 		return FQuat(X / Scale, Y / Scale, Z / Scale, W / Scale);
 	}
 
@@ -120,7 +120,7 @@ public:
 
 	FQuat& operator/=(float Scale) noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::SmallNumber);
+		assert(std::fabs(Scale) > MathUtil::Epsilon);
 		X /= Scale; Y /= Scale; Z /= Scale; W /= Scale;
 		return *this;
 	}
@@ -143,7 +143,7 @@ public:
 		return DirectX::XMVectorSet(X, Y, Z, W);
 	}
 
-	bool Equals(const FQuat& Other, float Tolerance = MathUtil::SmallNumber) const noexcept
+	bool Equals(const FQuat& Other, float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		const bool bSameSign =
 			std::fabs(X - Other.X) <= Tolerance && std::fabs(Y - Other.Y) <= Tolerance &&
@@ -156,7 +156,7 @@ public:
 		return bSameSign || bNegatedSign;
 	}
 
-	bool IsIdentity(float Tolerance = MathUtil::SmallNumber) const noexcept
+	bool IsIdentity(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		return Equals(Identity, Tolerance);
 	}
@@ -176,12 +176,12 @@ public:
 		return DirectX::XMVectorGetX(DirectX::XMVector4Length(ToXMVector()));
 	}
 
-	bool IsNormalized(float Tolerance = MathUtil::SmallNumber) const noexcept
+	bool IsNormalized(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		return std::fabs(SizeSquared() - 1.0f) <= Tolerance;
 	}
 
-	void Normalize(float Tolerance = MathUtil::SmallNumber) noexcept
+	void Normalize(float Tolerance = MathUtil::Epsilon) noexcept
 	{
 		const XMVector QuatVector = ToXMVector();
 		const float SquaredSize = DirectX::XMVectorGetX(DirectX::XMVector4LengthSq(QuatVector));
@@ -193,7 +193,7 @@ public:
 		*this = Identity;
 	}
 
-	FQuat GetNormalized(float Tolerance = MathUtil::SmallNumber) const noexcept
+	FQuat GetNormalized(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		FQuat Result = *this;
 		Result.Normalize(Tolerance);
@@ -208,7 +208,7 @@ public:
 	FQuat Inverse() const noexcept
 	{
 		const float SquaredSize = SizeSquared();
-		if (SquaredSize <= MathUtil::SmallNumber)
+		if (SquaredSize <= MathUtil::Epsilon)
 		{
 			return Identity;
 		}
@@ -232,7 +232,7 @@ public:
 		return 2.0f * std::acos(ClampedW);
 	}
 
-	FVector GetRotationAxis(float Tolerance = MathUtil::SmallNumber) const noexcept
+	FVector GetRotationAxis(float Tolerance = MathUtil::Epsilon) const noexcept
 	{
 		const FQuat NormalizedQuat = GetNormalized();
 		const float AxisSquared = NormalizedQuat.X * NormalizedQuat.X
@@ -253,9 +253,9 @@ public:
 	FVector GetAxisY() const noexcept { return RotateVector(FVector::RightVector); }
 	FVector GetAxisZ() const noexcept { return RotateVector(FVector::UpVector); }
 
-	FVector GetForwardVector() const noexcept { return GetAxisX(); }
-	FVector GetRightVector()   const noexcept { return GetAxisY(); }
-	FVector GetUpVector()      const noexcept { return GetAxisZ(); }
+	FVector GetForward() const noexcept { return GetAxisX(); }
+	FVector GetRight()   const noexcept { return GetAxisY(); }
+	FVector GetUp()      const noexcept { return GetAxisZ(); }
 
 	float AngularDistance(const FQuat& Other) const noexcept
 	{
@@ -291,10 +291,7 @@ public:
 		{
 			AdjustedB = -AdjustedB;
 		}
-		return FQuat(DirectX::XMQuaternionSlerp(
-			A.GetNormalized().ToXMVector(),
-			AdjustedB.GetNormalized().ToXMVector(),
-			Alpha)).GetNormalized();
+		return FQuat(DirectX::XMQuaternionSlerp(A.GetNormalized().ToXMVector(), AdjustedB.GetNormalized().ToXMVector(), Alpha)).GetNormalized();
 	}
 
 	// Defined after #include "Rotator.h"
@@ -306,54 +303,54 @@ private:
 		const FVector& InX, const FVector& InY,
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
-		OutX = InX.GetSafeNormal(MathUtil::SmallNumber);
-		if (OutX.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutX = InX.GetSafeNormal(MathUtil::Epsilon);
+		if (OutX.IsNearlyZero(MathUtil::Epsilon)) return false;
 
 		const FVector ProjectedY = InY - OutX * FVector::DotProduct(InY, OutX);
-		OutY = ProjectedY.GetSafeNormal(MathUtil::SmallNumber);
-		if (OutY.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutY = ProjectedY.GetSafeNormal(MathUtil::Epsilon);
+		if (OutY.IsNearlyZero(MathUtil::Epsilon)) return false;
 
-		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::SmallNumber);
-		if (OutZ.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::Epsilon);
+		if (OutZ.IsNearlyZero(MathUtil::Epsilon)) return false;
 
-		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::SmallNumber);
-		return !OutY.IsNearlyZero(MathUtil::SmallNumber);
+		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::Epsilon);
+		return !OutY.IsNearlyZero(MathUtil::Epsilon);
 	}
 
 	static bool BuildOrthonormalBasisFromXZ(
 		const FVector& InX, const FVector& InZ,
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
-		OutX = InX.GetSafeNormal(MathUtil::SmallNumber);
-		if (OutX.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutX = InX.GetSafeNormal(MathUtil::Epsilon);
+		if (OutX.IsNearlyZero(MathUtil::Epsilon)) return false;
 
 		const FVector ProjectedZ = InZ - OutX * FVector::DotProduct(InZ, OutX);
-		OutZ = ProjectedZ.GetSafeNormal(MathUtil::SmallNumber);
-		if (OutZ.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutZ = ProjectedZ.GetSafeNormal(MathUtil::Epsilon);
+		if (OutZ.IsNearlyZero(MathUtil::Epsilon)) return false;
 
-		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::SmallNumber);
-		if (OutY.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::Epsilon);
+		if (OutY.IsNearlyZero(MathUtil::Epsilon)) return false;
 
-		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::SmallNumber);
-		return !OutZ.IsNearlyZero(MathUtil::SmallNumber);
+		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::Epsilon);
+		return !OutZ.IsNearlyZero(MathUtil::Epsilon);
 	}
 
 	static bool BuildOrthonormalBasisFromYZ(
 		const FVector& InY, const FVector& InZ,
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
-		OutY = InY.GetSafeNormal(MathUtil::SmallNumber);
-		if (OutY.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutY = InY.GetSafeNormal(MathUtil::Epsilon);
+		if (OutY.IsNearlyZero(MathUtil::Epsilon)) return false;
 
 		const FVector ProjectedZ = InZ - OutY * FVector::DotProduct(InZ, OutY);
-		OutZ = ProjectedZ.GetSafeNormal(MathUtil::SmallNumber);
-		if (OutZ.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutZ = ProjectedZ.GetSafeNormal(MathUtil::Epsilon);
+		if (OutZ.IsNearlyZero(MathUtil::Epsilon)) return false;
 
-		OutX = FVector::CrossProduct(OutY, OutZ).GetSafeNormal(MathUtil::SmallNumber);
-		if (OutX.IsNearlyZero(MathUtil::SmallNumber)) return false;
+		OutX = FVector::CrossProduct(OutY, OutZ).GetSafeNormal(MathUtil::Epsilon);
+		if (OutX.IsNearlyZero(MathUtil::Epsilon)) return false;
 
-		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::SmallNumber);
-		return !OutZ.IsNearlyZero(MathUtil::SmallNumber);
+		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::Epsilon);
+		return !OutZ.IsNearlyZero(MathUtil::Epsilon);
 	}
 };
 
@@ -361,11 +358,7 @@ inline constexpr FQuat FQuat::Identity { 0.f, 0.f, 0.f, 1.f };
 
 inline FQuat operator*(float Scale, const FQuat& Q) noexcept { return Q * Scale; }
 
-
-// ──────────── Circular-dependency inline implementations ────────────
-// FRotator <-> FQuat, FMatrix <-> FQuat 순환 의존성을 끊기 위해
-// FQuat 크기가 확정된 이후 이곳에서 헤더를 포함합니다.
-// ────────────────────────────────────────────────────────────────────
+// FRotator <-> FQuat, FMatrix <-> FQuat 순환 의존성을 끊기 위해 FQuat 크기가 확정된 이후 이곳에서 헤더를 포함합니다.
 #include "Math/Rotator.h"
 #include "Math/Matrix.h"
 
@@ -436,9 +429,9 @@ inline FRotator FQuat::Rotator() const noexcept
 	}
 
 	FRotator Result(
-		MathUtil::RadiansToDegrees(PitchRadians),
-		MathUtil::RadiansToDegrees(YawRadians),
-		MathUtil::RadiansToDegrees(RollRadians));
+		MathUtil::ToDegree(PitchRadians),
+		MathUtil::ToDegree(YawRadians),
+		MathUtil::ToDegree(RollRadians));
 	Result.Normalize();
 	return Result;
 }
@@ -459,9 +452,9 @@ inline FRotator::FRotator(const FQuat& InQuat) noexcept
 inline FQuat FRotator::Quaternion() const noexcept
 {
 	const FMatrix RotationMatrix =
-		FMatrix::MakeRotationZ(MathUtil::DegreesToRadians(Yaw))
-		* FMatrix::MakeRotationY(MathUtil::DegreesToRadians(Pitch))
-		* FMatrix::MakeRotationX(MathUtil::DegreesToRadians(Roll));
+		FMatrix::MakeRotationZ(MathUtil::ToRadian(Yaw))
+		* FMatrix::MakeRotationY(MathUtil::ToRadian(Pitch))
+		* FMatrix::MakeRotationX(MathUtil::ToRadian(Roll));
 
 	return FQuat(DirectX::XMQuaternionRotationMatrix(RotationMatrix.ToXMMatrix())).GetNormalized();
 }

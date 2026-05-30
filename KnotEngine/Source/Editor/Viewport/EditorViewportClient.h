@@ -1,2 +1,7 @@
+﻿#pragma once
 
-#pragma once
+class FEditorViewportClient
+{
+public:
+    
+};

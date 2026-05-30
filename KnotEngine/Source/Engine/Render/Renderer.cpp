@@ -1,4 +1,3 @@
-#include "CoreMinimal.h"
 #include "Renderer.h"
 
 // 링커 옵션 또는 Pragma를 통해 라이브러리 연결
@@ -67,15 +66,15 @@ void URenderer::CreateRasterizerState()
 
 void URenderer::CreateShader()
 {
-    ID3DBlob* vertexshaderCSO = nullptr;
-    ID3DBlob* pixelshaderCSO = nullptr;
+    ID3DBlob* VertexShaderCSO = nullptr;
+    ID3DBlob* PixelShaderCSO = nullptr;
 
     // 셰이더 컴파일
-    D3DCompileFromFile(L"ShaderW0.hlsl", nullptr, nullptr, "mainVS", "vs_5_0", 0, 0, &vertexshaderCSO, nullptr);
-    Device->CreateVertexShader(vertexshaderCSO->GetBufferPointer(), vertexshaderCSO->GetBufferSize(), nullptr, &SimpleVertexShader);
+    D3DCompileFromFile(L"Common.hlsl", nullptr, nullptr, "VS", "vs_5_0", 0, 0, &VertexShaderCSO, nullptr);
+    Device->CreateVertexShader(VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), nullptr, &SimpleVertexShader);
 
-    D3DCompileFromFile(L"ShaderW0.hlsl", nullptr, nullptr, "mainPS", "ps_5_0", 0, 0, &pixelshaderCSO, nullptr);
-    Device->CreatePixelShader(pixelshaderCSO->GetBufferPointer(), pixelshaderCSO->GetBufferSize(), nullptr, &SimplePixelShader);
+    D3DCompileFromFile(L"Common.hlsl", nullptr, nullptr, "PS", "ps_5_0", 0, 0, &PixelShaderCSO, nullptr);
+    Device->CreatePixelShader(PixelShaderCSO->GetBufferPointer(), PixelShaderCSO->GetBufferSize(), nullptr, &SimplePixelShader);
 
     // 입력 레이아웃 정의
     D3D11_INPUT_ELEMENT_DESC layout[] = {
@@ -84,14 +83,14 @@ void URenderer::CreateShader()
     };
 
     Device->CreateInputLayout(layout, ARRAYSIZE(layout),
-                              vertexshaderCSO->GetBufferPointer(), vertexshaderCSO->GetBufferSize(), &SimpleInputLayout);
+                              VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), &SimpleInputLayout);
 
     Stride = sizeof(FVertexSimple);
 
-    if (vertexshaderCSO)
-        vertexshaderCSO->Release();
-    if (pixelshaderCSO)
-        pixelshaderCSO->Release();
+    if (VertexShaderCSO)
+        VertexShaderCSO->Release();
+    if (PixelShaderCSO)
+        PixelShaderCSO->Release();
 }
 
 void URenderer::CreateConstantBuffer()

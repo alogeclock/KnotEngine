@@ -104,7 +104,7 @@ public:
 	/** 스칼라 나눗셈 연산자 */
 	FRotator operator/(float Scale) const noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::SmallNumber);
+		assert(std::fabs(Scale) > MathUtil::Epsilon);
 		return FRotator(Pitch / Scale, Yaw / Scale, Roll / Scale);
 	}
 
@@ -132,7 +132,7 @@ public:
 	/** 복합 나눗셈 연산자 */
 	FRotator& operator/=(float Scale) noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::SmallNumber);
+		assert(std::fabs(Scale) > MathUtil::Epsilon);
 		Pitch /= Scale; Yaw /= Scale; Roll /= Scale;
 		return *this;
 	}
@@ -145,8 +145,8 @@ public:
 	/** 이 로테이터가 바라보는 전방 벡터(+X)를 반환합니다. */
 	FVector Vector() const noexcept
 	{
-		const float PitchRadians = MathUtil::DegreesToRadians(Pitch);
-		const float YawRadians   = MathUtil::DegreesToRadians(Yaw);
+		const float PitchRadians = MathUtil::ToRadian(Pitch);
+		const float YawRadians   = MathUtil::ToRadian(Yaw);
 		const float CosPitch     = std::cos(PitchRadians);
 		return FVector(
 			CosPitch * std::cos(YawRadians),

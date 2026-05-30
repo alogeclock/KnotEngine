@@ -61,16 +61,8 @@ struct FOBB
     {
         const FVector AABBCenter = AABB.GetCenter();
         const FVector AABBExtent = AABB.GetExtent();
-        const FVector OBBAxes[3] = {
-            Rotation.GetForwardVector().Normalized(),
-            Rotation.GetRightVector().Normalized(),
-            Rotation.GetUpVector().Normalized()
-        };
-        const FVector AABBAxes[3] = {
-            FVector(1.0f, 0.0f, 0.0f),
-            FVector(0.0f, 1.0f, 0.0f),
-            FVector(0.0f, 0.0f, 1.0f)
-        };
+        const FVector OBBAxes[3] = { Rotation.GetForward().Normalized(), Rotation.GetRight().Normalized(), Rotation.GetUp().Normalized() };
+        const FVector AABBAxes[3] = { FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 1.0f) };
 
         float R[3][3];
         float AbsR[3][3];

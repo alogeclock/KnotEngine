@@ -446,16 +446,21 @@ FodyWeavers.xsd
 # Rider caches
 .idea_modules/
 
-#Rider CMake Project for Showing Dependency diagram
-CMakeLists.txt
-
-# ignore Build Files
-KnotEngine/Build/
+# ignore generated engine files
+KnotEngine/Build/*
+!KnotEngine/Build/CMake/
+!KnotEngine/Build/CMake/**
+!KnotEngine/Build/Scripts/
+!KnotEngine/Build/Scripts/**
+KnotEngine/Intermediate/
+KnotEngine/Binaries/
+KnotEngine/Bin/
 KnotEngine/Saves/**
 
-# Asset 폴더 관련 (그때그때 필요한 파일만 저장하도록 변경)
-!KnotEngine/Asset/Mesh/**
-!KnotEngine/Asset/**/*.meta
-
-KnotEngine/Asset/Mesh/Bin/**
-KnotEngine/Asset/Scene/**
+# Legacy root-level generated files
+/.tools/
+/.cache/
+/Build/
+/vcpkg_installed/
+/CMakeUserPresets.json
+KnotEngine/Build/CMake/CMakeUserPresets.json

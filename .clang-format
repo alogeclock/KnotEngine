@@ -9,6 +9,7 @@ ColumnLimit: 0
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
+NamespaceIndentation: All
 
 # 중괄호 설정 (Allman 스타일)
 BreakBeforeBraces: Allman

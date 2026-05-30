@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-class FViewport
+class SceneSerializer
 {
 public:
     

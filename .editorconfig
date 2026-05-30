@@ -1,6 +1,11 @@
 root = true
 
-[*]
+[*.{cpp,h}]
+end_of_line = lf
 charset = utf-8
-end_of_line = crlf
-insert_final_newline = true
+indent_style = tab
+indent_size = 4
+
+[*.{hlsl,usf,ush}]
+end_of_line = lf
+charset = utf-8
