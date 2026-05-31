@@ -10,16 +10,13 @@
 
 #include "Runtime/EngineLoop.h"
 
-static UEngine* CreateEngine()
+static void CreateEngine()
 {
 #if WITH_EDITOR
 	GEngine = GUObjectManager.Create<UEditorEngine>();
 #else
 	GEngine = GUObjectManager.Create<UGameEngine>();
 #endif
-
-	assert(GEngine);
-	return GEngine;
 }
 
 int Launch(HINSTANCE Instance, int ShowCmd)

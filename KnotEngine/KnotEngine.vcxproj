@@ -1,14 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -17,252 +12,620 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{504B7D8E-6E95-3511-B429-D5C9A78E2786}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{55068e81-c0a0-49f9-ab7b-54aea968722b}</ProjectGuid>
-    <RootNamespace>KnotEngine</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <VcpkgEnabled>false</VcpkgEnabled>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>KnotEngine</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings" />
-  <ImportGroup Label="Shared" />
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="do_not_import_user.props" Condition="exists('do_not_import_user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(ProjectDir)Binaries\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)Intermediate\MSBuild\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)Intermediate\vcpkg_installed\x86-windows\include;Source;Source\Engine;Source\Editor;Source\Core;.;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)Intermediate\vcpkg_installed\x86-windows\debug\lib;$(LibraryPath)</LibraryPath>
-    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Binaries\x64\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">KnotEngine.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">KnotEngine</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Binaries\x64\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">KnotEngine.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">KnotEngine</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Binaries\x64\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">KnotEngine.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">KnotEngine</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine</LocalDebuggerWorkingDirectory>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Binaries\x64\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">KnotEngine.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">KnotEngine</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(ProjectDir)Binaries\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)Intermediate\MSBuild\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)Intermediate\vcpkg_installed\x86-windows\include;Source;Source\Engine;Source\Editor;Source\Core;.;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)Intermediate\vcpkg_installed\x86-windows\lib;$(LibraryPath)</LibraryPath>
-    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(ProjectDir)Binaries\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)Intermediate\MSBuild\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)Intermediate\vcpkg_installed\x64-windows\include;Source;Source\Engine;Source\Editor;Source\Core;.;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)Intermediate\vcpkg_installed\x64-windows\debug\lib;$(LibraryPath)</LibraryPath>
-    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(ProjectDir)Binaries\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)Intermediate\MSBuild\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)Intermediate\vcpkg_installed\x64-windows\include;Source;Source\Engine;Source\Editor;Source\Core;.;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)Intermediate\vcpkg_installed\x64-windows\lib;$(LibraryPath)</LibraryPath>
-    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
-  </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;WITH_EDITOR=1;NOMINMAX;%(PreprocessorDefinitions);</PreprocessorDefinitions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <ExceptionHandling>Async</ExceptionHandling>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)Intermediate\vcpkg_installed\x86-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imguid.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WITH_EDITOR=1;NOMINMAX;%(PreprocessorDefinitions);</PreprocessorDefinitions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <ExceptionHandling>Async</ExceptionHandling>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)Intermediate\vcpkg_installed\x86-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imgui.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;WITH_EDITOR=1;NOMINMAX;%(PreprocessorDefinitions);</PreprocessorDefinitions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/include" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Async</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/Debug/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Tools/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/Debug/KnotEngine.exe -installedDir C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/debug/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\debug\lib\imguid.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)Intermediate\vcpkg_installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imguid.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/Debug/KnotEngine.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/Debug/KnotEngine.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
     </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;WITH_EDITOR=1;NOMINMAX;%(PreprocessorDefinitions);</PreprocessorDefinitions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/include" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <ExceptionHandling>Async</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeaderFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/Release/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Tools/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/Release/KnotEngine.exe -installedDir C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
     <Link>
+      <AdditionalDependencies>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\lib\imgui.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/Release/KnotEngine.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/Release/KnotEngine.pdb</ProgramDataBaseFile>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)Intermediate\vcpkg_installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>imgui.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/include" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/MinSizeRel/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Tools/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/MinSizeRel/KnotEngine.exe -installedDir C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\lib\imgui.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/MinSizeRel/KnotEngine.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/MinSizeRel/KnotEngine.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/include" /utf-8</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/RelWithDebInfo/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;WITH_EDITOR=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message></Message>
+      <Command>setlocal
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Tools/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/RelWithDebInfo/KnotEngine.exe -installedDir C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/vcpkg_installed/x64-windows/bin -OutVariable out
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\lib\imgui.lib;d3d11.lib;d3dcompiler.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/RelWithDebInfo/KnotEngine.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Binaries/x64/RelWithDebInfo/KnotEngine.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\Engine\Core\Memory.cpp" />
-    <ClCompile Include="Source\Engine\Object\Object.cpp" />
-    <ClCompile Include="Source\Engine\Runtime\GameEngine.cpp" />
-    <ClCompile Include="Source\Engine\Runtime\Launch.cpp" />
-    <ClCompile Include="Source\Core\Math\Matrix.cpp" />
-    <ClCompile Include="Source\Core\Math\Quat.cpp" />
-    <ClCompile Include="pch.cpp">
-      <PrecompiledHeader>Create</PrecompiledHeader>
+    <CustomBuild Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Build\CMake\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\bin\cmake.exe -SC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake -BC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64 --check-stamp-file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeCXXCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeRCCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\cmake.verify_globs;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCXXInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeDependentOption.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeFindDependencyMacro.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeGenericSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeInitializeConfigs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeLanguageInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeRCInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageMessage.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-Initialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\WindowsPaths.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-config.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\bin\cmake.exe -SC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake -BC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64 --check-stamp-file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeCXXCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeRCCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\cmake.verify_globs;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCXXInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeDependentOption.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeFindDependencyMacro.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeGenericSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeInitializeConfigs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeLanguageInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeRCInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageMessage.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-Initialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\WindowsPaths.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-config.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\bin\cmake.exe -SC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake -BC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64 --check-stamp-file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeCXXCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeRCCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\cmake.verify_globs;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCXXInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeDependentOption.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeFindDependencyMacro.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeGenericSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeInitializeConfigs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeLanguageInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeRCInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageMessage.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-Initialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\WindowsPaths.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-config.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\bin\cmake.exe -SC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Build/CMake -BC:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64 --check-stamp-file C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeCXXCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeRCCompiler.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\3.31.8\CMakeSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\cmake.verify_globs;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCXXInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeDependentOption.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeFindDependencyMacro.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeGenericSystem.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeInitializeConfigs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeLanguageInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeRCInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Compiler\MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\FindPackageMessage.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-Initialize.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows-MSVC.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\Windows.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\cmake\share\cmake-3.31\Modules\Platform\WindowsPaths.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Tools\vcpkg\scripts\buildsystems\vcpkg.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-config.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-debug.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets-release.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\imgui\imgui-targets.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfig.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonConfigVersion.cmake;C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_jsonTargets.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\KnotEngine.dir\cmake_pch.cxx">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/Debug/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/Release/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/MinSizeRel/cmake_pch.pch</PrecompiledHeaderOutputFile>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.dir/RelWithDebInfo/cmake_pch.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
-    <ClCompile Include="Source\Editor\EditorEngine.cpp" />
-    <ClCompile Include="Source\Editor\Viewport\AssetEditorViewportClient.cpp" />
-    <ClCompile Include="Source\Editor\Viewport\EditorViewportClient.cpp" />
-    <ClCompile Include="Source\Editor\Viewport\LevelEditorViewportClient.cpp" />
-    <ClCompile Include="Source\Editor\Viewport\Viewport.cpp" />
-    <ClCompile Include="Source\Editor\Viewport\ViewportClient.cpp" />
-    <ClCompile Include="Source\Engine\Components\ActorComponent.cpp" />
-    <ClCompile Include="Source\Engine\Components\CubeComponent.cpp" />
-    <ClCompile Include="Source\Engine\Components\PrimitiveComponent.cpp" />
-    <ClCompile Include="Source\Engine\Components\SceneComponent.cpp" />
-    <ClCompile Include="Source\Engine\Components\SphereComponent.cpp" />
-    <ClCompile Include="Source\Engine\Render\Renderer.cpp" />
-    <ClCompile Include="Source\Engine\Runtime\Engine.cpp" />
-    <ClCompile Include="Source\Engine\Runtime\EngineLoop.cpp" />
-    <ClCompile Include="Source\Engine\Serializer\SceneSerializer.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Source\Engine\Runtime\WindowsApplication.cpp" />
-    <ClCompile Include="Source\Engine\Runtime\WindowsWindow.cpp" />
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\main.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Matrix.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Quat.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\Viewport.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\ViewportClient.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\ActorComponent.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\CubeComponent.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\PrimitiveComponent.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SceneComponent.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Memory.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Object.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Launch.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Debug/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/Release/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/MinSizeRel/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:/Users/Jungle/Desktop/KnotEngine/KnotEngine/Intermediate/Build/VS2022-x64/CMakeFiles/KnotEngine.dir/RelWithDebInfo/cmake_pch.hxx;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\CoreTypes.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\AABB.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Edge.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Frustum.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\OBB.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Plane.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Ray.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Transform.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Color.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Matrix.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Quat.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Rotator.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Utils.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Vector.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Vector2.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Vector4.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\Viewport.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\ViewportClient.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\ActorComponent.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\CubeComponent.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\PrimitiveComponent.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SceneComponent.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Memory.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Singleton.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Class.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Object.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\ObjectStatics.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\VertexLayouts.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Launch.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.h" />
+    <None Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Shaders\Common.hlsl">
+    </None>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\KnotEngine.dir\Debug\cmake_pch.hxx" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\KnotEngine.dir\Release\cmake_pch.hxx" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\KnotEngine.dir\MinSizeRel\cmake_pch.hxx" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\CMakeFiles\KnotEngine.dir\RelWithDebInfo\cmake_pch.hxx" />
+    <Natvis Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\vcpkg_installed\x64-windows\share\nlohmann_json\nlohmann_json.natvis">
+    </Natvis>
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
-    <ClInclude Include="Source\Engine\Core\Singleton.h" />
-    <ClInclude Include="Source\Engine\Object\Class.h" />
-    <ClInclude Include="Source\Engine\Core\Memory.h" />
-    <ClInclude Include="Source\Engine\Object\ObjectStatics.h" />
-    <ClInclude Include="Source\Engine\Object\Object.h" />
-    <ClInclude Include="Source\Engine\Runtime\GameEngine.h" />
-    <ClInclude Include="Source\Engine\Runtime\Launch.h" />
-    <ClInclude Include="Source\Core\CoreTypes.h" />
-    <ClInclude Include="pch.h" />
-    <ClInclude Include="Source\Core\Geometry\AABB.h" />
-    <ClInclude Include="Source\Core\Geometry\Edge.h" />
-    <ClInclude Include="Source\Core\Geometry\Frustum.h" />
-    <ClInclude Include="Source\Core\Geometry\OBB.h" />
-    <ClInclude Include="Source\Core\Geometry\Plane.h" />
-    <ClInclude Include="Source\Core\Geometry\Ray.h" />
-    <ClInclude Include="Source\Core\Geometry\Transform.h" />
-    <ClInclude Include="Source\Core\Math\Color.h" />
-    <ClInclude Include="Source\Core\Math\Matrix.h" />
-    <ClInclude Include="Source\Core\Math\Quat.h" />
-    <ClInclude Include="Source\Core\Math\Rotator.h" />
-    <ClInclude Include="Source\Core\Math\Utils.h" />
-    <ClInclude Include="Source\Core\Math\Vector.h" />
-    <ClInclude Include="Source\Core\Math\Vector2.h" />
-    <ClInclude Include="Source\Core\Math\Vector4.h" />
-    <ClInclude Include="Source\Editor\EditorEngine.h" />
-    <ClInclude Include="Source\Editor\Viewport\AssetEditorViewportClient.h" />
-    <ClInclude Include="Source\Editor\Viewport\EditorViewportClient.h" />
-    <ClInclude Include="Source\Editor\Viewport\LevelEditorViewportClient.h" />
-    <ClInclude Include="Source\Editor\Viewport\Viewport.h" />
-    <ClInclude Include="Source\Editor\Viewport\ViewportClient.h" />
-    <ClInclude Include="Source\Engine\Components\ActorComponent.h" />
-    <ClInclude Include="Source\Engine\Components\CubeComponent.h" />
-    <ClInclude Include="Source\Engine\Components\PrimitiveComponent.h" />
-    <ClInclude Include="Source\Engine\Components\SceneComponent.h" />
-    <ClInclude Include="Source\Engine\Components\SphereComponent.h" />
-    <ClInclude Include="Source\Engine\Render\Renderer.h" />
-    <ClInclude Include="Source\Engine\Render\VertexLayouts.h" />
-    <ClInclude Include="Source\Engine\Runtime\Engine.h" />
-    <ClInclude Include="Source\Engine\Runtime\EngineLoop.h" />
-    <ClInclude Include="Source\Engine\Serializer\SceneSerializer.h" />
-    <ClInclude Include="Source\Engine\Runtime\WindowsApplication.h" />
-    <ClInclude Include="Source\Engine\Runtime\WindowsWindow.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Common.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
+    <ProjectReference Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Intermediate\Build\VS2022-x64\ZERO_CHECK.vcxproj">
+      <Project>{DEB73050-2195-3727-A367-F25DD17CC36A}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
 </Project>

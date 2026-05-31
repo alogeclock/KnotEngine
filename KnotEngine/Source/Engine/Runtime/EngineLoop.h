@@ -8,7 +8,7 @@ class UEngine;
 class FEngineLoop
 {
 public:
-    using FCreateEngineFn = UEngine* (*)();
+    using FCreateEngineFn = void(*)();
 	explicit FEngineLoop(FCreateEngineFn InFactory);
 
 	void Init(HINSTANCE Instance, int ShowCmd);

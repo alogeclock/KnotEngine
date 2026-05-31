@@ -14,8 +14,8 @@ FEngineLoop::FEngineLoop(FCreateEngineFn InFactory) : CreateEngine(InFactory)
 void FEngineLoop::Init(HINSTANCE Instance, int ShowCmd)
 {
 	Application.Init(Instance, ShowCmd);
-	GEngine = CreateEngine();
-	GEngine->Init(Instance, ShowCmd);
+	CreateEngine();
+	GEngine->Init(Application.GetWindow());
 }
 
 int FEngineLoop::Run()

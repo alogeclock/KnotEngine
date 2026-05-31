@@ -52,7 +52,17 @@ def configure_project() -> None:
     remove_stale_cmake_cache()
     run([str(CMAKE_EXE), "--preset", "vs2022-x64"], cwd=CMAKE_SOURCE_DIR, env=make_env())
     update_project_filters(GENERATED_PROJECT_FILE, ENGINE_DIR, PROJECT_NAME)
-    update_project_filters(LEGACY_PROJECT_FILE, ENGINE_DIR, PROJECT_NAME, bom=True)
+    copy_generated_project_to_root()
+
+
+def copy_generated_project_to_root() -> None:
+    generated_filters_file = GENERATED_PROJECT_FILE.with_suffix(GENERATED_PROJECT_FILE.suffix + ".filters")
+    legacy_filters_file = LEGACY_PROJECT_FILE.with_suffix(LEGACY_PROJECT_FILE.suffix + ".filters")
+
+    shutil.copy2(GENERATED_PROJECT_FILE, LEGACY_PROJECT_FILE)
+    if generated_filters_file.exists():
+        shutil.copy2(generated_filters_file, legacy_filters_file)
+    print(f"Copied generated project file: {LEGACY_PROJECT_FILE}")
 
 
 def is_same_path(left: Path, right: Path) -> bool:
