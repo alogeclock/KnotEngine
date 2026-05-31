@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 
 class UEditorEngine
 {
 public:
-    
+	
 };

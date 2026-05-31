@@ -7,7 +7,17 @@
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 5262)  // nlohmann/json lexer has intentional fallthrough paths.
+#pragma warning(disable : 26819) // MSVC code analysis equivalent for unannotated fallthrough.
+#endif
+
 #include <nlohmann/json.hpp>
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 using FJson = nlohmann::json;
 
 #define WIN32_LEAN_AND_MEAN
