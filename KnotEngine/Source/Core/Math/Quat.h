@@ -273,9 +273,9 @@ public:
 	}
 
 	// Defined after #include "Rotator.h" / "Matrix.h"
-	inline FVector  Euler()    const noexcept;
-	inline FRotator Rotator()  const noexcept;
-	inline FMatrix  ToMatrix() const noexcept;
+	FVector  Euler()    const noexcept;
+	FRotator Rotator()  const noexcept;
+	FMatrix  ToMatrix() const noexcept;
 
 	// ──────────── static methods ────────────
 public:
@@ -294,8 +294,8 @@ public:
 		return FQuat(DirectX::XMQuaternionSlerp(A.GetNormalized().ToXMVector(), AdjustedB.GetNormalized().ToXMVector(), Alpha)).GetNormalized();
 	}
 
-	// Defined after #include "Rotator.h"
-	static inline FQuat MakeFromEuler(const FVector& InEulerDegrees) noexcept;
+	// Defined in Quat.cpp.
+	static FQuat MakeFromEuler(const FVector& InEulerDegrees) noexcept;
 
 	// ──────────── private helpers ────────────
 private:
@@ -357,119 +357,3 @@ private:
 inline constexpr FQuat FQuat::Identity { 0.f, 0.f, 0.f, 1.f };
 
 inline FQuat operator*(float Scale, const FQuat& Q) noexcept { return Q * Scale; }
-
-// FRotator <-> FQuat, FMatrix <-> FQuat 순환 의존성을 끊기 위해 FQuat 크기가 확정된 이후 이곳에서 헤더를 포함합니다.
-#include "Math/Rotator.h"
-#include "Math/Matrix.h"
-
-inline FQuat::FQuat(const FRotator& InRotator) noexcept
-{
-	*this = InRotator.Quaternion();
-}
-
-inline FQuat::FQuat(const FMatrix& InMatrix) noexcept
-	: X(0.f), Y(0.f), Z(0.f), W(1.f)
-{
-	DirectX::XMVECTOR OutScale, OutRotation, OutTranslation;
-	if (DirectX::XMMatrixDecompose(&OutScale, &OutRotation, &OutTranslation, InMatrix.ToXMMatrix()))
-	{
-		*this = FQuat(OutRotation);
-		Normalize();
-		return;
-	}
-
-	const FMatrix RotationSource = InMatrix.GetMatrixWithoutTranslation();
-	const FVector XAxis = RotationSource.GetScaledAxis(EAxis::X);
-	const FVector YAxis = RotationSource.GetScaledAxis(EAxis::Y);
-	const FVector ZAxis = RotationSource.GetScaledAxis(EAxis::Z);
-
-	FVector OrthoX, OrthoY, OrthoZ;
-	if (BuildOrthonormalBasisFromXY(XAxis, YAxis, OrthoX, OrthoY, OrthoZ)
-		|| BuildOrthonormalBasisFromXZ(XAxis, ZAxis, OrthoX, OrthoY, OrthoZ)
-		|| BuildOrthonormalBasisFromYZ(YAxis, ZAxis, OrthoX, OrthoY, OrthoZ))
-	{
-		FMatrix OrthonormalMatrix = FMatrix::Identity;
-		OrthonormalMatrix.SetAxes(OrthoX, OrthoY, OrthoZ);
-		*this = FQuat(DirectX::XMQuaternionRotationMatrix(OrthonormalMatrix.ToXMMatrix()));
-		Normalize();
-		return;
-	}
-
-	*this = Identity;
-}
-
-inline FQuat FQuat::MakeFromEuler(const FVector& InEulerDegrees) noexcept
-{
-	return FQuat(FRotator::MakeFromEuler(InEulerDegrees));
-}
-
-inline FVector FQuat::Euler() const noexcept
-{
-	return Rotator().Euler();
-}
-
-inline FRotator FQuat::Rotator() const noexcept
-{
-	const FMatrix RotationMatrix = ToMatrix();
-	const float ClampedPitchSin  = std::clamp(RotationMatrix.M[2][0], -1.0f, 1.0f);
-	const float PitchRadians     = std::asin(ClampedPitchSin);
-	const float CosPitch         = std::cos(PitchRadians);
-
-	float YawRadians  = 0.0f;
-	float RollRadians = 0.0f;
-
-	if (std::fabs(CosPitch) > KMath::Epsilon)
-	{
-		YawRadians  = std::atan2(-RotationMatrix.M[1][0], RotationMatrix.M[0][0]);
-		RollRadians = std::atan2(-RotationMatrix.M[2][1], RotationMatrix.M[2][2]);
-	}
-	else
-	{
-		YawRadians = std::atan2(RotationMatrix.M[0][1], RotationMatrix.M[1][1]);
-	}
-
-	FRotator Result(
-		KMath::ToDegree(PitchRadians),
-		KMath::ToDegree(YawRadians),
-		KMath::ToDegree(RollRadians));
-	Result.Normalize();
-	return Result;
-}
-
-inline FMatrix FQuat::ToMatrix() const noexcept
-{
-	return FMatrix(DirectX::XMMatrixRotationQuaternion(GetNormalized().ToXMVector()));
-}
-
-// ============================================================================
-// FRotator methods that depend on FQuat — defined here to break circular include
-// ============================================================================
-inline FRotator::FRotator(const FQuat& InQuat) noexcept
-{
-	*this = InQuat.Rotator();
-}
-
-inline FQuat FRotator::Quaternion() const noexcept
-{
-	const FMatrix RotationMatrix =
-		FMatrix::MakeRotationZ(KMath::ToRadian(Yaw))
-		* FMatrix::MakeRotationY(KMath::ToRadian(Pitch))
-		* FMatrix::MakeRotationX(KMath::ToRadian(Roll));
-
-	return FQuat(DirectX::XMQuaternionRotationMatrix(RotationMatrix.ToXMMatrix())).GetNormalized();
-}
-
-inline FVector FRotator::RotateVector(const FVector& InVector) const noexcept
-{
-	return Quaternion().RotateVector(InVector);
-}
-
-inline FVector FRotator::UnrotateVector(const FVector& InVector) const noexcept
-{
-	return Quaternion().UnrotateVector(InVector);
-}
-
-inline FRotator FRotator::GetInverse() const noexcept
-{
-	return Quaternion().Inverse().Rotator();
-}

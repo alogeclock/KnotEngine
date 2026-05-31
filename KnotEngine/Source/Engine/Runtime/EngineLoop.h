@@ -3,19 +3,19 @@
 #include "Runtime/WindowsApplication.h"
 
 class UEngine;
-struct FEngineInitParams;
 
+// 엔진 생성/실행/종료 및 엔진 루프를 관리하는 객체, 구체 엔진 타입은 모름
 class FEngineLoop
 {
 public:
-    using FCreateEngineFn = std::unique_ptr<UEngine> (*)(const FEngineInitParams&);
+    using FCreateEngineFn = UEngine* (*)();
 	explicit FEngineLoop(FCreateEngineFn InFactory);
 
-	bool Init(const FEngineInitParams& Params);
+	void Init(HINSTANCE Instance, int ShowCmd);
     int Run();
     void Shutdown();
-    
+
 private:
-	std::unique_ptr<UEngine> Engine;
-    FWindowsApplication Application;
+	FCreateEngineFn CreateEngine = nullptr;
+    FWindowsApplication Application; // Windows 전용으로 사용, 추후 플랫폼 확장 시 FGenericApplication으로 대응
 };

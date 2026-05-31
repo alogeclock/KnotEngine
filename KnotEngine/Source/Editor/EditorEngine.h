@@ -1,6 +1,8 @@
 #pragma once
 
-class UEditorEngine
+#include "Engine/Runtime/Engine.h"
+
+class UEditorEngine : public UEngine
 {
 public:
 	

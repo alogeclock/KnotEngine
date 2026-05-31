@@ -10,8 +10,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from GenerateFiltes import update_project_filters
+from GenerateFilters import update_project_filters
 
+# 하드코딩 디렉토리 상수
 BUILD_CONFIG_DIR = SCRIPT_DIR.parent
 ENGINE_DIR = BUILD_CONFIG_DIR.parent
 CMAKE_SOURCE_DIR = BUILD_CONFIG_DIR / "CMake"
@@ -23,7 +24,6 @@ BUILD_DIR = INTERMEDIATE_DIR / "Build" / "VS2022-x64"
 PROJECT_NAME = "KnotEngine"
 GENERATED_PROJECT_FILE = BUILD_DIR / f"{PROJECT_NAME}.vcxproj"
 LEGACY_PROJECT_FILE = ENGINE_DIR / f"{PROJECT_NAME}.vcxproj"
-
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
     print("> " + " ".join(command), flush=True)

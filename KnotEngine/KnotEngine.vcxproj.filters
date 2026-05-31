@@ -28,6 +28,12 @@
     <Filter Include="Source\Engine\Components">
       <UniqueIdentifier>{79ebad1d-515e-072b-2b73-8851b1cf00ce}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Engine\Core">
+      <UniqueIdentifier>{561a3785-87d4-df8d-6be7-e0c803160c09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Object">
+      <UniqueIdentifier>{958aba12-7e73-2921-694a-d1c50248ec52}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Engine\Render">
       <UniqueIdentifier>{0e2a7bc0-8978-a5a2-ff41-c221358b14a3}</UniqueIdentifier>
     </Filter>
@@ -39,7 +45,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Source\Core\Math\Matrix.cpp">
+      <Filter>Source\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Core\Math\Quat.cpp">
+      <Filter>Source\Core\Math</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Editor\EditorEngine.cpp">
       <Filter>Source\Editor</Filter>
     </ClCompile>
@@ -73,6 +86,12 @@
     <ClCompile Include="Source\Engine\Components\SphereComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Core\Memory.cpp">
+      <Filter>Source\Engine\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Object\Object.cpp">
+      <Filter>Source\Engine\Object</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Render\Renderer.cpp">
       <Filter>Source\Engine\Render</Filter>
     </ClCompile>
@@ -82,17 +101,27 @@
     <ClCompile Include="Source\Engine\Runtime\EngineLoop.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Runtime\GameEngine.cpp">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Runtime\Launch.cpp">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Runtime\WindowsApplication.cpp">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Runtime\WindowsWindow.cpp">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Serializer\SceneSerializer.cpp">
       <Filter>Source\Engine\Serializer</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="WindowsApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Core\CoreTypes.h">
       <Filter>Source\Core</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h" />
     <ClInclude Include="Source\Core\Geometry\AABB.h">
       <Filter>Source\Core\Geometry</Filter>
     </ClInclude>
@@ -171,6 +200,21 @@
     <ClInclude Include="Source\Engine\Components\SphereComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Core\Memory.h">
+      <Filter>Source\Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Core\Singleton.h">
+      <Filter>Source\Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Object\Class.h">
+      <Filter>Source\Engine\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Object\Object.h">
+      <Filter>Source\Engine\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Object\ObjectStatics.h">
+      <Filter>Source\Engine\Object</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Render\Renderer.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
@@ -183,10 +227,21 @@
     <ClInclude Include="Source\Engine\Runtime\EngineLoop.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Runtime\GameEngine.h">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Runtime\Launch.h">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Runtime\WindowsApplication.h">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Runtime\WindowsWindow.h">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Serializer\SceneSerializer.h">
       <Filter>Source\Engine\Serializer</Filter>
     </ClInclude>
-    <ClInclude Include="WindowsApplication.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common.hlsl">

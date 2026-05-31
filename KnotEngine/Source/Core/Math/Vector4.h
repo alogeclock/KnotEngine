@@ -108,8 +108,8 @@ public:
 	/** 동등 비교 연산자 (허용 오차 사용) */
 	bool operator==(const FVector4& Other) const noexcept { return IsNearlyEqual(Other); }
 
-	/** 행렬 곱셈 연산자 (순환 의존성 해결 후 정의됨) */
-	inline FVector4 operator*(const struct FMatrix& Mat) const noexcept;
+	/** 행렬 곱셈 연산자 */
+	FVector4 operator*(const struct FMatrix& Mat) const noexcept;
 
 	// ──────────── Methods ────────────
 public:
@@ -184,17 +184,3 @@ public:
 	/** DirectX Math XMVECTOR 형식으로 변환 */
 	XMVector ToXMVector() const noexcept { return DirectX::XMVectorSet(X, Y, Z, W); }
 };
-
-// ============================================================================
-// FMatrix 순환 의존 구현
-// ============================================================================
-#include "Math/Matrix.h"
-
-/** 4D 벡터와 4x4 행렬의 곱셈을 수행합니다. */
-inline FVector4 FVector4::operator*(const FMatrix& Mat) const noexcept
-{
-	const DirectX::XMVECTOR R = DirectX::XMVector4Transform(ToXMVector(), Mat.ToXMMatrix());
-	DirectX::XMFLOAT4 T;
-	DirectX::XMStoreFloat4(&T, R);
-	return { T.x, T.y, T.z, T.w };
-}

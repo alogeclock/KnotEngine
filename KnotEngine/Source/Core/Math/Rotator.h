@@ -240,16 +240,16 @@ public:
 	}
 
 	/** 벡터를 이 회전만큼 회전시킵니다. (Quat.h에 구현됨) */
-	inline FVector   RotateVector(const FVector& InVector) const noexcept;
+	FVector   RotateVector(const FVector& InVector) const noexcept;
 
 	/** 벡터를 이 회전의 반대만큼 회전시킵니다. (Quat.h에 구현됨) */
-	inline FVector   UnrotateVector(const FVector& InVector) const noexcept;
+	FVector   UnrotateVector(const FVector& InVector) const noexcept;
 
 	/** 역회전을 반환합니다. (Quat.h에 구현됨) */
-	inline FRotator  GetInverse() const noexcept;
+	FRotator  GetInverse() const noexcept;
 
 	/** 쿼터니언으로 변환합니다. (Quat.h에 구현됨) */
-	inline FQuat     Quaternion() const noexcept;
+	FQuat     Quaternion() const noexcept;
 };
 
 /** 제로 로테이터 상수 */
