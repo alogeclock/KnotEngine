@@ -10,6 +10,15 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from DependencyState import (
+    build_vcpkg_install_state,
+    dependency_state_is_current,
+    write_dependency_state,
+)
+
 BUILD_DIR = SCRIPT_DIR.parent
 ENGINE_DIR = BUILD_DIR.parent
 CMAKE_SOURCE_DIR = BUILD_DIR / "CMake"
@@ -18,6 +27,7 @@ TOOLS_DIR = INTERMEDIATE_DIR / "Tools"
 CACHE_DIR = INTERMEDIATE_DIR / "Cache"
 DOWNLOAD_DIR = CACHE_DIR / "downloads"
 BINARY_CACHE_DIR = CACHE_DIR / "vcpkg-binary"
+DEPENDENCY_STATE_DIR = CACHE_DIR / "dependency-state"
 VCPKG_INSTALLED_DIR = INTERMEDIATE_DIR / "vcpkg_installed"
 
 CMAKE_VERSION = "3.31.8"
@@ -38,6 +48,16 @@ NINJA_ROOT = TOOLS_DIR / "ninja"
 VCPKG_ROOT = TOOLS_DIR / "vcpkg"
 
 TRIPLET = "x64-windows"
+VCPKG_STATE_FILE = DEPENDENCY_STATE_DIR / f"vcpkg-{TRIPLET}.json"
+VCPKG_MANIFEST_FILES = [
+    CMAKE_SOURCE_DIR / "vcpkg.json",
+    CMAKE_SOURCE_DIR / "vcpkg-configuration.json",
+]
+VCPKG_REQUIRED_PATHS = [
+    VCPKG_INSTALLED_DIR / "vcpkg" / "status",
+    VCPKG_INSTALLED_DIR / TRIPLET / "share" / "imgui" / "imgui-config.cmake",
+    VCPKG_INSTALLED_DIR / TRIPLET / "share" / "nlohmann_json" / "nlohmann_jsonConfig.cmake",
+]
 
 
 def version_file(tool_dir: Path) -> Path:
@@ -121,7 +141,7 @@ def ensure_vcpkg() -> Path:
 
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
-    print("> " + " ".join(command))
+    print("> " + " ".join(command), flush=True)
     subprocess.run(command, cwd=str(cwd), env=env, check=True)
 
 
@@ -139,7 +159,22 @@ def make_env(cmake_exe: Path, ninja_exe: Path) -> dict[str, str]:
     return env
 
 
-def install_dependencies(vcpkg_exe: Path, env: dict[str, str]) -> None:
+def expected_vcpkg_state() -> dict:
+    return build_vcpkg_install_state(
+        manifest_root=CMAKE_SOURCE_DIR,
+        install_root=VCPKG_INSTALLED_DIR,
+        triplet=TRIPLET,
+        vcpkg_ref=VCPKG_REF,
+        manifest_files=VCPKG_MANIFEST_FILES,
+    )
+
+
+def install_dependencies(vcpkg_exe: Path, env: dict[str, str], force: bool = False) -> None:
+    expected_state = expected_vcpkg_state()
+    if not force and dependency_state_is_current(VCPKG_STATE_FILE, expected_state, VCPKG_REQUIRED_PATHS):
+        print("vcpkg dependencies are up to date.")
+        return
+
     BINARY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     run(
         [
@@ -154,11 +189,13 @@ def install_dependencies(vcpkg_exe: Path, env: dict[str, str]) -> None:
         cwd=CMAKE_SOURCE_DIR,
         env=env,
     )
+    write_dependency_state(VCPKG_STATE_FILE, expected_state)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare KnotEngine build dependencies.")
     parser.add_argument("--skip-install", action="store_true", help="Only download tools; do not run vcpkg install.")
+    parser.add_argument("--force-install", action="store_true", help="Run vcpkg install even if the dependency stamp is current.")
     parser.add_argument("--no-pause", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
@@ -172,7 +209,7 @@ def main() -> int:
     env = make_env(cmake_exe, ninja_exe)
 
     if not args.skip_install:
-        install_dependencies(vcpkg_exe, env)
+        install_dependencies(vcpkg_exe, env, force=args.force_install)
 
     print("Dependencies are ready.")
     print(f"  CMake : {cmake_exe}")

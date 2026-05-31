@@ -250,8 +250,8 @@ public:
 	FVector Normalized(float Tolerance = 1.e-8f) const noexcept { return GetSafeNormal(Tolerance); }
 	bool NormalizeSafe(float Tolerance = 1.e-8f) noexcept { return Normalize(Tolerance); }
 
-	float DotProduct(const FVector& Other) const noexcept { return FVector::DotProduct(*this, Other); }
-	FVector CrossProduct(const FVector& Other) const noexcept { return FVector::CrossProduct(*this, Other); }
+	float Dot(const FVector& Other) const noexcept { return FVector::Dot(*this, Other); }
+	FVector Cross(const FVector& Other) const noexcept { return FVector::Cross(*this, Other); }
 
 	// XY 평면 기준으로 정규화된 벡터를 반환함, Z는 0으로 설정되며 길이가 너무 작을 경우 ZeroVector 반환
 	FVector GetSafeNormal2D(float Tolerance = 1.e-8f) const noexcept
@@ -272,13 +272,13 @@ public:
 
 public:
 	// 두 벡터의 내적(Dot Product)을 구함
-	static float DotProduct(const FVector& A, const FVector& B) noexcept
+	static float Dot(const FVector& A, const FVector& B) noexcept
 	{
 		return DirectX::XMVectorGetX(DirectX::XMVector3Dot(A.ToXMVector(), B.ToXMVector()));
 	}
 
 	// 두 벡터의 외적(Cross Product)을 구함
-	static FVector CrossProduct(const FVector& A, const FVector& B) noexcept
+	static FVector Cross(const FVector& A, const FVector& B) noexcept
 	{
 		return FVector(DirectX::XMVector3Cross(A.ToXMVector(), B.ToXMVector()));
 	}

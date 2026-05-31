@@ -1,6 +1,6 @@
 #pragma once
 
-namespace MathUtil
+namespace KMath
 {
 	static constexpr float Epsilon = 1.e-6f;
 

@@ -86,7 +86,7 @@ public:
 
 	FQuat operator/(float Scale) const noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::Epsilon);
+		assert(std::fabs(Scale) > KMath::Epsilon);
 		return FQuat(X / Scale, Y / Scale, Z / Scale, W / Scale);
 	}
 
@@ -120,7 +120,7 @@ public:
 
 	FQuat& operator/=(float Scale) noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::Epsilon);
+		assert(std::fabs(Scale) > KMath::Epsilon);
 		X /= Scale; Y /= Scale; Z /= Scale; W /= Scale;
 		return *this;
 	}
@@ -143,7 +143,7 @@ public:
 		return DirectX::XMVectorSet(X, Y, Z, W);
 	}
 
-	bool Equals(const FQuat& Other, float Tolerance = MathUtil::Epsilon) const noexcept
+	bool Equals(const FQuat& Other, float Tolerance = KMath::Epsilon) const noexcept
 	{
 		const bool bSameSign =
 			std::fabs(X - Other.X) <= Tolerance && std::fabs(Y - Other.Y) <= Tolerance &&
@@ -156,7 +156,7 @@ public:
 		return bSameSign || bNegatedSign;
 	}
 
-	bool IsIdentity(float Tolerance = MathUtil::Epsilon) const noexcept
+	bool IsIdentity(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		return Equals(Identity, Tolerance);
 	}
@@ -176,12 +176,12 @@ public:
 		return DirectX::XMVectorGetX(DirectX::XMVector4Length(ToXMVector()));
 	}
 
-	bool IsNormalized(float Tolerance = MathUtil::Epsilon) const noexcept
+	bool IsNormalized(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		return std::fabs(SizeSquared() - 1.0f) <= Tolerance;
 	}
 
-	void Normalize(float Tolerance = MathUtil::Epsilon) noexcept
+	void Normalize(float Tolerance = KMath::Epsilon) noexcept
 	{
 		const XMVector QuatVector = ToXMVector();
 		const float SquaredSize = DirectX::XMVectorGetX(DirectX::XMVector4LengthSq(QuatVector));
@@ -193,7 +193,7 @@ public:
 		*this = Identity;
 	}
 
-	FQuat GetNormalized(float Tolerance = MathUtil::Epsilon) const noexcept
+	FQuat GetNormalized(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		FQuat Result = *this;
 		Result.Normalize(Tolerance);
@@ -208,7 +208,7 @@ public:
 	FQuat Inverse() const noexcept
 	{
 		const float SquaredSize = SizeSquared();
-		if (SquaredSize <= MathUtil::Epsilon)
+		if (SquaredSize <= KMath::Epsilon)
 		{
 			return Identity;
 		}
@@ -232,7 +232,7 @@ public:
 		return 2.0f * std::acos(ClampedW);
 	}
 
-	FVector GetRotationAxis(float Tolerance = MathUtil::Epsilon) const noexcept
+	FVector GetRotationAxis(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		const FQuat NormalizedQuat = GetNormalized();
 		const float AxisSquared = NormalizedQuat.X * NormalizedQuat.X
@@ -303,54 +303,54 @@ private:
 		const FVector& InX, const FVector& InY,
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
-		OutX = InX.GetSafeNormal(MathUtil::Epsilon);
-		if (OutX.IsNearlyZero(MathUtil::Epsilon)) return false;
+		OutX = InX.GetSafeNormal(KMath::Epsilon);
+		if (OutX.IsNearlyZero(KMath::Epsilon)) return false;
 
-		const FVector ProjectedY = InY - OutX * FVector::DotProduct(InY, OutX);
-		OutY = ProjectedY.GetSafeNormal(MathUtil::Epsilon);
-		if (OutY.IsNearlyZero(MathUtil::Epsilon)) return false;
+		const FVector ProjectedY = InY - OutX * FVector::Dot(InY, OutX);
+		OutY = ProjectedY.GetSafeNormal(KMath::Epsilon);
+		if (OutY.IsNearlyZero(KMath::Epsilon)) return false;
 
-		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::Epsilon);
-		if (OutZ.IsNearlyZero(MathUtil::Epsilon)) return false;
+		OutZ = FVector::Cross(OutX, OutY).GetSafeNormal(KMath::Epsilon);
+		if (OutZ.IsNearlyZero(KMath::Epsilon)) return false;
 
-		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::Epsilon);
-		return !OutY.IsNearlyZero(MathUtil::Epsilon);
+		OutY = FVector::Cross(OutZ, OutX).GetSafeNormal(KMath::Epsilon);
+		return !OutY.IsNearlyZero(KMath::Epsilon);
 	}
 
 	static bool BuildOrthonormalBasisFromXZ(
 		const FVector& InX, const FVector& InZ,
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
-		OutX = InX.GetSafeNormal(MathUtil::Epsilon);
-		if (OutX.IsNearlyZero(MathUtil::Epsilon)) return false;
+		OutX = InX.GetSafeNormal(KMath::Epsilon);
+		if (OutX.IsNearlyZero(KMath::Epsilon)) return false;
 
-		const FVector ProjectedZ = InZ - OutX * FVector::DotProduct(InZ, OutX);
-		OutZ = ProjectedZ.GetSafeNormal(MathUtil::Epsilon);
-		if (OutZ.IsNearlyZero(MathUtil::Epsilon)) return false;
+		const FVector ProjectedZ = InZ - OutX * FVector::Dot(InZ, OutX);
+		OutZ = ProjectedZ.GetSafeNormal(KMath::Epsilon);
+		if (OutZ.IsNearlyZero(KMath::Epsilon)) return false;
 
-		OutY = FVector::CrossProduct(OutZ, OutX).GetSafeNormal(MathUtil::Epsilon);
-		if (OutY.IsNearlyZero(MathUtil::Epsilon)) return false;
+		OutY = FVector::Cross(OutZ, OutX).GetSafeNormal(KMath::Epsilon);
+		if (OutY.IsNearlyZero(KMath::Epsilon)) return false;
 
-		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::Epsilon);
-		return !OutZ.IsNearlyZero(MathUtil::Epsilon);
+		OutZ = FVector::Cross(OutX, OutY).GetSafeNormal(KMath::Epsilon);
+		return !OutZ.IsNearlyZero(KMath::Epsilon);
 	}
 
 	static bool BuildOrthonormalBasisFromYZ(
 		const FVector& InY, const FVector& InZ,
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
-		OutY = InY.GetSafeNormal(MathUtil::Epsilon);
-		if (OutY.IsNearlyZero(MathUtil::Epsilon)) return false;
+		OutY = InY.GetSafeNormal(KMath::Epsilon);
+		if (OutY.IsNearlyZero(KMath::Epsilon)) return false;
 
-		const FVector ProjectedZ = InZ - OutY * FVector::DotProduct(InZ, OutY);
-		OutZ = ProjectedZ.GetSafeNormal(MathUtil::Epsilon);
-		if (OutZ.IsNearlyZero(MathUtil::Epsilon)) return false;
+		const FVector ProjectedZ = InZ - OutY * FVector::Dot(InZ, OutY);
+		OutZ = ProjectedZ.GetSafeNormal(KMath::Epsilon);
+		if (OutZ.IsNearlyZero(KMath::Epsilon)) return false;
 
-		OutX = FVector::CrossProduct(OutY, OutZ).GetSafeNormal(MathUtil::Epsilon);
-		if (OutX.IsNearlyZero(MathUtil::Epsilon)) return false;
+		OutX = FVector::Cross(OutY, OutZ).GetSafeNormal(KMath::Epsilon);
+		if (OutX.IsNearlyZero(KMath::Epsilon)) return false;
 
-		OutZ = FVector::CrossProduct(OutX, OutY).GetSafeNormal(MathUtil::Epsilon);
-		return !OutZ.IsNearlyZero(MathUtil::Epsilon);
+		OutZ = FVector::Cross(OutX, OutY).GetSafeNormal(KMath::Epsilon);
+		return !OutZ.IsNearlyZero(KMath::Epsilon);
 	}
 };
 
@@ -418,7 +418,7 @@ inline FRotator FQuat::Rotator() const noexcept
 	float YawRadians  = 0.0f;
 	float RollRadians = 0.0f;
 
-	if (std::fabs(CosPitch) > MathUtil::Epsilon)
+	if (std::fabs(CosPitch) > KMath::Epsilon)
 	{
 		YawRadians  = std::atan2(-RotationMatrix.M[1][0], RotationMatrix.M[0][0]);
 		RollRadians = std::atan2(-RotationMatrix.M[2][1], RotationMatrix.M[2][2]);
@@ -429,9 +429,9 @@ inline FRotator FQuat::Rotator() const noexcept
 	}
 
 	FRotator Result(
-		MathUtil::ToDegree(PitchRadians),
-		MathUtil::ToDegree(YawRadians),
-		MathUtil::ToDegree(RollRadians));
+		KMath::ToDegree(PitchRadians),
+		KMath::ToDegree(YawRadians),
+		KMath::ToDegree(RollRadians));
 	Result.Normalize();
 	return Result;
 }
@@ -452,9 +452,9 @@ inline FRotator::FRotator(const FQuat& InQuat) noexcept
 inline FQuat FRotator::Quaternion() const noexcept
 {
 	const FMatrix RotationMatrix =
-		FMatrix::MakeRotationZ(MathUtil::ToRadian(Yaw))
-		* FMatrix::MakeRotationY(MathUtil::ToRadian(Pitch))
-		* FMatrix::MakeRotationX(MathUtil::ToRadian(Roll));
+		FMatrix::MakeRotationZ(KMath::ToRadian(Yaw))
+		* FMatrix::MakeRotationY(KMath::ToRadian(Pitch))
+		* FMatrix::MakeRotationX(KMath::ToRadian(Roll));
 
 	return FQuat(DirectX::XMQuaternionRotationMatrix(RotationMatrix.ToXMMatrix())).GetNormalized();
 }

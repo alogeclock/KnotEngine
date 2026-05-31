@@ -74,7 +74,7 @@ struct FAABB
 			const float BoxMin = Min[Axis];
 			const float BoxMax = Max[Axis];
 
-			if (std::fabs(Direction) < MathUtil::Epsilon)
+			if (std::fabs(Direction) < KMath::Epsilon)
 			{
 				if (Origin < Min[Axis] || Origin > Max[Axis])
 				{

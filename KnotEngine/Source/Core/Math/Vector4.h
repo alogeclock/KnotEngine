@@ -41,15 +41,15 @@ public:
 	// ──────────── Static Helpers ────────────
 public:
 	/** 영벡터 (0,0,0,0) */
-	static constexpr FVector4 ZeroVector()  { return { 0.0f, 0.0f, 0.0f, 0.0f }; }
+	static constexpr FVector4 ZeroVector() { return { 0.0f, 0.0f, 0.0f, 0.0f }; }
 	/** 영점 (0,0,0,1) */
-	static constexpr FVector4 ZeroPoint()   { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
+	static constexpr FVector4 ZeroPoint() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
 	/** 상단 벡터 (0,0,1,0) */
-	static constexpr FVector4 UpVector()    { return { 0.0f, 0.0f, 1.0f, 0.0f }; }
+	static constexpr FVector4 UpVector() { return { 0.0f, 0.0f, 1.0f, 0.0f }; }
 	/** 우측 벡터 (0,1,0,0) */
 	static constexpr FVector4 RightVector() { return { 0.0f, 1.0f, 0.0f, 0.0f }; }
 	/** 전방 벡터 (1,0,0,0) */
-	static constexpr FVector4 ForwardVector(){ return { 1.0f, 0.0f, 0.0f, 0.0f }; }
+	static constexpr FVector4 ForwardVector() { return { 1.0f, 0.0f, 0.0f, 0.0f }; }
 
 	static constexpr FVector4 Zero()    { return ZeroVector(); }
 	static constexpr FVector4 Up()      { return UpVector(); }
@@ -100,7 +100,7 @@ public:
 	/** 스칼라 나눗셈 연산자 */
 	FVector4 operator/(float S) const noexcept
 	{
-		assert(std::abs(S) >= MathUtil::Epsilon && "Division by zero in FVector4::operator/");
+		assert(std::abs(S) >= KMath::Epsilon && "Division by zero in FVector4::operator/");
 		const float Inv = 1.0f / S;
 		return { X * Inv, Y * Inv, Z * Inv, W * Inv };
 	}
@@ -134,7 +134,7 @@ public:
 		return DirectX::XMVector4NearEqual(
 			ToXMVector(),
 			Other.ToXMVector(),
-			DirectX::XMVectorReplicate(MathUtil::Epsilon));
+			DirectX::XMVectorReplicate(KMath::Epsilon));
 	}
 
 	/** 3D 방향 벡터 정규화 (W는 0으로 유지) */
@@ -142,7 +142,7 @@ public:
 	{
 		const DirectX::XMVECTOR V = DirectX::XMVectorSet(X, Y, Z, 0.0f);
 		const float Len = DirectX::XMVectorGetX(DirectX::XMVector3Length(V));
-		if (std::abs(Len) < MathUtil::Epsilon)
+		if (std::abs(Len) < KMath::Epsilon)
 		{
 			return ZeroVector();
 		}
@@ -159,19 +159,19 @@ public:
 	}
 
 	/** 이 벡터가 점(Point, W=1)인지 확인합니다. */
-	[[nodiscard]] bool IsPoint(float Tolerance = MathUtil::Epsilon) const noexcept
+	[[nodiscard]] bool IsPoint(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		return std::abs(W - 1.0f) <= Tolerance;
 	}
 
 	/** 이 벡터가 방향 벡터(Vector, W=0)인지 확인합니다. */
-	[[nodiscard]] bool IsVector(float Tolerance = MathUtil::Epsilon) const noexcept
+	[[nodiscard]] bool IsVector(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		return std::abs(W) <= Tolerance;
 	}
 
 	/** 동차 좌표계를 3D 벡터로 변환합니다. 점인 경우 Perspective Divide(X/W, Y/W, Z/W)를 수행합니다. */
-	[[nodiscard]] FVector ToVector3(float Tolerance = MathUtil::Epsilon) const noexcept
+	[[nodiscard]] FVector ToVector3(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		if (std::abs(W) <= Tolerance)
 		{

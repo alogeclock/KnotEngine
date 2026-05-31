@@ -104,7 +104,7 @@ public:
 	/** 스칼라 나눗셈 연산자 */
 	FRotator operator/(float Scale) const noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::Epsilon);
+		assert(std::fabs(Scale) > KMath::Epsilon);
 		return FRotator(Pitch / Scale, Yaw / Scale, Roll / Scale);
 	}
 
@@ -132,7 +132,7 @@ public:
 	/** 복합 나눗셈 연산자 */
 	FRotator& operator/=(float Scale) noexcept
 	{
-		assert(std::fabs(Scale) > MathUtil::Epsilon);
+		assert(std::fabs(Scale) > KMath::Epsilon);
 		Pitch /= Scale; Yaw /= Scale; Roll /= Scale;
 		return *this;
 	}
@@ -145,8 +145,8 @@ public:
 	/** 이 로테이터가 바라보는 전방 벡터(+X)를 반환합니다. */
 	FVector Vector() const noexcept
 	{
-		const float PitchRadians = MathUtil::ToRadian(Pitch);
-		const float YawRadians   = MathUtil::ToRadian(Yaw);
+		const float PitchRadians = KMath::ToRadian(Pitch);
+		const float YawRadians   = KMath::ToRadian(Yaw);
 		const float CosPitch     = std::cos(PitchRadians);
 		return FVector(
 			CosPitch * std::cos(YawRadians),
@@ -208,7 +208,7 @@ public:
 	}
 
 	/** 허용 오차 내에서 다른 로테이터와 같은 회전인지 비교합니다. */
-	bool Equals(const FRotator& Other, float Tolerance = MathUtil::Epsilon) const noexcept
+	bool Equals(const FRotator& Other, float Tolerance = KMath::Epsilon) const noexcept
 	{
 		return std::fabs(NormalizeAxis(Pitch - Other.Pitch)) <= Tolerance
 			&& std::fabs(NormalizeAxis(Yaw   - Other.Yaw))   <= Tolerance
@@ -216,7 +216,7 @@ public:
 	}
 
 	/** 허용 오차 내에서 항등 회전에 가까운지 반환합니다. */
-	bool IsNearlyZero(float Tolerance = MathUtil::Epsilon) const noexcept
+	bool IsNearlyZero(float Tolerance = KMath::Epsilon) const noexcept
 	{
 		return std::fabs(NormalizeAxis(Pitch)) <= Tolerance
 			&& std::fabs(NormalizeAxis(Yaw))   <= Tolerance

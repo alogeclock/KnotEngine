@@ -31,14 +31,12 @@
     <Filter Include="Source\Engine\Render">
       <UniqueIdentifier>{0e2a7bc0-8978-a5a2-ff41-c221358b14a3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Engine\Runtime">
+      <UniqueIdentifier>{d185c182-6719-1a41-b039-02180628717e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Engine\Serializer">
       <UniqueIdentifier>{a617ada4-18ff-2c63-dcb6-32fd7d07a29b}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Common.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -78,10 +76,17 @@
     <ClCompile Include="Source\Engine\Render\Renderer.cpp">
       <Filter>Source\Engine\Render</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Runtime\Engine.cpp">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Engine\Runtime\EngineLoop.cpp">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Engine\Serializer\SceneSerializer.cpp">
       <Filter>Source\Engine\Serializer</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="WindowsApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Core\CoreTypes.h">
@@ -172,8 +177,20 @@
     <ClInclude Include="Source\Engine\Render\VertexLayouts.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Runtime\Engine.h">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Engine\Runtime\EngineLoop.h">
+      <Filter>Source\Engine\Runtime</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Engine\Serializer\SceneSerializer.h">
       <Filter>Source\Engine\Serializer</Filter>
     </ClInclude>
+    <ClInclude Include="WindowsApplication.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\Common.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

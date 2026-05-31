@@ -200,8 +200,11 @@
     <ClCompile Include="Source\Engine\Components\SceneComponent.cpp" />
     <ClCompile Include="Source\Engine\Components\SphereComponent.cpp" />
     <ClCompile Include="Source\Engine\Render\Renderer.cpp" />
+    <ClCompile Include="Source\Engine\Runtime\Engine.cpp" />
+    <ClCompile Include="Source\Engine\Runtime\EngineLoop.cpp" />
     <ClCompile Include="Source\Engine\Serializer\SceneSerializer.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="WindowsApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Core\CoreTypes.h" />
@@ -234,7 +237,10 @@
     <ClInclude Include="Source\Engine\Components\SphereComponent.h" />
     <ClInclude Include="Source\Engine\Render\Renderer.h" />
     <ClInclude Include="Source\Engine\Render\VertexLayouts.h" />
+    <ClInclude Include="Source\Engine\Runtime\Engine.h" />
+    <ClInclude Include="Source\Engine\Runtime\EngineLoop.h" />
     <ClInclude Include="Source\Engine\Serializer\SceneSerializer.h" />
+    <ClInclude Include="WindowsApplication.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common.hlsl">

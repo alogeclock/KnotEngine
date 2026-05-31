@@ -7,6 +7,11 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from GenerateFiltes import update_project_filters
+
 BUILD_CONFIG_DIR = SCRIPT_DIR.parent
 ENGINE_DIR = BUILD_CONFIG_DIR.parent
 CMAKE_SOURCE_DIR = BUILD_CONFIG_DIR / "CMake"
@@ -15,10 +20,13 @@ CMAKE_EXE = INTERMEDIATE_DIR / "Tools" / "cmake" / "bin" / "cmake.exe"
 VCPKG_ROOT = INTERMEDIATE_DIR / "Tools" / "vcpkg"
 BINARY_CACHE_DIR = INTERMEDIATE_DIR / "Cache" / "vcpkg-binary"
 BUILD_DIR = INTERMEDIATE_DIR / "Build" / "VS2022-x64"
+PROJECT_NAME = "KnotEngine"
+GENERATED_PROJECT_FILE = BUILD_DIR / f"{PROJECT_NAME}.vcxproj"
+LEGACY_PROJECT_FILE = ENGINE_DIR / f"{PROJECT_NAME}.vcxproj"
 
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
-    print("> " + " ".join(command))
+    print("> " + " ".join(command), flush=True)
     subprocess.run(command, cwd=str(cwd), env=env, check=True)
 
 
@@ -43,6 +51,8 @@ def make_env() -> dict[str, str]:
 def configure_project() -> None:
     remove_stale_cmake_cache()
     run([str(CMAKE_EXE), "--preset", "vs2022-x64"], cwd=CMAKE_SOURCE_DIR, env=make_env())
+    update_project_filters(GENERATED_PROJECT_FILE, ENGINE_DIR, PROJECT_NAME)
+    update_project_filters(LEGACY_PROJECT_FILE, ENGINE_DIR, PROJECT_NAME, bom=True)
 
 
 def is_same_path(left: Path, right: Path) -> bool:

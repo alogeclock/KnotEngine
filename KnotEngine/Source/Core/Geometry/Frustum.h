@@ -9,32 +9,29 @@
 #include "Math/Matrix.h"
 #include "Math/Utils.h"
 
-/**
- * 뷰 프러스텀(View Frustum) 구조체.
- * 6개의 평면을 사용하여 시야 범위 내의 객체 포함 여부를 판정합니다.
- */
+// 뷰 프러스텀(View Frustum) 구조체, 6개의 평면을 사용하여 시야 범위 내의 객체 포함 여부를 판정합니다.
 struct FFrustum
 {
 public:
-	/** 프러스텀을 구성하는 6개의 평면 (Left, Right, Bottom, Top, Near, Far) */
+	// 프러스텀을 구성하는 6개의 평면 (Left, Right, Bottom, Top, Near, Far)
 	FPlane Planes[6];
 
-	/** 프러스텀 교차 판정 결과 */
+	// 프러스텀 교차 판정 결과
 	enum class EFrustumIntersectResult
 	{
-		Outside,   /** 프러스텀 외부 */
-		Intersect, /** 프러스텀 경계에 걸침 */
-		Inside     /** 프러스텀 내부 */
+		Outside,
+		Intersect,
+		Inside
 	};
 
 public:
-	/** 뷰 및 투영 행렬로부터 프러스텀 평면을 업데이트합니다. */
+	// 뷰 및 투영 행렬로부터 프러스텀 평면을 업데이트합니다.
 	void UpdateFromCamera(const FMatrix& View, const FMatrix& Projection)
 	{
 		UpdateFromCamera(View * Projection);
 	}
 
-	/** View-Projection 행렬로부터 프러스텀 평면을 업데이트합니다. */
+	// View-Projection 행렬로부터 프러스텀 평면을 업데이트합니다.
 	void UpdateFromCamera(const FMatrix& ViewProjection)
 	{
 		const float(&M)[4][4] = ViewProjection.M;
@@ -71,7 +68,7 @@ public:
 
 		for (FPlane& Plane : Planes)
 		{
-			Plane.Normalize(MathUtil::Epsilon);
+			Plane.Normalize(KMath::Epsilon);
 		}
 
 		const FMatrix InverseViewProjection = ViewProjection.GetInverse();
@@ -82,7 +79,7 @@ public:
 		{
 			for (FPlane& Plane : Planes)
 			{
-				const float Distance = Plane.GetSignedDistanceToPoint(TestPoint);
+				const float Distance = Plane.GetSignedDistance(TestPoint);
 				if (Distance < 0.0f)
 				{
 					Plane.Flip();
@@ -95,14 +92,14 @@ public:
 		{
 			for (const FPlane& Plane : Planes)
 			{
-				const float Distance = Plane.GetSignedDistanceToPoint(TestPoint);
-				assert(Distance >= -MathUtil::Epsilon);
+				const float Distance = Plane.GetSignedDistance(TestPoint);
+				assert(Distance >= -KMath::Epsilon);
 			}
 		}
 #endif
 	}
 
-	/** AABB와 프러스텀의 교차 여부를 판정합니다. */
+	// AABB와 프러스텀의 교차 여부를 판정합니다.
 	EFrustumIntersectResult Intersects(const FAABB& Box) const
 	{
 		const FVector Center = Box.GetCenter();
@@ -111,10 +108,9 @@ public:
 
 		for (const FPlane& Plane : Planes)
 		{
-			const float Radius = Plane.AbsNormal.X * Extent.X + Plane.AbsNormal.Y * Extent.Y +
-								 Plane.AbsNormal.Z * Extent.Z;
+			const float Radius = KMath::Abs(Plane.Normal.X * Extent.X) + KMath::Abs(Plane.Normal.Y * Extent.Y) + KMath::Abs(Plane.Normal.Z * Extent.Z);
 
-			const float Distance = Plane.GetSignedDistanceToPoint(Center);
+			const float Distance = Plane.GetSignedDistance(Center);
 			if (Distance + Radius < 0.0f)
 			{
 				return EFrustumIntersectResult::Outside;
@@ -128,12 +124,12 @@ public:
 		return bAllInside ? EFrustumIntersectResult::Inside : EFrustumIntersectResult::Intersect;
 	}
 
-	/** 특정 점이 프러스텀 내부에 포함되는지 확인합니다. */
+	// 특정 점이 프러스텀 내부에 포함되는지 확인합니다.
 	bool Contains(const FVector& Point) const
 	{
 		for (const FPlane& Plane : Planes)
 		{
-			if (Plane.GetSignedDistanceToPoint(Point) < 0.0f)
+			if (Plane.GetSignedDistance(Point) < 0.0f)
 			{
 				return false;
 			}

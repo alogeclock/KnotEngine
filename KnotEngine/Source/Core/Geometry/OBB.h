@@ -70,16 +70,16 @@ struct FOBB
 		{
 			for (int j = 0; j < 3; ++j)
 			{
-				R[i][j] = OBBAxes[i].DotProduct(AABBAxes[j]);
+				R[i][j] = OBBAxes[i].Dot(AABBAxes[j]);
 				AbsR[i][j] = std::abs(R[i][j]) + 1e-6f;
 			}
 		}
 
 		const FVector Translation = AABBCenter - Center;
 		const FVector T(
-			Translation.DotProduct(OBBAxes[0]),
-			Translation.DotProduct(OBBAxes[1]),
-			Translation.DotProduct(OBBAxes[2]));
+			Translation.Dot(OBBAxes[0]),
+			Translation.Dot(OBBAxes[1]),
+			Translation.Dot(OBBAxes[2]));
 
 		float ra = 0.0f;
 		float rb = 0.0f;

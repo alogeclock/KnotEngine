@@ -37,15 +37,10 @@ struct FRay
 			return FRay{};
 		}
 
-		const float NDCX =
-			(2.0f * static_cast<float>(MouseX) / static_cast<float>(ViewportWidth) - 1.0f);
-		const float NDCY =
-			1.0f - (2.0f * static_cast<float>(MouseY) / static_cast<float>(ViewportHeight));
+		const float NDCX = (2.0f * static_cast<float>(MouseX) / static_cast<float>(ViewportWidth) - 1.0f);
+		const float NDCY = 1.0f - (2.0f * static_cast<float>(MouseY) / static_cast<float>(ViewportHeight));
 
-		// The engine projection matrices map near depth to NDC z = 0 and far
-		// depth to NDC z = 1. Keep the deprojection helper aligned with that
-		// convention so screen rays always start at the near plane and travel
-		// forward into the scene.
+		// The engine projection matrices map near depth to NDC z = 0 and far depth to NDC z = 1.
 		const FVector NearPointNDC(NDCX, NDCY, 0.0f);
 		const FVector FarPointNDC(NDCX, NDCY, 1.0f);
 
