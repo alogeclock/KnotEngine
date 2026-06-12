@@ -2,8 +2,8 @@
 
 #include <initializer_list>
 
-#include "Math/Vector.h"
-#include "Math/Vector4.h"
+#include "Core/Math/Vector.h"
+#include "Core/Math/Vector4.h"
 
 struct Vector4;
 

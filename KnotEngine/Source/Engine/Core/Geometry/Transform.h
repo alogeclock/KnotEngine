@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Math/Matrix.h"
-#include "Math/Quat.h"
-#include "Math/Rotator.h"
+#include "Core/Math/Matrix.h"
+#include "Core/Math/Quat.h"
+#include "Core/Math/Rotator.h"
 
 struct FTransform
 {

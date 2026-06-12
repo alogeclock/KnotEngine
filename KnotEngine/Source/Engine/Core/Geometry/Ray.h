@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Math/Vector.h"
-#include "Math/Matrix.h"
+#include "Core/Math/Vector.h"
+#include "Core/Math/Matrix.h"
 
 struct FRay
 {

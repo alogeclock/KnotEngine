@@ -3,11 +3,11 @@
 #include <cmath>
 #include <cassert>
 
-#include "CoreTypes.h"
-#include "Geometry/Plane.h"
-#include "Geometry/AABB.h"
-#include "Math/Matrix.h"
-#include "Math/Utils.h"
+#include "Core/CoreTypes.h"
+#include "Core/Geometry/Plane.h"
+#include "Core/Geometry/AABB.h"
+#include "Core/Math/Matrix.h"
+#include "Core/Math/Utils.h"
 
 // 뷰 프러스텀(View Frustum) 구조체, 6개의 평면을 사용하여 시야 범위 내의 객체 포함 여부를 판정합니다.
 struct FFrustum

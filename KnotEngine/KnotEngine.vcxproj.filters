@@ -7,15 +7,6 @@
     <Filter Include="Source">
       <UniqueIdentifier>{3c2855a9-3872-3ed4-4cd8-92f35c5ba60e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source\Core">
-      <UniqueIdentifier>{e0e4ea99-6596-02d0-9d91-35c934af56dd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Core\Geometry">
-      <UniqueIdentifier>{f2ddba27-69cd-45b8-bfee-fc38857c91ad}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Core\Math">
-      <UniqueIdentifier>{82edaa73-97e0-ab15-659a-bc5a14e575ae}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source\Editor">
       <UniqueIdentifier>{7cb564b8-9562-69cd-aed8-a109686cc5f9}</UniqueIdentifier>
     </Filter>
@@ -31,6 +22,12 @@
     <Filter Include="Source\Engine\Core">
       <UniqueIdentifier>{561a3785-87d4-df8d-6be7-e0c803160c09}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Engine\Core\Geometry">
+      <UniqueIdentifier>{ce073826-9e2c-bbc8-eee3-c78bcbff4bab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Core\Math">
+      <UniqueIdentifier>{b7cd01e6-2b49-c3ff-3375-800ac2c80183}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Engine\Object">
       <UniqueIdentifier>{958aba12-7e73-2921-694a-d1c50248ec52}</UniqueIdentifier>
     </Filter>
@@ -45,206 +42,206 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\main.cpp" />
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.cpp" />
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Matrix.cpp">
-      <Filter>Source\Core\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Quat.cpp">
-      <Filter>Source\Core\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\main.cpp" />
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\pch.cpp" />
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\EditorEngine.cpp">
       <Filter>Source\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\Viewport.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\Viewport.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\ViewportClient.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\ViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\ActorComponent.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\ActorComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\CubeComponent.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\CubeComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\PrimitiveComponent.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\PrimitiveComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SceneComponent.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\SceneComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Memory.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Matrix.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Quat.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Memory.cpp">
       <Filter>Source\Engine\Core</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Object.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Object\Object.cpp">
       <Filter>Source\Engine\Object</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.cpp">
       <Filter>Source\Engine\Render</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Launch.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\Launch.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.cpp">
       <Filter>Source\Engine\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.cpp">
+    <ClCompile Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.cpp">
       <Filter>Source\Engine\Serializer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\CoreTypes.h">
-      <Filter>Source\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\AABB.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Edge.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Frustum.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\OBB.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Plane.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Ray.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Geometry\Transform.h">
-      <Filter>Source\Core\Geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Color.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Matrix.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Quat.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Rotator.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Utils.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Vector.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Vector2.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Core\Math\Vector4.h">
-      <Filter>Source\Core\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\pch.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\EditorEngine.h">
       <Filter>Source\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\Viewport.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\Viewport.h">
       <Filter>Source\Editor\Viewport</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\ViewportClient.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Editor\Viewport\ViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\ActorComponent.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\ActorComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\CubeComponent.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\CubeComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\PrimitiveComponent.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\PrimitiveComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SceneComponent.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\SceneComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.h">
       <Filter>Source\Engine\Components</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Memory.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\CoreTypes.h">
       <Filter>Source\Engine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Singleton.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\AABB.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Edge.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Frustum.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\OBB.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Plane.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Ray.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Transform.h">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Color.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Matrix.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Quat.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Rotator.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Utils.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector2.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector4.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Memory.h">
       <Filter>Source\Engine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Class.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Core\Singleton.h">
+      <Filter>Source\Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Object\Class.h">
       <Filter>Source\Engine\Object</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Object.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Object\Object.h">
       <Filter>Source\Engine\Object</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\ObjectStatics.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Object\ObjectStatics.h">
       <Filter>Source\Engine\Object</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\VertexLayouts.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Render\VertexLayouts.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Launch.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\Launch.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.h">
       <Filter>Source\Engine\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.h">
       <Filter>Source\Engine\Serializer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Shaders\Common.hlsl">
+    <None Include="C:\Users\Jungle\Desktop\Jungle_Project\KnotEngine\KnotEngine\Shaders\Common.hlsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

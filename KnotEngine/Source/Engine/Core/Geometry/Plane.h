@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include "Math/Vector.h"
-#include "Math/Utils.h"
+#include "Core/Math/Vector.h"
+#include "Core/Math/Utils.h"
 
 struct FPlane
 {

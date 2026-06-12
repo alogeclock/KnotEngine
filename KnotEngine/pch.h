@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CoreTypes.h"
+#include "Engine/Core/CoreTypes.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -33,19 +33,19 @@ using FJson = nlohmann::json;
 #include <iostream>
 #include <wrl/client.h>
 
-#include "Math/Vector2.h"
-#include "Math/Vector.h"
-#include "Math/Vector4.h"
-#include "Math/Color.h"
-#include "Math/Utils.h"
-#include "Math/Matrix.h"
-#include "Math/Quat.h"
-#include "Math/Rotator.h"
+#include "Core/Math/Vector2.h"
+#include "Core/Math/Vector.h"
+#include "Core/Math/Vector4.h"
+#include "Core/Math/Color.h"
+#include "Core/Math/Utils.h"
+#include "Core/Math/Matrix.h"
+#include "Core/Math/Quat.h"
+#include "Core/Math/Rotator.h"
 
-#include "Geometry/Transform.h"
-#include "Geometry/AABB.h"
-#include "Geometry/OBB.h"
-#include "Geometry/Ray.h"
-#include "Geometry/Plane.h"
-#include "Geometry/Frustum.h"
-#include "Geometry/Edge.h"
+#include "Core/Geometry/Transform.h"
+#include "Core/Geometry/AABB.h"
+#include "Core/Geometry/OBB.h"
+#include "Core/Geometry/Ray.h"
+#include "Core/Geometry/Plane.h"
+#include "Core/Geometry/Frustum.h"
+#include "Core/Geometry/Edge.h"

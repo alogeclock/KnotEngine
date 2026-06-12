@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
-#include "Math/Vector.h"
+#include "Core/Math/Vector.h"
 #include <functional>
 
 // 두 FVector 정점으로 구성된 간선(Edge)을 표현하는 자료형

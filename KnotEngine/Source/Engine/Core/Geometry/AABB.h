@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <cfloat>
 
-#include "Math/Vector.h"
-#include "Math/Matrix.h"
-#include "Math/Utils.h"
-#include "Geometry/Ray.h"
+#include "Core/Math/Vector.h"
+#include "Core/Math/Matrix.h"
+#include "Core/Math/Utils.h"
+#include "Core/Geometry/Ray.h"
 
 struct FAABB
 {

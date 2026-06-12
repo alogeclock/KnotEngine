@@ -4,8 +4,8 @@
 #include <cmath>
 
 #include "Core/CoreTypes.h"
-#include "Math/Utils.h"
-#include "Math/Vector.h"
+#include "Core/Math/Utils.h"
+#include "Core/Math/Vector.h"
 
 struct FQuat;
 

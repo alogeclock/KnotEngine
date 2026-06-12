@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
-#include "Math/Vector2.h"
+#include "Core/Math/Vector2.h"
 
 struct FVector
 {

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Math/Vector.h"
-#include "Math/Quat.h"
-#include "Math/Matrix.h"
-#include "Geometry/AABB.h"
+#include "Core/Math/Vector.h"
+#include "Core/Math/Quat.h"
+#include "Core/Math/Matrix.h"
+#include "Core/Geometry/AABB.h"
 
 struct FOBB
 {
