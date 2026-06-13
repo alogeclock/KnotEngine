@@ -452,6 +452,10 @@ KnotEngine/Build/*
 !KnotEngine/Build/CMake/**
 !KnotEngine/Build/Scripts/
 !KnotEngine/Build/Scripts/**
+KnotEngine/*.dir/
+KnotEngine/*/*.dir/
+[Ii]ntermediate/
+**/[Ii]ntermediate/
 KnotEngine/Intermediate/
 KnotEngine/Binaries/
 KnotEngine/Bin/

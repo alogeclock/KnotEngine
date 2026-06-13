@@ -120,7 +120,7 @@ if not exist "%SRC%\" (
 
 mkdir "%DST%" >nul 2>nul
 
-robocopy "%SRC%" "%DST%" /E /XD .git .vs x64 Binaries Intermediate Saved DerivedDataCache .pytest_cache __pycache__ /XF *.obj *.pdb *.ilk *.exe *.dll *.lib *.exp *.log *.tmp *.user /NFL /NDL /NJH /NJS /NC /NS /NP >nul
+robocopy "%SRC%" "%DST%" /E /XD .git .vs x64 Bin Binaries Intermediate Saved DerivedDataCache .pytest_cache __pycache__ /XF *.obj *.pdb *.ilk *.exe *.dll *.lib *.exp *.log *.tmp *.user /NFL /NDL /NJH /NJS /NC /NS /NP >nul
 
 if %ERRORLEVEL% GEQ 8 (
     echo.

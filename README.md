@@ -61,9 +61,9 @@ GenerateProjects.bat
 GenerateProjects.bat --build
 ```
 
-Open the generated solution at `KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.sln` in Visual Studio 2022 and build.
+Open the generated solution at `KnotEngine/Build/VS2022-x64/KnotEngine.sln` in Visual Studio 2022 and build.
 
-Generated tools, package files, and intermediate build files are kept under `KnotEngine/Intermediate`. Build outputs are written to `KnotEngine/Binaries/x64/<Configuration>`.
+Generated tools, package files, and intermediate build files are kept under `KnotEngine/Intermediate`. Build outputs are written to `KnotEngine/Bin/x64/<Configuration>`.
 
 ---
 
@@ -136,9 +136,9 @@ GenerateProjects.bat
 GenerateProjects.bat --build
 ```
 
-생성된 `KnotEngine/Intermediate/Build/VS2022-x64/KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
+생성된 `KnotEngine/Build/VS2022-x64/KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
 
-생성된 도구, 패키지 파일, 중간 빌드 파일은 `KnotEngine/Intermediate` 아래에 정리됩니다. 빌드 결과물은 `KnotEngine/Binaries/x64/<Configuration>`에 생성됩니다.
+생성된 도구, 패키지 파일, 중간 빌드 파일은 `KnotEngine/Intermediate` 아래에 정리됩니다. 빌드 결과물은 `KnotEngine/Bin/x64/<Configuration>`에 생성됩니다.
 
 ---
 

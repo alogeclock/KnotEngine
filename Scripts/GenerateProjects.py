@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -13,17 +14,19 @@ if str(SCRIPT_DIR) not in sys.path:
 from GenerateFilters import update_project_filters
 
 # 하드코딩 디렉토리 상수
-BUILD_CONFIG_DIR = SCRIPT_DIR.parent
-ENGINE_DIR = BUILD_CONFIG_DIR.parent
+REPOSITORY_DIR = SCRIPT_DIR.parent
+ENGINE_DIR = REPOSITORY_DIR / "KnotEngine"
+BUILD_CONFIG_DIR = ENGINE_DIR / "Build"
 CMAKE_SOURCE_DIR = BUILD_CONFIG_DIR / "CMake"
 INTERMEDIATE_DIR = ENGINE_DIR / "Intermediate"
 CMAKE_EXE = INTERMEDIATE_DIR / "Tools" / "cmake" / "bin" / "cmake.exe"
 VCPKG_ROOT = INTERMEDIATE_DIR / "Tools" / "vcpkg"
 BINARY_CACHE_DIR = INTERMEDIATE_DIR / "Cache" / "vcpkg-binary"
-BUILD_DIR = INTERMEDIATE_DIR / "Build" / "VS2022-x64"
+BUILD_DIR = BUILD_CONFIG_DIR / "VS2022-x64"
 PROJECT_NAME = "KnotEngine"
 GENERATED_PROJECT_FILE = BUILD_DIR / f"{PROJECT_NAME}.vcxproj"
 LEGACY_PROJECT_FILE = ENGINE_DIR / f"{PROJECT_NAME}.vcxproj"
+MSBUILD_NS = "http://schemas.microsoft.com/developer/msbuild/2003"
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
     print("> " + " ".join(command), flush=True)
@@ -60,9 +63,25 @@ def copy_generated_project_to_root() -> None:
     legacy_filters_file = LEGACY_PROJECT_FILE.with_suffix(LEGACY_PROJECT_FILE.suffix + ".filters")
 
     shutil.copy2(GENERATED_PROJECT_FILE, LEGACY_PROJECT_FILE)
+    redirect_legacy_project_intermediate_dir()
     if generated_filters_file.exists():
         shutil.copy2(generated_filters_file, legacy_filters_file)
     print(f"Copied generated project file: {LEGACY_PROJECT_FILE}")
+
+
+def redirect_legacy_project_intermediate_dir() -> None:
+    if not LEGACY_PROJECT_FILE.exists():
+        return
+
+    ET.register_namespace("", MSBUILD_NS)
+    tree = ET.parse(LEGACY_PROJECT_FILE)
+    root = tree.getroot()
+    intermediate_dir = f"Build\\VS2022-x64\\{PROJECT_NAME}.dir\\$(Configuration)\\"
+
+    for element in root.iter(f"{{{MSBUILD_NS}}}IntDir"):
+        element.text = intermediate_dir
+
+    tree.write(LEGACY_PROJECT_FILE, encoding="utf-8", xml_declaration=True)
 
 
 def is_same_path(left: Path, right: Path) -> bool:
