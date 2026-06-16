@@ -33,6 +33,7 @@ These are the foundational systems the engine must have to run.
 Advanced features planned for future milestones.
 
 - **Advanced Rendering** — PBR, Ray Marching, Ray Tracing, Render Graph, GPU Driven Rendering, dynamic LOD, and BVH acceleration structures
+- **DirectX 12 Backend Migration** — Replace the rendering backend with DirectX 12 for modern graphics API support
 - **Multi-threaded Architecture** — Separated game/render threads with Render Proxy system, ECS, and a Job System for multi-core utilization
 - **Workflow & Editor Tools** — Virtual File System (VFS), hot reloading, and a visual editor for shaders, materials, and meshes
 
@@ -108,6 +109,7 @@ KnotEngine은 처음부터 완전한 3D 게임 엔진을 만들어 보는 개인
 향후 마일스톤에서 계획 중인 고급 기능입니다.
 
 - **고급 렌더링** — PBR, Ray Marching, Ray Tracing, Render Graph, GPU Driven Rendering, 동적 LOD, BVH 가속 구조
+- **DirectX12 백엔드 교체** — 최신 그래픽스 API 지원을 위해 렌더링 백엔드를 DirectX12로 교체
 - **멀티스레드 아키텍처** — Render Proxy 시스템을 갖춘 게임/렌더 스레드 분리, ECS, 멀티코어 활용을 위한 Job System
 - **워크플로우와 에디터 도구** — Virtual File System (VFS), 핫 리로딩, 셰이더/머티리얼/메시를 위한 비주얼 에디터
 

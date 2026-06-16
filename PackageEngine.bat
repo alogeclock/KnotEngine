@@ -57,6 +57,7 @@ call :CopyDir "Scripts"
 echo [STEP] Copying engine source...
 call :CopyDir "KnotEngine\Source"
 call :CopyDir "KnotEngine\Shaders"
+call :CopyDir "KnotEngine\Settings"
 
 echo [STEP] Copying KnotEngine project files...
 call :CopyFile "KnotEngine\KnotEngine.vcxproj"

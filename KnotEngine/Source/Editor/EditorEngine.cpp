@@ -1,10 +1,35 @@
 #include "EditorEngine.h"
 
+#include <filesystem>
+
+namespace
+{
+	constexpr const char* ImGuiSettingsPath = "Settings/imgui.ini";
+
+	void ConfigureImGuiSettingsPath()
+	{
+		const std::filesystem::path settingsDirectory = "Settings";
+		const std::filesystem::path settingsFile = ImGuiSettingsPath;
+		const std::filesystem::path legacySettingsFile = "imgui.ini";
+
+		std::error_code error;
+		std::filesystem::create_directories(settingsDirectory, error);
+
+		if (!std::filesystem::exists(settingsFile) && std::filesystem::exists(legacySettingsFile))
+		{
+			std::filesystem::copy_file(legacySettingsFile, settingsFile, std::filesystem::copy_options::none, error);
+		}
+
+		ImGui::GetIO().IniFilename = ImGuiSettingsPath;
+	}
+}
+
 void UEditorEngine::Init(FWindowsWindow InWindow)
 {
 	Renderer.Create(InWindow.GetHwnd());
 
 	ImGui::CreateContext();
+	ConfigureImGuiSettingsPath();
 	ImGui_ImplWin32_Init(InWindow.GetHwnd());
 	ImGui_ImplDX11_Init(Renderer.GetDevice(), Renderer.GetDeviceContext());
 };
