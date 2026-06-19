@@ -22,7 +22,9 @@ using FJson = nlohmann::json;
 #define NOMINMAX
 #endif
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <SDKDDKVer.h>
 #include <Windows.h>
 #include <d3d11.h>

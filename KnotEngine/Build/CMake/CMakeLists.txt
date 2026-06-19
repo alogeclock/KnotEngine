@@ -68,12 +68,13 @@ target_compile_definitions(KnotEngine PRIVATE
 )
 
 if(MSVC)
-    target_compile_options(KnotEngine PRIVATE /utf-8 /MP /EHa)
+    target_compile_options(KnotEngine PRIVATE
+        /utf-8
+        /MP
+        /EHa
+        "/FI${KNOTENGINE_ROOT}/pch.h"
+    )
 endif()
-
-target_precompile_headers(KnotEngine PRIVATE
-    "${KNOTENGINE_ROOT}/pch.h"
-)
 
 target_link_libraries(KnotEngine PRIVATE
     imgui::imgui

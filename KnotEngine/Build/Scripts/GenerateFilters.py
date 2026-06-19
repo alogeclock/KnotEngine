@@ -16,6 +16,20 @@ FILTER_ITEM_TYPES = (
 SOURCE_COMPILE_EXTENSIONS = {".c", ".cc", ".cpp", ".cxx"}
 SOURCE_HEADER_EXTENSIONS = {".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp"}
 SHADER_EXTENSIONS = {".hlsl", ".hlsli", ".fx", ".fxh"}
+FILTER_EXCLUDED_ROOTS = {
+    ".vs",
+    "Bin",
+    "Build",
+    "Binaries",
+    "DerivedDataCache",
+    "Intermediate",
+    "Saved",
+    "x64",
+}
+FILTER_EXCLUDED_PARTS = {
+    "CMakeFiles",
+    "vcpkg_installed",
+}
 
 
 def indent_xml(element: ET.Element, level: int = 0) -> None:
@@ -56,6 +70,21 @@ def add_filter_and_parents(filters: set[str], filter_name: str) -> None:
 
 def normalized_path_key(path: Path) -> str:
     return str(path.resolve()).replace("/", "\\").lower()
+
+
+def is_hidden_filter_path(path: Path, engine_dir: Path) -> bool:
+    try:
+        relative_path = path.resolve().relative_to(engine_dir.resolve())
+    except ValueError:
+        return True
+
+    if not relative_path.parts:
+        return False
+
+    if relative_path.parts[0] in FILTER_EXCLUDED_ROOTS:
+        return True
+
+    return any(part in FILTER_EXCLUDED_PARTS for part in relative_path.parts)
 
 
 def is_msbuild_expression(value: str) -> bool:
@@ -159,7 +188,13 @@ def scan_project_files(engine_dir: Path) -> list[Path]:
 
     for directory in (engine_dir / "Source", engine_dir / "Shaders"):
         if directory.exists():
-            files.extend(path for path in directory.rglob("*") if path.is_file() and default_item_type_for_path(path) is not None)
+            files.extend(
+                path
+                for path in directory.rglob("*")
+                if path.is_file()
+                and default_item_type_for_path(path) is not None
+                and not is_hidden_filter_path(path, engine_dir)
+            )
 
     return sorted(files, key=lambda path: str(path.resolve()).lower())
 
@@ -174,6 +209,9 @@ def build_filter_items(
     seen: set[tuple[str, str]] = set()
 
     for path in scan_project_files(engine_dir):
+        if is_hidden_filter_path(path, engine_dir):
+            continue
+
         item = include_for_path(path, project_file, engine_dir, include_lookup)
         if item is None:
             continue

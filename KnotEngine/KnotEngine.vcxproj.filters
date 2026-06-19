@@ -25,6 +25,9 @@
     <Filter Include="Source\Engine\Core\Geometry">
       <UniqueIdentifier>{ce073826-9e2c-bbc8-eee3-c78bcbff4bab}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Engine\Core\IO">
+      <UniqueIdentifier>{7c98573b-e1f5-666d-e35e-9d8aca267ef9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Engine\Core\Math">
       <UniqueIdentifier>{b7cd01e6-2b49-c3ff-3375-800ac2c80183}</UniqueIdentifier>
     </Filter>
@@ -76,6 +79,9 @@
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\IO\Paths.cpp">
+      <Filter>Source\Engine\Core\IO</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Matrix.cpp">
       <Filter>Source\Engine\Core\Math</Filter>
@@ -178,6 +184,9 @@
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Transform.h">
       <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\IO\Paths.h">
+      <Filter>Source\Engine\Core\IO</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Color.h">
       <Filter>Source\Engine\Core\Math</Filter>

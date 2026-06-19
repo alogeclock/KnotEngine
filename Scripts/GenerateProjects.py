@@ -27,6 +27,12 @@ PROJECT_NAME = "KnotEngine"
 GENERATED_PROJECT_FILE = BUILD_DIR / f"{PROJECT_NAME}.vcxproj"
 LEGACY_PROJECT_FILE = ENGINE_DIR / f"{PROJECT_NAME}.vcxproj"
 MSBUILD_NS = "http://schemas.microsoft.com/developer/msbuild/2003"
+HIDDEN_PROJECT_ITEM_TYPES = (
+    "ClCompile",
+    "ClInclude",
+    "CustomBuild",
+    "Natvis",
+)
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
     print("> " + " ".join(command), flush=True)
@@ -55,6 +61,7 @@ def configure_project() -> None:
     remove_stale_cmake_cache()
     run([str(CMAKE_EXE), "--preset", "vs2022-x64"], cwd=CMAKE_SOURCE_DIR, env=make_env())
     update_project_filters(GENERATED_PROJECT_FILE, ENGINE_DIR, PROJECT_NAME)
+    hide_generated_project_items(GENERATED_PROJECT_FILE)
     copy_generated_project_to_root()
 
 
@@ -64,6 +71,7 @@ def copy_generated_project_to_root() -> None:
 
     shutil.copy2(GENERATED_PROJECT_FILE, LEGACY_PROJECT_FILE)
     redirect_legacy_project_intermediate_dir()
+    remove_legacy_visible_generated_items()
     if generated_filters_file.exists():
         shutil.copy2(generated_filters_file, legacy_filters_file)
     print(f"Copied generated project file: {LEGACY_PROJECT_FILE}")
@@ -80,6 +88,56 @@ def redirect_legacy_project_intermediate_dir() -> None:
 
     for element in root.iter(f"{{{MSBUILD_NS}}}IntDir"):
         element.text = intermediate_dir
+
+    tree.write(LEGACY_PROJECT_FILE, encoding="utf-8", xml_declaration=True)
+
+
+def should_hide_project_item(include: str) -> bool:
+    normalized = include.replace("/", "\\").lower()
+    return (
+        "\\build\\vs2022-x64\\cmakefiles\\" in normalized
+        or "\\build\\cmake\\cmakelists.txt" in normalized
+        or "\\intermediate\\vcpkg_installed\\" in normalized
+        or normalized.endswith("\\cmake_pch.cxx")
+        or normalized.endswith("\\cmake_pch.hxx")
+    )
+
+
+def hide_generated_project_items(project_file: Path) -> None:
+    if not project_file.exists():
+        return
+
+    ET.register_namespace("", MSBUILD_NS)
+    tree = ET.parse(project_file)
+    root = tree.getroot()
+
+    for item_type in HIDDEN_PROJECT_ITEM_TYPES:
+        for element in root.iter(f"{{{MSBUILD_NS}}}{item_type}"):
+            include = element.get("Include")
+            if not include or not should_hide_project_item(include):
+                continue
+
+            visible = element.find(f"{{{MSBUILD_NS}}}Visible")
+            if visible is None:
+                visible = ET.SubElement(element, f"{{{MSBUILD_NS}}}Visible")
+            visible.text = "false"
+
+    tree.write(project_file, encoding="utf-8", xml_declaration=True)
+
+
+def remove_legacy_visible_generated_items() -> None:
+    if not LEGACY_PROJECT_FILE.exists():
+        return
+
+    ET.register_namespace("", MSBUILD_NS)
+    tree = ET.parse(LEGACY_PROJECT_FILE)
+    root = tree.getroot()
+
+    for parent in root.findall(f"{{{MSBUILD_NS}}}ItemGroup"):
+        for child in list(parent):
+            include = child.get("Include")
+            if include and should_hide_project_item(include):
+                parent.remove(child)
 
     tree.write(LEGACY_PROJECT_FILE, encoding="utf-8", xml_declaration=True)
 
