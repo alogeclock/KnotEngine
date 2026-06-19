@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Engine/Core/CoreTypes.h"
-
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_impl_dx11.h>
@@ -32,6 +30,12 @@ using FJson = nlohmann::json;
 #include <DirectXMath.h>
 #include <iostream>
 #include <wrl/client.h>
+
+#include "Core/CoreTypes.h"
+#include "Core/Assert.h"
+#include "Core/Debug.h"
+#include "Core/Memory.h"
+#include "Core/Singleton.h"
 
 #include "Core/Math/Vector2.h"
 #include "Core/Math/Vector.h"

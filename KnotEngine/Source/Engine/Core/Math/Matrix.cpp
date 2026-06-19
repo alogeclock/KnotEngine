@@ -56,7 +56,7 @@ FMatrix FMatrix::operator*(float Scalar) const noexcept
 
 FMatrix FMatrix::operator/(float Scalar) const noexcept
 {
-	assert(Scalar != 0.f);
+	check(Scalar != 0.f);
 	return *this * (1.0f / Scalar);
 }
 
@@ -80,7 +80,7 @@ FMatrix& FMatrix::operator*=(float Scalar) noexcept
 
 FMatrix& FMatrix::operator/=(float Scalar) noexcept
 {
-	assert(Scalar != 0.f);
+	check(Scalar != 0.f);
 	*this = *this / Scalar;
 	return *this;
 }
@@ -164,9 +164,7 @@ FMatrix FMatrix::GetInverse(float Tolerance) const noexcept
 	const float DeterminantValue = DirectX::XMVectorGetX(Det);
 	if (std::fabs(DeterminantValue) <= Tolerance)
 	{
-#ifndef NDEBUG
-		assert("FMatrix::GetInverse() failed: matrix is singular or invalid.");
-#endif
+		ensuref(false, "%s", "FMatrix::GetInverse() failed: matrix is singular or invalid.");
 		return Identity;
 	}
 
@@ -373,8 +371,8 @@ FMatrix FMatrix::MakeLookAt(const FVector& Eye, const FVector& Target, const FVe
 
 FMatrix FMatrix::MakePerspectiveFovLH(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
 {
-	assert(AspectRatio != 0.f);
-	assert(FarZ != NearZ);
+	check(AspectRatio != 0.f);
+	check(FarZ != NearZ);
 
 	const float YScale = 1.0f / std::tan(FovYRad * 0.5f);
 	const float XScale = YScale / AspectRatio;
@@ -388,9 +386,9 @@ FMatrix FMatrix::MakePerspectiveFovLH(float FovYRad, float AspectRatio, float Ne
 
 FMatrix FMatrix::MakeOrthographicLH(float ViewWidth, float ViewHeight, float NearZ, float FarZ) noexcept
 {
-	assert(ViewWidth != 0.f);
-	assert(ViewHeight != 0.f);
-	assert(FarZ != NearZ);
+	check(ViewWidth != 0.f);
+	check(ViewHeight != 0.f);
+	check(FarZ != NearZ);
 
 	return FMatrix(
 		0.f,             0.f,              1.f / (FarZ - NearZ),    0.f,

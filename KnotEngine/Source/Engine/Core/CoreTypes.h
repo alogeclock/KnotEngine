@@ -1,7 +1,6 @@
 #pragma once
 
 #include <DirectXMath.h>
-#include <cassert>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,6 +11,8 @@
 #include <utility>
 #include <queue>
 #include <deque>
+
+#include "Core/Assert.h"
 
 template <typename T, typename Allocator = std::allocator<T>>
 using TArray = std::vector<T, Allocator>;

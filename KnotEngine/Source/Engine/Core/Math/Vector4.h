@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <cmath>
 
 #include "Core/CoreTypes.h"
@@ -76,7 +75,7 @@ public:
 	{
 		const bool bThisPoint  = IsPoint();
 		const bool bOtherPoint = Other.IsPoint();
-		assert(!(bThisPoint && bOtherPoint) && "FVector4: Point + Point is invalid.");
+		checkf(!(bThisPoint && bOtherPoint), "%s", "FVector4: Point + Point is invalid.");
 		const float ResultW = (bThisPoint || bOtherPoint) ? 1.0f : 0.0f;
 		return { X + Other.X, Y + Other.Y, Z + Other.Z, ResultW };
 	}
@@ -86,7 +85,7 @@ public:
 	{
 		const bool bThisPoint  = IsPoint();
 		const bool bOtherPoint = Other.IsPoint();
-		assert((bThisPoint || !bOtherPoint) && "FVector4: Vector - Point is invalid.");
+		checkf((bThisPoint || !bOtherPoint), "%s", "FVector4: Vector - Point is invalid.");
 		const float ResultW = (bThisPoint && !bOtherPoint) ? 1.0f : 0.0f;
 		return { X - Other.X, Y - Other.Y, Z - Other.Z, ResultW };
 	}
@@ -100,7 +99,7 @@ public:
 	/** 스칼라 나눗셈 연산자 */
 	FVector4 operator/(float S) const noexcept
 	{
-		assert(std::abs(S) >= KMath::Epsilon && "Division by zero in FVector4::operator/");
+		checkf(std::abs(S) >= KMath::Epsilon, "%s", "Division by zero in FVector4::operator/");
 		const float Inv = 1.0f / S;
 		return { X * Inv, Y * Inv, Z * Inv, W * Inv };
 	}

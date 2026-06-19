@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cmath>
-#include <cassert>
 
 #include "Core/CoreTypes.h"
 #include "Core/Geometry/Plane.h"
@@ -87,16 +86,13 @@ public:
 			}
 		}
 
-#if defined (_DEBUG)
-		// Debug check: a point in the middle of the frustum (NDC z=0.5) should be inside all planes.
 		{
 			for (const FPlane& Plane : Planes)
 			{
 				const float Distance = Plane.GetSignedDistance(TestPoint);
-				assert(Distance >= -KMath::Epsilon);
+				check(Distance >= -KMath::Epsilon);
 			}
 		}
-#endif
 	}
 
 	// AABB와 프러스텀의 교차 여부를 판정합니다.

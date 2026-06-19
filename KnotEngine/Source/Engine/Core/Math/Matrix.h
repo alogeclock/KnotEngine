@@ -26,13 +26,13 @@ public:
 
 		float& operator[](int32 Column) noexcept
 		{
-			assert(Column >= 0 && Column < 4);
+			check(Column >= 0 && Column < 4);
 			return Values[Column];
 		}
 
 		const float& operator[](int32 Column) const noexcept
 		{
-			assert(Column >= 0 && Column < 4);
+			check(Column >= 0 && Column < 4);
 			return Values[Column];
 		}
 
@@ -67,7 +67,7 @@ public:
 
 		FRow& operator=(std::initializer_list<float> Row) noexcept
 		{
-			assert(Row.size() == 4);
+			check(Row.size() == 4);
 			int32 Column = 0;
 			for (const float Value : Row)
 			{
@@ -117,7 +117,7 @@ public:
 
 		FRow& operator/=(float Scalar) noexcept
 		{
-			assert(Scalar != 0.f);
+			check(Scalar != 0.f);
 			const float InvScalar = 1.0f / Scalar;
 			return *this *= InvScalar;
 		}
@@ -139,7 +139,7 @@ public:
 
 		FVector4 operator/(const FVector4& Row) const noexcept
 		{
-			assert(Row.X != 0.f && Row.Y != 0.f && Row.Z != 0.f && Row.W != 0.f);
+			check(Row.X != 0.f && Row.Y != 0.f && Row.Z != 0.f && Row.W != 0.f);
 			return FVector4(Values[0] / Row.X, Values[1] / Row.Y, Values[2] / Row.Z, Values[3] / Row.W);
 		}
 
@@ -150,7 +150,7 @@ public:
 
 		FVector4 operator/(float Scalar) const noexcept
 		{
-			assert(Scalar != 0.f);
+			check(Scalar != 0.f);
 			const float InvScalar = 1.0f / Scalar;
 			return *this * InvScalar;
 		}
@@ -162,7 +162,7 @@ public:
 
 		const float& operator[](int32 Column) const noexcept
 		{
-			assert(Column >= 0 && Column < 4);
+			check(Column >= 0 && Column < 4);
 			return Values[Column];
 		}
 
@@ -190,7 +190,7 @@ public:
 
 		FVector4 operator/(const FVector4& Row) const noexcept
 		{
-			assert(Row.X != 0.f && Row.Y != 0.f && Row.Z != 0.f && Row.W != 0.f);
+			check(Row.X != 0.f && Row.Y != 0.f && Row.Z != 0.f && Row.W != 0.f);
 			return FVector4(Values[0] / Row.X, Values[1] / Row.Y, Values[2] / Row.Z, Values[3] / Row.W);
 		}
 
@@ -201,7 +201,7 @@ public:
 
 		FVector4 operator/(float Scalar) const noexcept
 		{
-			assert(Scalar != 0.f);
+			check(Scalar != 0.f);
 			const float InvScalar = 1.0f / Scalar;
 			return *this * InvScalar;
 		}
@@ -265,12 +265,12 @@ public:
 public:
 	FRow operator[](int32 Row) noexcept
 	{
-		assert(Row >= 0 && Row < 4);
+		check(Row >= 0 && Row < 4);
 		return FRow{ M[Row] };
 	}
 	FConstRow operator[](int32 Row) const noexcept
 	{
-		assert(Row >= 0 && Row < 4);
+		check(Row >= 0 && Row < 4);
 		return FConstRow{ M[Row] };
 	}
 

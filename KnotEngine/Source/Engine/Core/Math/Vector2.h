@@ -59,13 +59,13 @@ public:
 
 	float& operator[](int32_t Index) noexcept
 	{
-		assert(Index >= 0 && Index < 2);
+		check(Index >= 0 && Index < 2);
 		return Data[Index];
 	}
 
 	const float& operator[](int32_t Index) const noexcept
 	{
-		assert(Index >= 0 && Index < 2);
+		check(Index >= 0 && Index < 2);
 		return Data[Index];
 	}
 
@@ -101,7 +101,7 @@ public:
 
 	constexpr FVector2 operator/(float Scalar) const noexcept
 	{
-		assert(Scalar != 0.f);
+		check(Scalar != 0.f);
 		return { X / Scalar, Y / Scalar };
 	}
 
@@ -128,7 +128,7 @@ public:
 
 	FVector2& operator/=(float Scalar) noexcept
 	{
-		assert(Scalar != 0.f);
+		check(Scalar != 0.f);
 		X /= Scalar;
 		Y /= Scalar;
 		return *this;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <cmath>
 #include <algorithm>
 
@@ -86,7 +85,7 @@ public:
 
 	FQuat operator/(float Scale) const noexcept
 	{
-		assert(std::fabs(Scale) > KMath::Epsilon);
+		check(std::fabs(Scale) > KMath::Epsilon);
 		return FQuat(X / Scale, Y / Scale, Z / Scale, W / Scale);
 	}
 
@@ -120,7 +119,7 @@ public:
 
 	FQuat& operator/=(float Scale) noexcept
 	{
-		assert(std::fabs(Scale) > KMath::Epsilon);
+		check(std::fabs(Scale) > KMath::Epsilon);
 		X /= Scale; Y /= Scale; Z /= Scale; W /= Scale;
 		return *this;
 	}

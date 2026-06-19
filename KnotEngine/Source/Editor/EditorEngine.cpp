@@ -8,18 +8,8 @@ namespace
 
 	void ConfigureImGuiSettingsPath()
 	{
-		const std::filesystem::path settingsDirectory = "Settings";
-		const std::filesystem::path settingsFile = ImGuiSettingsPath;
-		const std::filesystem::path legacySettingsFile = "imgui.ini";
-
-		std::error_code error;
-		std::filesystem::create_directories(settingsDirectory, error);
-
-		if (!std::filesystem::exists(settingsFile) && std::filesystem::exists(legacySettingsFile))
-		{
-			std::filesystem::copy_file(legacySettingsFile, settingsFile, std::filesystem::copy_options::none, error);
-		}
-
+		std::error_code Error;
+		std::filesystem::create_directories("Settings", Error);
 		ImGui::GetIO().IniFilename = ImGuiSettingsPath;
 	}
 }

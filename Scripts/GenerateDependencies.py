@@ -19,8 +19,9 @@ from DependencyState import (
     write_dependency_state,
 )
 
-BUILD_DIR = SCRIPT_DIR.parent
-ENGINE_DIR = BUILD_DIR.parent
+REPOSITORY_DIR = SCRIPT_DIR.parent
+ENGINE_DIR = REPOSITORY_DIR / "KnotEngine"
+BUILD_DIR = ENGINE_DIR / "Build"
 CMAKE_SOURCE_DIR = BUILD_DIR / "CMake"
 INTERMEDIATE_DIR = ENGINE_DIR / "Intermediate"
 TOOLS_DIR = INTERMEDIATE_DIR / "Tools"

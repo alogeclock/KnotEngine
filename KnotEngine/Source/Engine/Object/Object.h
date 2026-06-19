@@ -22,7 +22,7 @@ public:
 	template<typename T> 
 	T* Create()
 	{
-		static_assert(std::is_base_of<UObject, T>::value, "T must derive from UObject");
+		static_assert(std::is_base_of_v<UObject, T>, "T must derive from UObject");
 		T* Object = new T();
 		return Object;
 	}

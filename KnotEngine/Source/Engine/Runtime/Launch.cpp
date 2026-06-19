@@ -1,7 +1,5 @@
 #include "Launch.h"
 
-#include <cassert>
-
 #if WITH_EDITOR
 	#include "Editor/EditorEngine.h"
 #else
@@ -24,7 +22,7 @@ int Launch(HINSTANCE Instance, int ShowCmd)
 	FEngineLoop EngineLoop(&CreateEngine);
 
 	EngineLoop.Init(Instance, ShowCmd);
-	const int Result = EngineLoop.Run();
+	const int32 Result = EngineLoop.Run();
 	EngineLoop.Shutdown();
 
 	return Result;

@@ -8,17 +8,17 @@
 
 FEngineLoop::FEngineLoop(FCreateEngineFn InFactory) : CreateEngine(InFactory)
 {
-	assert(CreateEngine);
+	check(CreateEngine);
 }
 
-void FEngineLoop::Init(HINSTANCE Instance, int ShowCmd)
+void FEngineLoop::Init(HINSTANCE Instance, int32 ShowCmd)
 {
 	Application.Init(Instance, ShowCmd);
 	CreateEngine();
 	GEngine->Init(Application.GetWindow());
 }
 
-int FEngineLoop::Run()
+int32 FEngineLoop::Run()
 {
 	while(!Application.IsExitRequested())
 	{

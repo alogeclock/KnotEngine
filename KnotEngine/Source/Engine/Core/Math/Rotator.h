@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <cmath>
 
 #include "Core/CoreTypes.h"
@@ -104,7 +103,7 @@ public:
 	/** 스칼라 나눗셈 연산자 */
 	FRotator operator/(float Scale) const noexcept
 	{
-		assert(std::fabs(Scale) > KMath::Epsilon);
+		check(std::fabs(Scale) > KMath::Epsilon);
 		return FRotator(Pitch / Scale, Yaw / Scale, Roll / Scale);
 	}
 
@@ -132,7 +131,7 @@ public:
 	/** 복합 나눗셈 연산자 */
 	FRotator& operator/=(float Scale) noexcept
 	{
-		assert(std::fabs(Scale) > KMath::Epsilon);
+		check(std::fabs(Scale) > KMath::Epsilon);
 		Pitch /= Scale; Yaw /= Scale; Roll /= Scale;
 		return *this;
 	}
