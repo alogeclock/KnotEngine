@@ -11,7 +11,8 @@ struct FMemoryHeader
 };
 
 // 사용자가 요청한 크기에 헤더를 추가하여 메모리를 할당한다.
-void* operator new(size_t Size)
+_NODISCARD _Ret_notnull_ _Post_writable_byte_size_(Size) _VCRT_ALLOCATOR
+void* __CRTDECL operator new(size_t Size)
 {
 	if (Size == 0)
 	{
@@ -35,13 +36,14 @@ void* operator new(size_t Size)
 	return static_cast<void*>(Header + 1);
 }
 
-void* operator new[](size_t Size)
+_NODISCARD _Ret_notnull_ _Post_writable_byte_size_(Size) _VCRT_ALLOCATOR
+void* __CRTDECL operator new[](size_t Size)
 {
 	return ::operator new(Size);
 }
 
 // 사용자가 넘겨준 주소에서 헤더를 찾고, Total Allocation Bytes에 반영한다.
-void operator delete(void* Memory) noexcept
+void __CRTDECL operator delete(void* Memory) noexcept
 {
 	if (!Memory)
 		return;
@@ -61,17 +63,17 @@ void operator delete(void* Memory) noexcept
 	std::free(Header);
 }
 
-void operator delete[](void* Memory) noexcept
+void __CRTDECL operator delete[](void* Memory) noexcept
 {
 	::operator delete(Memory);
 }
 
-void operator delete(void* Memory, size_t /*Size*/) noexcept
+void __CRTDECL operator delete(void* Memory, size_t /*Size*/) noexcept
 {
 	::operator delete(Memory);
 }
 
-void operator delete[](void* Memory, size_t /*Size*/) noexcept
+void __CRTDECL operator delete[](void* Memory, size_t /*Size*/) noexcept
 {
 	::operator delete(Memory);
 }

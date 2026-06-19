@@ -59,14 +59,30 @@ public:
 
 	float& operator[](int32_t Index) noexcept
 	{
-		check(Index >= 0 && Index < 2);
-		return Data[Index];
+		switch (Index)
+		{
+		case 0:
+			return X;
+		case 1:
+			return Y;
+		default:
+			check(false);
+			return X;
+		}
 	}
 
 	const float& operator[](int32_t Index) const noexcept
 	{
-		check(Index >= 0 && Index < 2);
-		return Data[Index];
+		switch (Index)
+		{
+		case 0:
+			return X;
+		case 1:
+			return Y;
+		default:
+			check(false);
+			return X;
+		}
 	}
 
 	constexpr bool operator==(const FVector2& Other) const noexcept

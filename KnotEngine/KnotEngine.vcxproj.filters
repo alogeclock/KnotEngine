@@ -10,6 +10,9 @@
     <Filter Include="Source\Editor">
       <UniqueIdentifier>{7cb564b8-9562-69cd-aed8-a109686cc5f9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Editor\UI">
+      <UniqueIdentifier>{42e8efd4-725e-ad97-e962-e3ed60dd53e6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Editor\Viewport">
       <UniqueIdentifier>{f9f7994b-e0f4-a39e-f82a-089aef4d9c88}</UniqueIdentifier>
     </Filter>
@@ -49,6 +52,12 @@
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.cpp">
       <Filter>Source\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\EditorUI.cpp">
+      <Filter>Source\Editor\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\ImGuiSystem.cpp">
+      <Filter>Source\Editor\UI</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.cpp">
       <Filter>Source\Editor\Viewport</Filter>
@@ -124,6 +133,12 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.h">
       <Filter>Source\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\EditorUI.h">
+      <Filter>Source\Editor\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\ImGuiSystem.h">
+      <Filter>Source\Editor\UI</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.h">
       <Filter>Source\Editor\Viewport</Filter>

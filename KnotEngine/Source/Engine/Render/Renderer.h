@@ -35,7 +35,6 @@ public:
     void PrepareShader();
     void RenderPrimitive(ID3D11Buffer* pBuffer, UINT numVertices);
 
-    // 게터
     ID3D11Device* GetDevice() const { return Device; }
     ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
 

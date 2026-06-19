@@ -342,6 +342,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.cpp" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.cpp" />
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\EditorUI.cpp" />
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\ImGuiSystem.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.cpp" />
@@ -366,6 +368,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.cpp" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\EditorUI.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\ImGuiSystem.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\AssetEditorViewportClient.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\EditorViewportClient.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\Viewport\LevelEditorViewportClient.h" />

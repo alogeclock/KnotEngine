@@ -2,6 +2,8 @@
 
 #include "Runtime/Engine.h"
 #include "Render/Renderer.h"
+#include "UI/EditorUI.h"
+#include "UI/ImGuiSystem.h"
 
 class UEditorEngine : public UEngine
 {
@@ -14,4 +16,6 @@ public:
 
 private:
 	URenderer Renderer;
+	FImGuiSystem ImGuiSystem;
+	FEditorUI EditorUI;
 };

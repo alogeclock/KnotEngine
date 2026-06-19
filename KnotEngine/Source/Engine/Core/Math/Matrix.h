@@ -265,13 +265,29 @@ public:
 public:
 	FRow operator[](int32 Row) noexcept
 	{
-		check(Row >= 0 && Row < 4);
-		return FRow{ M[Row] };
+		switch (Row)
+		{
+		case 0: return FRow{ M[0] };
+		case 1: return FRow{ M[1] };
+		case 2: return FRow{ M[2] };
+		case 3: return FRow{ M[3] };
+		default:
+			check(false);
+			return FRow{ M[0] };
+		}
 	}
 	FConstRow operator[](int32 Row) const noexcept
 	{
-		check(Row >= 0 && Row < 4);
-		return FConstRow{ M[Row] };
+		switch (Row)
+		{
+		case 0: return FConstRow{ M[0] };
+		case 1: return FConstRow{ M[1] };
+		case 2: return FConstRow{ M[2] };
+		case 3: return FConstRow{ M[3] };
+		default:
+			check(false);
+			return FConstRow{ M[0] };
+		}
 	}
 
 	// operator==는 부동소수점 정확 비교입니다.
