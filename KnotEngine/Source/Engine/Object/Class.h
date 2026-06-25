@@ -24,6 +24,9 @@ protected:
 // UStruct 생략, 추후 FProperty 및 Reflection System 구현과 함께 재구현
 class UClass : public UField
 {
+public:
+	using CreateFuncType = UObject*(*)(); // Function-Pointer Alias. 인자가 없고, UObject*를 반환하는 함수 포인터
+
     UClass* GetSuperClass() const { return SuperClass; }
     size_t GetClassSize() const { return ClassSize; }
     size_t GetMinAlignment() const { return MinAlignment; }
@@ -32,4 +35,7 @@ protected:
     UClass* SuperClass = nullptr;
     size_t ClassSize = 0;
     size_t MinAlignment = 0;
+
+private:
+	CreateFuncType CreateFunc = nullptr;
 };
