@@ -30,13 +30,16 @@ using FJson = nlohmann::json;
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
-#include <iostream>
 #include <wrl/client.h>
+
+#include <iostream>
+#include <type_traits>
 
 #include "Core/CoreTypes.h"
 #include "Core/Assert.h"
 #include "Core/Debug.h"
 #include "Core/Memory.h"
+#include "Core/Name.h"
 #include "Core/Singleton.h"
 
 #include "Core/Math/Vector2.h"

@@ -21,7 +21,7 @@ int Launch(HINSTANCE Instance, int ShowCmd)
 {
 	FEngineLoop EngineLoop(&CreateEngine);
 
-	EngineLoop.Init(Instance, ShowCmd);
+	EngineLoop.Startup(Instance, ShowCmd);
 	const int32 Result = EngineLoop.Run();
 	EngineLoop.Shutdown();
 

@@ -21,7 +21,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-bool FWindowsApplication::Init(HINSTANCE InInstance, int ShowCmd)
+bool FWindowsApplication::Startup(HINSTANCE InInstance, int ShowCmd)
 {
 	Instance = InInstance;
 
@@ -37,7 +37,7 @@ bool FWindowsApplication::Init(HINSTANCE InInstance, int ShowCmd)
 
 	HWND WindowHandle = CreateWindowExW(0, ClassName, Title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, nullptr, nullptr, Instance, nullptr);
 
-	Window.Init(WindowHandle);
+	Window.Startup(WindowHandle);
 	ShowWindow(WindowHandle, ShowCmd);
 	UpdateWindow(WindowHandle);
 

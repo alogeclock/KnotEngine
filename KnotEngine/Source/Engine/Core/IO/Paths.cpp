@@ -69,10 +69,16 @@ FWString FPaths::RootDir()
 // UTF-8 문자열을 Wide 문자열로 변환합니다. 먼저 CP_UTF8로 시도하고, 실패하면 CP_ACP로 시도.
 FWString FPaths::ToWide(const FString& Utf8String)
 {
-	if (Utf8String.empty()) return {};
+	if (Utf8String.empty())
+	{
+		return {};
+	}
 
 	FWString Result = ConvertToWide(Utf8String, CP_UTF8, MB_ERR_INVALID_CHARS);
-	if (!Result.empty()) return Result;
+	if (!Result.empty())
+	{
+		return Result;
+	}
 
 	return ConvertToWide(Utf8String, CP_ACP, 0);
 }
@@ -80,10 +86,16 @@ FWString FPaths::ToWide(const FString& Utf8String)
 // Wide 문자열을 UTF-8 문자열로 변환, 엔진 전역에서 사용되는 경로 유틸리티.
 FString FPaths::ToUtf8(const FWString& WideString)
 {
-	if (WideString.empty()) return {};
+	if (WideString.empty())
+	{
+		return {};
+	}
 
 	const int32 Size = WideCharToMultiByte(CP_UTF8, 0, WideString.c_str(), -1, nullptr, 0, nullptr, nullptr);
-	if (Size <= 0) return {};
+	if (Size <= 0)
+	{
+		return {};
+	}
 
 	FString Result(static_cast<size_t>(Size - 1), '\0');
 	WideCharToMultiByte(CP_UTF8, 0, WideString.c_str(), -1, Result.data(), Size, nullptr, nullptr);

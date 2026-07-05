@@ -16,7 +16,7 @@ public:
     FWindowsApplication() = default;
     ~FWindowsApplication() = default;
 
-	bool Init(HINSTANCE InInstance, int ShowCmd);
+	bool Startup(HINSTANCE InInstance, int ShowCmd);
     void PumpMessages();
     void Shutdown();
 

@@ -46,7 +46,9 @@ void* __CRTDECL operator new[](size_t Size)
 void __CRTDECL operator delete(void* Memory) noexcept
 {
 	if (!Memory)
+	{
 		return;
+	}
 
 	FMemoryHeader* Header = static_cast<FMemoryHeader*>(Memory) - 1;
 	const size_t TotalSize = Header->Size + sizeof(FMemoryHeader);

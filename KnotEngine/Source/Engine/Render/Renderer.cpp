@@ -42,11 +42,15 @@ void URenderer::CreateDeviceAndSwapChain(HWND hWindow)
 void URenderer::CreateFrameBuffer()
 {
     if (!SwapChain || !Device)
+    {
         return;
+    }
 
     HRESULT hr = SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&FrameBuffer);
     if (FAILED(hr) || !FrameBuffer)
+    {
         return;
+    }
 
     D3D11_RENDER_TARGET_VIEW_DESC framebufferRTVdesc = {};
     framebufferRTVdesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
@@ -87,9 +91,13 @@ void URenderer::CreateShader()
     Stride = sizeof(FVertexSimple);
 
     if (VertexShaderCSO)
+    {
         VertexShaderCSO->Release();
+    }
     if (PixelShaderCSO)
+    {
         PixelShaderCSO->Release();
+    }
 }
 
 void URenderer::CreateConstantBuffer()
@@ -165,7 +173,9 @@ ID3D11Buffer* URenderer::CreateVertexBuffer(FVertexSimple* vertices, UINT byteWi
 void URenderer::SwapBuffer()
 {
     if (SwapChain)
+    {
         SwapChain->Present(1, 0);
+    }
 }
 
 // --- Release Methods ---
@@ -177,7 +187,9 @@ void URenderer::Release()
     ReleaseRasterizerState();
 
     if (DeviceContext)
+    {
         DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
+    }
 
     ReleaseFrameBuffer();
     ReleaseDeviceAndSwapChain();
@@ -186,7 +198,9 @@ void URenderer::Release()
 void URenderer::ReleaseDeviceAndSwapChain()
 {
     if (DeviceContext)
+    {
         DeviceContext->Flush();
+    }
     if (SwapChain)
     {
         SwapChain->Release();
@@ -258,5 +272,7 @@ void URenderer::ReleaseConstantBuffer()
 void URenderer::ReleaseVertexBuffer(ID3D11Buffer* vertexBuffer)
 {
     if (vertexBuffer)
+    {
         vertexBuffer->Release();
+    }
 }

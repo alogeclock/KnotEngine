@@ -9,7 +9,7 @@ public:
 	FWindowsWindow() = default;
 	~FWindowsWindow() = default;
 
-	void Init(HWND InHWindow);
+	void Startup(HWND InHWindow);
     HWND GetHwnd() const { return HWindow; }
 
 	float GetWidth() const { return Width; }

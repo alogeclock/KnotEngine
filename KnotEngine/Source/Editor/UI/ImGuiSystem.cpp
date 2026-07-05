@@ -3,12 +3,12 @@
 #include "Core/IO/Paths.h"
 #include "Render/Renderer.h"
 
-void FImGuiSystem::Init(HWND WindowHandle, URenderer& Renderer)
+void FImGuiSystem::Startup(HWND WindowHandle, URenderer& Renderer)
 {
 	ImGui::CreateContext();
 
 	std::filesystem::create_directories(FPaths::SettingDir());
-	ImGuiSettingsPath = FPaths::ToUtf8(FPaths::ImGuiSettingsFilePath());
+	ImGuiSettingsPath = FPaths::ToUtf8(FPaths::ImGuiSettingsPath());
 	ImGui::GetIO().IniFilename = ImGuiSettingsPath.c_str();
 
 	ImGui_ImplWin32_Init(WindowHandle);

@@ -303,14 +303,23 @@ private:
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
 		OutX = InX.GetSafeNormal(KMath::Epsilon);
-		if (OutX.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutX.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		const FVector ProjectedY = InY - OutX * FVector::Dot(InY, OutX);
 		OutY = ProjectedY.GetSafeNormal(KMath::Epsilon);
-		if (OutY.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutY.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		OutZ = FVector::Cross(OutX, OutY).GetSafeNormal(KMath::Epsilon);
-		if (OutZ.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutZ.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		OutY = FVector::Cross(OutZ, OutX).GetSafeNormal(KMath::Epsilon);
 		return !OutY.IsNearlyZero(KMath::Epsilon);
@@ -321,14 +330,23 @@ private:
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
 		OutX = InX.GetSafeNormal(KMath::Epsilon);
-		if (OutX.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutX.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		const FVector ProjectedZ = InZ - OutX * FVector::Dot(InZ, OutX);
 		OutZ = ProjectedZ.GetSafeNormal(KMath::Epsilon);
-		if (OutZ.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutZ.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		OutY = FVector::Cross(OutZ, OutX).GetSafeNormal(KMath::Epsilon);
-		if (OutY.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutY.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		OutZ = FVector::Cross(OutX, OutY).GetSafeNormal(KMath::Epsilon);
 		return !OutZ.IsNearlyZero(KMath::Epsilon);
@@ -339,14 +357,23 @@ private:
 		FVector& OutX, FVector& OutY, FVector& OutZ) noexcept
 	{
 		OutY = InY.GetSafeNormal(KMath::Epsilon);
-		if (OutY.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutY.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		const FVector ProjectedZ = InZ - OutY * FVector::Dot(InZ, OutY);
 		OutZ = ProjectedZ.GetSafeNormal(KMath::Epsilon);
-		if (OutZ.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutZ.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		OutX = FVector::Cross(OutY, OutZ).GetSafeNormal(KMath::Epsilon);
-		if (OutX.IsNearlyZero(KMath::Epsilon)) return false;
+		if (OutX.IsNearlyZero(KMath::Epsilon))
+		{
+			return false;
+		}
 
 		OutZ = FVector::Cross(OutX, OutY).GetSafeNormal(KMath::Epsilon);
 		return !OutZ.IsNearlyZero(KMath::Epsilon);

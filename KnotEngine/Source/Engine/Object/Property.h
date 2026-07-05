@@ -1,7 +1,9 @@
 #pragma once
 
+#include "Core/Archive.h"
 #include "Object/Object.h"
 
+/* 
 class FProperty
 {
 public:
@@ -20,3 +22,4 @@ private:
 public:
 	void VisitReferences(void* Container, FReferenceCollector& Collector) const override;
 };
+*/

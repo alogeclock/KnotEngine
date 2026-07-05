@@ -66,8 +66,14 @@ public:
 	{
 		auto Less = [](const FVector& P, const FVector& Q) -> bool
 		{
-			if (P.X != Q.X) return P.X < Q.X;
-			if (P.Y != Q.Y) return P.Y < Q.Y;
+			if (P.X != Q.X)
+			{
+				return P.X < Q.X;
+			}
+			if (P.Y != Q.Y)
+			{
+				return P.Y < Q.Y;
+			}
 			return P.Z < Q.Z;
 		};
 		return Less(A, B) ? FEdge(A, B) : FEdge(B, A);

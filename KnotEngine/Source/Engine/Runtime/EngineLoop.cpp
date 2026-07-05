@@ -11,11 +11,13 @@ FEngineLoop::FEngineLoop(FCreateEngineFn InFactory) : CreateEngine(InFactory)
 	check(CreateEngine);
 }
 
-void FEngineLoop::Init(HINSTANCE Instance, int32 ShowCmd)
+void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
 {
-	Application.Init(Instance, ShowCmd);
+	FName::Startup();
+
+	Application.Startup(Instance, ShowCmd);
 	CreateEngine();
-	GEngine->Init(Application.GetWindow());
+	GEngine->Startup(Application.GetWindow());
 }
 
 int32 FEngineLoop::Run()
@@ -37,4 +39,6 @@ void FEngineLoop::Shutdown()
 	GEngine = nullptr;
 
 	Application.Shutdown();
+
+	FName::Shutdown();
 }

@@ -10,7 +10,7 @@ class UEditorEngine : public UEngine
 public:
     virtual ~UEditorEngine() = default;
 
-	void Init(FWindowsWindow InWindow) override;
+	void Startup(FWindowsWindow InWindow) override;
 	void Tick(float DeltaTime) override;
 	void Shutdown() override;
 

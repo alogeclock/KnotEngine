@@ -1,9 +1,9 @@
 #include "EditorEngine.h"
 
-void UEditorEngine::Init(FWindowsWindow InWindow)
+void UEditorEngine::Startup(FWindowsWindow InWindow)
 {
 	Renderer.Create(InWindow.GetHwnd());
-	ImGuiSystem.Init(InWindow.GetHwnd(), Renderer);
+	ImGuiSystem.Startup(InWindow.GetHwnd(), Renderer);
 };
 
 void UEditorEngine::Tick(float DeltaTime)

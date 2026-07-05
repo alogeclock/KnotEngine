@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Class.h"
+class UClass;
 
 // 엔진 런타임 객체의 공통 기반 클래스. 
 // GUObjectArray 등록/해제와 생명주기를 함께하며 UUID 기반 식별.
@@ -10,7 +10,8 @@ public:
 	UObject();
 	virtual ~UObject();
 
-	virtual UClass* GetClass() const = 0;
+	// [TODO] Reflection System 구현 후 재구현
+	virtual UClass* GetClass() const { return nullptr; }
 
 	uint32 GetUUID() const { return UUID; }
 	uint32 GetInternalIndex() const { return InternalIndex; } 

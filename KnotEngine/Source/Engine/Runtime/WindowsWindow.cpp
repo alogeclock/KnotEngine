@@ -1,6 +1,6 @@
 #include "WindowsWindow.h"
 
-void FWindowsWindow::Init(HWND InHWindow)
+void FWindowsWindow::Startup(HWND InHWindow)
 {
 	HWindow = InHWindow;
 

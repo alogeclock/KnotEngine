@@ -11,7 +11,7 @@ public:
     using FCreateEngineFn = void(*)();
 	explicit FEngineLoop(FCreateEngineFn InFactory);
 
-	void Init(HINSTANCE Instance, int32 ShowCmd);
+	void Startup(HINSTANCE Instance, int32 ShowCmd);
     int32 Run();
     void Shutdown();
 
