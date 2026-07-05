@@ -76,6 +76,35 @@ namespace
 
 	FNamePool* GNamePool = nullptr;
 
+	static constexpr const char* GNameEntries[] =
+	{
+		"None",
+		"Class",
+		"ScriptStruct",
+		"Function",
+		"Enum",
+		"Field",
+		"Property",
+		"IntProperty",
+		"FloatProperty",
+		"BoolProperty",
+		"EnumProperty",
+		"ObjectProperty",
+		"SoftObjectProperty",
+		"StructProperty",
+		"ArrayProperty",
+		"NameProperty",
+		"StringProperty",
+		"DisplayName",
+		"Category",
+		"ToolTip",
+	};
+
+	constexpr uint32 NAME_TABLE_COUNT = static_cast<uint32>(EName::Count);
+	static_assert(sizeof(GNameEntries) / sizeof(GNameEntries[0]) == static_cast<size_t>(EName::Count));
+
+	FNameEntryId GNameEntryMap[NAME_TABLE_COUNT] = {};
+
 	uint32 AlignValue(uint32 Value, uint32 Alignment)
 	{
 		return (Value + Alignment - 1) & ~(Alignment - 1);
@@ -135,16 +164,16 @@ namespace
 		const auto ConvertResult = std::from_chars(Name.data() + DigitStart, Name.data() + End, ParsedValue);
 
 		// std::from_chars가 오버플로우면 errc::result_out_of_range를 반환한다.
-		// UINT32_MAX는 internal(+1) 저장 시 0(=번호 없음 sentinel)이 되어버리므로 별도로 제외한다.
+		// UINT32_MAX는 internal(+1) 저장 시 0(=번호 없음 sentinel)이므로 별도로 제외한다.
 		if (ConvertResult.ec != std::errc() || ParsedValue == std::numeric_limits<uint32>::max())
 		{
 			return NAME_NO_NUMBER_INTERNAL;
 		}
 
 		InOutPlainNameLength = DigitStart - 1;
-		// 0은 "번호 없음" sentinel이므로 외부 번호는 내부에서 +1로 저장한다.
-		return ParsedValue + 1;
+		return ParsedValue + 1; // 0은 "번호 없음"이므로, 외부 번호는 내부에서 +1로 저장한다.
 	}
+
 // 첫 블록을 할당하고, id 0에 "None" 문자열을 등록해 NAME_NONE_INDEX 규약을 보장한다.
 FNameEntryAllocator::FNameEntryAllocator()
 {
@@ -191,6 +220,7 @@ FNameEntryId FNameEntryAllocator::Allocate(const FString& InName)
 	return Id;
 }
 
+// FNameEntryId로부터 블록과 오프셋을 추출하여 해당 FNameEntry를 찾아 문자열을 반환한다.
 FString FNameEntryAllocator::Resolve(FNameEntryId Id) const
 {
 	const uint32 Block = Id.GetBlock();
@@ -204,6 +234,7 @@ FString FNameEntryAllocator::Resolve(FNameEntryId Id) const
 	return Entry->ToString();
 }
 
+// 새로운 블록을 할당하고, CurrentBlock과 CurrentOffset을 초기화한다.
 void FNameEntryAllocator::AllocateBlock()
 {
 	check(Blocks.size() < NAME_MAX_BLOCKS);
@@ -213,6 +244,7 @@ void FNameEntryAllocator::AllocateBlock()
 	CurrentOffset = 0;
 }
 
+// "none" 문자열을 NAME_NONE_INDEX에 등록하여 FNamePool의 규약을 보장한다.
 FNamePool::FNamePool()
 {
 	NameMap.emplace("none", FNameEntryId{ NAME_NONE_INDEX });
@@ -222,6 +254,13 @@ void FNamePool::Startup()
 {
 	check(GNamePool == nullptr);
 	GNamePool = new FNamePool();
+
+	for (int32 Index = 0; Index < std::size(GNameEntries); ++Index)
+	{
+        GNameEntryMap[Index] = GNamePool->FindOrAdd(GNameEntries[Index]);
+	}
+
+	check(GNameEntryMap[static_cast<int32>(EName::None)].Value == NAME_NONE_INDEX);
 }
 
 void FNamePool::Shutdown()
@@ -321,6 +360,19 @@ FName::FName(const FString& InName)
 	Number = ParsedNumber;
 }
 
+FName::FName(EName InName)
+{
+	const size_t Index = static_cast<size_t>(InName);
+	check(Index < static_cast<size_t>(EName::Count));
+	check(GNamePool != nullptr);
+
+	const FNameEntryId Id = GNameEntryMap[Index];
+	check(InName == EName::None || Id.Value != NAME_NONE_INDEX);
+
+	ComparisonIndex = Id.Value;
+	Number = NAME_NO_NUMBER_INTERNAL;
+}
+
 FString FName::ToString() const
 {
 	FString Result = FNamePool::Get().Resolve(FNameEntryId{ ComparisonIndex });
@@ -328,7 +380,7 @@ FString FName::ToString() const
 	if (Number != NAME_NO_NUMBER_INTERNAL)
 	{
 		Result += "_";
-		// 내부 번호는 "번호 없음" sentinel(0)을 피하기 위해 외부 값보다 1 크게 저장한다.
+		// 내부 번호는 0을 피하기 위해 외부 값보다 1 크게 저장한다.
 		Result += std::to_string(Number - 1);
 	}
 

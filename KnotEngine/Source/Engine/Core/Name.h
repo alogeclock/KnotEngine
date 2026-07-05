@@ -19,6 +19,36 @@ struct FNameEntryId
 
 inline uint32 GetTypeHash(const FNameEntryId& Id) { return Id.Value; }
 
+// 엔진에서 자주 참조되는 Name들을 enum으로 정의하여 lower-case 변환, mutex, 해시맵 조회를 회피.
+enum class EName : uint32
+{
+	None = 0,
+
+	Class,
+	ScriptStruct,
+	Function,
+	Enum,
+	Field,
+	Property,
+
+	IntProperty,
+	FloatProperty,
+	BoolProperty,
+	EnumProperty,
+	ObjectProperty,
+    SoftObjectProperty,
+	StructProperty,
+	ArrayProperty,
+	NameProperty,
+	StringProperty,
+	
+	DisplayName,
+	Category,
+	Tooltip,
+
+	Count
+};
+
 // 전역 FNamePool의 entry id와 number suffix만 저장하는 경량 name handle.
 class FName
 {
@@ -30,6 +60,7 @@ public:
 
 	explicit FName(const char* InName);
 	explicit FName(const FString& InName);
+	explicit FName(EName InName);
 
 	bool IsNone() const { return ComparisonIndex == 0 && Number == 0; }
 	FString ToString() const;
