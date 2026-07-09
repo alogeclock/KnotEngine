@@ -5,6 +5,9 @@
 #include "UI/EditorUI.h"
 #include "UI/ImGuiSystem.h"
 
+// [TODO] 큐브 삭제
+#include "Components/CubeComponent.h"
+
 class UEditorEngine : public UEngine
 {
 public:
@@ -18,4 +21,6 @@ private:
 	URenderer Renderer;
 	FImGuiSystem ImGuiSystem;
 	FEditorUI EditorUI;
+
+	UCubeComponent* Cube = nullptr;
 };

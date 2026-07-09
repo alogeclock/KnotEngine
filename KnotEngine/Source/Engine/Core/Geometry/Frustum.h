@@ -16,7 +16,7 @@ public:
 	FPlane Planes[6];
 
 	// 프러스텀 교차 판정 결과
-	enum class EFrustumIntersectResult
+	enum class EFrustumIntersectResult : uint8
 	{
 		Outside,
 		Intersect,

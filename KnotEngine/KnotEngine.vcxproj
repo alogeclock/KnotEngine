@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build" ToolsVersion="17.0">
   <PropertyGroup>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
@@ -336,10 +336,11 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    </ItemGroup>
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\main.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.cpp" />
+    <ClCompile Include="Source\Engine\Render\Scene.cpp" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.cpp" />
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\UI\EditorUI.cpp" />
@@ -412,7 +413,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\ReflectionMacros.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\ReflectionRegistry.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.h" />
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\VertexLayouts.h" />
+    <ClInclude Include="Source\Engine\Render\Resource\MeshTypes.h" />
+    <ClInclude Include="Source\Engine\Render\Resource\MeshResources.h" />
+    <ClInclude Include="Source\Engine\Render\Resource\Buffer.h" />
+    <ClInclude Include="Source\Engine\Render\Resource\VertexLayouts.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\EngineLoop.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\GameEngine.h" />
@@ -420,9 +424,11 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsApplication.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\WindowsWindow.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.h" />
+    <ClInclude Include="Source\Engine\Render\Scene.h" />
+    <ClInclude Include="Source\Engine\Render\Resource\VertexTypes.h" />
     <None Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Shaders\Common.hlsl">
     </None>
-    </ItemGroup>
+  </ItemGroup>
   <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Build\VS2022-x64\ZERO_CHECK.vcxproj">

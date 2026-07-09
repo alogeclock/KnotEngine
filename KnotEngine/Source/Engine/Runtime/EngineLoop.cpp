@@ -22,10 +22,22 @@ void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
 
 int32 FEngineLoop::Run()
 {
+	LARGE_INTEGER Frequency = {};
+	LARGE_INTEGER PreviousCounter = {};
+	QueryPerformanceFrequency(&Frequency);
+	QueryPerformanceCounter(&PreviousCounter);
+
 	while(!Application.IsExitRequested())
 	{
+		LARGE_INTEGER CurrentCounter = {};
+		QueryPerformanceCounter(&CurrentCounter);
+		const float DeltaTime = static_cast<float>(
+			static_cast<double>(CurrentCounter.QuadPart - PreviousCounter.QuadPart) /
+			static_cast<double>(Frequency.QuadPart));
+		PreviousCounter = CurrentCounter;
+
 		Application.PumpMessages();
-		GEngine->Tick(0.0f);
+		GEngine->Tick(DeltaTime);
 	}
 
 	return 0;

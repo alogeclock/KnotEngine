@@ -2,7 +2,7 @@
 // © 2024 KRAFTON, Inc. ALL RIGHTS RESERVED.
 
 #include "Core/CoreTypes.h"
-#include "Engine/Render/VertexLayouts.h"
+#include "Engine/Render/Vertex/VertexLayouts.h"
 
 FVertex triangle_vertices[] =
 {

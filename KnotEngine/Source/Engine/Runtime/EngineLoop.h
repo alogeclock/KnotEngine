@@ -9,13 +9,13 @@ class FEngineLoop
 {
 public:
     using FCreateEngineFn = void(*)();
-	explicit FEngineLoop(FCreateEngineFn InFactory);
+    explicit FEngineLoop(FCreateEngineFn InFactory);
 
-	void Startup(HINSTANCE Instance, int32 ShowCmd);
+    void Startup(HINSTANCE Instance, int32 ShowCmd);
     int32 Run();
     void Shutdown();
 
 private:
-	FCreateEngineFn CreateEngine = nullptr;
+    FCreateEngineFn CreateEngine = nullptr;
     FWindowsApplication Application; // Windows 전용으로 사용, 추후 플랫폼 확장 시 FGenericApplication으로 대응
 };

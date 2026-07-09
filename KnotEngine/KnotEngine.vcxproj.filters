@@ -134,6 +134,7 @@
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.cpp">
       <Filter>Source\Engine\Serializer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Engine\Render\Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
@@ -290,6 +291,7 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.h">
       <Filter>Source\Engine\Serializer</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Engine\Render\Scene.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Shaders\Common.hlsl">

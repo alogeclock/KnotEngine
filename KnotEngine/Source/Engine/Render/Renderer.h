@@ -1,50 +1,51 @@
 #pragma once
 
-#include "VertexLayouts.h"
+#include "Render/Resource/VertexTypes.h"
 
-/**
- * URenderer
- * DirectX 11을 이용한 렌더링 시스템을 담당하는 클래스
- */
+// DirectX 11을 이용한 렌더링 시스템을 담당하는 클래스
 class URenderer
 {
 public:
     URenderer() = default;
+    URenderer(const URenderer&) = delete;
+    URenderer& operator=(const URenderer&) = delete;
+    URenderer(URenderer&&) = delete;
+    URenderer& operator=(URenderer&&) = delete;
     ~URenderer() { Release(); }
 
-    // 인터페이스: 초기화 및 해제
     void Create(HWND hWindow);
     void Release();
 
-    // 인터페이스: 프레임 제어
     void Prepare();
     void SwapBuffer();
 
-    // 인터페이스: 셰이더 및 리소스 관리
     void CreateShader();
     void ReleaseShader();
     
     void CreateConstantBuffer();
     void ReleaseConstantBuffer();
-    void UpdateConstant(FVector Offset, float Scale);
+    void UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection);
 
-    ID3D11Buffer* CreateVertexBuffer(FVertexSimple* vertices, UINT byteWidth);
+    ID3D11Buffer* CreateVertexBuffer(FGeometryVertex* vertices, UINT byteWidth);
     void ReleaseVertexBuffer(ID3D11Buffer* vertexBuffer);
 
-    // 인터페이스: 드로우 콜
     void PrepareShader();
     void RenderPrimitive(ID3D11Buffer* pBuffer, UINT numVertices);
 
     ID3D11Device* GetDevice() const { return Device; }
     ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
+	D3D11_VIEWPORT GetViewportInfo() const { return ViewportInfo; }
 
 private:
-    // 내부 초기화 메서드 (SRP 준수)
+    // 내부 초기화 메서드
     void CreateDeviceAndSwapChain(HWND hWindow);
     void ReleaseDeviceAndSwapChain();
     
     void CreateFrameBuffer();
     void ReleaseFrameBuffer();
+
+    void CreateDepthStencilBuffer();
+    void ReleaseDepthStencilBuffer();
     
     void CreateRasterizerState();
     void ReleaseRasterizerState();
@@ -53,8 +54,7 @@ private:
     // 상수 버퍼 구조체
     struct FConstants
     {
-        FVector Offset;
-        float Scale;
+        DirectX::XMFLOAT4X4 ModelViewProjection;
     };
 
     // D3D 기본 객체
@@ -65,6 +65,9 @@ private:
     // 렌더링 타겟 및 상태
     ID3D11Texture2D* FrameBuffer = nullptr;
     ID3D11RenderTargetView* FrameBufferRTV = nullptr;
+    ID3D11Texture2D* DepthStencilBuffer = nullptr;
+    ID3D11DepthStencilView* DepthStencilView = nullptr;
+    ID3D11DepthStencilState* DepthStencilState = nullptr;
     ID3D11RasterizerState* RasterizerState = nullptr;
     ID3D11Buffer* ConstantBuffer = nullptr;
 

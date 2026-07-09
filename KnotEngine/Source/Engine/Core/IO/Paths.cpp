@@ -21,7 +21,7 @@ namespace
 	}
 }
 
-// 배포 환경과 개발 환경을 구분하여 루트 디렉토리를 반환합니다.
+// 배포 환경과 개발 환경을 구분하여 루트 디렉토리를 반환한다.
 FWString FPaths::RootDir()
 {
 	static FWString Cached;
@@ -66,7 +66,7 @@ FWString FPaths::RootDir()
 	return Cached;
 }
 
-// UTF-8 문자열을 Wide 문자열로 변환합니다. 먼저 CP_UTF8로 시도하고, 실패하면 CP_ACP로 시도.
+// UTF-8 문자열을 Wide 문자열로 변환한다. 먼저 CP_UTF8로 시도하고, 실패하면 CP_ACP로 시도.
 FWString FPaths::ToWide(const FString& Utf8String)
 {
 	if (Utf8String.empty())

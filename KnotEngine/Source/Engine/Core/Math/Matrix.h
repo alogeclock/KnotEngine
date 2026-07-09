@@ -7,7 +7,7 @@
 
 struct Vector4;
 
-enum class EAxis : uint8_t
+enum class EAxis : uint8
 {
 	X,
 	Y,

@@ -8,7 +8,10 @@ void URenderer::Create(HWND hWindow)
 {
     CreateDeviceAndSwapChain(hWindow);
     CreateFrameBuffer();
+    CreateDepthStencilBuffer();
     CreateRasterizerState();
+    CreateShader();
+    CreateConstantBuffer();
 }
 
 void URenderer::CreateDeviceAndSwapChain(HWND hWindow)
@@ -26,11 +29,25 @@ void URenderer::CreateDeviceAndSwapChain(HWND hWindow)
     swapchaindesc.Windowed = TRUE;
     swapchaindesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-    D3D11CreateDeviceAndSwapChain(
+    UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG;
+    HRESULT hr = D3D11CreateDeviceAndSwapChain(
         nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-        D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+        createDeviceFlags,
         featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION,
         &swapchaindesc, &SwapChain, &Device, nullptr, &DeviceContext);
+    if (FAILED(hr))
+    {
+        createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+        hr = D3D11CreateDeviceAndSwapChain(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+            createDeviceFlags,
+            featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION,
+            &swapchaindesc, &SwapChain, &Device, nullptr, &DeviceContext);
+    }
+    if (FAILED(hr))
+    {
+        return;
+    }
 
     if (SwapChain)
     {
@@ -52,11 +69,48 @@ void URenderer::CreateFrameBuffer()
         return;
     }
 
-    D3D11_RENDER_TARGET_VIEW_DESC framebufferRTVdesc = {};
-    framebufferRTVdesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-    framebufferRTVdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    hr = Device->CreateRenderTargetView(FrameBuffer, nullptr, &FrameBufferRTV);
+    if (FAILED(hr))
+    {
+        FrameBuffer->Release();
+        FrameBuffer = nullptr;
+    }
+}
 
-    Device->CreateRenderTargetView(FrameBuffer, &framebufferRTVdesc, &FrameBufferRTV);
+void URenderer::CreateDepthStencilBuffer()
+{
+    if (!Device || ViewportInfo.Width <= 0.0f || ViewportInfo.Height <= 0.0f)
+    {
+        return;
+    }
+
+    D3D11_TEXTURE2D_DESC depthStencilDesc = {};
+    depthStencilDesc.Width = static_cast<UINT>(ViewportInfo.Width);
+    depthStencilDesc.Height = static_cast<UINT>(ViewportInfo.Height);
+    depthStencilDesc.MipLevels = 1;
+    depthStencilDesc.ArraySize = 1;
+    depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthStencilDesc.SampleDesc.Count = 1;
+    depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+    if (FAILED(Device->CreateTexture2D(&depthStencilDesc, nullptr, &DepthStencilBuffer)))
+    {
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc = {};
+    depthStencilViewDesc.Format = depthStencilDesc.Format;
+    depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+
+    Device->CreateDepthStencilView(DepthStencilBuffer, &depthStencilViewDesc, &DepthStencilView);
+
+    D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc = {};
+    depthStencilStateDesc.DepthEnable = TRUE;
+    depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS;
+    depthStencilStateDesc.StencilEnable = FALSE;
+
+    Device->CreateDepthStencilState(&depthStencilStateDesc, &DepthStencilState);
 }
 
 void URenderer::CreateRasterizerState()
@@ -72,23 +126,43 @@ void URenderer::CreateShader()
 {
     ID3DBlob* VertexShaderCSO = nullptr;
     ID3DBlob* PixelShaderCSO = nullptr;
+    ID3DBlob* ErrorBlob = nullptr;
 
     // 셰이더 컴파일
-    D3DCompileFromFile(L"Common.hlsl", nullptr, nullptr, "VS", "vs_5_0", 0, 0, &VertexShaderCSO, nullptr);
-    Device->CreateVertexShader(VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), nullptr, &SimpleVertexShader);
+    HRESULT hr = D3DCompileFromFile(L"Shaders/Common.hlsl", nullptr, nullptr, "VS", "vs_5_0", 0, 0, &VertexShaderCSO, &ErrorBlob);
+    if (SUCCEEDED(hr) && VertexShaderCSO)
+    {
+        Device->CreateVertexShader(VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), nullptr, &SimpleVertexShader);
+    }
+    if (ErrorBlob)
+    {
+        ErrorBlob->Release();
+        ErrorBlob = nullptr;
+    }
 
-    D3DCompileFromFile(L"Common.hlsl", nullptr, nullptr, "PS", "ps_5_0", 0, 0, &PixelShaderCSO, nullptr);
-    Device->CreatePixelShader(PixelShaderCSO->GetBufferPointer(), PixelShaderCSO->GetBufferSize(), nullptr, &SimplePixelShader);
+    hr = D3DCompileFromFile(L"Shaders/Common.hlsl", nullptr, nullptr, "PS", "ps_5_0", 0, 0, &PixelShaderCSO, &ErrorBlob);
+    if (SUCCEEDED(hr) && PixelShaderCSO)
+    {
+        Device->CreatePixelShader(PixelShaderCSO->GetBufferPointer(), PixelShaderCSO->GetBufferSize(), nullptr, &SimplePixelShader);
+    }
+    if (ErrorBlob)
+    {
+        ErrorBlob->Release();
+        ErrorBlob = nullptr;
+    }
 
     // 입력 레이아웃 정의
     D3D11_INPUT_ELEMENT_DESC layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
-    Device->CreateInputLayout(layout, ARRAYSIZE(layout), VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), &SimpleInputLayout);
+    if (VertexShaderCSO)
+    {
+        Device->CreateInputLayout(layout, ARRAYSIZE(layout), VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), &SimpleInputLayout);
+    }
 
-    Stride = sizeof(FVertexSimple);
+    Stride = FGeometryVertex::Stride;
 
     if (VertexShaderCSO)
     {
@@ -114,11 +188,21 @@ void URenderer::CreateConstantBuffer()
 
 void URenderer::Prepare()
 {
+    if (!DeviceContext || !FrameBufferRTV)
+    {
+        return;
+    }
+
     DeviceContext->ClearRenderTargetView(FrameBufferRTV, ClearColor);
+    if (DepthStencilView)
+    {
+        DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    }
     DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     DeviceContext->RSSetViewports(1, &ViewportInfo);
     DeviceContext->RSSetState(RasterizerState);
-    DeviceContext->OMSetRenderTargets(1, &FrameBufferRTV, nullptr);
+    DeviceContext->OMSetRenderTargets(1, &FrameBufferRTV, DepthStencilView);
+    DeviceContext->OMSetDepthStencilState(DepthStencilState, 0);
     DeviceContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
 }
 
@@ -134,7 +218,7 @@ void URenderer::PrepareShader()
     }
 }
 
-void URenderer::UpdateConstant(FVector Offset, float Scale)
+void URenderer::UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection)
 {
     if (ConstantBuffer)
     {
@@ -142,8 +226,7 @@ void URenderer::UpdateConstant(FVector Offset, float Scale)
         if (SUCCEEDED(DeviceContext->Map(ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &constantbufferMSR)))
         {
             FConstants* constants = (FConstants*)constantbufferMSR.pData;
-            constants->Offset = Offset;
-            constants->Scale = Scale;
+            DirectX::XMStoreFloat4x4(&constants->ModelViewProjection, WorldViewProjection);
             DeviceContext->Unmap(ConstantBuffer, 0);
         }
     }
@@ -156,7 +239,7 @@ void URenderer::RenderPrimitive(ID3D11Buffer* pBuffer, UINT numVertices)
     DeviceContext->Draw(numVertices, 0);
 }
 
-ID3D11Buffer* URenderer::CreateVertexBuffer(FVertexSimple* vertices, UINT byteWidth)
+ID3D11Buffer* URenderer::CreateVertexBuffer(FGeometryVertex* vertices, UINT byteWidth)
 {
     D3D11_BUFFER_DESC vertexbufferdesc = {};
     vertexbufferdesc.ByteWidth = byteWidth;
@@ -178,12 +261,11 @@ void URenderer::SwapBuffer()
     }
 }
 
-// --- Release Methods ---
-
 void URenderer::Release()
 {
     ReleaseShader();
     ReleaseConstantBuffer();
+    ReleaseDepthStencilBuffer();
     ReleaseRasterizerState();
 
     if (DeviceContext)
@@ -229,6 +311,25 @@ void URenderer::ReleaseFrameBuffer()
     {
         FrameBufferRTV->Release();
         FrameBufferRTV = nullptr;
+    }
+}
+
+void URenderer::ReleaseDepthStencilBuffer()
+{
+    if (DepthStencilState)
+    {
+        DepthStencilState->Release();
+        DepthStencilState = nullptr;
+    }
+    if (DepthStencilView)
+    {
+        DepthStencilView->Release();
+        DepthStencilView = nullptr;
+    }
+    if (DepthStencilBuffer)
+    {
+        DepthStencilBuffer->Release();
+        DepthStencilBuffer = nullptr;
     }
 }
 

@@ -9,20 +9,20 @@ struct FColor
 public:
 	union
 	{
-		struct { float r, g, b, a; };
-		struct { float R, G, B, A; };
+		struct { uint8 r, g, b, a; };
+		struct { uint8 R, G, B, A; };
 	};
 
-	constexpr FColor() noexcept : r(0.f), g(0.f), b(0.f), a(1.f) {}
+	constexpr FColor() noexcept : r(0), g(0), b(0), a(255) {}
 
 	constexpr FColor(float InR, float InG, float InB, float InA) noexcept
-		: r(InR), g(InG), b(InB), a(InA) {}
+		: r(FloatToByte(InR)), g(FloatToByte(InG)), b(FloatToByte(InB)), a(FloatToByte(InA)) {}
 
 	constexpr FColor(uint32 InR, uint32 InG, uint32 InB, uint32 InA = 255) noexcept
-		: r(static_cast<float>(InR) / 255.0f)
-		, g(static_cast<float>(InG) / 255.0f)
-		, b(static_cast<float>(InB) / 255.0f)
-		, a(static_cast<float>(InA) / 255.0f)
+		: r(ClampByte(InR))
+		, g(ClampByte(InG))
+		, b(ClampByte(InB))
+		, a(ClampByte(InA))
 	{
 	}
 
@@ -45,60 +45,88 @@ public:
 public:
 	constexpr FColor operator+(float Num) const noexcept
 	{
-		return { Clamp(r + Num), Clamp(g + Num), Clamp(b + Num), a };
+		return { Clamp(ByteToFloat(r) + Num), Clamp(ByteToFloat(g) + Num), Clamp(ByteToFloat(b) + Num), ByteToFloat(a) };
 	}
 
 	constexpr FColor operator+(const FColor& Other) const noexcept
 	{
-		return { Clamp(r + Other.r), Clamp(g + Other.g), Clamp(b + Other.b), Clamp(a + Other.a) };
+		return {
+			Clamp(ByteToFloat(r) + ByteToFloat(Other.r)),
+			Clamp(ByteToFloat(g) + ByteToFloat(Other.g)),
+			Clamp(ByteToFloat(b) + ByteToFloat(Other.b)),
+			Clamp(ByteToFloat(a) + ByteToFloat(Other.a))
+		};
 	}
 
 	constexpr FColor operator-(float Num) const noexcept
 	{
-		return { Clamp(r - Num), Clamp(g - Num), Clamp(b - Num), a };
+		return { Clamp(ByteToFloat(r) - Num), Clamp(ByteToFloat(g) - Num), Clamp(ByteToFloat(b) - Num), ByteToFloat(a) };
 	}
 
 	constexpr FColor operator-(const FColor& Other) const noexcept
 	{
-		return { Clamp(r - Other.r), Clamp(g - Other.g), Clamp(b - Other.b), Clamp(a - Other.a) };
+		return {
+			Clamp(ByteToFloat(r) - ByteToFloat(Other.r)),
+			Clamp(ByteToFloat(g) - ByteToFloat(Other.g)),
+			Clamp(ByteToFloat(b) - ByteToFloat(Other.b)),
+			Clamp(ByteToFloat(a) - ByteToFloat(Other.a))
+		};
 	}
 
 	constexpr FColor operator*(float Num) const noexcept
 	{
-		return { Clamp(r * Num), Clamp(g * Num), Clamp(b * Num), a };
+		return { Clamp(ByteToFloat(r) * Num), Clamp(ByteToFloat(g) * Num), Clamp(ByteToFloat(b) * Num), ByteToFloat(a) };
 	}
 
 	constexpr FColor operator*(const FColor& Other) const noexcept
 	{
-		return { Clamp(r * Other.r), Clamp(g * Other.g), Clamp(b * Other.b), Clamp(a * Other.a) };
+		return {
+			Clamp(ByteToFloat(r) * ByteToFloat(Other.r)),
+			Clamp(ByteToFloat(g) * ByteToFloat(Other.g)),
+			Clamp(ByteToFloat(b) * ByteToFloat(Other.b)),
+			Clamp(ByteToFloat(a) * ByteToFloat(Other.a))
+		};
 	}
 
 	// ──────────── Methods ────────────
 public:
-	constexpr FVector4 ToVector4() const noexcept { return FVector4(r, g, b, a); }
+	constexpr FVector4 ToVector4() const noexcept { return FVector4(ByteToFloat(r), ByteToFloat(g), ByteToFloat(b), ByteToFloat(a)); }
 
 	constexpr uint32 ToPackedABGR() const noexcept
 	{
-		uint32 Ri = static_cast<uint32>(r * 255.999f);
-		uint32 Gi = static_cast<uint32>(g * 255.999f);
-		uint32 Bi = static_cast<uint32>(b * 255.999f);
-		uint32 Ai = static_cast<uint32>(a * 255.999f);
-		return (Ai << 24) | (Bi << 16) | (Gi << 8) | Ri;
+		return (static_cast<uint32>(a) << 24) | (static_cast<uint32>(b) << 16) | (static_cast<uint32>(g) << 8) | static_cast<uint32>(r);
 	}
 
 	static constexpr FColor Lerp(const FColor& A, const FColor& B, float T) noexcept
 	{
 		return {
-			Clamp(A.r + (B.r - A.r) * T),
-			Clamp(A.g + (B.g - A.g) * T),
-			Clamp(A.b + (B.b - A.b) * T),
-			Clamp(A.a + (B.a - A.a) * T)
+			Clamp(ByteToFloat(A.r) + (ByteToFloat(B.r) - ByteToFloat(A.r)) * T),
+			Clamp(ByteToFloat(A.g) + (ByteToFloat(B.g) - ByteToFloat(A.g)) * T),
+			Clamp(ByteToFloat(A.b) + (ByteToFloat(B.b) - ByteToFloat(A.b)) * T),
+			Clamp(ByteToFloat(A.a) + (ByteToFloat(B.a) - ByteToFloat(A.a)) * T)
 		};
 	}
 
 private:
+	static constexpr float ByteToFloat(uint8 Value) noexcept
+	{
+		return static_cast<float>(Value) / 255.0f;
+	}
+
+	static constexpr uint8 FloatToByte(float Value) noexcept
+	{
+		return static_cast<uint8>(Clamp(Value) * 255.999f);
+	}
+
+	static constexpr uint8 ClampByte(uint32 Value) noexcept
+	{
+		return static_cast<uint8>((Value > 255) ? 255 : Value);
+	}
+
 	static constexpr float Clamp(float Value) noexcept
 	{
 		return (Value < 0.0f) ? 0.0f : ((Value > 1.0f) ? 1.0f : Value);
 	}
 };
+
+static_assert(sizeof(FColor) == 4, "FColor must be 4 bytes.");
