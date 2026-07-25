@@ -21,6 +21,7 @@ private:
 	uint32 InternalIndex;
 };
 
+
 extern TArray<UObject*> GUObjectArray;
 
 // UObject의 생성/파괴 생명주기 관리 및 UUID/InternalIndex 기반 조회를 담당하는 런타임 관리자.

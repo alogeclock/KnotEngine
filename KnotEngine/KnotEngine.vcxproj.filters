@@ -40,6 +40,12 @@
     <Filter Include="Source\Engine\Render">
       <UniqueIdentifier>{0e2a7bc0-8978-a5a2-ff41-c221358b14a3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source\Engine\Render\Backends">
+      <UniqueIdentifier>{a17a4d69-b96a-5282-74ec-4e99e5bde86d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Engine\Render\Resource">
+      <UniqueIdentifier>{d3d16b0d-f099-f88b-5ab9-2377bf2a2b16}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source\Engine\Runtime">
       <UniqueIdentifier>{d185c182-6719-1a41-b039-02180628717e}</UniqueIdentifier>
     </Filter>
@@ -110,7 +116,28 @@
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\Property.cpp">
       <Filter>Source\Engine\Object</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Backends\D3D11Backend.cpp">
+      <Filter>Source\Engine\Render\Backends</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.cpp">
+      <Filter>Source\Engine\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\Buffer.cpp">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\MeshResources.cpp">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\MeshTypes.cpp">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\RenderResource.cpp">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\VertexTypes.cpp">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Scene.cpp">
       <Filter>Source\Engine\Render</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.cpp">
@@ -134,7 +161,6 @@
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.cpp">
       <Filter>Source\Engine\Serializer</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Engine\Render\Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
@@ -264,10 +290,31 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Object\ReflectionRegistry.h">
       <Filter>Source\Engine\Object</Filter>
     </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Backends\D3D11Backend.h">
+      <Filter>Source\Engine\Render\Backends</Filter>
+    </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\VertexLayouts.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\Buffer.h">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\MeshResources.h">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\MeshTypes.h">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\RenderResource.h">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\VertexLayouts.h">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Resource\VertexTypes.h">
+      <Filter>Source\Engine\Render\Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Scene.h">
       <Filter>Source\Engine\Render</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Runtime\Engine.h">
@@ -291,7 +338,6 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Serializer\SceneSerializer.h">
       <Filter>Source\Engine\Serializer</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Engine\Render\Scene.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Shaders\Common.hlsl">

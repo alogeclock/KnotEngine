@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Render/Resource/VertexTypes.h"
+#include "Render/Resource/MeshResources.h"
 
 // DirectX 11을 이용한 렌더링 시스템을 담당하는 클래스
 class URenderer
@@ -26,11 +26,8 @@ public:
     void ReleaseConstantBuffer();
     void UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection);
 
-    ID3D11Buffer* CreateVertexBuffer(FGeometryVertex* vertices, UINT byteWidth);
-    void ReleaseVertexBuffer(ID3D11Buffer* vertexBuffer);
-
     void PrepareShader();
-    void RenderPrimitive(ID3D11Buffer* pBuffer, UINT numVertices);
+    void DrawMeshBuffer(const FMeshBuffer& MeshBuffer);
 
     ID3D11Device* GetDevice() const { return Device; }
     ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext; }
@@ -40,6 +37,8 @@ private:
     // 내부 초기화 메서드
     void CreateDeviceAndSwapChain(HWND hWindow);
     void ReleaseDeviceAndSwapChain();
+
+    ID3D11InputLayout* GetOrCreateInputLayout(const FVertexLayout& VertexLayout);
     
     void CreateFrameBuffer();
     void ReleaseFrameBuffer();
@@ -69,15 +68,15 @@ private:
     ID3D11DepthStencilView* DepthStencilView = nullptr;
     ID3D11DepthStencilState* DepthStencilState = nullptr;
     ID3D11RasterizerState* RasterizerState = nullptr;
-    ID3D11Buffer* ConstantBuffer = nullptr;
+    FConstantBuffer ConstantBuffer;
 
     // 셰이더 리소스
     ID3D11VertexShader* SimpleVertexShader = nullptr;
     ID3D11PixelShader* SimplePixelShader = nullptr;
-    ID3D11InputLayout* SimpleInputLayout = nullptr;
+    ID3DBlob* SimpleVertexShaderInputSignature = nullptr;
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> SimpleInputLayout;
 
     // 설정 데이터
     FLOAT ClearColor[4] = { 0.025f, 0.025f, 0.025f, 1.0f };
     D3D11_VIEWPORT ViewportInfo{};
-    unsigned int Stride = 0;
 };

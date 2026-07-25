@@ -1,5 +1,51 @@
 #include "Renderer.h"
 
+namespace
+{
+    const char* GetSemanticName(FVertexSemantic Semantic)
+    {
+        switch (Semantic)
+        {
+        case FVertexSemantic::Position: return "POSITION";
+        case FVertexSemantic::Normal: return "NORMAL";
+        case FVertexSemantic::Tangent: return "TANGENT";
+        case FVertexSemantic::Color: return "COLOR";
+        case FVertexSemantic::TexCoord0: return "TEXCOORD";
+        }
+
+        return nullptr;
+    }
+
+    DXGI_FORMAT GetDXGIFormat(FVertexFormat Format)
+    {
+        switch (Format)
+        {
+        case FVertexFormat::Float1: return DXGI_FORMAT_R32_FLOAT;
+        case FVertexFormat::Float2: return DXGI_FORMAT_R32G32_FLOAT;
+        case FVertexFormat::Float3: return DXGI_FORMAT_R32G32B32_FLOAT;
+        case FVertexFormat::Float4: return DXGI_FORMAT_R32G32B32A32_FLOAT;
+        case FVertexFormat::Half2: return DXGI_FORMAT_R16G16_FLOAT;
+        case FVertexFormat::Half4: return DXGI_FORMAT_R16G16B16A16_FLOAT;
+        case FVertexFormat::UInt8x4: return DXGI_FORMAT_R8G8B8A8_UINT;
+        case FVertexFormat::UNorm8x4: return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case FVertexFormat::SNorm8x4: return DXGI_FORMAT_R8G8B8A8_SNORM;
+        case FVertexFormat::UInt16x2: return DXGI_FORMAT_R16G16_UINT;
+        case FVertexFormat::UInt16x4: return DXGI_FORMAT_R16G16B16A16_UINT;
+        case FVertexFormat::UNorm16x2: return DXGI_FORMAT_R16G16_UNORM;
+        case FVertexFormat::UNorm16x4: return DXGI_FORMAT_R16G16B16A16_UNORM;
+        case FVertexFormat::SNorm16x2: return DXGI_FORMAT_R16G16_SNORM;
+        case FVertexFormat::SNorm16x4: return DXGI_FORMAT_R16G16B16A16_SNORM;
+        case FVertexFormat::UInt32: return DXGI_FORMAT_R32_UINT;
+        case FVertexFormat::UInt32x2: return DXGI_FORMAT_R32G32_UINT;
+        case FVertexFormat::UInt32x3: return DXGI_FORMAT_R32G32B32_UINT;
+        case FVertexFormat::UInt32x4: return DXGI_FORMAT_R32G32B32A32_UINT;
+        }
+
+        return DXGI_FORMAT_UNKNOWN;
+    }
+
+} // namespace
+
 // 링커 옵션 또는 Pragma를 통해 라이브러리 연결
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -124,6 +170,13 @@ void URenderer::CreateRasterizerState()
 
 void URenderer::CreateShader()
 {
+    ReleaseShader();
+
+    if (!Device)
+    {
+        return;
+    }
+
     ID3DBlob* VertexShaderCSO = nullptr;
     ID3DBlob* PixelShaderCSO = nullptr;
     ID3DBlob* ErrorBlob = nullptr;
@@ -132,7 +185,22 @@ void URenderer::CreateShader()
     HRESULT hr = D3DCompileFromFile(L"Shaders/Common.hlsl", nullptr, nullptr, "VS", "vs_5_0", 0, 0, &VertexShaderCSO, &ErrorBlob);
     if (SUCCEEDED(hr) && VertexShaderCSO)
     {
-        Device->CreateVertexShader(VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), nullptr, &SimpleVertexShader);
+        const HRESULT ShaderResult = Device->CreateVertexShader(
+            VertexShaderCSO->GetBufferPointer(),
+            VertexShaderCSO->GetBufferSize(),
+            nullptr,
+            &SimpleVertexShader);
+        if (SUCCEEDED(ShaderResult))
+        {
+            ID3DBlob* InputSignature = nullptr;
+            if (SUCCEEDED(D3DGetInputSignatureBlob(
+                    VertexShaderCSO->GetBufferPointer(),
+                    VertexShaderCSO->GetBufferSize(),
+                    &InputSignature)))
+            {
+                SimpleVertexShaderInputSignature = InputSignature;
+            }
+        }
     }
     if (ErrorBlob)
     {
@@ -151,19 +219,6 @@ void URenderer::CreateShader()
         ErrorBlob = nullptr;
     }
 
-    // 입력 레이아웃 정의
-    D3D11_INPUT_ELEMENT_DESC layout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-
-    if (VertexShaderCSO)
-    {
-        Device->CreateInputLayout(layout, ARRAYSIZE(layout), VertexShaderCSO->GetBufferPointer(), VertexShaderCSO->GetBufferSize(), &SimpleInputLayout);
-    }
-
-    Stride = FGeometryVertex::Stride;
-
     if (VertexShaderCSO)
     {
         VertexShaderCSO->Release();
@@ -176,14 +231,7 @@ void URenderer::CreateShader()
 
 void URenderer::CreateConstantBuffer()
 {
-    D3D11_BUFFER_DESC constantbufferdesc = {};
-    // 16바이트 정렬 보정
-    constantbufferdesc.ByteWidth = (sizeof(FConstants) + 15) & ~15;
-    constantbufferdesc.Usage = D3D11_USAGE_DYNAMIC;
-    constantbufferdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    constantbufferdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
-    Device->CreateBuffer(&constantbufferdesc, nullptr, &ConstantBuffer);
+    ConstantBuffer.Initialize(Device, sizeof(FConstants));
 }
 
 void URenderer::Prepare()
@@ -210,47 +258,56 @@ void URenderer::PrepareShader()
 {
     DeviceContext->VSSetShader(SimpleVertexShader, nullptr, 0);
     DeviceContext->PSSetShader(SimplePixelShader, nullptr, 0);
-    DeviceContext->IASetInputLayout(SimpleInputLayout);
 
-    if (ConstantBuffer)
+    if (ConstantBuffer.IsValid())
     {
-        DeviceContext->VSSetConstantBuffers(0, 1, &ConstantBuffer);
+        ID3D11Buffer* NativeConstantBuffer = ConstantBuffer.GetNativeBuffer();
+        DeviceContext->VSSetConstantBuffers(0, 1, &NativeConstantBuffer);
     }
 }
 
 void URenderer::UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection)
 {
-    if (ConstantBuffer)
+    if (!DeviceContext || !ConstantBuffer.IsValid())
     {
-        D3D11_MAPPED_SUBRESOURCE constantbufferMSR;
-        if (SUCCEEDED(DeviceContext->Map(ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &constantbufferMSR)))
-        {
-            FConstants* constants = (FConstants*)constantbufferMSR.pData;
-            DirectX::XMStoreFloat4x4(&constants->ModelViewProjection, WorldViewProjection);
-            DeviceContext->Unmap(ConstantBuffer, 0);
-        }
+        return;
     }
+
+    FConstants Constants = {};
+    DirectX::XMStoreFloat4x4(&Constants.ModelViewProjection, WorldViewProjection);
+    ConstantBuffer.Update(DeviceContext, &Constants, sizeof(Constants));
 }
 
-void URenderer::RenderPrimitive(ID3D11Buffer* pBuffer, UINT numVertices)
+void URenderer::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
 {
-    UINT offset = 0;
-    DeviceContext->IASetVertexBuffers(0, 1, &pBuffer, &Stride, &offset);
-    DeviceContext->Draw(numVertices, 0);
-}
+    if (!DeviceContext || !MeshBuffer.IsValid())
+    {
+        return;
+    }
 
-ID3D11Buffer* URenderer::CreateVertexBuffer(FGeometryVertex* vertices, UINT byteWidth)
-{
-    D3D11_BUFFER_DESC vertexbufferdesc = {};
-    vertexbufferdesc.ByteWidth = byteWidth;
-    vertexbufferdesc.Usage = D3D11_USAGE_IMMUTABLE;
-    vertexbufferdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    ID3D11InputLayout* InputLayout = GetOrCreateInputLayout(MeshBuffer.GetLayout());
+    if (!InputLayout)
+    {
+        return;
+    }
+    DeviceContext->IASetInputLayout(InputLayout);
 
-    D3D11_SUBRESOURCE_DATA vertexbufferSRD = { vertices };
-    ID3D11Buffer* vertexBuffer = nullptr;
-    Device->CreateBuffer(&vertexbufferdesc, &vertexbufferSRD, &vertexBuffer);
+    const FVertexBuffer& VertexBuffer = MeshBuffer.GetVertexBuffer();
+    ID3D11Buffer* NativeVertexBuffer = VertexBuffer.GetNativeBuffer();
+    const UINT Stride = VertexBuffer.GetStride();
+    const UINT Offset = 0;
+    DeviceContext->IASetVertexBuffers(0, 1, &NativeVertexBuffer, &Stride, &Offset);
 
-    return vertexBuffer;
+    if (MeshBuffer.GetIndexCount() > 0)
+    {
+        ID3D11Buffer* NativeIndexBuffer = MeshBuffer.GetIndexBuffer().GetNativeBuffer();
+        DeviceContext->IASetIndexBuffer(NativeIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+        DeviceContext->DrawIndexed(MeshBuffer.GetIndexCount(), 0, 0);
+        return;
+    }
+
+    DeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
+    DeviceContext->Draw(MeshBuffer.GetVertexCount(), 0);
 }
 
 void URenderer::SwapBuffer()
@@ -344,11 +401,14 @@ void URenderer::ReleaseRasterizerState()
 
 void URenderer::ReleaseShader()
 {
-    if (SimpleInputLayout)
+    SimpleInputLayout.Reset();
+
+    if (SimpleVertexShaderInputSignature)
     {
-        SimpleInputLayout->Release();
-        SimpleInputLayout = nullptr;
+        SimpleVertexShaderInputSignature->Release();
+        SimpleVertexShaderInputSignature = nullptr;
     }
+
     if (SimpleVertexShader)
     {
         SimpleVertexShader->Release();
@@ -361,19 +421,56 @@ void URenderer::ReleaseShader()
     }
 }
 
-void URenderer::ReleaseConstantBuffer()
+ID3D11InputLayout* URenderer::GetOrCreateInputLayout(const FVertexLayout& VertexLayout)
 {
-    if (ConstantBuffer)
+    if (SimpleInputLayout)
     {
-        ConstantBuffer->Release();
-        ConstantBuffer = nullptr;
+        return SimpleInputLayout.Get();
     }
+
+    if (!Device ||
+        !SimpleVertexShaderInputSignature ||
+        VertexLayout.Elements.empty() ||
+        VertexLayout.Elements.size() > D3D11_IA_VERTEX_INPUT_STRUCTURE_ELEMENT_COUNT)
+    {
+        return nullptr;
+    }
+
+    TArray<D3D11_INPUT_ELEMENT_DESC> LayoutDescs;
+    LayoutDescs.reserve(VertexLayout.Elements.size());
+    for (const FVertexElement& Element : VertexLayout.Elements)
+    {
+        const char* SemanticName = GetSemanticName(Element.Semantic);
+        const DXGI_FORMAT Format = GetDXGIFormat(Element.Format);
+        if (!SemanticName || Format == DXGI_FORMAT_UNKNOWN)
+        {
+            return nullptr;
+        }
+
+        D3D11_INPUT_ELEMENT_DESC Desc = {};
+        Desc.SemanticName = SemanticName;
+        Desc.SemanticIndex = Element.SemanticIndex;
+        Desc.Format = Format;
+        Desc.AlignedByteOffset = Element.Offset;
+        Desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+        LayoutDescs.push_back(Desc);
+    }
+
+    const HRESULT Result = Device->CreateInputLayout(
+        LayoutDescs.data(),
+        static_cast<UINT>(LayoutDescs.size()),
+        SimpleVertexShaderInputSignature->GetBufferPointer(),
+        SimpleVertexShaderInputSignature->GetBufferSize(),
+        SimpleInputLayout.GetAddressOf());
+    if (FAILED(Result))
+    {
+        return nullptr;
+    }
+
+    return SimpleInputLayout.Get();
 }
 
-void URenderer::ReleaseVertexBuffer(ID3D11Buffer* vertexBuffer)
+void URenderer::ReleaseConstantBuffer()
 {
-    if (vertexBuffer)
-    {
-        vertexBuffer->Release();
-    }
+    ConstantBuffer.Release();
 }

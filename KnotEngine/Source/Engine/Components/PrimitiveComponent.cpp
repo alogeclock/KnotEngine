@@ -1,24 +1,10 @@
 #include "Components/PrimitiveComponent.h"
 
-UPrimitiveComponent::~UPrimitiveComponent()
-{
-	ReleaseVertexBuffer();
-}
-
-void UPrimitiveComponent::ReleaseVertexBuffer()
-{
-	if (VertexBuffer)
-	{
-		VertexBuffer->Release();
-		VertexBuffer = nullptr;
-	}
-
-	VertexCount = 0;
-}
+#include "Render/Renderer.h"
 
 void UPrimitiveComponent::Render(float DeltaTime, URenderer& Renderer)
 {
-	if (VertexBuffer == nullptr || VertexCount == 0)
+	if (!Mesh || !Mesh->GetMeshBuffer())
 	{
 		return;
 	}
@@ -37,5 +23,5 @@ void UPrimitiveComponent::Render(float DeltaTime, URenderer& Renderer)
 
 	Renderer.UpdateConstant(world * view * projection);
 	Renderer.PrepareShader();
-	Renderer.RenderPrimitive(VertexBuffer, VertexCount);
+	Renderer.DrawMeshBuffer(*Mesh->GetMeshBuffer());
 }

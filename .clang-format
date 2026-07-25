@@ -20,6 +20,7 @@ AllowShortFunctionsOnASingleLine: Inline # Getter/Setter를 한 줄로 허용
 AllowShortBlocksOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
 
 # 빈 줄 및 공백 설정
 MaxEmptyLinesToKeep: 2

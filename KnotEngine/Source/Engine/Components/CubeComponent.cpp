@@ -2,61 +2,54 @@
 
 UCubeComponent::UCubeComponent(URenderer& Renderer)
 {
-	if (VertexBuffer)
-	{
-		return;
-	}
-
-    static FGeometryVertex vertices[] = {
+    static const FGeometryVertex Vertices[] = {
         // Front
-        { FVector(-1.0f, -1.0f, -1.0f), PackColor(255, 51, 51) },
-        { FVector(-1.0f,  1.0f, -1.0f), PackColor(255, 51, 51) },
-        { FVector( 1.0f,  1.0f, -1.0f), PackColor(255, 51, 51) },
-        { FVector(-1.0f, -1.0f, -1.0f), PackColor(255, 51, 51) },
-        { FVector( 1.0f,  1.0f, -1.0f), PackColor(255, 51, 51) },
-        { FVector( 1.0f, -1.0f, -1.0f), PackColor(255, 51, 51) },
+		{ FVector(-1.0f, -1.0f, -1.0f), PackRGBA(255, 51, 51, 255) },
+		{ FVector(-1.0f,  1.0f, -1.0f), PackRGBA(255, 51, 51, 255) },
+		{ FVector(1.0f,  1.0f, -1.0f), PackRGBA(255, 51, 51, 255) },
+		{ FVector(1.0f, -1.0f, -1.0f), PackRGBA(255, 51, 51, 255) },
 
         // Back
-        { FVector(-1.0f, -1.0f,  1.0f), PackColor(51, 255, 77) },
-        { FVector( 1.0f, -1.0f,  1.0f), PackColor(51, 255, 77) },
-        { FVector( 1.0f,  1.0f,  1.0f), PackColor(51, 255, 77) },
-        { FVector(-1.0f, -1.0f,  1.0f), PackColor(51, 255, 77) },
-        { FVector( 1.0f,  1.0f,  1.0f), PackColor(51, 255, 77) },
-        { FVector(-1.0f,  1.0f,  1.0f), PackColor(51, 255, 77) },
+		{ FVector(-1.0f, -1.0f,  1.0f), PackRGBA(51, 255, 77, 255) },
+		{ FVector(1.0f, -1.0f,  1.0f), PackRGBA(51, 255, 77, 255) },
+		{ FVector(1.0f,  1.0f,  1.0f), PackRGBA(51, 255, 77, 255) },
+		{ FVector(-1.0f,  1.0f,  1.0f), PackRGBA(51, 255, 77, 255) },
 
         // Left
-        { FVector(-1.0f, -1.0f,  1.0f), PackColor(51, 115, 255) },
-        { FVector(-1.0f,  1.0f,  1.0f), PackColor(51, 115, 255) },
-        { FVector(-1.0f,  1.0f, -1.0f), PackColor(51, 115, 255) },
-        { FVector(-1.0f, -1.0f,  1.0f), PackColor(51, 115, 255) },
-        { FVector(-1.0f,  1.0f, -1.0f), PackColor(51, 115, 255) },
-        { FVector(-1.0f, -1.0f, -1.0f), PackColor(51, 115, 255) },
+		{ FVector(-1.0f, -1.0f,  1.0f), PackRGBA(51, 115, 255, 255) },
+		{ FVector(-1.0f,  1.0f,  1.0f), PackRGBA(51, 115, 255, 255) },
+		{ FVector(-1.0f,  1.0f, -1.0f), PackRGBA(51, 115, 255, 255) },
+		{ FVector(-1.0f, -1.0f, -1.0f), PackRGBA(51, 115, 255, 255) },
 
         // Right
-        { FVector( 1.0f, -1.0f, -1.0f), PackColor(255, 217, 51) },
-        { FVector( 1.0f,  1.0f, -1.0f), PackColor(255, 217, 51) },
-        { FVector( 1.0f,  1.0f,  1.0f), PackColor(255, 217, 51) },
-        { FVector( 1.0f, -1.0f, -1.0f), PackColor(255, 217, 51) },
-        { FVector( 1.0f,  1.0f,  1.0f), PackColor(255, 217, 51) },
-        { FVector( 1.0f, -1.0f,  1.0f), PackColor(255, 217, 51) },
+		{ FVector(1.0f, -1.0f, -1.0f), PackRGBA(255, 217, 51, 255) },
+		{ FVector(1.0f,  1.0f, -1.0f), PackRGBA(255, 217, 51, 255) },
+		{ FVector(1.0f,  1.0f,  1.0f), PackRGBA(255, 217, 51, 255) },
+		{ FVector(1.0f, -1.0f,  1.0f), PackRGBA(255, 217, 51, 255) },
 
         // Top
-        { FVector(-1.0f,  1.0f, -1.0f), PackColor(230, 230, 51) },
-        { FVector(-1.0f,  1.0f,  1.0f), PackColor(230, 230, 51) },
-        { FVector( 1.0f,  1.0f,  1.0f), PackColor(230, 230, 51) },
-        { FVector(-1.0f,  1.0f, -1.0f), PackColor(230, 230, 51) },
-        { FVector( 1.0f,  1.0f,  1.0f), PackColor(230, 230, 51) },
-        { FVector( 1.0f,  1.0f, -1.0f), PackColor(230, 230, 51) },
+		{ FVector(-1.0f,  1.0f, -1.0f), PackRGBA(230, 230, 51, 255) },
+		{ FVector(-1.0f,  1.0f,  1.0f), PackRGBA(230, 230, 51, 255) },
+		{ FVector(1.0f,  1.0f,  1.0f), PackRGBA(230, 230, 51, 255) },
+		{ FVector(1.0f,  1.0f, -1.0f), PackRGBA(230, 230, 51, 255) },
 
         // Bottom
-        { FVector(-1.0f, -1.0f,  1.0f), PackColor(217, 64, 255) },
-        { FVector(-1.0f, -1.0f, -1.0f), PackColor(217, 64, 255) },
-        { FVector( 1.0f, -1.0f, -1.0f), PackColor(217, 64, 255) },
-        { FVector(-1.0f, -1.0f,  1.0f), PackColor(217, 64, 255) },
-        { FVector( 1.0f, -1.0f, -1.0f), PackColor(217, 64, 255) },
-        { FVector( 1.0f, -1.0f,  1.0f), PackColor(217, 64, 255) },
+		{ FVector(-1.0f, -1.0f,  1.0f), PackRGBA(217, 64, 255, 255) },
+		{ FVector(-1.0f, -1.0f, -1.0f), PackRGBA(217, 64, 255, 255) },
+		{ FVector(1.0f, -1.0f, -1.0f), PackRGBA(217, 64, 255, 255) },
+		{ FVector(1.0f, -1.0f,  1.0f), PackRGBA(217, 64, 255, 255) },
     };
 
-    VertexCount = ARRAYSIZE(vertices);
-    VertexBuffer = Renderer.CreateVertexBuffer(vertices, sizeof(vertices));
+    static const uint32 Indices[] = {
+         0,  1,  2,  0,  2,  3,
+         4,  5,  6,  4,  6,  7,
+         8,  9, 10,  8, 10, 11,
+        12, 13, 14, 12, 14, 15,
+        16, 17, 18, 16, 18, 19,
+        20, 21, 22, 20, 22, 23,
+    };
+
+    Mesh = std::make_shared<FGeometryMesh>();
+    Mesh->SetData(std::span(Vertices), std::span(Indices));
+    Mesh->Upload(Renderer);
 }

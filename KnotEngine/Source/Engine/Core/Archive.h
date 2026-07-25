@@ -48,7 +48,7 @@ inline FArchive& operator<<(FArchive& Ar, FString& String)
 
 	if (Ar.IsLoading())
 	{
-		String.resize(static_cast<FString::size_type>(Length));
+		String.resize(Length);
 	}
 
 	if (Length > 0)

@@ -67,8 +67,7 @@ namespace
 
 	private:
 		FNamePool();
-
-	private:
+	    
 		FNameEntryAllocator Allocator;
 		std::unordered_map<FString, FNameEntryId> NameMap;
 		mutable std::mutex Mutex;
@@ -76,7 +75,7 @@ namespace
 
 	FNamePool* GNamePool = nullptr;
 
-	static constexpr const char* GNameEntries[] =
+	constexpr const char* GNameEntries[] =
 	{
 		"None",
 		"Class",
@@ -105,11 +104,6 @@ namespace
 
 	FNameEntryId GNameEntryMap[NAME_TABLE_COUNT] = {};
 
-	uint32 AlignValue(uint32 Value, uint32 Alignment)
-	{
-		return (Value + Alignment - 1) & ~(Alignment - 1);
-	}
-
 	char ToLowerAscii(char Character)
 	{
 		return (Character >= 'A' && Character <= 'Z') ? static_cast<char>(Character + ('a' - 'A')) : Character;
@@ -123,16 +117,13 @@ namespace
 		}
 
 		static constexpr char None[] = "none";
-		return Name.size() == 4 &&
-			std::equal(Name.begin(), Name.end(), None,
-				[](char A, char B) { return ToLowerAscii(A) == B; });
+		return Name.size() == 4 && std::equal(Name.begin(), Name.end(), None, [](char A, char B) { return ToLowerAscii(A) == B; });
 	}
 
 	FString MakeComparisonKey(const FString& Name)
 	{
 		FString Key = Name;
-		std::transform(Key.begin(), Key.end(), Key.begin(),
-			[](char Character) { return ToLowerAscii(Character); });
+		std::transform(Key.begin(), Key.end(), Key.begin(), [](char Character) { return ToLowerAscii(Character); });
 		return Key;
 	}
 
@@ -174,134 +165,134 @@ namespace
 		return ParsedValue + 1; // 0은 "번호 없음"이므로, 외부 번호는 내부에서 +1로 저장한다.
 	}
 
-// 첫 블록을 할당하고, id 0에 "None" 문자열을 등록해 NAME_NONE_INDEX 규약을 보장한다.
-FNameEntryAllocator::FNameEntryAllocator()
-{
-	AllocateBlock();
+    // 첫 블록을 할당하고, id 0에 "None" 문자열을 등록해 NAME_NONE_INDEX 규약을 보장한다.
+    FNameEntryAllocator::FNameEntryAllocator()
+    {
+	    AllocateBlock();
 
-	const FNameEntryId NoneId = Allocate("None");
-	check(NoneId.Value == NAME_NONE_INDEX);
-}
+	    const FNameEntryId NoneId = Allocate("None");
+	    check(NoneId.Value == NAME_NONE_INDEX);
+    }
 
-// 할당했던 모든 메모리 블록을 해제한다.
-FNameEntryAllocator::~FNameEntryAllocator()
-{
-	for (uint8* Block : Blocks)
-	{
-		delete[] Block;
-	}
-}
+    // 할당했던 모든 메모리 블록을 해제한다.
+    FNameEntryAllocator::~FNameEntryAllocator()
+    {
+	    for (uint8* Block : Blocks)
+	    {
+		    delete[] Block;
+	    }
+    }
 
-// 문자열을 현재 블록(공간이 없으면 새 블록)에 정렬된 FNameEntry로 기록하고, 그 위치를 가리키는 FNameEntryId를 반환한다.
-FNameEntryId FNameEntryAllocator::Allocate(const FString& InName)
-{
-    check(InName.size() < NAME_MAX_LENGTH); // 실패 시 호출 쪽 계약 위반, MAX_LENGTH 이하로 요청하도록 수정한다.
-    
-    const uint32 Length = static_cast<uint32>(InName.size());
-    const uint32 EntrySize = static_cast<uint32>(sizeof(FNameEntry)) + Length + 1;
-    const uint32 AlignedSize = AlignValue(EntrySize, static_cast<uint32>(alignof(FNameEntry)));
-	check(AlignedSize <= NAME_BLOCK_SIZE);
+    // 문자열을 현재 블록(공간이 없으면 새 블록)에 정렬된 FNameEntry로 기록하고, 그 위치를 가리키는 FNameEntryId를 반환한다.
+    FNameEntryId FNameEntryAllocator::Allocate(const FString& InName)
+    {
+        check(InName.size() < NAME_MAX_LENGTH); // 실패 시 호출 쪽 계약 위반, MAX_LENGTH 이하로 요청하도록 수정한다.
+        
+        const uint32 Length = static_cast<uint32>(InName.size());
+        const uint32 EntrySize = static_cast<uint32>(sizeof(FNameEntry)) + Length + 1;
+        const uint32 AlignedSize = (EntrySize + alignof(FNameEntry) - 1) & ~(alignof(FNameEntry) - 1);
+	    check(AlignedSize <= NAME_BLOCK_SIZE);
 
-    // 공간이 없을 경우 새로운 블록을 할당한다.
-	if (CurrentOffset + AlignedSize > NAME_BLOCK_SIZE)
-	{
-		AllocateBlock();
-	}
+        // 공간이 없을 경우 새로운 블록을 할당한다.
+	    if (CurrentOffset + AlignedSize > NAME_BLOCK_SIZE)
+	    {
+		    AllocateBlock();
+	    }
 
-	uint8* EntryMemory = Blocks[CurrentBlock] + CurrentOffset;
-	FNameEntry* Entry = new (EntryMemory) FNameEntry(); // EntryMemory 위치에 미리 할당된 블록에 객체 생성
-	Entry->Length = static_cast<uint16>(Length);
+	    uint8* EntryMemory = Blocks[CurrentBlock] + CurrentOffset;
+	    FNameEntry* Entry = new (EntryMemory) FNameEntry(); // EntryMemory 위치에 미리 할당된 블록에 객체 생성
+	    Entry->Length = static_cast<uint16>(Length);
 
-	std::memcpy(Entry->GetStringData(), InName.data(), Length);
-	Entry->GetStringData()[Length] = '\0';
+	    std::memcpy(Entry->GetStringData(), InName.data(), Length);
+	    Entry->GetStringData()[Length] = '\0';
 
-	const FNameEntryId Id = FNameEntryId::Pack(CurrentBlock, CurrentOffset);
-	CurrentOffset += AlignedSize;
-	return Id;
-}
+	    const FNameEntryId Id = FNameEntryId::Pack(CurrentBlock, CurrentOffset);
+	    CurrentOffset += AlignedSize;
+	    return Id;
+    }
 
-// FNameEntryId로부터 블록과 오프셋을 추출하여 해당 FNameEntry를 찾아 문자열을 반환한다.
-FString FNameEntryAllocator::Resolve(FNameEntryId Id) const
-{
-	const uint32 Block = Id.GetBlock();
-	const uint32 Offset = Id.GetOffset();
+    // FNameEntryId로부터 블록과 오프셋을 추출하여 해당 FNameEntry를 찾아 문자열을 반환한다.
+    FString FNameEntryAllocator::Resolve(FNameEntryId Id) const
+    {
+	    const uint32 Block = Id.GetBlock();
+	    const uint32 Offset = Id.GetOffset();
 
-	check(Block < Blocks.size());
-	check(Offset < NAME_BLOCK_SIZE);
-	check(Blocks[Block] != nullptr);
+	    check(Block < Blocks.size());
+	    check(Offset < NAME_BLOCK_SIZE);
+	    check(Blocks[Block] != nullptr);
 
-	const FNameEntry* Entry = reinterpret_cast<const FNameEntry*>(Blocks[Block] + Offset);
-	return Entry->ToString();
-}
+	    const FNameEntry* Entry = reinterpret_cast<const FNameEntry*>(Blocks[Block] + Offset);
+	    return Entry->ToString();
+    }
 
-// 새로운 블록을 할당하고, CurrentBlock과 CurrentOffset을 초기화한다.
-void FNameEntryAllocator::AllocateBlock()
-{
-	check(Blocks.size() < NAME_MAX_BLOCKS);
+    // 새로운 블록을 할당하고, CurrentBlock과 CurrentOffset을 초기화한다.
+    void FNameEntryAllocator::AllocateBlock()
+    {
+	    check(Blocks.size() < NAME_MAX_BLOCKS);
 
-	Blocks.push_back(new uint8[NAME_BLOCK_SIZE]);
-	CurrentBlock = static_cast<uint32>(Blocks.size() - 1);
-	CurrentOffset = 0;
-}
+	    Blocks.push_back(new uint8[NAME_BLOCK_SIZE]);
+	    CurrentBlock = static_cast<uint32>(Blocks.size() - 1);
+	    CurrentOffset = 0;
+    }
 
-// "none" 문자열을 NAME_NONE_INDEX에 등록하여 FNamePool의 규약을 보장한다.
-FNamePool::FNamePool()
-{
-	NameMap.emplace("none", FNameEntryId{ NAME_NONE_INDEX });
-}
+    // "none" 문자열을 NAME_NONE_INDEX에 등록하여 FNamePool의 규약을 보장한다.
+    FNamePool::FNamePool()
+    {
+	    NameMap.emplace("none", FNameEntryId{ NAME_NONE_INDEX });
+    }
 
-void FNamePool::Startup()
-{
-	check(GNamePool == nullptr);
-	GNamePool = new FNamePool();
+    void FNamePool::Startup()
+    {
+	    check(GNamePool == nullptr);
+	    GNamePool = new FNamePool();
 
-	for (int32 Index = 0; Index < std::size(GNameEntries); ++Index)
-	{
-        GNameEntryMap[Index] = GNamePool->FindOrAdd(GNameEntries[Index]);
-	}
+	    for (int32 Index = 0; Index < std::size(GNameEntries); ++Index)
+	    {
+            GNameEntryMap[Index] = GNamePool->FindOrAdd(GNameEntries[Index]);
+	    }
 
-	check(GNameEntryMap[static_cast<int32>(EName::None)].Value == NAME_NONE_INDEX);
-}
+	    check(GNameEntryMap[static_cast<int32>(EName::None)].Value == NAME_NONE_INDEX);
+    }
 
-void FNamePool::Shutdown()
-{
-	check(GNamePool != nullptr);
-	delete GNamePool;
-	GNamePool = nullptr;
-}
+    void FNamePool::Shutdown()
+    {
+	    check(GNamePool != nullptr);
+	    delete GNamePool;
+	    GNamePool = nullptr;
+    }
 
-FNamePool& FNamePool::Get()
-{
-	check(GNamePool != nullptr);
-	return *GNamePool;
-}
+    FNamePool& FNamePool::Get()
+    {
+	    check(GNamePool != nullptr);
+	    return *GNamePool;
+    }
 
-FNameEntryId FNamePool::FindOrAdd(const FString& Name)
-{
-	if (IsNoneString(Name))
-	{
-		return FNameEntryId{ NAME_NONE_INDEX };
-	}
+    FNameEntryId FNamePool::FindOrAdd(const FString& Name)
+    {
+	    if (IsNoneString(Name))
+	    {
+		    return FNameEntryId{ NAME_NONE_INDEX };
+	    }
 
-	std::lock_guard<std::mutex> Lock(Mutex);
+	    std::lock_guard<std::mutex> Lock(Mutex);
 
-	const FString Key = MakeComparisonKey(Name);
-	const auto Found = NameMap.find(Key);
-	if (Found != NameMap.end())
-	{
-		return Found->second;
-	}
+	    const FString Key = MakeComparisonKey(Name);
+	    const auto Found = NameMap.find(Key);
+	    if (Found != NameMap.end())
+	    {
+		    return Found->second;
+	    }
 
-	const FNameEntryId Id = Allocator.Allocate(Name);
-	NameMap.emplace(Key, Id);
-	return Id;
-}
+	    const FNameEntryId Id = Allocator.Allocate(Name);
+	    NameMap.emplace(Key, Id);
+	    return Id;
+    }
 
-FString FNamePool::Resolve(FNameEntryId Id) const
-{
-	std::lock_guard<std::mutex> Lock(Mutex);
-	return Allocator.Resolve(Id);
-}
+    FString FNamePool::Resolve(FNameEntryId Id) const
+    {
+	    std::lock_guard<std::mutex> Lock(Mutex);
+	    return Allocator.Resolve(Id);
+    }
 }
 
 uint32 FNameEntryId::GetBlock() const

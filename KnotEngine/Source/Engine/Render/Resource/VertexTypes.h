@@ -2,7 +2,9 @@
 
 #include "Render/Resource/VertexLayouts.h"
 
-constexpr uint32 PackColor(uint8 R, uint8 G, uint8 B, uint8 A = 255)
+#include <type_traits>
+
+constexpr uint32 PackRGBA(uint8 R, uint8 G, uint8 B, uint8 A = 255)
 {
     return uint32(R) | (uint32(G) << 8) | (uint32(B) << 16) | (uint32(A) << 24);
 }
@@ -13,10 +15,8 @@ struct FGeometryVertex
     FVector Position;
     uint32 Color;
 
-    static constexpr uint32 Stride = 16;
-    static constexpr FVertexElement Elements[] = {
-        { FVertexSemantic::Position, FVertexFormat::Float3, 0, 0, 0 },
-        { FVertexSemantic::Color, FVertexFormat::UNorm8x4, 0, 0, 12 },
-    };
+    static const FVertexLayout& GetVertexLayout();
 };
+static_assert(std::is_standard_layout_v<FGeometryVertex>, "FGeometryVertex must have a standard layout.");
+static_assert(std::is_trivially_copyable_v<FGeometryVertex>, "FGeometryVertex must be trivially copyable.");
 static_assert(sizeof(FGeometryVertex) == 16, "FGeometryVertex size must be 16 bytes.");

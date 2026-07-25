@@ -46,14 +46,48 @@ struct FVertexElement
     FVertexSemantic Semantic;
     FVertexFormat Format;
     uint8 SemanticIndex; // 동일한 Semantic이 여러 개 있을 경우 구분하기 위한 인덱스
-    uint8 StreamIndex;   // Non-interleaved Vertex Buffer를 지원하기 위한 Vertex Stream 인덱스 (SoA 구조)
     uint16 Offset;
+
+    bool operator==(const FVertexElement&) const = default;
 };
 
 // Vertex Buffer 안에 들어있는 정점 attribute들의 집합을 정의하는 구조체
 struct FVertexLayout
 {
-	const TArray<FVertexElement> Elements;
-	uint32 ElementCount;
-    uint32 Stride; // Vertex 한 개의 크기 (바이트 단위)
+	TArray<FVertexElement> Elements;
+    uint16 Stride = 0; // Vertex 한 개의 크기 (바이트 단위)
+
+    bool operator==(const FVertexLayout& Other) const = default;
 };
+
+constexpr uint16 GetVertexFormatBytes(FVertexFormat Format)
+{
+    switch (Format)
+    {
+    case FVertexFormat::Float1:
+    case FVertexFormat::UInt32:
+    case FVertexFormat::Half2:
+    case FVertexFormat::UInt8x4:
+    case FVertexFormat::UNorm8x4:
+    case FVertexFormat::SNorm8x4:
+    case FVertexFormat::UInt16x2:
+    case FVertexFormat::UNorm16x2:
+    case FVertexFormat::SNorm16x2:
+        return 4;
+    case FVertexFormat::Float2:
+    case FVertexFormat::Half4:
+    case FVertexFormat::UInt16x4:
+    case FVertexFormat::UNorm16x4:
+    case FVertexFormat::SNorm16x4:
+    case FVertexFormat::UInt32x2:
+        return 8;
+    case FVertexFormat::Float3:
+    case FVertexFormat::UInt32x3:
+        return 12;
+    case FVertexFormat::Float4:
+    case FVertexFormat::UInt32x4:
+        return 16;
+    }
+
+    return 0;
+}

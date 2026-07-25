@@ -14,14 +14,14 @@
 // - ensure/ensuref: 식은 평가하지만 실패해도 보고하지 않는다.
 
 #if !defined(NDEBUG)
-	#define check(expr)                                                    \
-		do                                                                 \
-		{                                                                  \
-			if (!(expr))                                                   \
-			{                                                              \
+	#define check(expr)                                                      \
+		do                                                                   \
+		{                                                                    \
+			if (!(expr))                                                     \
+			{                                                                \
 				FDebug::CheckFailed(#expr, __FILE__, __LINE__, __FUNCSIG__); \
-				FDebug::Break();                                           \
-			}                                                              \
+				FDebug::Break();                                             \
+			}                                                                \
 		} while (false)
 
 	#define checkf(expr, format, ...)                                                             \
@@ -36,32 +36,32 @@
 
 	#define verify(expr) check(expr)
 
-	#define verifyf(expr, format, ...)                                                          \
-		do                                                                                      \
-		{                                                                                       \
-			if (!(expr))                                                                        \
-			{                                                                                   \
+	#define verifyf(expr, format, ...)                                                            \
+		do                                                                                        \
+		{                                                                                         \
+			if (!(expr))                                                                          \
+			{                                                                                     \
 				FDebug::CheckFailed(#expr, __FILE__, __LINE__, __FUNCSIG__, format, __VA_ARGS__); \
-				FDebug::Break();                                                                \
-			}                                                                                   \
+				FDebug::Break();                                                                  \
+			}                                                                                     \
 		} while (false)
 
-	#define ensuref(expr, format, ...)                                                           \
-		do                                                                                       \
-		{                                                                                        \
-			if (!(expr))                                                                         \
-			{                                                                                    \
+	#define ensuref(expr, format, ...)                                                             \
+		do                                                                                         \
+		{                                                                                          \
+			if (!(expr))                                                                           \
+			{                                                                                      \
 				FDebug::EnsureFailed(#expr, __FILE__, __LINE__, __FUNCSIG__, format, __VA_ARGS__); \
-			}                                                                                    \
+			}                                                                                      \
 		} while (false)
 
-	#define ensure(expr)                                                    \
-		do                                                                  \
-		{                                                                   \
-			if (!(expr))                                                    \
-			{                                                               \
+	#define ensure(expr)                                                      \
+		do                                                                    \
+		{                                                                     \
+			if (!(expr))                                                      \
+			{                                                                 \
 				FDebug::EnsureFailed(#expr, __FILE__, __LINE__, __FUNCSIG__); \
-			}                                                               \
+			}                                                                 \
 		} while (false)
 
 #else

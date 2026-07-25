@@ -11,8 +11,7 @@ enum class EAxis : uint8
 {
 	X,
 	Y,
-	Z,
-	Center
+	Z
 };
 
 struct FMatrix
@@ -24,13 +23,13 @@ public:
 	{
 		float* Values;
 
-		float& operator[](int32 Column) noexcept
+		float& operator[](const int32& Column) noexcept
 		{
 			check(Column >= 0 && Column < 4);
 			return Values[Column];
 		}
 
-		const float& operator[](int32 Column) const noexcept
+		const float& operator[](const int32& Column) const noexcept
 		{
 			check(Column >= 0 && Column < 4);
 			return Values[Column];
@@ -218,9 +217,8 @@ public:
 	{
 	}
 
-	constexpr FMatrix(float M00, float M01, float M02, float M03, float M10, float M11, float M12,
-					  float M13, float M20, float M21, float M22, float M23, float M30, float M31,
-					  float M32, float M33) noexcept
+	constexpr FMatrix(float M00, float M01, float M02, float M03, float M10, float M11, float M12, float M13, 
+	                  float M20, float M21, float M22, float M23, float M30, float M31, float M32, float M33) noexcept
 		: M{ { M00, M01, M02, M03 }, { M10, M11, M12, M13 }, { M20, M21, M22, M23 }, { M30, M31, M32, M33 } }
 	{
 	}
@@ -290,16 +288,14 @@ public:
 		}
 	}
 
-	// operator==는 부동소수점 정확 비교입니다.
-	// 계산 결과 비교에는 Equals(Tolerance)를 사용하는 것을 권장합니다.
+	/* operator== 는 부동소수점 정확 비교입니다. 계산 결과 비교에는 Equals(Tolerance)를 사용하는 것을 권장합니다. */
 	bool operator==(const FMatrix& Other) const noexcept
 	{
 		for (int32 Row = 0; Row < 4; ++Row)
 		{
 			const XMVector ThisRow =
 				DirectX::XMVectorSet(M[Row][0], M[Row][1], M[Row][2], M[Row][3]);
-			const XMVector OtherRow = DirectX::XMVectorSet(Other.M[Row][0], Other.M[Row][1],
-														   Other.M[Row][2], Other.M[Row][3]);
+			const XMVector OtherRow = DirectX::XMVectorSet(Other.M[Row][0], Other.M[Row][1], Other.M[Row][2], Other.M[Row][3]);
 			if (!DirectX::XMVector4Equal(ThisRow, OtherRow))
 			{
 				return false;

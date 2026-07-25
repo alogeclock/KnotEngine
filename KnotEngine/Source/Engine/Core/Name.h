@@ -65,16 +65,10 @@ public:
 	bool IsNone() const { return ComparisonIndex == 0 && Number == 0; }
 	FString ToString() const;
 
-	bool operator==(const FName& Other) const
-	{
-		return ComparisonIndex == Other.ComparisonIndex && Number == Other.Number;
-	}
+	bool operator==(const FName& Other) const { return ComparisonIndex == Other.ComparisonIndex && Number == Other.Number; }
 	bool operator!=(const FName& Other) const { return !(*this == Other); }
 
-	friend uint32 GetTypeHash(const FName& Name)
-	{
-		return GetTypeHash(FNameEntryId{ Name.ComparisonIndex }) * 33 + Name.Number;
-	}
+	friend uint32 GetTypeHash(const FName& Name) { return GetTypeHash(FNameEntryId{ Name.ComparisonIndex }) * 33 + Name.Number; }
 
 private:
 	uint32 ComparisonIndex = 0;
