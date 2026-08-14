@@ -103,6 +103,11 @@ def should_hide_project_item(include: str) -> bool:
     )
 
 
+def is_required_generated_project_item(include: str) -> bool:
+    normalized = include.replace("/", "\\").lower()
+    return normalized.endswith("\\cmake_pch.cxx") or normalized.endswith("\\cmake_pch.hxx")
+
+
 def hide_generated_project_items(project_file: Path) -> None:
     if not project_file.exists():
         return
@@ -136,7 +141,7 @@ def remove_legacy_visible_generated_items() -> None:
     for parent in root.findall(f"{{{MSBUILD_NS}}}ItemGroup"):
         for child in list(parent):
             include = child.get("Include")
-            if include and should_hide_project_item(include):
+            if include and should_hide_project_item(include) and not is_required_generated_project_item(include):
                 parent.remove(child)
 
     tree.write(LEGACY_PROJECT_FILE, encoding="utf-8", xml_declaration=True)

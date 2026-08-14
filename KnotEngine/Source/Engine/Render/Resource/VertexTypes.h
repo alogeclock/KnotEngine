@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Math/Vector.h"
 #include "Render/Resource/VertexLayouts.h"
 
 #include <type_traits>

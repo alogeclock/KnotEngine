@@ -51,6 +51,10 @@ add_executable(KnotEngine WIN32
 
 target_compile_features(KnotEngine PRIVATE cxx_std_20)
 
+target_precompile_headers(KnotEngine PRIVATE
+    "${KNOTENGINE_ROOT}/pch.h"
+)
+
 target_include_directories(KnotEngine PRIVATE
     "${KNOTENGINE_ROOT}"
     "${KNOTENGINE_ROOT}/Source"
@@ -72,7 +76,6 @@ if(MSVC)
         /utf-8
         /MP
         /EHa
-        "/FI${KNOTENGINE_ROOT}/pch.h"
     )
 endif()
 

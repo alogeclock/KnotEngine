@@ -95,13 +95,52 @@
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Components\SphereComponent.cpp">
       <Filter>Source\Engine\Components</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\AABB.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Edge.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Frustum.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\OBB.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Plane.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Ray.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Geometry\Transform.cpp">
+      <Filter>Source\Engine\Core\Geometry</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\IO\Paths.cpp">
       <Filter>Source\Engine\Core\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Color.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Matrix.cpp">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Quat.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Rotator.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Row.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector2.cpp">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector4.cpp">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Memory.cpp">
@@ -242,6 +281,9 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Color.h">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Math.h">
+      <Filter>Source\Engine\Core\Math</Filter>
+    </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Matrix.h">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClInclude>
@@ -251,7 +293,7 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Rotator.h">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Utils.h">
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Row.h">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Vector.h">

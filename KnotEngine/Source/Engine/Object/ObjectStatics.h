@@ -1,10 +1,12 @@
 #pragma once
 
+#include "Core/CoreTypes.h"
+
 class ObjectStatics
 {
 public:
-	static uint32 GenerateUUID() { return NextUUID++; }
+    static uint32 GenerateUUID() { return NextUUID++; }
 
 private:
-	static inline uint32 NextUUID = 1; // 0 for Invalid UUID 
+    static inline uint32 NextUUID = 1; // 0 for Invalid UUID
 };

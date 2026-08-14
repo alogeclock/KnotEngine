@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Object/Object.h"
-#include "Render/Resource/MeshTypes.h"
 
+#include <memory>
+
+class FGeometryMesh;
 class URenderer;
 
 class UPrimitiveComponent : public UObject

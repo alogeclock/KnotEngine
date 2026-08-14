@@ -1,24 +1,28 @@
 #pragma once
 
+#include "Core/CoreTypes.h"
+
+#include <type_traits>
+
 class UClass;
 
-// 엔진 런타임 객체의 공통 기반 클래스. 
+// 엔진 런타임 객체의 공통 기반 클래스.
 // GUObjectArray 등록/해제와 생명주기를 함께하며 UUID 기반 식별.
 class UObject
 {
 public:
-	UObject();
-	virtual ~UObject();
+    UObject();
+    virtual ~UObject();
 
-	// [TODO] Reflection System 구현 후 재구현
-	virtual UClass* GetClass() const { return nullptr; }
+    // [TODO] Reflection System 구현 후 재구현
+    virtual UClass* GetClass() const { return nullptr; }
 
-	uint32 GetUUID() const { return UUID; }
-	uint32 GetInternalIndex() const { return InternalIndex; } 
+    uint32 GetUUID() const { return UUID; }
+    uint32 GetInternalIndex() const { return InternalIndex; }
 
 private:
-	uint32 UUID;
-	uint32 InternalIndex;
+    uint32 UUID;
+    uint32 InternalIndex;
 };
 
 
@@ -28,46 +32,46 @@ extern TArray<UObject*> GUObjectArray;
 class FUObjectManager
 {
 public:
-	template<typename T> 
-	T* Create()
-	{
-		static_assert(std::is_base_of_v<UObject, T>, "T must derive from UObject");
-		T* Object = new T();
-		return Object;
-	}
+    template <typename T>
+    T* Create()
+    {
+        static_assert(std::is_base_of_v<UObject, T>, "T must derive from UObject");
+        T* Object = new T();
+        return Object;
+    }
 
-	void Destroy(UObject* Object)
-	{
-		if (!Object) 
-		{
-			return;
-		}
+    void Destroy(UObject* Object)
+    {
+        if (!Object)
+        {
+            return;
+        }
 
-		delete Object;
-	}
+        delete Object;
+    }
 
-	UObject* FindByUUID(uint32 UUID)
-	{
-		for (auto* Obj : GUObjectArray)
-		{
-			if (Obj && Obj->GetUUID() == UUID)
-			{
-				return Obj;
-			}
-		}
+    UObject* FindByUUID(uint32 UUID)
+    {
+        for (auto* Obj : GUObjectArray)
+        {
+            if (Obj && Obj->GetUUID() == UUID)
+            {
+                return Obj;
+            }
+        }
 
-		return nullptr;
-	}
+        return nullptr;
+    }
 
-	UObject* FindByIndex(uint32 Index)
-	{
-		if (Index >= GUObjectArray.size())
-		{
-			return nullptr;
-		}
-		
-		return GUObjectArray[Index];
-	}
+    UObject* FindByIndex(uint32 Index)
+    {
+        if (Index >= GUObjectArray.size())
+        {
+            return nullptr;
+        }
+
+        return GUObjectArray[Index];
+    }
 };
 
 extern FUObjectManager GUObjectManager;

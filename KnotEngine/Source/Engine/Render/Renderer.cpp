@@ -1,50 +1,52 @@
 #include "Renderer.h"
 
-namespace
+#include "Core/Math/Matrix.h"
+
+#include <d3dcompiler.h>
+
+// 정점 시맨틱에 대응하는 D3D 입력 이름을 반환합니다.
+const char* URenderer::GetSemanticName(FVertexSemantic Semantic)
 {
-    const char* GetSemanticName(FVertexSemantic Semantic)
+    switch (Semantic)
     {
-        switch (Semantic)
-        {
-        case FVertexSemantic::Position: return "POSITION";
-        case FVertexSemantic::Normal: return "NORMAL";
-        case FVertexSemantic::Tangent: return "TANGENT";
-        case FVertexSemantic::Color: return "COLOR";
-        case FVertexSemantic::TexCoord0: return "TEXCOORD";
-        }
-
-        return nullptr;
+    case FVertexSemantic::Position: return "POSITION";
+    case FVertexSemantic::Normal: return "NORMAL";
+    case FVertexSemantic::Tangent: return "TANGENT";
+    case FVertexSemantic::Color: return "COLOR";
+    case FVertexSemantic::TexCoord0: return "TEXCOORD";
     }
 
-    DXGI_FORMAT GetDXGIFormat(FVertexFormat Format)
-    {
-        switch (Format)
-        {
-        case FVertexFormat::Float1: return DXGI_FORMAT_R32_FLOAT;
-        case FVertexFormat::Float2: return DXGI_FORMAT_R32G32_FLOAT;
-        case FVertexFormat::Float3: return DXGI_FORMAT_R32G32B32_FLOAT;
-        case FVertexFormat::Float4: return DXGI_FORMAT_R32G32B32A32_FLOAT;
-        case FVertexFormat::Half2: return DXGI_FORMAT_R16G16_FLOAT;
-        case FVertexFormat::Half4: return DXGI_FORMAT_R16G16B16A16_FLOAT;
-        case FVertexFormat::UInt8x4: return DXGI_FORMAT_R8G8B8A8_UINT;
-        case FVertexFormat::UNorm8x4: return DXGI_FORMAT_R8G8B8A8_UNORM;
-        case FVertexFormat::SNorm8x4: return DXGI_FORMAT_R8G8B8A8_SNORM;
-        case FVertexFormat::UInt16x2: return DXGI_FORMAT_R16G16_UINT;
-        case FVertexFormat::UInt16x4: return DXGI_FORMAT_R16G16B16A16_UINT;
-        case FVertexFormat::UNorm16x2: return DXGI_FORMAT_R16G16_UNORM;
-        case FVertexFormat::UNorm16x4: return DXGI_FORMAT_R16G16B16A16_UNORM;
-        case FVertexFormat::SNorm16x2: return DXGI_FORMAT_R16G16_SNORM;
-        case FVertexFormat::SNorm16x4: return DXGI_FORMAT_R16G16B16A16_SNORM;
-        case FVertexFormat::UInt32: return DXGI_FORMAT_R32_UINT;
-        case FVertexFormat::UInt32x2: return DXGI_FORMAT_R32G32_UINT;
-        case FVertexFormat::UInt32x3: return DXGI_FORMAT_R32G32B32_UINT;
-        case FVertexFormat::UInt32x4: return DXGI_FORMAT_R32G32B32A32_UINT;
-        }
+    return nullptr;
+}
 
-        return DXGI_FORMAT_UNKNOWN;
+// 엔진 정점 포맷을 DXGI 포맷으로 변환합니다.
+DXGI_FORMAT URenderer::GetDXGIFormat(FVertexFormat Format)
+{
+    switch (Format)
+    {
+    case FVertexFormat::Float1: return DXGI_FORMAT_R32_FLOAT;
+    case FVertexFormat::Float2: return DXGI_FORMAT_R32G32_FLOAT;
+    case FVertexFormat::Float3: return DXGI_FORMAT_R32G32B32_FLOAT;
+    case FVertexFormat::Float4: return DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case FVertexFormat::Half2: return DXGI_FORMAT_R16G16_FLOAT;
+    case FVertexFormat::Half4: return DXGI_FORMAT_R16G16B16A16_FLOAT;
+    case FVertexFormat::UInt8x4: return DXGI_FORMAT_R8G8B8A8_UINT;
+    case FVertexFormat::UNorm8x4: return DXGI_FORMAT_R8G8B8A8_UNORM;
+    case FVertexFormat::SNorm8x4: return DXGI_FORMAT_R8G8B8A8_SNORM;
+    case FVertexFormat::UInt16x2: return DXGI_FORMAT_R16G16_UINT;
+    case FVertexFormat::UInt16x4: return DXGI_FORMAT_R16G16B16A16_UINT;
+    case FVertexFormat::UNorm16x2: return DXGI_FORMAT_R16G16_UNORM;
+    case FVertexFormat::UNorm16x4: return DXGI_FORMAT_R16G16B16A16_UNORM;
+    case FVertexFormat::SNorm16x2: return DXGI_FORMAT_R16G16_SNORM;
+    case FVertexFormat::SNorm16x4: return DXGI_FORMAT_R16G16B16A16_SNORM;
+    case FVertexFormat::UInt32: return DXGI_FORMAT_R32_UINT;
+    case FVertexFormat::UInt32x2: return DXGI_FORMAT_R32G32_UINT;
+    case FVertexFormat::UInt32x3: return DXGI_FORMAT_R32G32B32_UINT;
+    case FVertexFormat::UInt32x4: return DXGI_FORMAT_R32G32B32A32_UINT;
     }
 
-} // namespace
+    return DXGI_FORMAT_UNKNOWN;
+}
 
 // 링커 옵션 또는 Pragma를 통해 라이브러리 연결
 #pragma comment(lib, "d3d11.lib")
@@ -266,7 +268,7 @@ void URenderer::PrepareShader()
     }
 }
 
-void URenderer::UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection)
+void URenderer::UpdateConstant(const FMatrix& WorldViewProjection)
 {
     if (!DeviceContext || !ConstantBuffer.IsValid())
     {
@@ -274,7 +276,13 @@ void URenderer::UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection)
     }
 
     FConstants Constants = {};
-    DirectX::XMStoreFloat4x4(&Constants.ModelViewProjection, WorldViewProjection);
+    for (int32 Row = 0; Row < 4; ++Row)
+    {
+        for (int32 Column = 0; Column < 4; ++Column)
+        {
+            Constants.ModelViewProjection[Row][Column] = WorldViewProjection.M[Row][Column];
+        }
+    }
     ConstantBuffer.Update(DeviceContext, &Constants, sizeof(Constants));
 }
 

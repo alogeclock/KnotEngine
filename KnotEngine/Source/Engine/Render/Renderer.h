@@ -2,6 +2,8 @@
 
 #include "Render/Resource/MeshResources.h"
 
+struct FMatrix;
+
 // DirectX 11을 이용한 렌더링 시스템을 담당하는 클래스
 class URenderer
 {
@@ -24,7 +26,7 @@ public:
     
     void CreateConstantBuffer();
     void ReleaseConstantBuffer();
-    void UpdateConstant(const DirectX::XMMATRIX& WorldViewProjection);
+    void UpdateConstant(const FMatrix& WorldViewProjection);
 
     void PrepareShader();
     void DrawMeshBuffer(const FMeshBuffer& MeshBuffer);
@@ -34,6 +36,9 @@ public:
 	D3D11_VIEWPORT GetViewportInfo() const { return ViewportInfo; }
 
 private:
+    static const char* GetSemanticName(FVertexSemantic Semantic);
+    static DXGI_FORMAT GetDXGIFormat(FVertexFormat Format);
+
     // 내부 초기화 메서드
     void CreateDeviceAndSwapChain(HWND hWindow);
     void ReleaseDeviceAndSwapChain();
@@ -53,7 +58,7 @@ private:
     // 상수 버퍼 구조체
     struct FConstants
     {
-        DirectX::XMFLOAT4X4 ModelViewProjection;
+        alignas(16) float ModelViewProjection[4][4];
     };
 
     // D3D 기본 객체

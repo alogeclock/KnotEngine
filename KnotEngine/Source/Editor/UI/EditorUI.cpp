@@ -1,15 +1,17 @@
 #include "EditorUI.h"
 
+#include <imgui.h>
+
 void FEditorUI::Draw(float DeltaTime)
 {
-	ImGui::Begin("Knot Engine Property Window");
-	ImGui::Text("Hello, Knot Engine!");
-	
-	ImGui::Separator();
+    ImGui::Begin("Knot Engine Property Window");
+    ImGui::Text("Hello, Knot Engine!");
 
-	static float clear_color[4] = { 0.025f, 0.025f, 0.025f, 1.0f };
+    ImGui::Separator();
 
-	ImGui::ColorEdit4("Background Color", clear_color);
+    static float clear_color[4] = { 0.025f, 0.025f, 0.025f, 1.0f };
 
-	ImGui::End();
+    ImGui::ColorEdit4("Background Color", clear_color);
+
+    ImGui::End();
 }

@@ -71,6 +71,30 @@ public:
 	friend uint32 GetTypeHash(const FName& Name) { return GetTypeHash(FNameEntryId{ Name.ComparisonIndex }) * 33 + Name.Number; }
 
 private:
+	struct FNameEntry;
+	class FNameEntryAllocator;
+	class FNamePool;
+
+	static constexpr uint32 NoneIndex = 0;
+	static constexpr uint32 NoNumberInternal = 0;
+	static constexpr uint32 BlockOffsetBits = 16;
+	static constexpr uint32 BlockSize = (1u << BlockOffsetBits);
+	static constexpr uint32 BlockOffsetMask = (BlockSize - 1);
+	static constexpr uint32 MaxBlocks = (1u << (32 - BlockOffsetBits));
+	static constexpr uint32 MaxLength = 1024;
+	static constexpr uint32 NameTableCount = static_cast<uint32>(EName::Count);
+
+	static FNamePool* NamePool;
+	static const char* const NameEntries[NameTableCount];
+	static FNameEntryId NameEntryMap[NameTableCount];
+
+	static char ToLowerAscii(char Character);
+	static bool IsNoneString(const FString& Name);
+	static FString MakeComparisonKey(const FString& Name);
+	static uint32 ParseNumberFromName(const FString& Name, size_t& InOutPlainNameLength);
+
 	uint32 ComparisonIndex = 0;
 	uint32 Number = 0;
+
+	friend struct FNameEntryId;
 };
