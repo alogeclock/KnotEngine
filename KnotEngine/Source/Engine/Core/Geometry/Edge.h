@@ -8,27 +8,23 @@
 // {A, B}와 {B, A}는 동일한 간선으로 취급됨 (비방향 간선)
 struct FEdge
 {
-public:
 	// 멤버 변수 (Member Variables)
 	FVector A;
 	FVector B;
 
 	// 생성자 (Constructors)
-public:
 	constexpr FEdge() noexcept : A(), B() {}
 	constexpr FEdge(const FVector& InA, const FVector& InB) noexcept : A(InA), B(InB) {}
 	FEdge(const FEdge&) noexcept = default;
 	FEdge(FEdge&&) noexcept = default;
 
 	// 비교 및 대입 연산자 (Comparison and Assignment Operators)
-public:
 	FEdge& operator=(const FEdge&) noexcept = default;
 	FEdge& operator=(FEdge&&) noexcept = default;
 	bool operator==(const FEdge& Other) const noexcept;
 	bool operator!=(const FEdge& Other) const noexcept;
 
 	// 인스턴스 유틸리티 함수 (Instance Utility Functions)
-public:
 	FVector Midpoint() const noexcept;
 	float Length() const noexcept;
 	float LengthSquared() const noexcept;

@@ -20,14 +20,13 @@ bool FMeshBuffer::Initialize(URenderer& Renderer, const FMeshDataView& InDataVie
 
     const FVertexLayout& UploadLayout = *InDataView.Layout;
 
-    ID3D11Device* Device = Renderer.GetDevice();
-    if (!VertexBuffer.Initialize(Device, InDataView.VertexBytes.data(), InDataView.VertexCount, UploadLayout.Stride))
+    if (!Renderer.CreateVertexBuffer(VertexBuffer, InDataView.VertexBytes, InDataView.VertexCount, UploadLayout.Stride))
     {
         return false;
     }
 
     if (!InDataView.Indices.empty() &&
-        !IndexBuffer.Initialize(Device, InDataView.Indices.data(), static_cast<uint32>(InDataView.Indices.size())))
+        !Renderer.CreateIndexBuffer(IndexBuffer, InDataView.Indices))
     {
         VertexBuffer.Release();
         return false;
@@ -55,6 +54,7 @@ void FMeshBuffer::OnRelease()
     VertexLayout = {};
 }
 
+// 리소스 뷰의 Vertex Buffer, Index Buffer 정점 수 및 레이아웃, 배열 크기 등을 기반으로 버퍼가 유효한지 검증한다.
 bool FMeshBuffer::Validate(const FMeshDataView& DataView)
 {
     if (DataView.VertexCount == 0 || !DataView.Layout || DataView.Layout->Stride == 0 || DataView.Layout->Elements.empty())
@@ -76,7 +76,7 @@ bool FMeshBuffer::Validate(const FMeshDataView& DataView)
     for (size_t ElementIndex = 0; ElementIndex < DataView.Layout->Elements.size(); ++ElementIndex)
     {
         const FVertexElement& Element = DataView.Layout->Elements[ElementIndex];
-		const uint16 FormatByteSize = GetVertexFormatBytes(Element.Format);
+        const uint16 FormatByteSize = GetVertexFormatBytes(Element.Format);
         const uint32 AttributeEnd = static_cast<uint32>(Element.Offset) + FormatByteSize;
         if (FormatByteSize == 0 || AttributeEnd > DataView.Layout->Stride)
         {

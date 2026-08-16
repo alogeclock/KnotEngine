@@ -4,6 +4,7 @@
 
 namespace KMath
 {
+    // 수학 상수 (Math Constants)
     inline constexpr float Epsilon = 1.e-6f;
 
     inline constexpr float Pi = 3.14159265358979323846f;
@@ -14,6 +15,7 @@ namespace KMath
     inline constexpr float TO_RADIAN = Pi / 180.0f;
     inline constexpr float TO_DEGREE = 180.0f / Pi;
 
+    // 각도 변환 함수 (Angle Conversion Functions)
     constexpr float ToRadian(float Degrees) noexcept
     {
         return Degrees * TO_RADIAN;
@@ -24,6 +26,7 @@ namespace KMath
         return Radians * TO_DEGREE;
     }
 
+    // 부동 소수점 유틸리티 함수 (Floating-Point Utility Functions)
     constexpr float Abs(float Value) noexcept
     {
         return Value < 0.0f ? -Value : Value;
@@ -39,6 +42,7 @@ namespace KMath
         return Abs(A - B) <= Tolerance;
     }
 
+    // 범용 수학 함수 (Generic Math Functions)
     template <typename T>
     constexpr T Clamp(const T& Value, const T& Min, const T& Max)
     {

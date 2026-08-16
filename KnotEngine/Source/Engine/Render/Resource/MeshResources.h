@@ -18,6 +18,7 @@ struct FMeshDataView
 };
 
 // 하나의 Draw/DrawIndexed 호출에 필요한 GPU Mesh Buffer 묶음.
+// FStaticMesh, FSkeletalMesh 등 상위 계층에서 FMeshBuffer를 소유한다.
 class FMeshBuffer final : public FRenderResource
 {
 public:

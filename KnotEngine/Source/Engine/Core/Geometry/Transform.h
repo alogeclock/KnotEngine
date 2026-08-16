@@ -7,7 +7,6 @@ struct FMatrix;
 
 struct FTransform
 {
-public:
     // 멤버 변수 (Member Variables)
     static const FTransform Identity;
 
@@ -15,7 +14,6 @@ public:
     FVector Translation = FVector::ZeroVector;
     FVector Scale3D = FVector::OneVector;
 
-public:
     // 생성자 (Constructors)
     FTransform() noexcept = default;
     FTransform(const FQuat& InRotation, const FVector& InTranslation = FVector::ZeroVector, const FVector& InScale3D = FVector::OneVector) noexcept;

@@ -8,11 +8,9 @@ struct FRay;
 
 struct FAABB
 {
-public:
     FVector Min;
     FVector Max;
 
-public:
     FAABB() noexcept;
     FAABB(const FVector& InMin, const FVector& InMax) noexcept;
 

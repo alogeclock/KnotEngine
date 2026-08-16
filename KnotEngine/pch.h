@@ -7,12 +7,10 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+
 #include <SDKDDKVer.h>
 #include <Windows.h>
-#include <d3d11.h>
-#include <d3dcompiler.h>
 #include <DirectXMath.h>
-#include <wrl/client.h>
 
 #include <algorithm>
 #include <array>

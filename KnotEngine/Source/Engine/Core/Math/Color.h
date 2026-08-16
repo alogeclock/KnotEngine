@@ -5,7 +5,6 @@
 
 struct FColor
 {
-public:
 	// 멤버 변수 (Member Variables)
 	union
 	{

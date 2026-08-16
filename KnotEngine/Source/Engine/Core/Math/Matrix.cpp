@@ -185,7 +185,7 @@ FMatrix FMatrix::MakeRotationZ(float AngleRad) noexcept
         0.0f, 0.0f, 0.0f, 1.0f);
 }
 
-FMatrix FMatrix::MakePerspectiveFovLH(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
+FMatrix FMatrix::MakePerspectiveFov(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
 {
     check(AspectRatio > 0.0f);
     check(NearZ > 0.0f && FarZ > NearZ);
@@ -199,7 +199,7 @@ FMatrix FMatrix::MakePerspectiveFovLH(float FovYRad, float AspectRatio, float Ne
         0.0f, 0.0f, -NearZ * FarZ / (FarZ - NearZ), 0.0f);
 }
 
-FMatrix FMatrix::MakeOrthographicLH(
+FMatrix FMatrix::MakeOrthographic(
     float ViewWidth,
     float ViewHeight,
     float NearZ,
@@ -215,7 +215,7 @@ FMatrix FMatrix::MakeOrthographicLH(
         0.0f, 0.0f, -NearZ / (FarZ - NearZ), 1.0f);
 }
 
-FMatrix FMatrix::MakeViewLookAtLH(const FVector& Eye, const FVector& Target, const FVector& Up) noexcept
+FMatrix FMatrix::MakeLookAt(const FVector& Eye, const FVector& Target, const FVector& Up) noexcept
 {
     const FVector Forward = (Target - Eye).GetSafeNormal();
     const FVector Right = (Up ^ Forward).GetSafeNormal();

@@ -1,33 +1,41 @@
 #include "EditorEngine.h"
+
 #include "Components/CubeComponent.h"
+
+UEditorEngine::UEditorEngine()
+    : Renderer(RenderBackend)
+    , ImGuiRenderBackend(RenderBackend)
+    , EditorUISystem(ImGuiRenderBackend)
+{
+}
 
 void UEditorEngine::Startup(FWindowsWindow InWindow)
 {
-	Renderer.Create(InWindow.GetHwnd());
-	ImGuiSystem.Startup(InWindow.GetHwnd(), Renderer);
-	Cube = new UCubeComponent(Renderer);
-};
+    Renderer.Create(InWindow.GetHwnd());
+    EditorUISystem.Startup(InWindow.GetHwnd());
+    Cube = new UCubeComponent(Renderer);
+}
 
 void UEditorEngine::Tick(float DeltaTime)
 {
-	Renderer.Prepare();
-	Cube->Render(DeltaTime, Renderer);
+    Renderer.Prepare();
+    Cube->Render(DeltaTime, Renderer);
 
-	ImGuiSystem.BeginFrame();
-	EditorUI.Draw(DeltaTime);
-	ImGuiSystem.EndFrame();
+    EditorUISystem.BeginFrame();
+    EditorUISystem.Draw();
+    EditorUISystem.EndFrame();
 
-	Renderer.SwapBuffer();
-};
+    Renderer.SwapBuffer();
+}
 
 void UEditorEngine::Shutdown()
 {
-	if (Cube)
-	{
-		delete Cube;
-		Cube = nullptr;
-	}
+    if (Cube)
+    {
+        delete Cube;
+        Cube = nullptr;
+    }
 
-	ImGuiSystem.Shutdown();
-	Renderer.Release();
-};
+    EditorUISystem.Shutdown();
+    Renderer.Release();
+}

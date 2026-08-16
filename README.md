@@ -1,6 +1,6 @@
 # Knot Engine
 
-> ⚠️ **This project is in its early stages.** 
+> **This project is in its early stages.**
 > Core systems are still being built, and many features described below are planned or in progress.
 
 A 3D game engine project for Windows, built with Direct3D 11, ImGui, and modern C++20.
@@ -27,7 +27,7 @@ KnotEngine is a personal project aimed at building a fully-featured 3D game engi
 
 ## Features
 
-### ✅ Key Implementation (Core Goals)
+### Key Implementation (Core Goals)
 
 These are the foundational systems the engine must have to run.
 
@@ -36,7 +36,7 @@ These are the foundational systems the engine must have to run.
 - **Resource & Serialization System** — Asset loading/management, property reflection, and serialization for editor-engine data consistency
 - **Physics & Input System** — Collision detection, basic rigid body simulation, raycasting, and an event-driven input abstraction layer
 
-### 🎯 Target Implementation (Stretch Goals)
+### Target Implementation (Stretch Goals)
 
 Advanced features planned for future milestones.
 
@@ -87,7 +87,7 @@ Knot Engine is released under the [MIT License](LICENSE).
 
 # Knot Engine
 
-> ⚠️ **이 프로젝트는 아직 초기 단계입니다.**
+> **이 프로젝트는 아직 초기 단계입니다.**
 > 핵심 시스템을 구축하는 중이며, 아래에 설명된 많은 기능은 계획 중이거나 개발 중입니다.
 
 Direct3D 11, ImGui, 최신 C++20으로 개발하는 Windows용 3D 게임 엔진 프로젝트입니다.
@@ -114,7 +114,7 @@ KnotEngine은 처음부터 완전한 3D 게임 엔진을 만들어 보는 개인
 
 ## 기능
 
-### ✅ 핵심 구현 항목 (Core Goals)
+### 핵심 구현 항목 (Core Goals)
 
 엔진이 실행되기 위해 반드시 갖춰야 하는 기반 시스템입니다.
 
@@ -123,7 +123,7 @@ KnotEngine은 처음부터 완전한 3D 게임 엔진을 만들어 보는 개인
 - **리소스와 직렬화 시스템** — 에셋 로딩/관리, 프로퍼티 리플렉션, 에디터와 엔진 데이터 일관성을 위한 직렬화
 - **물리와 입력 시스템** — 충돌 감지, 기본 강체 시뮬레이션, 레이캐스팅, 이벤트 기반 입력 추상화 레이어
 
-### 🎯 목표 구현 항목 (Stretch Goals)
+### 목표 구현 항목 (Stretch Goals)
 
 향후 마일스톤에서 계획 중인 고급 기능입니다.
 

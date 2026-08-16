@@ -5,12 +5,10 @@
 
 struct FPlane
 {
-public:
     // 멤버 변수 (Member Variables)
     FVector Normal;
     float D = 0.0f;
 
-public:
     // 생성자 (Constructors)
     FPlane();
     FPlane(const FVector& InNormal, float InD);

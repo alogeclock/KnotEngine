@@ -7,7 +7,10 @@
 
 class USceneComponent : public UActorComponent
 {
-public:
+public:	
+    bool IsVisible() const { return bVisible; }
+    void SetVisible(uint8 bInVisible) { bVisible = bInVisible; }
+
 private:
     TObjectPtr<USceneComponent> AttachParent;
     TArray<TObjectPtr<USceneComponent>> AttachChildren;
@@ -20,8 +23,4 @@ private:
 
     uint8 bWorldTransformDirty = false;
     uint8 bVisible = true;
-
-public:
-    bool IsVisible() const { return bVisible; }
-    void SetVisible(uint8 bInVisible) { bVisible = bInVisible; }
 };
