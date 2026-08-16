@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Contents">
+      <UniqueIdentifier>{2c1ab08d-0e6e-39b4-4628-15de34946319}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Contents\Branding">
+      <UniqueIdentifier>{d9054b07-aea7-b846-cc86-fcbb1fd65311}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{97cbede3-93fb-7ba4-a1a6-00b9ae8a3a41}</UniqueIdentifier>
     </Filter>
@@ -202,7 +208,17 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Contents\Branding\EngineIcon.ico">
+      <Filter>Contents\Branding</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Contents\Branding\EngineIcon.png">
+      <Filter>Contents\Branding</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Contents\Sphere.h">
+      <Filter>Contents</Filter>
+    </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\pch.h" />
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\resource.h" />
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Editor\EditorEngine.h">
       <Filter>Source\Editor</Filter>
     </ClInclude>
@@ -385,5 +401,8 @@
     <None Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Shaders\Common.hlsl">
       <Filter>Shaders</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\KnotEngine.rc" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(KnotEngine VERSION 0.1.0 LANGUAGES CXX)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Development;Shipping" CACHE STRING "KnotEngine build configurations" FORCE)
+
+project(KnotEngine VERSION 0.1.0 LANGUAGES CXX RC)
+
+set(CMAKE_CXX_FLAGS_DEVELOPMENT "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" CACHE STRING "Compiler flags for Development builds" FORCE)
+set(CMAKE_CXX_FLAGS_SHIPPING "${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "Compiler flags for Shipping builds" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}" CACHE STRING "Linker flags for Development builds" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS_SHIPPING "${CMAKE_EXE_LINKER_FLAGS_RELEASE}" CACHE STRING "Linker flags for Shipping builds" FORCE)
+
+set(CMAKE_MAP_IMPORTED_CONFIG_DEVELOPMENT RelWithDebInfo Release)
+set(CMAKE_MAP_IMPORTED_CONFIG_SHIPPING Release)
 
 get_filename_component(KNOTENGINE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 if(CMAKE_GENERATOR_PLATFORM)
@@ -27,9 +37,25 @@ set(KNOTENGINE_SHADER_FILES
     "${KNOTENGINE_ROOT}/Shaders/Common.hlsl"
 )
 
+set(KNOTENGINE_RESOURCE_FILES
+    "${KNOTENGINE_ROOT}/KnotEngine.rc"
+)
+
+file(GLOB_RECURSE KNOTENGINE_CONTENT_FILES CONFIGURE_DEPENDS
+    "${KNOTENGINE_ROOT}/Contents/*"
+)
+
+file(GLOB_RECURSE KNOTENGINE_SETTING_FILES CONFIGURE_DEPENDS
+    "${KNOTENGINE_ROOT}/Settings/*"
+)
+
 set_source_files_properties(${KNOTENGINE_SHADER_FILES} PROPERTIES
     HEADER_FILE_ONLY TRUE
     VS_TOOL_OVERRIDE "None"
+)
+
+set_source_files_properties(${KNOTENGINE_CONTENT_FILES} ${KNOTENGINE_SETTING_FILES} PROPERTIES
+    HEADER_FILE_ONLY TRUE
 )
 
 file(GLOB_RECURSE KNOTENGINE_SOURCE_FILES CONFIGURE_DEPENDS
@@ -46,6 +72,9 @@ add_executable(KnotEngine WIN32
     "${KNOTENGINE_ROOT}/pch.h"
     ${KNOTENGINE_SOURCE_FILES}
     ${KNOTENGINE_HEADER_FILES}
+    ${KNOTENGINE_CONTENT_FILES}
+    ${KNOTENGINE_RESOURCE_FILES}
+    ${KNOTENGINE_SETTING_FILES}
     ${KNOTENGINE_SHADER_FILES}
 )
 
@@ -69,6 +98,9 @@ target_compile_definitions(KnotEngine PRIVATE
     WIN32_LEAN_AND_MEAN
     UNICODE
     _UNICODE
+    $<$<CONFIG:Debug>:KNOT_BUILD_DEBUG=1>
+    $<$<CONFIG:Development>:KNOT_BUILD_DEVELOPMENT=1>
+    $<$<CONFIG:Shipping>:KNOT_BUILD_SHIPPING=1>
 )
 
 if(MSVC)
@@ -89,10 +121,24 @@ target_link_libraries(KnotEngine PRIVATE
 
 set_target_properties(KnotEngine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${KNOTENGINE_BIN_DIR}"
-    VS_DEBUGGER_WORKING_DIRECTORY "${KNOTENGINE_ROOT}"
+    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:KnotEngine>"
 )
 
-foreach(CONFIG_TYPE Debug Release RelWithDebInfo MinSizeRel)
+add_custom_command(TARGET KnotEngine POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${KNOTENGINE_ROOT}/Contents"
+        "$<TARGET_FILE_DIR:KnotEngine>/Contents"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${KNOTENGINE_ROOT}/Shaders"
+        "$<TARGET_FILE_DIR:KnotEngine>/Shaders"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${KNOTENGINE_ROOT}/Settings"
+        "$<TARGET_FILE_DIR:KnotEngine>/Settings"
+    COMMENT "Copying KnotEngine runtime files"
+    VERBATIM
+)
+
+foreach(CONFIG_TYPE Debug Development Shipping)
     string(TOUPPER "${CONFIG_TYPE}" CONFIG_TYPE_UPPER)
     set_target_properties(KnotEngine PROPERTIES
         "RUNTIME_OUTPUT_DIRECTORY_${CONFIG_TYPE_UPPER}" "${KNOTENGINE_BIN_DIR}/${CONFIG_TYPE}"

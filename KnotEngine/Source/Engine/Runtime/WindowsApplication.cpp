@@ -1,4 +1,5 @@
 #include "WindowsApplication.h"
+#include "resource.h"
 
 #include <imgui_impl_win32.h>
 
@@ -30,12 +31,15 @@ bool FWindowsApplication::Startup(HINSTANCE InInstance, int ShowCmd)
     WCHAR ClassName[] = L"KnotWindowClass";
     WCHAR Title[] = L"KnotEngine";
 
-    WNDCLASSW WindowClass = {};
+    WNDCLASSEXW WindowClass = {};
+    WindowClass.cbSize = sizeof(WNDCLASSEXW);
     WindowClass.lpfnWndProc = WndProc;
     WindowClass.hInstance = Instance;
+    WindowClass.hIcon = static_cast<HICON>(LoadImageW(Instance, MAKEINTRESOURCEW(IDI_KNOTENGINE), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR | LR_SHARED));
+    WindowClass.hIconSm = static_cast<HICON>(LoadImageW(Instance, MAKEINTRESOURCEW(IDI_KNOTENGINE), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR | LR_SHARED));
     WindowClass.lpszClassName = ClassName;
 
-    RegisterClassW(&WindowClass);
+    RegisterClassExW(&WindowClass);
 
     HWND WindowHandle = CreateWindowExW(0, ClassName, Title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, nullptr, nullptr, Instance, nullptr);
 

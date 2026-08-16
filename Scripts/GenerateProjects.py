@@ -24,6 +24,7 @@ VCPKG_ROOT = INTERMEDIATE_DIR / "Tools" / "vcpkg"
 BINARY_CACHE_DIR = INTERMEDIATE_DIR / "Cache" / "vcpkg-binary"
 BUILD_DIR = BUILD_CONFIG_DIR / "VS2022-x64"
 PROJECT_NAME = "KnotEngine"
+BUILD_CONFIGURATIONS = ("Debug", "Development", "Shipping")
 GENERATED_PROJECT_FILE = BUILD_DIR / f"{PROJECT_NAME}.vcxproj"
 LEGACY_PROJECT_FILE = ENGINE_DIR / f"{PROJECT_NAME}.vcxproj"
 MSBUILD_NS = "http://schemas.microsoft.com/developer/msbuild/2003"
@@ -171,7 +172,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate KnotEngine CMake projects.")
     parser.add_argument("--no-pause", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--skip-dependencies", action="store_true", help="Do not run GenerateDependencies.py first.")
-    parser.add_argument("--build", action="store_true", help="Build Debug after configuring.")
+    build_group = parser.add_mutually_exclusive_group()
+    build_group.add_argument("--build", action="store_true", help="Build the selected configuration after configuring.")
+    build_group.add_argument("--build-all", action="store_true", help="Build every KnotEngine configuration after configuring.")
+    parser.add_argument("--config", choices=BUILD_CONFIGURATIONS, default="Development", help="Configuration used by --build (default: Development).")
     args = parser.parse_args()
 
     if not args.skip_dependencies:
@@ -183,8 +187,9 @@ def main() -> int:
 
     configure_project()
 
-    if args.build:
-        run([str(CMAKE_EXE), "--build", str(BUILD_DIR), "--config", "Debug"], cwd=CMAKE_SOURCE_DIR, env=make_env())
+    configurations = BUILD_CONFIGURATIONS if args.build_all else (args.config,) if args.build else ()
+    for configuration in configurations:
+        run([str(CMAKE_EXE), "--build", str(BUILD_DIR), "--config", configuration], cwd=CMAKE_SOURCE_DIR, env=make_env())
 
     print(f"Project files generated: {BUILD_DIR}")
     return 0

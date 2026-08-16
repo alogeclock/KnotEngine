@@ -15,6 +15,14 @@ KnotEngine is a personal project aimed at building a fully-featured 3D game engi
 **Renderer:** Direct3D 11  
 **Language:** C++20 (Visual Studio 2022)
 
+### Coordinate System and Units
+
+- Knot Engine uses a left-handed coordinate system.
+- The +X axis represents Forward, +Y represents Right, and +Z represents Up.
+- The default unit of world distance is the centimeter (cm).
+- The default unit of rotation angle is the degree.
+- Positive rotation is defined according to the convention of each axis.
+
 ---
 
 ## Features
@@ -58,8 +66,11 @@ GenerateDependencies.bat
 # 3. Generate Visual Studio project files
 GenerateProjects.bat
 
-# Optional: generate project files and build Debug immediately
-GenerateProjects.bat --build
+# Build Development (default), Debug, Shipping, or all configurations
+BuildEngine.bat
+BuildEngine.bat Debug
+BuildEngine.bat Shipping
+BuildEngine.bat All
 ```
 
 Open the generated solution at `KnotEngine/Build/VS2022-x64/KnotEngine.sln` in Visual Studio 2022 and build.
@@ -70,7 +81,7 @@ Generated tools, package files, and intermediate build files are kept under `Kno
 
 ## License
 
-This project is for personal/educational use.
+Knot Engine is released under the [MIT License](LICENSE).
 
 ---
 
@@ -90,6 +101,14 @@ KnotEngine은 처음부터 완전한 3D 게임 엔진을 만들어 보는 개인
 **플랫폼:** Windows 전용  
 **렌더러:** Direct3D 11  
 **언어:** C++20 (Visual Studio 2022)
+
+### 좌표계와 단위
+
+- Knot Engine은 왼손 좌표계(Left-Handed Coordinate System)를 사용한다.
+- +X축은 Forward, +Y축은 Right, +Z축은 Up을 의미한다.
+- 월드 거리의 기본 단위는 센티미터(cm)이다.
+- 회전 각도의 기본 단위는 도(degree)이다.
+- 양의 회전 방향은 각 축의 규칙에 따라 정의한다.
 
 ---
 
@@ -134,8 +153,11 @@ GenerateDependencies.bat
 # 3. Visual Studio 프로젝트 파일 생성
 GenerateProjects.bat
 
-# 선택: 프로젝트 파일 생성 후 Debug 빌드까지 바로 실행
-GenerateProjects.bat --build
+# Development(기본), Debug, Shipping 또는 전체 구성 빌드
+BuildEngine.bat
+BuildEngine.bat Debug
+BuildEngine.bat Shipping
+BuildEngine.bat All
 ```
 
 생성된 `KnotEngine/Build/VS2022-x64/KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
@@ -146,4 +168,4 @@ GenerateProjects.bat --build
 
 ## 라이선스
 
-이 프로젝트는 개인/학습 용도로 사용됩니다.
+Knot Engine은 [MIT 라이선스](LICENSE)로 배포됩니다.

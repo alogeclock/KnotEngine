@@ -4,32 +4,24 @@
 
 #include <cmath>
 
-namespace
+FVector FTransform::ComponentDivideSafe(const FVector& Numerator, const FVector& Denominator, float Tolerance) noexcept
 {
-    FVector ComponentDivideSafe(const FVector& Numerator, const FVector& Denominator,
-                                float Tolerance = KMath::Epsilon) noexcept
-    {
-        return FVector(
-            std::fabs(Denominator.X) > Tolerance ? Numerator.X / Denominator.X : 0.0f,
-            std::fabs(Denominator.Y) > Tolerance ? Numerator.Y / Denominator.Y : 0.0f,
-            std::fabs(Denominator.Z) > Tolerance ? Numerator.Z / Denominator.Z : 0.0f);
-    }
-} // namespace
+    return FVector(
+        std::fabs(Denominator.X) > Tolerance ? Numerator.X / Denominator.X : 0.0f,
+        std::fabs(Denominator.Y) > Tolerance ? Numerator.Y / Denominator.Y : 0.0f,
+        std::fabs(Denominator.Z) > Tolerance ? Numerator.Z / Denominator.Z : 0.0f);
+}
 
 const FTransform FTransform::Identity;
 
-FTransform::FTransform(const FQuat& InRotation, const FVector& InTranslation,
-                       const FVector& InScale3D) noexcept
+FTransform::FTransform(const FQuat& InRotation, const FVector& InTranslation, const FVector& InScale3D) noexcept
     : Rotation(InRotation.GetNormalized()), Translation(InTranslation), Scale3D(InScale3D)
 {
 }
 
 FTransform FTransform::operator*(const FTransform& Other) const noexcept
 {
-    return FTransform(
-        Rotation * Other.Rotation,
-        Other.TransformPosition(Translation),
-        Scale3D * Other.Scale3D);
+    return FTransform(Rotation * Other.Rotation, Other.TransformPosition(Translation), Scale3D * Other.Scale3D);
 }
 
 FTransform& FTransform::operator*=(const FTransform& Other) noexcept

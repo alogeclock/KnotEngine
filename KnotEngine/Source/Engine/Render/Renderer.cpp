@@ -1,5 +1,6 @@
 #include "Renderer.h"
 
+#include "Core/IO/Paths.h"
 #include "Core/Math/Matrix.h"
 
 #include <d3dcompiler.h>
@@ -184,7 +185,8 @@ void URenderer::CreateShader()
     ID3DBlob* ErrorBlob = nullptr;
 
     // 셰이더 컴파일
-    HRESULT hr = D3DCompileFromFile(L"Shaders/Common.hlsl", nullptr, nullptr, "VS", "vs_5_0", 0, 0, &VertexShaderCSO, &ErrorBlob);
+    const FWString ShaderPath = FPaths::ShaderDir() + L"Common.hlsl";
+    HRESULT hr = D3DCompileFromFile(ShaderPath.c_str(), nullptr, nullptr, "VS", "vs_5_0", 0, 0, &VertexShaderCSO, &ErrorBlob);
     if (SUCCEEDED(hr) && VertexShaderCSO)
     {
         const HRESULT ShaderResult = Device->CreateVertexShader(
@@ -210,7 +212,7 @@ void URenderer::CreateShader()
         ErrorBlob = nullptr;
     }
 
-    hr = D3DCompileFromFile(L"Shaders/Common.hlsl", nullptr, nullptr, "PS", "ps_5_0", 0, 0, &PixelShaderCSO, &ErrorBlob);
+    hr = D3DCompileFromFile(ShaderPath.c_str(), nullptr, nullptr, "PS", "ps_5_0", 0, 0, &PixelShaderCSO, &ErrorBlob);
     if (SUCCEEDED(hr) && PixelShaderCSO)
     {
         Device->CreatePixelShader(PixelShaderCSO->GetBufferPointer(), PixelShaderCSO->GetBufferSize(), nullptr, &SimplePixelShader);

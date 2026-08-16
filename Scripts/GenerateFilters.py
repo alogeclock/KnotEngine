@@ -16,6 +16,7 @@ FILTER_ITEM_TYPES = (
 SOURCE_COMPILE_EXTENSIONS = {".c", ".cc", ".cpp", ".cxx"}
 SOURCE_HEADER_EXTENSIONS = {".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp"}
 SHADER_EXTENSIONS = {".hlsl", ".hlsli", ".fx", ".fxh"}
+RESOURCE_EXTENSIONS = {".rc"}
 FILTER_EXCLUDED_ROOTS = {
     ".vs",
     "Bin",
@@ -142,11 +143,29 @@ def default_item_type_for_path(path: Path) -> str | None:
         return "ClInclude"
     if suffix in SHADER_EXTENSIONS:
         return "FxCompile"
+    if suffix in RESOURCE_EXTENSIONS:
+        return "ResourceCompile"
+    return None
+
+
+def item_type_for_path(path: Path, engine_dir: Path) -> str | None:
+    item_type = default_item_type_for_path(path)
+    if item_type is not None:
+        return item_type
+
+    try:
+        relative_path = path.resolve().relative_to(engine_dir.resolve())
+    except ValueError:
+        return None
+
+    if relative_path.parts and relative_path.parts[0] == "Contents":
+        return "None"
+
     return None
 
 
 def include_for_path(path: Path, project_file: Path, engine_dir: Path, include_lookup: dict[str, list[tuple[str, str]]]) -> tuple[str, str] | None:
-    default_item_type = default_item_type_for_path(path)
+    default_item_type = item_type_for_path(path, engine_dir)
     if default_item_type is None:
         return None
 
@@ -181,18 +200,18 @@ def filter_for_path(path: Path, engine_dir: Path) -> str:
 def scan_project_files(engine_dir: Path) -> list[Path]:
     files: list[Path] = []
 
-    for root_file_name in ("main.cpp", "pch.cpp", "pch.h"):
+    for root_file_name in ("main.cpp", "pch.cpp", "pch.h", "resource.h", "KnotEngine.rc"):
         root_file = engine_dir / root_file_name
         if root_file.exists():
             files.append(root_file)
 
-    for directory in (engine_dir / "Source", engine_dir / "Shaders"):
+    for directory in (engine_dir / "Source", engine_dir / "Contents", engine_dir / "Shaders"):
         if directory.exists():
             files.extend(
                 path
                 for path in directory.rglob("*")
                 if path.is_file()
-                and default_item_type_for_path(path) is not None
+                and item_type_for_path(path, engine_dir) is not None
                 and not is_hidden_filter_path(path, engine_dir)
             )
 
