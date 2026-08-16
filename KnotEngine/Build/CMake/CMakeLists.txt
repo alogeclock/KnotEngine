@@ -108,6 +108,7 @@ if(MSVC)
         /utf-8
         /MP
         /EHa
+        /Zc:preprocessor
     )
 endif()
 

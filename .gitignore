@@ -461,6 +461,10 @@ KnotEngine/Binaries/
 KnotEngine/Bin/
 KnotEngine/Saves/**
 
+# CMake가 GenerateProjects.py를 통해 생성하는 Visual Studio 프로젝트 파일
+/KnotEngine/*.vcxproj
+/KnotEngine/*.vcxproj.filters
+
 # Legacy root-level generated files
 /.tools/
 /.cache/

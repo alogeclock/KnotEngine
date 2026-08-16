@@ -22,7 +22,7 @@ private:
     FD3D11Backend RenderBackend;
     URenderer Renderer;
     FD3D11ImGuiBackend ImGuiRenderBackend;
-    FEditorUISystem EditorUISystem;
+	FEditorUISystem EditorUISystem;
 
-    UCubeComponent* Cube = nullptr;
+	UCubeComponent* Cube = nullptr;
 };

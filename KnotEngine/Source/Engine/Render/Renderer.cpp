@@ -1,5 +1,6 @@
 #include "Render/Renderer.h"
 
+#include "Core/Assert.h"
 #include "Render/RHI/RenderBackend.h"
 #include "Render/Resource/Buffer.h"
 #include "Render/Resource/MeshResources.h"

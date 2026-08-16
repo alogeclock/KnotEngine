@@ -1,6 +1,7 @@
 #include "EditorEngine.h"
 
 #include "Components/CubeComponent.h"
+#include "Core/Assert.h"
 
 UEditorEngine::UEditorEngine()
     : Renderer(RenderBackend)
@@ -11,13 +12,18 @@ UEditorEngine::UEditorEngine()
 
 void UEditorEngine::Startup(FWindowsWindow InWindow)
 {
-    Renderer.Create(InWindow.GetHwnd());
-    EditorUISystem.Startup(InWindow.GetHwnd());
-    Cube = new UCubeComponent(Renderer);
+	check(!Cube);
+	checkf(InWindow.GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
+
+	Renderer.Create(InWindow.GetHwnd());
+	EditorUISystem.Startup(InWindow.GetHwnd());
+	Cube = new UCubeComponent(Renderer);
 }
 
 void UEditorEngine::Tick(float DeltaTime)
 {
+	check(Cube);
+
     Renderer.Prepare();
     Cube->Render(DeltaTime, Renderer);
 
@@ -30,12 +36,11 @@ void UEditorEngine::Tick(float DeltaTime)
 
 void UEditorEngine::Shutdown()
 {
-    if (Cube)
-    {
-        delete Cube;
-        Cube = nullptr;
-    }
+	check(Cube);
 
-    EditorUISystem.Shutdown();
-    Renderer.Release();
+    delete Cube;
+    Cube = nullptr;
+
+	EditorUISystem.Shutdown();
+	Renderer.Release();
 }

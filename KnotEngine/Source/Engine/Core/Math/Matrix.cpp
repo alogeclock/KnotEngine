@@ -6,197 +6,192 @@ const FMatrix FMatrix::Identity;
 
 FRow FMatrix::operator[](int32 Row) noexcept
 {
-    check(Row >= 0 && Row < 4);
-    return FRow{ M[Row] };
+	check(Row >= 0 && Row < 4);
+	return FRow{ M[Row] };
 }
 
 FConstRow FMatrix::operator[](int32 Row) const noexcept
 {
-    check(Row >= 0 && Row < 4);
-    return FConstRow{ M[Row] };
+	check(Row >= 0 && Row < 4);
+	return FConstRow{ M[Row] };
 }
 
 bool FMatrix::operator==(const FMatrix& Other) const noexcept
 {
-    for (int32 Row = 0; Row < 4; ++Row)
-    {
-        for (int32 Column = 0; Column < 4; ++Column)
-        {
-            if (M[Row][Column] != Other.M[Row][Column])
-            {
-                return false;
-            }
-        }
-    }
-    return true;
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			if (M[Row][Column] != Other.M[Row][Column])
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 bool FMatrix::operator!=(const FMatrix& Other) const noexcept
 {
-    return !(*this == Other);
+	return !(*this == Other);
 }
 
 FMatrix FMatrix::operator*(const FMatrix& Other) const noexcept
 {
-    FMatrix Result;
-    for (int32 Row = 0; Row < 4; ++Row)
-    {
-        for (int32 Column = 0; Column < 4; ++Column)
-        {
-            Result.M[Row][Column] =
-                M[Row][0] * Other.M[0][Column] +
-                M[Row][1] * Other.M[1][Column] +
-                M[Row][2] * Other.M[2][Column] +
-                M[Row][3] * Other.M[3][Column];
-        }
-    }
-    return Result;
+	FMatrix Result;
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			Result.M[Row][Column] =
+			    M[Row][0] * Other.M[0][Column] +
+			    M[Row][1] * Other.M[1][Column] +
+			    M[Row][2] * Other.M[2][Column] +
+			    M[Row][3] * Other.M[3][Column];
+		}
+	}
+	return Result;
 }
 
 FMatrix& FMatrix::operator*=(const FMatrix& Other) noexcept
 {
-    *this = *this * Other;
-    return *this;
+	*this = *this * Other;
+	return *this;
 }
 
 bool FMatrix::Equals(const FMatrix& Other, float Tolerance) const noexcept
 {
-    for (int32 Row = 0; Row < 4; ++Row)
-    {
-        for (int32 Column = 0; Column < 4; ++Column)
-        {
-            if (std::fabs(M[Row][Column] - Other.M[Row][Column]) > Tolerance)
-            {
-                return false;
-            }
-        }
-    }
-    return true;
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			if (std::fabs(M[Row][Column] - Other.M[Row][Column]) > Tolerance)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 FVector FMatrix::TransformVector(const FVector& Vector) const noexcept
 {
-    return {
-        Vector.X * M[0][0] + Vector.Y * M[1][0] + Vector.Z * M[2][0],
-        Vector.X * M[0][1] + Vector.Y * M[1][1] + Vector.Z * M[2][1],
-        Vector.X * M[0][2] + Vector.Y * M[1][2] + Vector.Z * M[2][2],
-    };
+	return {
+		Vector.X * M[0][0] + Vector.Y * M[1][0] + Vector.Z * M[2][0],
+		Vector.X * M[0][1] + Vector.Y * M[1][1] + Vector.Z * M[2][1],
+		Vector.X * M[0][2] + Vector.Y * M[1][2] + Vector.Z * M[2][2],
+	};
 }
 
 FVector FMatrix::TransformPosition(const FVector& Position) const noexcept
 {
-    const FVector4 Result = FVector4(Position, 1.0f) * *this;
-    return Result.ToVector3();
+	const FVector4 Result = FVector4(Position, 1.0f) * *this;
+	return Result.ToVector3();
 }
 
 FVector FMatrix::GetScaledAxis(EAxis Axis) const noexcept
 {
-    switch (Axis)
-    {
-    case EAxis::X: return { M[0][0], M[0][1], M[0][2] };
-    case EAxis::Y: return { M[1][0], M[1][1], M[1][2] };
-    case EAxis::Z: return { M[2][0], M[2][1], M[2][2] };
-    default: return FVector::ZeroVector;
-    }
+	switch (Axis)
+	{
+	case EAxis::X: return { M[0][0], M[0][1], M[0][2] };
+	case EAxis::Y: return { M[1][0], M[1][1], M[1][2] };
+	case EAxis::Z: return { M[2][0], M[2][1], M[2][2] };
+	default: return FVector::ZeroVector;
+	}
 }
 
 FMatrix FMatrix::GetInverse(float Tolerance) const noexcept
 {
-    FMatrix Result;
-    if (!TryInverse(*this, Result, Tolerance))
-    {
-        ensuref(false, "%s", "FMatrix::GetInverse() failed: matrix is singular or invalid.");
-        return Identity;
-    }
-    return Result;
+	FMatrix Result;
+	return ensuref(TryInverse(*this, Result, Tolerance), "FMatrix::GetInverse() failed: matrix is singular or invalid.") ? Result : Identity;
 }
 
 bool FMatrix::Decompose(FVector& OutTranslation, FMatrix& OutRotation, FVector& OutScale, float Tolerance) const noexcept
 {
-    OutTranslation = { M[3][0], M[3][1], M[3][2] };
+	OutTranslation = { M[3][0], M[3][1], M[3][2] };
 
-    const FVector AxisX = GetScaledAxis(EAxis::X);
-    const FVector AxisY = GetScaledAxis(EAxis::Y);
-    const FVector AxisZ = GetScaledAxis(EAxis::Z);
-    OutScale = { AxisX.Size(), AxisY.Size(), AxisZ.Size() };
+	const FVector AxisX = GetScaledAxis(EAxis::X);
+	const FVector AxisY = GetScaledAxis(EAxis::Y);
+	const FVector AxisZ = GetScaledAxis(EAxis::Z);
+	OutScale = { AxisX.Size(), AxisY.Size(), AxisZ.Size() };
 
-    if (OutScale.X <= Tolerance || OutScale.Y <= Tolerance || OutScale.Z <= Tolerance)
-    {
-        OutRotation = Identity;
-        return false;
-    }
+	if (OutScale.X <= Tolerance || OutScale.Y <= Tolerance || OutScale.Z <= Tolerance)
+	{
+		OutRotation = Identity;
+		return false;
+	}
 
-    OutRotation = FMatrix(
-        FVector4(AxisX / OutScale.X, 0.0f),
-        FVector4(AxisY / OutScale.Y, 0.0f),
-        FVector4(AxisZ / OutScale.Z, 0.0f),
-        FVector4::Point());
-    return true;
+	OutRotation = FMatrix(
+	    FVector4(AxisX / OutScale.X, 0.0f),
+	    FVector4(AxisY / OutScale.Y, 0.0f),
+	    FVector4(AxisZ / OutScale.Z, 0.0f),
+	    FVector4::Point());
+	return true;
 }
 
 FMatrix FMatrix::MakeTranslation(const FVector& Translation) noexcept
 {
-    FMatrix Result;
-    Result.M[3][0] = Translation.X;
-    Result.M[3][1] = Translation.Y;
-    Result.M[3][2] = Translation.Z;
-    return Result;
+	FMatrix Result;
+	Result.M[3][0] = Translation.X;
+	Result.M[3][1] = Translation.Y;
+	Result.M[3][2] = Translation.Z;
+	return Result;
 }
 
 FMatrix FMatrix::MakeScale(const FVector& Scale) noexcept
 {
-    return FMatrix(
-        Scale.X, 0.0f, 0.0f, 0.0f,
-        0.0f, Scale.Y, 0.0f, 0.0f,
-        0.0f, 0.0f, Scale.Z, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f);
+	return FMatrix(
+	    Scale.X, 0.0f, 0.0f, 0.0f,
+	    0.0f, Scale.Y, 0.0f, 0.0f,
+	    0.0f, 0.0f, Scale.Z, 0.0f,
+	    0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakeRotationX(float AngleRad) noexcept
 {
-    const float CosAngle = std::cos(AngleRad);
-    const float SinAngle = std::sin(AngleRad);
-    return FMatrix(
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, CosAngle, SinAngle, 0.0f,
-        0.0f, -SinAngle, CosAngle, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f);
+	const float CosAngle = std::cos(AngleRad);
+	const float SinAngle = std::sin(AngleRad);
+	return FMatrix(
+	    1.0f, 0.0f, 0.0f, 0.0f,
+	    0.0f, CosAngle, SinAngle, 0.0f,
+	    0.0f, -SinAngle, CosAngle, 0.0f,
+	    0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakeRotationY(float AngleRad) noexcept
 {
-    const float CosAngle = std::cos(AngleRad);
-    const float SinAngle = std::sin(AngleRad);
-    return FMatrix(
-        CosAngle, 0.0f, -SinAngle, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        SinAngle, 0.0f, CosAngle, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f);
+	const float CosAngle = std::cos(AngleRad);
+	const float SinAngle = std::sin(AngleRad);
+	return FMatrix(
+	    CosAngle, 0.0f, -SinAngle, 0.0f,
+	    0.0f, 1.0f, 0.0f, 0.0f,
+	    SinAngle, 0.0f, CosAngle, 0.0f,
+	    0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakeRotationZ(float AngleRad) noexcept
 {
-    const float CosAngle = std::cos(AngleRad);
-    const float SinAngle = std::sin(AngleRad);
-    return FMatrix(
-        CosAngle, SinAngle, 0.0f, 0.0f,
-        -SinAngle, CosAngle, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f);
+	const float CosAngle = std::cos(AngleRad);
+	const float SinAngle = std::sin(AngleRad);
+	return FMatrix(
+	    CosAngle, SinAngle, 0.0f, 0.0f,
+	    -SinAngle, CosAngle, 0.0f, 0.0f,
+	    0.0f, 0.0f, 1.0f, 0.0f,
+	    0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakePerspectiveFov(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
 {
-    check(AspectRatio > 0.0f);
-    check(NearZ > 0.0f && FarZ > NearZ);
+	check(AspectRatio > 0.0f);
+	check(NearZ > 0.0f && FarZ > NearZ);
 
-    const float YScale = 1.0f / std::tan(FovYRad * 0.5f);
-    const float XScale = YScale / AspectRatio;
-    return FMatrix(
-        XScale, 0.0f, 0.0f, 0.0f,
-        0.0f, YScale, 0.0f, 0.0f,
-        0.0f, 0.0f, FarZ / (FarZ - NearZ), 1.0f,
-        0.0f, 0.0f, -NearZ * FarZ / (FarZ - NearZ), 0.0f);
+	const float YScale = 1.0f / std::tan(FovYRad * 0.5f);
+	const float XScale = YScale / AspectRatio;
+	return FMatrix(
+	    XScale, 0.0f, 0.0f, 0.0f,
+	    0.0f, YScale, 0.0f, 0.0f,
+	    0.0f, 0.0f, FarZ / (FarZ - NearZ), 1.0f,
+	    0.0f, 0.0f, -NearZ * FarZ / (FarZ - NearZ), 0.0f);
 }
 
 FMatrix FMatrix::MakeOrthographic(
@@ -205,129 +200,129 @@ FMatrix FMatrix::MakeOrthographic(
     float NearZ,
     float FarZ) noexcept
 {
-    check(ViewWidth > 0.0f && ViewHeight > 0.0f);
-    check(FarZ > NearZ);
+	check(ViewWidth > 0.0f && ViewHeight > 0.0f);
+	check(FarZ > NearZ);
 
-    return FMatrix(
-        2.0f / ViewWidth, 0.0f, 0.0f, 0.0f,
-        0.0f, 2.0f / ViewHeight, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f / (FarZ - NearZ), 0.0f,
-        0.0f, 0.0f, -NearZ / (FarZ - NearZ), 1.0f);
+	return FMatrix(
+	    2.0f / ViewWidth, 0.0f, 0.0f, 0.0f,
+	    0.0f, 2.0f / ViewHeight, 0.0f, 0.0f,
+	    0.0f, 0.0f, 1.0f / (FarZ - NearZ), 0.0f,
+	    0.0f, 0.0f, -NearZ / (FarZ - NearZ), 1.0f);
 }
 
 FMatrix FMatrix::MakeLookAt(const FVector& Eye, const FVector& Target, const FVector& Up) noexcept
 {
-    const FVector Forward = (Target - Eye).GetSafeNormal();
-    const FVector Right = (Up ^ Forward).GetSafeNormal();
-    const FVector CorrectedUp = (Forward ^ Right).GetSafeNormal();
+	const FVector Forward = (Target - Eye).GetSafeNormal();
+	const FVector Right = (Up ^ Forward).GetSafeNormal();
+	const FVector CorrectedUp = (Forward ^ Right).GetSafeNormal();
 
-    if (Forward.IsNearlyZero() || Right.IsNearlyZero() || CorrectedUp.IsNearlyZero())
-    {
-        return Identity;
-    }
+	if (Forward.IsNearlyZero() || Right.IsNearlyZero() || CorrectedUp.IsNearlyZero())
+	{
+		return Identity;
+	}
 
-    return FMatrix(
-        Right.X, CorrectedUp.X, Forward.X, 0.0f,
-        Right.Y, CorrectedUp.Y, Forward.Y, 0.0f,
-        Right.Z, CorrectedUp.Z, Forward.Z, 0.0f,
-        -(Eye | Right), -(Eye | CorrectedUp), -(Eye | Forward), 1.0f);
+	return FMatrix(
+	    Right.X, CorrectedUp.X, Forward.X, 0.0f,
+	    Right.Y, CorrectedUp.Y, Forward.Y, 0.0f,
+	    Right.Z, CorrectedUp.Z, Forward.Z, 0.0f,
+	    -(Eye | Right), -(Eye | CorrectedUp), -(Eye | Forward), 1.0f);
 }
 
 FMatrix FMatrix::MakeWorld(const FVector& Translation, const FMatrix& Rotation, const FVector& Scale) noexcept
 {
-    FMatrix Result = Rotation;
-    for (int32 Column = 0; Column < 3; ++Column)
-    {
-        Result.M[0][Column] *= Scale.X;
-        Result.M[1][Column] *= Scale.Y;
-        Result.M[2][Column] *= Scale.Z;
-    }
+	FMatrix Result = Rotation;
+	for (int32 Column = 0; Column < 3; ++Column)
+	{
+		Result.M[0][Column] *= Scale.X;
+		Result.M[1][Column] *= Scale.Y;
+		Result.M[2][Column] *= Scale.Z;
+	}
 
-    Result.M[3][0] = Translation.X;
-    Result.M[3][1] = Translation.Y;
-    Result.M[3][2] = Translation.Z;
-    Result.M[3][3] = 1.0f;
-    return Result;
+	Result.M[3][0] = Translation.X;
+	Result.M[3][1] = Translation.Y;
+	Result.M[3][2] = Translation.Z;
+	Result.M[3][3] = 1.0f;
+	return Result;
 }
 
 bool FMatrix::TryInverse(const FMatrix& Matrix, FMatrix& OutInverse, float Tolerance) noexcept
 {
-    float Augmented[4][8]{};
-    for (int32 Row = 0; Row < 4; ++Row)
-    {
-        for (int32 Column = 0; Column < 4; ++Column)
-        {
-            Augmented[Row][Column] = Matrix.M[Row][Column];
-            Augmented[Row][Column + 4] = Row == Column ? 1.0f : 0.0f;
-        }
-    }
+	float Augmented[4][8]{};
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			Augmented[Row][Column] = Matrix.M[Row][Column];
+			Augmented[Row][Column + 4] = Row == Column ? 1.0f : 0.0f;
+		}
+	}
 
-    for (int32 Column = 0; Column < 4; ++Column)
-    {
-        int32 PivotRow = Column;
-        float PivotMagnitude = std::fabs(Augmented[PivotRow][Column]);
-        for (int32 Row = Column + 1; Row < 4; ++Row)
-        {
-            const float CandidateMagnitude = std::fabs(Augmented[Row][Column]);
-            if (CandidateMagnitude > PivotMagnitude)
-            {
-                PivotRow = Row;
-                PivotMagnitude = CandidateMagnitude;
-            }
-        }
+	for (int32 Column = 0; Column < 4; ++Column)
+	{
+		int32 PivotRow = Column;
+		float PivotMagnitude = std::fabs(Augmented[PivotRow][Column]);
+		for (int32 Row = Column + 1; Row < 4; ++Row)
+		{
+			const float CandidateMagnitude = std::fabs(Augmented[Row][Column]);
+			if (CandidateMagnitude > PivotMagnitude)
+			{
+				PivotRow = Row;
+				PivotMagnitude = CandidateMagnitude;
+			}
+		}
 
-        if (PivotMagnitude <= Tolerance)
-        {
-            return false;
-        }
+		if (PivotMagnitude <= Tolerance)
+		{
+			return false;
+		}
 
-        if (PivotRow != Column)
-        {
-            for (int32 Index = 0; Index < 8; ++Index)
-            {
-                const float Temp = Augmented[Column][Index];
-                Augmented[Column][Index] = Augmented[PivotRow][Index];
-                Augmented[PivotRow][Index] = Temp;
-            }
-        }
+		if (PivotRow != Column)
+		{
+			for (int32 Index = 0; Index < 8; ++Index)
+			{
+				const float Temp = Augmented[Column][Index];
+				Augmented[Column][Index] = Augmented[PivotRow][Index];
+				Augmented[PivotRow][Index] = Temp;
+			}
+		}
 
-        const float InversePivot = 1.0f / Augmented[Column][Column];
-        for (int32 Index = 0; Index < 8; ++Index)
-        {
-            Augmented[Column][Index] *= InversePivot;
-        }
+		const float InversePivot = 1.0f / Augmented[Column][Column];
+		for (int32 Index = 0; Index < 8; ++Index)
+		{
+			Augmented[Column][Index] *= InversePivot;
+		}
 
-        for (int32 Row = 0; Row < 4; ++Row)
-        {
-            if (Row == Column)
-            {
-                continue;
-            }
+		for (int32 Row = 0; Row < 4; ++Row)
+		{
+			if (Row == Column)
+			{
+				continue;
+			}
 
-            const float Factor = Augmented[Row][Column];
-            for (int32 Index = 0; Index < 8; ++Index)
-            {
-                Augmented[Row][Index] -= Factor * Augmented[Column][Index];
-            }
-        }
-    }
+			const float Factor = Augmented[Row][Column];
+			for (int32 Index = 0; Index < 8; ++Index)
+			{
+				Augmented[Row][Index] -= Factor * Augmented[Column][Index];
+			}
+		}
+	}
 
-    for (int32 Row = 0; Row < 4; ++Row)
-    {
-        for (int32 Column = 0; Column < 4; ++Column)
-        {
-            OutInverse.M[Row][Column] = Augmented[Row][Column + 4];
-        }
-    }
-    return true;
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			OutInverse.M[Row][Column] = Augmented[Row][Column + 4];
+		}
+	}
+	return true;
 }
 
 FVector4 FVector4::operator*(const FMatrix& Matrix) const noexcept
 {
-    return {
-        X * Matrix.M[0][0] + Y * Matrix.M[1][0] + Z * Matrix.M[2][0] + W * Matrix.M[3][0],
-        X * Matrix.M[0][1] + Y * Matrix.M[1][1] + Z * Matrix.M[2][1] + W * Matrix.M[3][1],
-        X * Matrix.M[0][2] + Y * Matrix.M[1][2] + Z * Matrix.M[2][2] + W * Matrix.M[3][2],
-        X * Matrix.M[0][3] + Y * Matrix.M[1][3] + Z * Matrix.M[2][3] + W * Matrix.M[3][3],
-    };
+	return {
+		X * Matrix.M[0][0] + Y * Matrix.M[1][0] + Z * Matrix.M[2][0] + W * Matrix.M[3][0],
+		X * Matrix.M[0][1] + Y * Matrix.M[1][1] + Z * Matrix.M[2][1] + W * Matrix.M[3][1],
+		X * Matrix.M[0][2] + Y * Matrix.M[1][2] + Z * Matrix.M[2][2] + W * Matrix.M[3][2],
+		X * Matrix.M[0][3] + Y * Matrix.M[1][3] + Z * Matrix.M[2][3] + W * Matrix.M[3][3],
+	};
 }

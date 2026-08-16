@@ -21,12 +21,17 @@ void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
     FName::Startup();
 
     Application.Startup(Instance, ShowCmd);
+
     CreateEngine();
+    checkf(GEngine, "CreateEngine 팩토리가 GEngine을 설정하지 않았다.");
+
     GEngine->Startup(Application.GetWindow());
 }
 
 int32 FEngineLoop::Run()
 {
+    check(GEngine);
+
     LARGE_INTEGER Frequency = {};
     LARGE_INTEGER PreviousCounter = {};
     QueryPerformanceFrequency(&Frequency);
@@ -50,6 +55,7 @@ int32 FEngineLoop::Run()
 
 void FEngineLoop::Shutdown()
 {
+    check(GEngine);
     GEngine->Shutdown();
 
     GUObjectManager.Destroy(GEngine);

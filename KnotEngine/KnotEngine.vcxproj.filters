@@ -303,6 +303,9 @@
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\IO\Paths.h">
       <Filter>Source\Engine\Core\IO</Filter>
     </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Log.h">
+      <Filter>Source\Engine\Core</Filter>
+    </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Core\Math\Color.h">
       <Filter>Source\Engine\Core\Math</Filter>
     </ClInclude>
@@ -358,6 +361,9 @@
       <Filter>Source\Engine\Object</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Backends\D3D11Backend.h">
+      <Filter>Source\Engine\Render\Backends</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Backends\D3DCommon.h">
       <Filter>Source\Engine\Render\Backends</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\Jungle\Desktop\KnotEngine\KnotEngine\Source\Engine\Render\Renderer.h">
