@@ -11,29 +11,29 @@ class URenderer;
 class FGeometryMesh
 {
 public:
-    FGeometryMesh();
-    ~FGeometryMesh();
+	FGeometryMesh();
+	~FGeometryMesh();
 
-    FGeometryMesh(const FGeometryMesh&) = delete;
-    FGeometryMesh& operator=(const FGeometryMesh&) = delete;
-    FGeometryMesh(FGeometryMesh&&) noexcept;
-    FGeometryMesh& operator=(FGeometryMesh&&) noexcept;
+	FGeometryMesh(const FGeometryMesh&) = delete;
+	FGeometryMesh& operator=(const FGeometryMesh&) = delete;
+	FGeometryMesh(FGeometryMesh&&) noexcept;
+	FGeometryMesh& operator=(FGeometryMesh&&) noexcept;
 
-    void SetData(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices);
-    bool Upload(URenderer& Renderer);
-    void Release();
+	void SetData(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices);
+	bool Upload(URenderer& Renderer);
+	void Release();
 
-    bool IsUploaded() const { return bUploaded; }
-    FMeshBuffer* GetMeshBuffer() { return MeshBuffer.get(); }
-    const FMeshBuffer* GetMeshBuffer() const { return MeshBuffer.get(); }
+	bool IsUploaded() const { return bUploaded; }
+	FMeshBuffer* GetMeshBuffer() { return MeshBuffer.get(); }
+	const FMeshBuffer* GetMeshBuffer() const { return MeshBuffer.get(); }
 
-    const TArray<FGeometryVertex>& GetVertices() const { return Vertices; }
-    const TArray<uint32>& GetIndices() const { return Indices; }
+	const TArray<FGeometryVertex>& GetVertices() const { return Vertices; }
+	const TArray<uint32>& GetIndices() const { return Indices; }
 
 private:
-    TArray<FGeometryVertex> Vertices;
-    TArray<uint32> Indices;
+	TArray<FGeometryVertex> Vertices;
+	TArray<uint32> Indices;
 
-    std::unique_ptr<FMeshBuffer> MeshBuffer;
-    bool bUploaded = false;
+	std::unique_ptr<FMeshBuffer> MeshBuffer;
+	bool bUploaded = false;
 };

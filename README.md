@@ -53,17 +53,14 @@ Code readability and architectural integrity are maintained as first-class prior
 
 **Requirements:** Visual Studio 2022 with the v143 toolset, Windows SDK
 
-CMake, Python, vcpkg, and third-party packages are prepared by the project scripts.
+CMake, Python, vcpkg, and third-party packages are prepared automatically by the project scripts.
 
 ```bash
 # 1. Clone Engine
 git clone https://github.com/your-repo/KnotEngine.git
 cd KnotEngine
 
-# 2. Download tools and install vcpkg dependencies
-GenerateDependencies.bat
-
-# 3. Generate Visual Studio project files
+# 2. Prepare dependencies and generate Visual Studio project files
 GenerateProjects.bat
 
 # Build Development (default), Debug, Shipping, or all configurations
@@ -73,7 +70,7 @@ BuildEngine.bat Shipping
 BuildEngine.bat All
 ```
 
-Open the generated solution at `KnotEngine/Build/VS2022-x64/KnotEngine.sln` in Visual Studio 2022 and build.
+Open the generated root solution at `KnotEngine.sln` in Visual Studio 2022 and build.
 
 Generated tools, package files, and intermediate build files are kept under `KnotEngine/Intermediate`. Build outputs are written to `KnotEngine/Bin/x64/<Configuration>`.
 
@@ -140,17 +137,14 @@ KnotEngine은 처음부터 완전한 3D 게임 엔진을 만들어 보는 개인
 
 **요구 사항:** Visual Studio 2022 v143 툴체인, Windows SDK
 
-CMake, Python, vcpkg, 서드파티 패키지는 프로젝트 스크립트가 준비합니다.
+CMake, Python, vcpkg, 서드파티 패키지는 프로젝트 스크립트가 자동으로 준비합니다.
 
 ```bash
 # 1. 엔진 클론
 git clone https://github.com/your-repo/KnotEngine.git
 cd KnotEngine
 
-# 2. 도구 다운로드 및 vcpkg 의존성 설치
-GenerateDependencies.bat
-
-# 3. Visual Studio 프로젝트 파일 생성
+# 2. 의존성 준비 및 Visual Studio 프로젝트 파일 생성
 GenerateProjects.bat
 
 # Development(기본), Debug, Shipping 또는 전체 구성 빌드
@@ -160,7 +154,7 @@ BuildEngine.bat Shipping
 BuildEngine.bat All
 ```
 
-생성된 `KnotEngine/Build/VS2022-x64/KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
+루트에 생성된 `KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
 
 생성된 도구, 패키지 파일, 중간 빌드 파일은 `KnotEngine/Intermediate` 아래에 정리됩니다. 빌드 결과물은 `KnotEngine/Bin/x64/<Configuration>`에 생성됩니다.
 

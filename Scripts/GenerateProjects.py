@@ -12,22 +12,22 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from GenerateFilters import update_project_filters
+from Toolchain import Toolchain, prepare_toolchain
 
 # 하드코딩 디렉토리 상수
 REPOSITORY_DIR = SCRIPT_DIR.parent
 ENGINE_DIR = REPOSITORY_DIR / "KnotEngine"
 BUILD_CONFIG_DIR = ENGINE_DIR / "Build"
 CMAKE_SOURCE_DIR = BUILD_CONFIG_DIR / "CMake"
-INTERMEDIATE_DIR = ENGINE_DIR / "Intermediate"
-CMAKE_EXE = INTERMEDIATE_DIR / "Tools" / "cmake" / "bin" / "cmake.exe"
-VCPKG_ROOT = INTERMEDIATE_DIR / "Tools" / "vcpkg"
-BINARY_CACHE_DIR = INTERMEDIATE_DIR / "Cache" / "vcpkg-binary"
 BUILD_DIR = BUILD_CONFIG_DIR / "VS2022-x64"
 PROJECT_NAME = "KnotEngine"
 BUILD_CONFIGURATIONS = ("Debug", "Development", "Shipping")
 GENERATED_PROJECT_FILE = BUILD_DIR / f"{PROJECT_NAME}.vcxproj"
 LEGACY_PROJECT_FILE = ENGINE_DIR / f"{PROJECT_NAME}.vcxproj"
+ROOT_SOLUTION_FILE = REPOSITORY_DIR / f"{PROJECT_NAME}.sln"
 MSBUILD_NS = "http://schemas.microsoft.com/developer/msbuild/2003"
+CPP_PROJECT_TYPE_GUID = "{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}"
+ROOT_SOLUTION_GUID = "{4EBC5DD2-CECA-4722-9D19-87C7CB5F481B}"
 HIDDEN_PROJECT_ITEM_TYPES = (
     "ClCompile",
     "ClInclude",
@@ -40,30 +40,13 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Non
     subprocess.run(command, cwd=str(cwd), env=env, check=True)
 
 
-def ensure_dependencies() -> None:
-    run([
-        str(SCRIPT_DIR / "python" / "python.exe"),
-        str(SCRIPT_DIR / "GenerateDependencies.py"),
-        "--no-pause",
-    ], cwd=ENGINE_DIR)
-
-
-def make_env() -> dict[str, str]:
-    env = os.environ.copy()
-    cmake_bin = str(CMAKE_EXE.parent)
-    env["PATH"] = cmake_bin + os.pathsep + env.get("PATH", "")
-    env["VCPKG_ROOT"] = str(VCPKG_ROOT)
-    env["VCPKG_DEFAULT_TRIPLET"] = "x64-windows"
-    env["VCPKG_BINARY_SOURCES"] = f"clear;files,{BINARY_CACHE_DIR},readwrite"
-    return env
-
-
-def configure_project() -> None:
+def configure_project(toolchain: Toolchain) -> None:
     remove_stale_cmake_cache()
-    run([str(CMAKE_EXE), "--preset", "vs2022-x64"], cwd=CMAKE_SOURCE_DIR, env=make_env())
+    run([str(toolchain.cmake_exe), "--preset", "vs2022-x64"], cwd=CMAKE_SOURCE_DIR, env=toolchain.environment)
     update_project_filters(GENERATED_PROJECT_FILE, ENGINE_DIR, PROJECT_NAME)
     hide_generated_project_items(GENERATED_PROJECT_FILE)
     copy_generated_project_to_root()
+    generate_root_solution()
 
 
 def copy_generated_project_to_root() -> None:
@@ -76,6 +59,49 @@ def copy_generated_project_to_root() -> None:
     if generated_filters_file.exists():
         shutil.copy2(generated_filters_file, legacy_filters_file)
     print(f"Copied generated project file: {LEGACY_PROJECT_FILE}")
+
+
+def generate_root_solution() -> None:
+    ET.register_namespace("", MSBUILD_NS)
+    tree = ET.parse(LEGACY_PROJECT_FILE)
+    project_guid_element = tree.getroot().find(f".//{{{MSBUILD_NS}}}ProjectGuid")
+    if project_guid_element is None or not project_guid_element.text:
+        raise RuntimeError(f"ProjectGuid was not found in {LEGACY_PROJECT_FILE}")
+
+    project_guid = project_guid_element.text.strip().upper()
+    lines = [
+        "Microsoft Visual Studio Solution File, Format Version 12.00",
+        "# Visual Studio Version 17",
+        "VisualStudioVersion = 17.0.31903.59",
+        "MinimumVisualStudioVersion = 10.0.40219.1",
+        f'Project("{CPP_PROJECT_TYPE_GUID}") = "{PROJECT_NAME}", "KnotEngine\\{PROJECT_NAME}.vcxproj", "{project_guid}"',
+        "EndProject",
+        "Global",
+        "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution",
+    ]
+    for configuration in BUILD_CONFIGURATIONS:
+        lines.append(f"\t\t{configuration}|x64 = {configuration}|x64")
+    lines.extend([
+        "\tEndGlobalSection",
+        "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution",
+    ])
+    for configuration in BUILD_CONFIGURATIONS:
+        lines.append(f"\t\t{project_guid}.{configuration}|x64.ActiveCfg = {configuration}|x64")
+        lines.append(f"\t\t{project_guid}.{configuration}|x64.Build.0 = {configuration}|x64")
+    lines.extend([
+        "\tEndGlobalSection",
+        "\tGlobalSection(SolutionProperties) = preSolution",
+        "\t\tHideSolutionNode = FALSE",
+        "\tEndGlobalSection",
+        "\tGlobalSection(ExtensibilityGlobals) = postSolution",
+        f"\t\tSolutionGuid = {ROOT_SOLUTION_GUID}",
+        "\tEndGlobalSection",
+        "EndGlobal",
+        "",
+    ])
+
+    ROOT_SOLUTION_FILE.write_text("\n".join(lines), encoding="utf-8", newline="\r\n")
+    print(f"Generated root solution: {ROOT_SOLUTION_FILE}")
 
 
 def redirect_legacy_project_intermediate_dir() -> None:
@@ -171,25 +197,22 @@ def remove_stale_cmake_cache() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate KnotEngine CMake projects.")
     parser.add_argument("--no-pause", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--skip-dependencies", action="store_true", help="Do not run GenerateDependencies.py first.")
     build_group = parser.add_mutually_exclusive_group()
     build_group.add_argument("--build", action="store_true", help="Build the selected configuration after configuring.")
     build_group.add_argument("--build-all", action="store_true", help="Build every KnotEngine configuration after configuring.")
     parser.add_argument("--config", choices=BUILD_CONFIGURATIONS, default="Development", help="Configuration used by --build (default: Development).")
     args = parser.parse_args()
 
-    if not args.skip_dependencies:
-        ensure_dependencies()
-
-    if not CMAKE_EXE.exists():
-        print(f"CMake was not found at {CMAKE_EXE}. Run GenerateDependencies.bat first.", file=sys.stderr)
-        return 1
-
-    configure_project()
+    toolchain = prepare_toolchain()
+    configure_project(toolchain)
 
     configurations = BUILD_CONFIGURATIONS if args.build_all else (args.config,) if args.build else ()
     for configuration in configurations:
-        run([str(CMAKE_EXE), "--build", str(BUILD_DIR), "--config", configuration], cwd=CMAKE_SOURCE_DIR, env=make_env())
+        run(
+            [str(toolchain.cmake_exe), "--build", str(BUILD_DIR), "--config", configuration],
+            cwd=CMAKE_SOURCE_DIR,
+            env=toolchain.environment,
+        )
 
     print(f"Project files generated: {BUILD_DIR}")
     return 0

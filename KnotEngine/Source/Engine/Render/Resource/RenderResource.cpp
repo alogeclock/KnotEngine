@@ -2,11 +2,11 @@
 
 void FRenderResource::Release()
 {
-    if (!bInitialized)
-    {
-        return;
-    }
+	if (!bInitialized)
+	{
+		return;
+	}
 
-    OnRelease();
-    bInitialized = false;
+	OnRelease();
+	bInitialized = false;
 }

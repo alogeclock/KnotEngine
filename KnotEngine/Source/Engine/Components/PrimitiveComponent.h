@@ -10,11 +10,11 @@ class URenderer;
 class UPrimitiveComponent : public UObject
 {
 public:
-    ~UPrimitiveComponent() override = default;
+	~UPrimitiveComponent() override = default;
 
-    void Render(float DeltaTime, URenderer& Renderer);
+	void Render(float DeltaTime, URenderer& Renderer);
 
 protected:
-    std::shared_ptr<FGeometryMesh> Mesh;
-    float Rotation = 0.0f;
+	std::shared_ptr<FGeometryMesh> Mesh;
+	float Rotation = 0.0f;
 };

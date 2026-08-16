@@ -1,9 +1,9 @@
 #include "Launch.h"
 
 #if WITH_EDITOR
-	#include "Editor/EditorEngine.h"
+#include "Editor/EditorEngine.h"
 #else
-	#include "Runtime/GameEngine.h"
+#include "Runtime/GameEngine.h"
 #endif
 
 #include "Runtime/EngineLoop.h"

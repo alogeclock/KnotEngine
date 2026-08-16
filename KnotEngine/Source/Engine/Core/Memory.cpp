@@ -11,7 +11,8 @@ struct FMemoryHeader
 };
 
 // 사용자가 요청한 크기에 헤더를 추가하여 메모리를 할당한다.
-_NODISCARD _Ret_notnull_ _Post_writable_byte_size_(Size) _VCRT_ALLOCATOR
+_NODISCARD _Ret_notnull_ _Post_writable_byte_size_(Size)
+_VCRT_ALLOCATOR
 void* __CRTDECL operator new(size_t Size)
 {
 	if (Size == 0)
@@ -36,7 +37,8 @@ void* __CRTDECL operator new(size_t Size)
 	return static_cast<void*>(Header + 1);
 }
 
-_NODISCARD _Ret_notnull_ _Post_writable_byte_size_(Size) _VCRT_ALLOCATOR
+_NODISCARD _Ret_notnull_ _Post_writable_byte_size_(Size)
+_VCRT_ALLOCATOR
 void* __CRTDECL operator new[](size_t Size)
 {
 	return ::operator new(Size);

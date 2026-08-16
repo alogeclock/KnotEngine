@@ -8,20 +8,20 @@
 class FWindowsWindow
 {
 public:
-    FWindowsWindow() = default;
-    ~FWindowsWindow() = default;
+	FWindowsWindow() = default;
+	~FWindowsWindow() = default;
 
-    void Startup(HWND InHWindow);
-    HWND GetHwnd() const { return HWindow; }
+	void Startup(HWND InHWindow);
+	HWND GetHwnd() const { return HWindow; }
 
-    float GetWidth() const { return Width; }
-    float GetHeight() const { return Height; }
+	float GetWidth() const { return Width; }
+	float GetHeight() const { return Height; }
 
-    void OnResized(uint32 InWidth, uint32 InHeight);
-    POINT ToClientPoint(POINT ScreenPoint) const;
+	void OnResized(uint32 InWidth, uint32 InHeight);
+	POINT ToClientPoint(POINT ScreenPoint) const;
 
 private:
-    HWND HWindow = nullptr;
-    float Width = 0.0f;
-    float Height = 0.0f;
+	HWND HWindow = nullptr;
+	float Width = 0.0f;
+	float Height = 0.0f;
 };

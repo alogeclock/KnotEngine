@@ -11,10 +11,10 @@ class URenderer;
 // GPU 생성 호출 동안만 유효한 비소유 업로드 뷰.
 struct FMeshDataView
 {
-    std::span<const uint8> VertexBytes;
-    std::span<const uint32> Indices;
-    const FVertexLayout* Layout = nullptr;
-    uint32 VertexCount = 0;
+	std::span<const uint8> VertexBytes;
+	std::span<const uint32> Indices;
+	const FVertexLayout* Layout = nullptr;
+	uint32 VertexCount = 0;
 };
 
 // 하나의 Draw/DrawIndexed 호출에 필요한 GPU Mesh Buffer 묶음.
@@ -22,28 +22,28 @@ struct FMeshDataView
 class FMeshBuffer final : public FRenderResource
 {
 public:
-    FMeshBuffer() = default;
-    ~FMeshBuffer() override;
+	FMeshBuffer() = default;
+	~FMeshBuffer() override;
 
-    bool Initialize(URenderer& Renderer, const FMeshDataView& InDataView);
-    bool IsValid() const;
+	bool Initialize(URenderer& Renderer, const FMeshDataView& InDataView);
+	bool IsValid() const;
 
-    const FVertexBuffer& GetVertexBuffer() const { return VertexBuffer; }
-    const FIndexBuffer& GetIndexBuffer() const { return IndexBuffer; }
-    const FVertexLayout& GetLayout() const { return VertexLayout; }
+	const FVertexBuffer& GetVertexBuffer() const { return VertexBuffer; }
+	const FIndexBuffer& GetIndexBuffer() const { return IndexBuffer; }
+	const FVertexLayout& GetLayout() const { return VertexLayout; }
 
-    uint32 GetVertexCount() const { return VertexBuffer.GetVertexCount(); }
-    uint32 GetIndexCount() const { return IndexBuffer.GetIndexCount(); }
-    uint32 GetStride() const { return VertexLayout.Stride; }
+	uint32 GetVertexCount() const { return VertexBuffer.GetVertexCount(); }
+	uint32 GetIndexCount() const { return IndexBuffer.GetIndexCount(); }
+	uint32 GetStride() const { return VertexLayout.Stride; }
 
 protected:
-    void OnRelease() override;
+	void OnRelease() override;
 
 private:
-    static bool Validate(const FMeshDataView& DataView);
+	static bool Validate(const FMeshDataView& DataView);
 
 private:
-    FVertexBuffer VertexBuffer;
-    FIndexBuffer IndexBuffer;
-    FVertexLayout VertexLayout;
+	FVertexBuffer VertexBuffer;
+	FIndexBuffer IndexBuffer;
+	FVertexLayout VertexLayout;
 };

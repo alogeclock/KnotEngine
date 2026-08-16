@@ -5,19 +5,19 @@
 class FRenderResource
 {
 public:
-    FRenderResource() = default;
-    virtual ~FRenderResource() = default;
+	FRenderResource() = default;
+	virtual ~FRenderResource() = default;
 
-    FRenderResource(const FRenderResource&) = delete;
-    FRenderResource& operator=(const FRenderResource&) = delete;
-    FRenderResource(FRenderResource&&) = delete;
-    FRenderResource& operator=(FRenderResource&&) = delete;
+	FRenderResource(const FRenderResource&) = delete;
+	FRenderResource& operator=(const FRenderResource&) = delete;
+	FRenderResource(FRenderResource&&) = delete;
+	FRenderResource& operator=(FRenderResource&&) = delete;
 
-    void Release();
+	void Release();
 
 	bool IsInitialized() const { return bInitialized; }
 
 protected:
-    virtual void OnRelease() = 0;
-    bool bInitialized = false;
+	virtual void OnRelease() = 0;
+	bool bInitialized = false;
 };

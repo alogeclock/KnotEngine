@@ -11,17 +11,17 @@ class UCubeComponent;
 class UEditorEngine : public UEngine
 {
 public:
-    UEditorEngine();
-    ~UEditorEngine() override = default;
+	UEditorEngine();
+	~UEditorEngine() override = default;
 
-    void Startup(FWindowsWindow InWindow) override;
-    void Tick(float DeltaTime) override;
-    void Shutdown() override;
+	void Startup(FWindowsWindow InWindow) override;
+	void Tick(float DeltaTime) override;
+	void Shutdown() override;
 
 private:
-    FD3D11Backend RenderBackend;
-    URenderer Renderer;
-    FD3D11ImGuiBackend ImGuiRenderBackend;
+	FD3D11Backend RenderBackend;
+	URenderer Renderer;
+	FD3D11ImGuiBackend ImGuiRenderBackend;
 	FEditorUISystem EditorUISystem;
 
 	UCubeComponent* Cube = nullptr;

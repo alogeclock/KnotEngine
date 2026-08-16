@@ -5,7 +5,5 @@
 class UActorComponent : public UObject
 {
 public:
-
 private:
-
 };

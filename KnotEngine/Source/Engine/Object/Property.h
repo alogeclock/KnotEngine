@@ -3,7 +3,7 @@
 #include "Core/Archive.h"
 #include "Object/Object.h"
 
-/* 
+/*
 class FProperty
 {
 public:

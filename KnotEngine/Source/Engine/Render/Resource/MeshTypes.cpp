@@ -8,7 +8,7 @@ FGeometryMesh::FGeometryMesh() = default;
 
 FGeometryMesh::~FGeometryMesh()
 {
-    Release();
+	Release();
 }
 
 FGeometryMesh::FGeometryMesh(FGeometryMesh&&) noexcept = default;
@@ -18,51 +18,51 @@ FGeometryMesh& FGeometryMesh::operator=(FGeometryMesh&&) noexcept = default;
 // 입력 데이터는 함수 안에서 CPU Mesh 배열로 복사하므로 span은 호출 중에만 유효하면 된다.
 void FGeometryMesh::SetData(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices)
 {
-    Release();
+	Release();
 
-    Vertices.assign(InVertices.begin(), InVertices.end());
-    Indices.assign(InIndices.begin(), InIndices.end());
-    bUploaded = false;
+	Vertices.assign(InVertices.begin(), InVertices.end());
+	Indices.assign(InIndices.begin(), InIndices.end());
+	bUploaded = false;
 }
 
 bool FGeometryMesh::Upload(URenderer& Renderer)
 {
-    Release();
+	Release();
 
-    const FVertexLayout& VertexLayout = FGeometryVertex::GetVertexLayout();
-    if (Vertices.empty() ||
-        Vertices.size() > (std::numeric_limits<uint32>::max)() ||
-        VertexLayout.Stride != sizeof(FGeometryVertex))
-    {
-        return false;
-    }
+	const FVertexLayout& VertexLayout = FGeometryVertex::GetVertexLayout();
+	if (Vertices.empty() ||
+	    Vertices.size() > (std::numeric_limits<uint32>::max)() ||
+	    VertexLayout.Stride != sizeof(FGeometryVertex))
+	{
+		return false;
+	}
 
-    const auto* VertexBytes = reinterpret_cast<const uint8*>(Vertices.data());
-    const FMeshDataView UploadData = {
-        std::span<const uint8>(VertexBytes, Vertices.size() * sizeof(FGeometryVertex)),
-        std::span<const uint32>(Indices.data(), Indices.size()),
-        &VertexLayout,
-        static_cast<uint32>(Vertices.size())
-    };
+	const auto* VertexBytes = reinterpret_cast<const uint8*>(Vertices.data());
+	const FMeshDataView UploadData = {
+		std::span<const uint8>(VertexBytes, Vertices.size() * sizeof(FGeometryVertex)),
+		std::span<const uint32>(Indices.data(), Indices.size()),
+		&VertexLayout,
+		static_cast<uint32>(Vertices.size())
+	};
 
-    MeshBuffer = std::make_unique<FMeshBuffer>();
-    if (!MeshBuffer->Initialize(Renderer, UploadData))
-    {
-        MeshBuffer.reset();
-        return false;
-    }
+	MeshBuffer = std::make_unique<FMeshBuffer>();
+	if (!MeshBuffer->Initialize(Renderer, UploadData))
+	{
+		MeshBuffer.reset();
+		return false;
+	}
 
-    bUploaded = true;
-    return true;
+	bUploaded = true;
+	return true;
 }
 
 void FGeometryMesh::Release()
 {
-    if (MeshBuffer)
-    {
-        MeshBuffer->Release();
-        MeshBuffer.reset();
-    }
+	if (MeshBuffer)
+	{
+		MeshBuffer->Release();
+		MeshBuffer.reset();
+	}
 
-    bUploaded = false;
+	bUploaded = false;
 }

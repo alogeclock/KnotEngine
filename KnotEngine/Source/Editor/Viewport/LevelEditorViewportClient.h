@@ -5,5 +5,4 @@
 class FLevelEditorViewportClient : FViewportClient
 {
 public:
-	
 };

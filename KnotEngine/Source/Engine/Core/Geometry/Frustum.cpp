@@ -61,8 +61,8 @@ FFrustum::EFrustumIntersectResult FFrustum::Intersects(const FAABB& Box) const
 	for (const FPlane& Plane : Planes)
 	{
 		const float Radius = std::fabs(Plane.Normal.X * Extent.X) +
-			std::fabs(Plane.Normal.Y * Extent.Y) +
-			std::fabs(Plane.Normal.Z * Extent.Z);
+		                     std::fabs(Plane.Normal.Y * Extent.Y) +
+		                     std::fabs(Plane.Normal.Z * Extent.Z);
 		const float Distance = Plane.GetSignedDistance(Center);
 		if (Distance + Radius < 0.0f)
 		{

@@ -8,8 +8,14 @@ struct FColor
 	// 멤버 변수 (Member Variables)
 	union
 	{
-		struct { uint8 r, g, b, a; };
-		struct { uint8 R, G, B, A; };
+		struct
+		{
+			uint8 r, g, b, a;
+		};
+		struct
+		{
+			uint8 R, G, B, A;
+		};
 	};
 
 	// 생성자 (Constructors)

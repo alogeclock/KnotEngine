@@ -44,10 +44,10 @@ FMatrix FMatrix::operator*(const FMatrix& Other) const noexcept
 		for (int32 Column = 0; Column < 4; ++Column)
 		{
 			Result.M[Row][Column] =
-			    M[Row][0] * Other.M[0][Column] +
-			    M[Row][1] * Other.M[1][Column] +
-			    M[Row][2] * Other.M[2][Column] +
-			    M[Row][3] * Other.M[3][Column];
+				M[Row][0] * Other.M[0][Column] +
+				M[Row][1] * Other.M[1][Column] +
+				M[Row][2] * Other.M[2][Column] +
+				M[Row][3] * Other.M[3][Column];
 		}
 	}
 	return Result;
@@ -122,10 +122,10 @@ bool FMatrix::Decompose(FVector& OutTranslation, FMatrix& OutRotation, FVector& 
 	}
 
 	OutRotation = FMatrix(
-	    FVector4(AxisX / OutScale.X, 0.0f),
-	    FVector4(AxisY / OutScale.Y, 0.0f),
-	    FVector4(AxisZ / OutScale.Z, 0.0f),
-	    FVector4::Point());
+		FVector4(AxisX / OutScale.X, 0.0f),
+		FVector4(AxisY / OutScale.Y, 0.0f),
+		FVector4(AxisZ / OutScale.Z, 0.0f),
+		FVector4::Point());
 	return true;
 }
 
@@ -141,10 +141,10 @@ FMatrix FMatrix::MakeTranslation(const FVector& Translation) noexcept
 FMatrix FMatrix::MakeScale(const FVector& Scale) noexcept
 {
 	return FMatrix(
-	    Scale.X, 0.0f, 0.0f, 0.0f,
-	    0.0f, Scale.Y, 0.0f, 0.0f,
-	    0.0f, 0.0f, Scale.Z, 0.0f,
-	    0.0f, 0.0f, 0.0f, 1.0f);
+		Scale.X, 0.0f, 0.0f, 0.0f,
+		0.0f, Scale.Y, 0.0f, 0.0f,
+		0.0f, 0.0f, Scale.Z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakeRotationX(float AngleRad) noexcept
@@ -152,10 +152,10 @@ FMatrix FMatrix::MakeRotationX(float AngleRad) noexcept
 	const float CosAngle = std::cos(AngleRad);
 	const float SinAngle = std::sin(AngleRad);
 	return FMatrix(
-	    1.0f, 0.0f, 0.0f, 0.0f,
-	    0.0f, CosAngle, SinAngle, 0.0f,
-	    0.0f, -SinAngle, CosAngle, 0.0f,
-	    0.0f, 0.0f, 0.0f, 1.0f);
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, CosAngle, SinAngle, 0.0f,
+		0.0f, -SinAngle, CosAngle, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakeRotationY(float AngleRad) noexcept
@@ -163,10 +163,10 @@ FMatrix FMatrix::MakeRotationY(float AngleRad) noexcept
 	const float CosAngle = std::cos(AngleRad);
 	const float SinAngle = std::sin(AngleRad);
 	return FMatrix(
-	    CosAngle, 0.0f, -SinAngle, 0.0f,
-	    0.0f, 1.0f, 0.0f, 0.0f,
-	    SinAngle, 0.0f, CosAngle, 0.0f,
-	    0.0f, 0.0f, 0.0f, 1.0f);
+		CosAngle, 0.0f, -SinAngle, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		SinAngle, 0.0f, CosAngle, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakeRotationZ(float AngleRad) noexcept
@@ -174,10 +174,10 @@ FMatrix FMatrix::MakeRotationZ(float AngleRad) noexcept
 	const float CosAngle = std::cos(AngleRad);
 	const float SinAngle = std::sin(AngleRad);
 	return FMatrix(
-	    CosAngle, SinAngle, 0.0f, 0.0f,
-	    -SinAngle, CosAngle, 0.0f, 0.0f,
-	    0.0f, 0.0f, 1.0f, 0.0f,
-	    0.0f, 0.0f, 0.0f, 1.0f);
+		CosAngle, SinAngle, 0.0f, 0.0f,
+		-SinAngle, CosAngle, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 FMatrix FMatrix::MakePerspectiveFov(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
@@ -188,26 +188,26 @@ FMatrix FMatrix::MakePerspectiveFov(float FovYRad, float AspectRatio, float Near
 	const float YScale = 1.0f / std::tan(FovYRad * 0.5f);
 	const float XScale = YScale / AspectRatio;
 	return FMatrix(
-	    XScale, 0.0f, 0.0f, 0.0f,
-	    0.0f, YScale, 0.0f, 0.0f,
-	    0.0f, 0.0f, FarZ / (FarZ - NearZ), 1.0f,
-	    0.0f, 0.0f, -NearZ * FarZ / (FarZ - NearZ), 0.0f);
+		XScale, 0.0f, 0.0f, 0.0f,
+		0.0f, YScale, 0.0f, 0.0f,
+		0.0f, 0.0f, FarZ / (FarZ - NearZ), 1.0f,
+		0.0f, 0.0f, -NearZ * FarZ / (FarZ - NearZ), 0.0f);
 }
 
 FMatrix FMatrix::MakeOrthographic(
-    float ViewWidth,
-    float ViewHeight,
-    float NearZ,
-    float FarZ) noexcept
+	float ViewWidth,
+	float ViewHeight,
+	float NearZ,
+	float FarZ) noexcept
 {
 	check(ViewWidth > 0.0f && ViewHeight > 0.0f);
 	check(FarZ > NearZ);
 
 	return FMatrix(
-	    2.0f / ViewWidth, 0.0f, 0.0f, 0.0f,
-	    0.0f, 2.0f / ViewHeight, 0.0f, 0.0f,
-	    0.0f, 0.0f, 1.0f / (FarZ - NearZ), 0.0f,
-	    0.0f, 0.0f, -NearZ / (FarZ - NearZ), 1.0f);
+		2.0f / ViewWidth, 0.0f, 0.0f, 0.0f,
+		0.0f, 2.0f / ViewHeight, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f / (FarZ - NearZ), 0.0f,
+		0.0f, 0.0f, -NearZ / (FarZ - NearZ), 1.0f);
 }
 
 FMatrix FMatrix::MakeLookAt(const FVector& Eye, const FVector& Target, const FVector& Up) noexcept
@@ -222,10 +222,10 @@ FMatrix FMatrix::MakeLookAt(const FVector& Eye, const FVector& Target, const FVe
 	}
 
 	return FMatrix(
-	    Right.X, CorrectedUp.X, Forward.X, 0.0f,
-	    Right.Y, CorrectedUp.Y, Forward.Y, 0.0f,
-	    Right.Z, CorrectedUp.Z, Forward.Z, 0.0f,
-	    -(Eye | Right), -(Eye | CorrectedUp), -(Eye | Forward), 1.0f);
+		Right.X, CorrectedUp.X, Forward.X, 0.0f,
+		Right.Y, CorrectedUp.Y, Forward.Y, 0.0f,
+		Right.Z, CorrectedUp.Z, Forward.Z, 0.0f,
+		-(Eye | Right), -(Eye | CorrectedUp), -(Eye | Forward), 1.0f);
 }
 
 FMatrix FMatrix::MakeWorld(const FVector& Translation, const FMatrix& Rotation, const FVector& Scale) noexcept

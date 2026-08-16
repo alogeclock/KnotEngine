@@ -16,7 +16,7 @@
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/../../Intermediate/vcpkg_installed",
-        "VCPKG_MANIFEST_INSTALL": "OFF"
+        "VCPKG_MANIFEST_INSTALL": "ON"
       }
     }
   ],

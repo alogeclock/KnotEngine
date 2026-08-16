@@ -13,8 +13,10 @@ struct FEdge
 	FVector B;
 
 	// 생성자 (Constructors)
-	constexpr FEdge() noexcept : A(), B() {}
-	constexpr FEdge(const FVector& InA, const FVector& InB) noexcept : A(InA), B(InB) {}
+	constexpr FEdge() noexcept
+	    : A(), B() {}
+	constexpr FEdge(const FVector& InA, const FVector& InB) noexcept
+	    : A(InA), B(InB) {}
 	FEdge(const FEdge&) noexcept = default;
 	FEdge(FEdge&&) noexcept = default;
 
@@ -38,7 +40,7 @@ namespace std
 	{
 		size_t operator()(const FEdge& Edge) const noexcept;
 	};
-}
+} // namespace std
 
 // 두 정점의 인덱스(Index)로 구성된 간선(Edge)을 표현하는 자료형
 // (A, B)와 (B, A)는 동일한 간선으로 취급됨 (비방향 간선)
@@ -51,10 +53,11 @@ public:
 
 	// 생성자 (Constructors)
 public:
-	constexpr FIndexEdge() noexcept : A(0), B(0) {}
+	constexpr FIndexEdge() noexcept
+	    : A(0), B(0) {}
 
 	constexpr FIndexEdge(uint32 InA, uint32 InB) noexcept
-		: A(InA), B(InB)
+	    : A(InA), B(InB)
 	{
 	}
 
@@ -81,4 +84,4 @@ namespace std
 	{
 		size_t operator()(const FIndexEdge& Edge) const noexcept;
 	};
-}
+} // namespace std

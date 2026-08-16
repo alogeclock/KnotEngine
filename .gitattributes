@@ -1,2 +1,9 @@
-# 모든 텍스트 파일은 저장소와 작업 트리에서 LF를 사용한다.
-* text=auto eol=lf
+# 텍스트 여부는 자동 판별하되 작업 트리의 줄바꿈은 강제하지 않는다.
+* text=auto
+
+# C/C++ 및 셰이더 소스 코드만 저장소와 작업 트리에서 LF를 사용한다.
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.hlsl text eol=lf
+*.usf  text eol=lf
+*.ush  text eol=lf

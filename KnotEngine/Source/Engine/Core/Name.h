@@ -17,7 +17,10 @@ struct FNameEntryId
 	bool operator!=(const FNameEntryId& Other) const { return Value != Other.Value; }
 };
 
-inline uint32 GetTypeHash(const FNameEntryId& Id) { return Id.Value; }
+inline uint32 GetTypeHash(const FNameEntryId& Id)
+{
+	return Id.Value;
+}
 
 // 엔진에서 자주 참조되는 Name들을 enum으로 정의하여 lower-case 변환, mutex, 해시맵 조회를 회피.
 enum class EName : uint32
@@ -36,12 +39,12 @@ enum class EName : uint32
 	BoolProperty,
 	EnumProperty,
 	ObjectProperty,
-    SoftObjectProperty,
+	SoftObjectProperty,
 	StructProperty,
 	ArrayProperty,
 	NameProperty,
 	StringProperty,
-	
+
 	DisplayName,
 	Category,
 	Tooltip,

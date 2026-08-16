@@ -14,26 +14,26 @@ using FOnResizingCallback = std::function<void(uint32, uint32)>;
 class FWindowsApplication
 {
 public:
-    FWindowsApplication() = default;
-    ~FWindowsApplication() = default;
+	FWindowsApplication() = default;
+	~FWindowsApplication() = default;
 
-    void Startup(HINSTANCE InInstance, int ShowCmd);
-    void PumpMessages();
-    void Shutdown();
+	void Startup(HINSTANCE InInstance, int ShowCmd);
+	void PumpMessages();
+	void Shutdown();
 
-    FWindowsWindow& GetWindow() { return Window; }
-    const FWindowsWindow& GetWindow() const { return Window; }
+	FWindowsWindow& GetWindow() { return Window; }
+	const FWindowsWindow& GetWindow() const { return Window; }
 
-    bool IsExitRequested() const { return bIsExitRequested; }
-    bool IsResizing() const { return bIsResizing; }
+	bool IsExitRequested() const { return bIsExitRequested; }
+	bool IsResizing() const { return bIsResizing; }
 
 private:
-    HINSTANCE Instance = nullptr;
-    FWindowsWindow Window;
+	HINSTANCE Instance = nullptr;
+	FWindowsWindow Window;
 
-    bool bIsExitRequested = false;
-    bool bIsResizing = false;
+	bool bIsExitRequested = false;
+	bool bIsResizing = false;
 
-    FOnSizingCallback OnSizingCallback;
-    FOnResizingCallback OnResizingCallback;
+	FOnSizingCallback OnSizingCallback;
+	FOnResizingCallback OnResizingCallback;
 };

@@ -4,9 +4,7 @@
 #include "Core/Assert.h"
 
 UEditorEngine::UEditorEngine()
-    : Renderer(RenderBackend)
-    , ImGuiRenderBackend(RenderBackend)
-    , EditorUISystem(ImGuiRenderBackend)
+	: Renderer(RenderBackend), ImGuiRenderBackend(RenderBackend), EditorUISystem(ImGuiRenderBackend)
 {
 }
 
@@ -24,22 +22,22 @@ void UEditorEngine::Tick(float DeltaTime)
 {
 	check(Cube);
 
-    Renderer.Prepare();
-    Cube->Render(DeltaTime, Renderer);
+	Renderer.Prepare();
+	Cube->Render(DeltaTime, Renderer);
 
-    EditorUISystem.BeginFrame();
-    EditorUISystem.Draw();
-    EditorUISystem.EndFrame();
+	EditorUISystem.BeginFrame();
+	EditorUISystem.Draw();
+	EditorUISystem.EndFrame();
 
-    Renderer.SwapBuffer();
+	Renderer.SwapBuffer();
 }
 
 void UEditorEngine::Shutdown()
 {
 	check(Cube);
 
-    delete Cube;
-    Cube = nullptr;
+	delete Cube;
+	Cube = nullptr;
 
 	EditorUISystem.Shutdown();
 	Renderer.Release();

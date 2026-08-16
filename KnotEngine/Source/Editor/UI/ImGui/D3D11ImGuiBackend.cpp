@@ -7,7 +7,7 @@
 #include <imgui_impl_dx11.h>
 
 FD3D11ImGuiBackend::FD3D11ImGuiBackend(FD3D11Backend& InBackend)
-    : Backend(InBackend)
+	: Backend(InBackend)
 {
 }
 

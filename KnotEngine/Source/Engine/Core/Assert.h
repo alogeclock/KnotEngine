@@ -26,50 +26,49 @@
 
 #if !defined(NDEBUG)
 
-	#define checkf(expr, ...)                                                                        \
-		do                                                                                           \
+#define checkf(expr, ...)                                                                            \
+	do                                                                                               \
+	{                                                                                                \
+		if (!(expr))                                                                                 \
 		{                                                                                            \
-			if (!(expr))                                                                             \
-			{                                                                                        \
-				FDebug::CheckFailed({ #expr, __FILE__, __LINE__, __func__ } __VA_OPT__(, ) __VA_ARGS__); \
-				FDebug::Fatal();                                                                     \
-			}                                                                                        \
-		} while (false)
+			FDebug::CheckFailed({ #expr, __FILE__, __LINE__, __func__ } __VA_OPT__(, ) __VA_ARGS__); \
+			FDebug::Fatal();                                                                         \
+		}                                                                                            \
+	} while (false)
 
-	#define check(expr) checkf(expr)
+#define check(expr) checkf(expr)
 
-	#define verifyf(expr, ...) checkf(expr __VA_OPT__(, ) __VA_ARGS__)
-	#define verify(expr) checkf(expr)
+#define verifyf(expr, ...) checkf(expr __VA_OPT__(, ) __VA_ARGS__)
+#define verify(expr) checkf(expr)
 
-	// 실패할 때마다 보고한다.
-	#define ensureAlwaysf(expr, ...)                                                                  \
-		(!!(expr) ||                                                                                  \
-			(FDebug::EnsureFailed({ #expr, __FILE__, __LINE__, __func__ } __VA_OPT__(, ) __VA_ARGS__) \
-				&& (FDebug::BreakIfDebuggerPresent(), false)))
+// 실패할 때마다 보고한다.
+#define ensureAlwaysf(expr, ...) \
+	(!!(expr) ||                 \
+	 (FDebug::EnsureFailed({ #expr, __FILE__, __LINE__, __func__ } __VA_OPT__(, ) __VA_ARGS__) && (FDebug::BreakIfDebuggerPresent(), false)))
 
-	#define ensureAlways(expr) ensureAlwaysf(expr)
+#define ensureAlways(expr) ensureAlwaysf(expr)
 
-	// 호출 지점당 최초 1회만 보고한다.
-	// 람다는 매크로가 전개된 위치마다 서로 다른 타입이 되므로 static도 호출 지점마다 따로 생긴다.
-	// __func__은 람다 밖에 두어야 바깥 함수 이름이 잡힌다.
-	#define ensuref(expr, ...)                                                                        \
-		(!!(expr) ||                                                                                  \
-			(FDebug::EnsureFailedOnce(                                                                 \
-				 []() -> bool& { static bool bKnotEnsureReported = false; return bKnotEnsureReported; }(), \
-				 { #expr, __FILE__, __LINE__, __func__ } __VA_OPT__(, ) __VA_ARGS__)                     \
-				&& (FDebug::BreakIfDebuggerPresent(), false)))
+// 호출 지점당 최초 1회만 보고한다.
+// 람다는 매크로가 전개된 위치마다 서로 다른 타입이 되므로 static도 호출 지점마다 따로 생긴다.
+// __func__은 람다 밖에 두어야 바깥 함수 이름이 잡힌다.
+#define ensuref(expr, ...)                                                       \
+	(!!(expr) ||                                                                 \
+	 (FDebug::EnsureFailedOnce(                                                  \
+	      []() -> bool& { static bool bKnotEnsureReported = false; return bKnotEnsureReported; }(),                                                   \
+	      { #expr, __FILE__, __LINE__, __func__ } __VA_OPT__(, ) __VA_ARGS__) && \
+	  (FDebug::BreakIfDebuggerPresent(), false)))
 
-	#define ensure(expr) ensuref(expr)
+#define ensure(expr) ensuref(expr)
 
 #else
-	#define check(expr) ((void)0)
-	#define checkf(expr, ...) ((void)0)
+#define check(expr) ((void)0)
+#define checkf(expr, ...) ((void)0)
 
-	#define verify(expr) ((void)(expr))
-	#define verifyf(expr, ...) ((void)(expr))
+#define verify(expr) ((void)(expr))
+#define verifyf(expr, ...) ((void)(expr))
 
-	#define ensure(expr) (!!(expr))
-	#define ensuref(expr, ...) (!!(expr))
-	#define ensureAlways(expr) (!!(expr))
-	#define ensureAlwaysf(expr, ...) (!!(expr))
+#define ensure(expr) (!!(expr))
+#define ensuref(expr, ...) (!!(expr))
+#define ensureAlways(expr) (!!(expr))
+#define ensureAlwaysf(expr, ...) (!!(expr))
 #endif

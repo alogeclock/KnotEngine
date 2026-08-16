@@ -450,8 +450,6 @@ FodyWeavers.xsd
 KnotEngine/Build/*
 !KnotEngine/Build/CMake/
 !KnotEngine/Build/CMake/**
-!KnotEngine/Build/Scripts/
-!KnotEngine/Build/Scripts/**
 KnotEngine/*.dir/
 KnotEngine/*/*.dir/
 [Ii]ntermediate/
@@ -462,6 +460,7 @@ KnotEngine/Bin/
 KnotEngine/Saves/**
 
 # CMake가 GenerateProjects.py를 통해 생성하는 Visual Studio 프로젝트 파일
+/KnotEngine.sln
 /KnotEngine/*.vcxproj
 /KnotEngine/*.vcxproj.filters
 
