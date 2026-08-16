@@ -5,19 +5,16 @@
 #include <memory>
 #include <span>
 
-struct ID3D11Device;
-struct ID3D11DeviceContext;
-
-class FD3D11Backend final : public IRenderBackend
+class FD3D12Backend final : public IRenderBackend
 {
 public:
-	FD3D11Backend();
-	~FD3D11Backend() override;
+	FD3D12Backend();
+	~FD3D12Backend() override;
 
-	FD3D11Backend(const FD3D11Backend&) = delete;
-	FD3D11Backend& operator=(const FD3D11Backend&) = delete;
-	FD3D11Backend(FD3D11Backend&&) = delete;
-	FD3D11Backend& operator=(FD3D11Backend&&) = delete;
+	FD3D12Backend(const FD3D12Backend&) = delete;
+	FD3D12Backend& operator=(const FD3D12Backend&) = delete;
+	FD3D12Backend(FD3D12Backend&&) = delete;
+	FD3D12Backend& operator=(FD3D12Backend&&) = delete;
 
 	void Create(void* NativeWindowHandle) override;
 	void Release() override;
@@ -34,9 +31,6 @@ public:
 	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer) override;
 
 	FRenderViewport GetViewport() const override;
-
-	ID3D11Device* GetNativeDevice() const;
-	ID3D11DeviceContext* GetNativeContext() const;
 
 private:
 	struct FImpl;
