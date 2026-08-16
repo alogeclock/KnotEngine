@@ -19,7 +19,7 @@ public:
     FD3D11Backend(FD3D11Backend&&) = delete;
     FD3D11Backend& operator=(FD3D11Backend&&) = delete;
 
-    bool Create(void* NativeWindowHandle) override;
+    void Create(void* NativeWindowHandle) override;
     void Release() override;
 
     void Prepare() override;
