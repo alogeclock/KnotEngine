@@ -63,7 +63,7 @@ cd KnotEngine
 # 2. Prepare dependencies and generate Visual Studio project files
 GenerateProjects.bat
 
-# Build Development (default), Debug, Shipping, or all configurations
+# 3. Build Development (default), Debug, Shipping, or all configurations
 BuildEngine.bat
 BuildEngine.bat Debug
 BuildEngine.bat Shipping
@@ -72,7 +72,11 @@ BuildEngine.bat All
 
 Open the generated root solution at `KnotEngine.sln` in Visual Studio 2022 and build.
 
+Run `GenerateProjects.bat` for initial setup and after adding or removing source files. Use `BuildEngine.bat` for regular builds without regenerating the Visual Studio solution.
+
 Generated tools, package files, and intermediate build files are kept under `KnotEngine/Intermediate`. Build outputs are written to `KnotEngine/Bin/x64/<Configuration>`.
+
+Logs are written to the Visual Studio Output window and `Saved/Logs/KnotEngine.log`.
 
 ---
 
@@ -147,7 +151,7 @@ cd KnotEngine
 # 2. 의존성 준비 및 Visual Studio 프로젝트 파일 생성
 GenerateProjects.bat
 
-# Development(기본), Debug, Shipping 또는 전체 구성 빌드
+# 3. Development(기본), Debug, Shipping 또는 전체 구성 빌드
 BuildEngine.bat
 BuildEngine.bat Debug
 BuildEngine.bat Shipping
@@ -156,7 +160,11 @@ BuildEngine.bat All
 
 루트에 생성된 `KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
 
+`GenerateProjects.bat`는 최초 설정과 소스 파일 추가·삭제 후에 실행합니다. 일반 빌드는 Visual Studio 솔루션을 재생성하지 않는 `BuildEngine.bat`를 사용합니다.
+
 생성된 도구, 패키지 파일, 중간 빌드 파일은 `KnotEngine/Intermediate` 아래에 정리됩니다. 빌드 결과물은 `KnotEngine/Bin/x64/<Configuration>`에 생성됩니다.
+
+로그는 Visual Studio 출력 창과 `Saved/Logs/KnotEngine.log`에 기록됩니다.
 
 ---
 
