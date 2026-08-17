@@ -11,6 +11,8 @@ public:
 	static FWString ContentDir() { return RootDir() + L"Contents/"; }
 	static FWString ShaderDir() { return RootDir() + L"Shaders/"; }
 	static FWString SettingDir() { return RootDir() + L"Settings/"; }
+	static FWString SavedDir();
+	static FWString LogDir() { return SavedDir() + L"Logs/"; }
 
 	static FWString ImGuiSettingsPath() { return SettingDir() + L"imgui.ini"; }
 

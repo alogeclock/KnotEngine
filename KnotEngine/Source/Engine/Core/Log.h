@@ -2,6 +2,8 @@
 
 #include "Core/Debug.h"
 
+#include <atomic>
+
 // KnotEngine의 로그 매크로.
 //
 // assert와 달리 NDEBUG 구성(Development/Shipping)에서도 살아남는다.
@@ -15,13 +17,12 @@
 	FDebug::LogMessage(ELogVerbosity::Verbosity, #Category, __FILE__, __LINE__, __VA_ARGS__)
 
 // 매 프레임 도는 경로용. 호출 지점마다 최초 1회만 출력한다.
-#define KE_LOG_ONCE(Category, Verbosity, ...)         \
-	do                                                \
-	{                                                 \
-		static bool bLogReported = false;             \
-		if (!bLogReported)                            \
-		{                                             \
-			bLogReported = true;                      \
-			KE_LOG(Category, Verbosity, __VA_ARGS__); \
-		}                                             \
+#define KE_LOG_ONCE(Category, Verbosity, ...)                        \
+	do                                                               \
+	{                                                                \
+		static std::atomic_bool bLogReported = false;                \
+		if (!bLogReported.exchange(true, std::memory_order_relaxed)) \
+		{                                                            \
+			KE_LOG(Category, Verbosity, __VA_ARGS__);                \
+		}                                                            \
 	} while (false)

@@ -98,8 +98,7 @@ void FD3D11Backend::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
 
 	if (MeshBuffer.GetIndexCount() > 0)
 	{
-		ID3D11Buffer* IndexBuffer =
-		    BufferPool.ResolveBuffer(MeshBuffer.GetIndexBuffer().GetHandle());
+		ID3D11Buffer* IndexBuffer = BufferPool.ResolveBuffer(MeshBuffer.GetIndexBuffer().GetHandle());
 		panicf(IndexBuffer, "Index Buffer 핸들 해석 실패. Index={}, Generation={} (이미 파괴된 핸들)",
 		       MeshBuffer.GetIndexBuffer().GetHandle().Index,
 		       MeshBuffer.GetIndexBuffer().GetHandle().Generation);

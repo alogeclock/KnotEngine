@@ -49,7 +49,7 @@ constexpr DXGI_FORMAT GetDXGIFormat(FVertexFormat Format)
 }
 
 // 셰이더 컴파일 실패 시 D3DCompiler가 남긴 오류 문자열. 파일 자체를 못 열면 Blob이 비어 있다.
-inline const char* GetShaderErrorText(ID3DBlob* ErrorBlob)
+inline const char* GetShaderError(ID3DBlob* ErrorBlob)
 {
 	return ErrorBlob ? static_cast<const char*>(ErrorBlob->GetBufferPointer()) : "(컴파일러 출력 없음 - 셰이더 파일 경로를 확인할 것)";
 }

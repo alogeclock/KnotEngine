@@ -32,6 +32,7 @@ private:
 		alignas(16) float ModelViewProjection[4][4];
 	};
 
+	// ComPtr<T>: COM 객체의 수명을 자동으로 관리하는 스마트 포인터
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> DepthStencilState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> RasterizerState;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> ConstantBuffer;

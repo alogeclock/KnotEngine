@@ -7,8 +7,7 @@
 #include <limits>
 #include <utility>
 
-FBufferHandle FD3D11BufferPool::CreateVertexBuffer(
-    ID3D11Device* Device, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride)
+FBufferHandle FD3D11BufferPool::CreateVertexBuffer(ID3D11Device* Device, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride)
 {
 	panic(Device);
 	panicf(!Data.empty() && VertexCount > 0 && Stride > 0 &&
@@ -26,15 +25,13 @@ FBufferHandle FD3D11BufferPool::CreateVertexBuffer(
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer;
 	const HRESULT Result = Device->CreateBuffer(&Desc, &InitialData, Buffer.GetAddressOf());
-	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer(Vertex) 실패. HRESULT=0x{:08X}",
-	       static_cast<uint32>(Result));
+	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer(Vertex) 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	const FBufferHandle Handle = StoreBuffer(std::move(Buffer));
 	panic(Handle.IsValid());
 	return Handle;
 }
 
-FBufferHandle FD3D11BufferPool::CreateIndexBuffer(
-    ID3D11Device* Device, std::span<const uint32> Indices)
+FBufferHandle FD3D11BufferPool::CreateIndexBuffer(ID3D11Device* Device, std::span<const uint32> Indices)
 {
 	panic(Device);
 	panicf(!Indices.empty() && Indices.size() <= (std::numeric_limits<uint32>::max)() / sizeof(uint32),
@@ -49,8 +46,7 @@ FBufferHandle FD3D11BufferPool::CreateIndexBuffer(
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer;
 	const HRESULT Result = Device->CreateBuffer(&Desc, &InitialData, Buffer.GetAddressOf());
-	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer(Index) 실패. HRESULT=0x{:08X}",
-	       static_cast<uint32>(Result));
+	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer(Index) 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	const FBufferHandle Handle = StoreBuffer(std::move(Buffer));
 	panic(Handle.IsValid());
 	return Handle;

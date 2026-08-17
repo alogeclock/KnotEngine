@@ -1,5 +1,7 @@
 #include "Launch.h"
 
+#include "Core/Debug.h"
+
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #else
@@ -19,11 +21,13 @@ static void CreateEngine()
 
 int Launch(HINSTANCE Instance, int ShowCmd)
 {
+	FDebug::Startup();
 	FEngineLoop EngineLoop(&CreateEngine);
 
 	EngineLoop.Startup(Instance, ShowCmd);
 	const int32 Result = EngineLoop.Run();
 	EngineLoop.Shutdown();
 
+	FDebug::Shutdown();
 	return Result;
 }

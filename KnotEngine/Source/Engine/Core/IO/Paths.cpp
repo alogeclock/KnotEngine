@@ -66,6 +66,42 @@ FWString FPaths::RootDir()
 	return Cached;
 }
 
+// Development, Debug 빌드 구성일 경우 루트의 Saved 디렉토리에 저장하고,
+// Shipping 빌드 구성일 경우 실행 파일 위치의 Saved 디렉토리에 저장한다.
+FWString FPaths::SavedDir()
+{
+	static FWString Cached;
+	if (!Cached.empty())
+	{
+		return Cached;
+	}
+
+#if defined(KNOT_BUILD_DEBUG) || defined(KNOT_BUILD_DEVELOPMENT)
+	std::filesystem::path SearchDir = std::filesystem::path(RootDir());
+	while (true)
+	{
+		const bool bIsProjectRoot =
+			std::filesystem::exists(SearchDir / L"Source") &&
+			std::filesystem::exists(SearchDir / L"Build" / L"CMake" / L"CMakeLists.txt");
+		if (bIsProjectRoot)
+		{
+			Cached = (SearchDir / L"Saved").generic_wstring() + L"/";
+			return Cached;
+		}
+
+		const std::filesystem::path ParentDir = SearchDir.parent_path();
+		if (ParentDir.empty() || ParentDir == SearchDir)
+		{
+			break;
+		}
+		SearchDir = ParentDir;
+	}
+#endif
+
+	Cached = RootDir() + L"Saved/";
+	return Cached;
+}
+
 // UTF-8 문자열을 Wide 문자열로 변환한다. 먼저 CP_UTF8로 시도하고, 실패하면 CP_ACP로 시도.
 FWString FPaths::ToWide(const FString& Utf8String)
 {
