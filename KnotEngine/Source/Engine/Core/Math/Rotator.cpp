@@ -1,6 +1,5 @@
 #include "Core/Math/Rotator.h"
 
-#include "Core/Math/Matrix.h"
 #include "Core/Math/Quat.h"
 
 #include <cmath>
@@ -10,72 +9,6 @@ const FRotator FRotator::ZeroRotator;
 FRotator::FRotator(const FQuat& Quat) noexcept
 {
 	*this = Quat.Rotator();
-}
-
-bool FRotator::operator==(const FRotator& Other) const noexcept
-{
-	return Pitch == Other.Pitch && Yaw == Other.Yaw && Roll == Other.Roll;
-}
-
-bool FRotator::operator!=(const FRotator& Other) const noexcept
-{
-	return !(*this == Other);
-}
-
-FRotator FRotator::operator-() const noexcept
-{
-	return { -Pitch, -Yaw, -Roll };
-}
-
-FRotator FRotator::operator+(const FRotator& Other) const noexcept
-{
-	return { Pitch + Other.Pitch, Yaw + Other.Yaw, Roll + Other.Roll };
-}
-
-FRotator FRotator::operator-(const FRotator& Other) const noexcept
-{
-	return { Pitch - Other.Pitch, Yaw - Other.Yaw, Roll - Other.Roll };
-}
-
-FRotator FRotator::operator*(float Scalar) const noexcept
-{
-	return { Pitch * Scalar, Yaw * Scalar, Roll * Scalar };
-}
-
-FRotator FRotator::operator/(float Scalar) const noexcept
-{
-	check(std::fabs(Scalar) > KMath::Epsilon);
-	return *this * (1.0f / Scalar);
-}
-
-FRotator& FRotator::operator+=(const FRotator& Other) noexcept
-{
-	Pitch += Other.Pitch;
-	Yaw += Other.Yaw;
-	Roll += Other.Roll;
-	return *this;
-}
-
-FRotator& FRotator::operator-=(const FRotator& Other) noexcept
-{
-	Pitch -= Other.Pitch;
-	Yaw -= Other.Yaw;
-	Roll -= Other.Roll;
-	return *this;
-}
-
-FRotator& FRotator::operator*=(float Scalar) noexcept
-{
-	Pitch *= Scalar;
-	Yaw *= Scalar;
-	Roll *= Scalar;
-	return *this;
-}
-
-FRotator& FRotator::operator/=(float Scalar) noexcept
-{
-	check(std::fabs(Scalar) > KMath::Epsilon);
-	return *this *= 1.0f / Scalar;
 }
 
 FVector FRotator::Euler() const noexcept
@@ -146,11 +79,22 @@ FRotator FRotator::GetInverse() const noexcept
 
 FQuat FRotator::Quaternion() const noexcept
 {
-	const FMatrix RotationMatrix =
-	    FMatrix::MakeRotationZ(KMath::ToRadian(Yaw)) *
-	    FMatrix::MakeRotationY(KMath::ToRadian(Pitch)) *
-	    FMatrix::MakeRotationX(KMath::ToRadian(Roll));
-	return FQuat(RotationMatrix).GetNormalized();
+	const float HalfPitch = KMath::ToRadian(Pitch) * 0.5f;
+	const float HalfYaw = KMath::ToRadian(Yaw) * 0.5f;
+	const float HalfRoll = KMath::ToRadian(Roll) * 0.5f;
+
+	const float SinPitch = std::sin(HalfPitch);
+	const float CosPitch = std::cos(HalfPitch);
+	const float SinYaw = std::sin(HalfYaw);
+	const float CosYaw = std::cos(HalfYaw);
+	const float SinRoll = std::sin(HalfRoll);
+	const float CosRoll = std::cos(HalfRoll);
+
+	return FQuat(
+	    SinRoll * CosPitch * CosYaw + CosRoll * SinPitch * SinYaw,
+	    CosRoll * SinPitch * CosYaw - SinRoll * CosPitch * SinYaw,
+	    CosRoll * CosPitch * SinYaw + SinRoll * SinPitch * CosYaw,
+	    CosRoll * CosPitch * CosYaw - SinRoll * SinPitch * SinYaw);
 }
 
 float FRotator::NormalizeAxis(float AngleDegrees) noexcept
@@ -170,9 +114,4 @@ float FRotator::NormalizeAxis(float AngleDegrees) noexcept
 FRotator FRotator::MakeFromEuler(const FVector& EulerDegrees) noexcept
 {
 	return { EulerDegrees.Y, EulerDegrees.Z, EulerDegrees.X };
-}
-
-FRotator operator*(float Scalar, const FRotator& Rotator) noexcept
-{
-	return Rotator * Scalar;
 }

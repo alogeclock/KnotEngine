@@ -4,102 +4,6 @@
 
 const FMatrix FMatrix::Identity;
 
-FRow FMatrix::operator[](int32 Row) noexcept
-{
-	check(Row >= 0 && Row < 4);
-	return FRow{ M[Row] };
-}
-
-FConstRow FMatrix::operator[](int32 Row) const noexcept
-{
-	check(Row >= 0 && Row < 4);
-	return FConstRow{ M[Row] };
-}
-
-bool FMatrix::operator==(const FMatrix& Other) const noexcept
-{
-	for (int32 Row = 0; Row < 4; ++Row)
-	{
-		for (int32 Column = 0; Column < 4; ++Column)
-		{
-			if (M[Row][Column] != Other.M[Row][Column])
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-bool FMatrix::operator!=(const FMatrix& Other) const noexcept
-{
-	return !(*this == Other);
-}
-
-FMatrix FMatrix::operator*(const FMatrix& Other) const noexcept
-{
-	FMatrix Result;
-	for (int32 Row = 0; Row < 4; ++Row)
-	{
-		for (int32 Column = 0; Column < 4; ++Column)
-		{
-			Result.M[Row][Column] =
-				M[Row][0] * Other.M[0][Column] +
-				M[Row][1] * Other.M[1][Column] +
-				M[Row][2] * Other.M[2][Column] +
-				M[Row][3] * Other.M[3][Column];
-		}
-	}
-	return Result;
-}
-
-FMatrix& FMatrix::operator*=(const FMatrix& Other) noexcept
-{
-	*this = *this * Other;
-	return *this;
-}
-
-bool FMatrix::Equals(const FMatrix& Other, float Tolerance) const noexcept
-{
-	for (int32 Row = 0; Row < 4; ++Row)
-	{
-		for (int32 Column = 0; Column < 4; ++Column)
-		{
-			if (std::fabs(M[Row][Column] - Other.M[Row][Column]) > Tolerance)
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-FVector FMatrix::TransformVector(const FVector& Vector) const noexcept
-{
-	return {
-		Vector.X * M[0][0] + Vector.Y * M[1][0] + Vector.Z * M[2][0],
-		Vector.X * M[0][1] + Vector.Y * M[1][1] + Vector.Z * M[2][1],
-		Vector.X * M[0][2] + Vector.Y * M[1][2] + Vector.Z * M[2][2],
-	};
-}
-
-FVector FMatrix::TransformPosition(const FVector& Position) const noexcept
-{
-	const FVector4 Result = FVector4(Position, 1.0f) * *this;
-	return Result.ToVector3();
-}
-
-FVector FMatrix::GetScaledAxis(EAxis Axis) const noexcept
-{
-	switch (Axis)
-	{
-	case EAxis::X: return { M[0][0], M[0][1], M[0][2] };
-	case EAxis::Y: return { M[1][0], M[1][1], M[1][2] };
-	case EAxis::Z: return { M[2][0], M[2][1], M[2][2] };
-	default: return FVector::ZeroVector;
-	}
-}
-
 FMatrix FMatrix::GetInverse(float Tolerance) const noexcept
 {
 	FMatrix Result;
@@ -315,14 +219,4 @@ bool FMatrix::TryInverse(const FMatrix& Matrix, FMatrix& OutInverse, float Toler
 		}
 	}
 	return true;
-}
-
-FVector4 FVector4::operator*(const FMatrix& Matrix) const noexcept
-{
-	return {
-		X * Matrix.M[0][0] + Y * Matrix.M[1][0] + Z * Matrix.M[2][0] + W * Matrix.M[3][0],
-		X * Matrix.M[0][1] + Y * Matrix.M[1][1] + Z * Matrix.M[2][1] + W * Matrix.M[3][1],
-		X * Matrix.M[0][2] + Y * Matrix.M[1][2] + Z * Matrix.M[2][2] + W * Matrix.M[3][2],
-		X * Matrix.M[0][3] + Y * Matrix.M[1][3] + Z * Matrix.M[2][3] + W * Matrix.M[3][3],
-	};
 }

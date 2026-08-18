@@ -21,7 +21,7 @@ FTransform::FTransform(const FQuat& InRotation, const FVector& InTranslation, co
 
 FTransform FTransform::operator*(const FTransform& Other) const noexcept
 {
-	return FTransform(Rotation * Other.Rotation, Other.TransformPosition(Translation), Scale3D * Other.Scale3D);
+	return FTransform(Other.Rotation * Rotation, Other.TransformPosition(Translation), Scale3D * Other.Scale3D);
 }
 
 FTransform& FTransform::operator*=(const FTransform& Other) noexcept

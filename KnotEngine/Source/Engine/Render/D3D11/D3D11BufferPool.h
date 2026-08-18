@@ -9,6 +9,7 @@
 struct ID3D11Buffer;
 struct ID3D11Device;
 
+// D3D11 버퍼를 생성 및 소유하고, 버퍼의 조회와 생성/파괴를 담당하는 객체.
 class FD3D11BufferPool final
 {
 public:

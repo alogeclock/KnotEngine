@@ -8,6 +8,7 @@
 
 #pragma comment(lib, "d3d11.lib")
 
+// Win32 창 핸들을 받아 ID3D11Device, ID3D11DeviceContext, IDXGISwapChain을 한 번에 생성한다.
 Microsoft::WRL::ComPtr<IDXGISwapChain> FD3D11Device::Create(void* NativeWindowHandle)
 {
 	Release();

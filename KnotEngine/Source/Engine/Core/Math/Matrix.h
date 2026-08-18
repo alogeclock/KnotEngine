@@ -1,6 +1,8 @@
 #pragma once
 
-#include "Core/Math/Row.h"
+#include <cmath>
+
+#include "Core/Math/Vector4.h"
 
 enum class EAxis : uint8
 {
@@ -42,20 +44,107 @@ struct FMatrix
 	}
 
 	// 요소 접근 연산자 (Element Access Operators)
-	FRow operator[](int32 Row) noexcept;
-	FConstRow operator[](int32 Row) const noexcept;
+	constexpr auto operator[](int32 Row) & noexcept -> float (&)[4]
+	{
+		check(Row >= 0 && Row < 4);
+		return M[Row];
+	}
+
+	constexpr auto operator[](int32 Row) const & noexcept -> const float (&)[4]
+	{
+		check(Row >= 0 && Row < 4);
+		return M[Row];
+	}
+
+	void operator[](int32 Row) && = delete;
+	void operator[](int32 Row) const && = delete;
 
 	// 비교 및 행렬 연산자 (Comparison and Matrix Operators)
-	bool operator==(const FMatrix& Other) const noexcept;
-	bool operator!=(const FMatrix& Other) const noexcept;
-	FMatrix operator*(const FMatrix& Other) const noexcept;
-	FMatrix& operator*=(const FMatrix& Other) noexcept;
+	constexpr bool operator==(const FMatrix& Other) const noexcept
+	{
+		for (int32 Row = 0; Row < 4; ++Row)
+		{
+			for (int32 Column = 0; Column < 4; ++Column)
+			{
+				if (M[Row][Column] != Other.M[Row][Column])
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	constexpr bool operator!=(const FMatrix& Other) const noexcept
+	{
+		return !(*this == Other);
+	}
+
+	constexpr FMatrix operator*(const FMatrix& Other) const noexcept
+	{
+		FMatrix Result;
+		for (int32 Row = 0; Row < 4; ++Row)
+		{
+			for (int32 Column = 0; Column < 4; ++Column)
+			{
+				Result.M[Row][Column] =
+					M[Row][0] * Other.M[0][Column] +
+					M[Row][1] * Other.M[1][Column] +
+					M[Row][2] * Other.M[2][Column] +
+					M[Row][3] * Other.M[3][Column];
+			}
+		}
+		return Result;
+	}
+
+	constexpr FMatrix& operator*=(const FMatrix& Other) noexcept
+	{
+		*this = *this * Other;
+		return *this;
+	}
 
 	// 인스턴스 유틸리티 함수 (Instance Utility Functions)
-	bool Equals(const FMatrix& Other, float Tolerance = KMath::Epsilon) const noexcept;
-	FVector TransformVector(const FVector& Vector) const noexcept;
-	FVector TransformPosition(const FVector& Position) const noexcept;
-	FVector GetScaledAxis(EAxis Axis) const noexcept;
+	bool Equals(const FMatrix& Other, float Tolerance = KMath::Epsilon) const noexcept
+	{
+		for (int32 Row = 0; Row < 4; ++Row)
+		{
+			for (int32 Column = 0; Column < 4; ++Column)
+			{
+				if (std::fabs(M[Row][Column] - Other.M[Row][Column]) > Tolerance)
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	constexpr FVector TransformVector(const FVector& Vector) const noexcept
+	{
+		return {
+			Vector.X * M[0][0] + Vector.Y * M[1][0] + Vector.Z * M[2][0],
+			Vector.X * M[0][1] + Vector.Y * M[1][1] + Vector.Z * M[2][1],
+			Vector.X * M[0][2] + Vector.Y * M[1][2] + Vector.Z * M[2][2],
+		};
+	}
+
+	FVector TransformPosition(const FVector& Position) const noexcept
+	{
+		const FVector4 Result = FVector4(Position, 1.0f) * *this;
+		return Result.ToVector3();
+	}
+
+	constexpr FVector GetScaledAxis(EAxis Axis) const noexcept
+	{
+		switch (Axis)
+		{
+		case EAxis::X: return { M[0][0], M[0][1], M[0][2] };
+		case EAxis::Y: return { M[1][0], M[1][1], M[1][2] };
+		case EAxis::Z: return { M[2][0], M[2][1], M[2][2] };
+		default: return FVector::ZeroVector;
+		}
+	}
+
 	FMatrix GetInverse(float Tolerance = KMath::Epsilon) const noexcept;
 	bool Decompose(FVector& OutTranslation, FMatrix& OutRotation, FVector& OutScale, float Tolerance = KMath::Epsilon) const noexcept;
 
@@ -74,3 +163,13 @@ private:
 	// 내부 헬퍼 함수 (Private Helper Functions)
 	static bool TryInverse(const FMatrix& Matrix, FMatrix& OutInverse, float Tolerance) noexcept;
 };
+
+constexpr FVector4 FVector4::operator*(const FMatrix& Matrix) const noexcept
+{
+	return {
+		X * Matrix.M[0][0] + Y * Matrix.M[1][0] + Z * Matrix.M[2][0] + W * Matrix.M[3][0],
+		X * Matrix.M[0][1] + Y * Matrix.M[1][1] + Z * Matrix.M[2][1] + W * Matrix.M[3][1],
+		X * Matrix.M[0][2] + Y * Matrix.M[1][2] + Z * Matrix.M[2][2] + W * Matrix.M[3][2],
+		X * Matrix.M[0][3] + Y * Matrix.M[1][3] + Z * Matrix.M[2][3] + W * Matrix.M[3][3],
+	};
+}

@@ -15,6 +15,7 @@ struct ID3D11RasterizerState;
 struct ID3D11VertexShader;
 struct ID3D10Blob;
 
+// D3D11 Shader와 Pipeline State를 생성·소유하고 Draw에 필요한 파이프라인 바인딩을 관리한다.
 class FD3D11Pipeline final
 {
 public:

@@ -8,8 +8,7 @@
 
 #include <utility>
 
-void FD3D11Viewport::Create(
-    ID3D11Device* Device, Microsoft::WRL::ComPtr<IDXGISwapChain>&& InSwapChain)
+void FD3D11Viewport::Create(ID3D11Device* Device, Microsoft::WRL::ComPtr<IDXGISwapChain>&& InSwapChain)
 {
 	Release();
 	panic(Device);
@@ -62,6 +61,7 @@ void FD3D11Viewport::Release()
 	Viewport = {};
 }
 
+// 현재 프레임의 Back Buffer와 Depth/Stencil Buffer를 초기화하고, 렌더링 출력 영역과 출력 대상을 D3D11 파이프라인에 설정한다.
 void FD3D11Viewport::Prepare(ID3D11DeviceContext* DeviceContext)
 {
 	panic(DeviceContext);
@@ -79,6 +79,9 @@ void FD3D11Viewport::Prepare(ID3D11DeviceContext* DeviceContext)
 		Viewport.MinDepth,
 		Viewport.MaxDepth,
 	};
+	// D3D11은 기본적으로 여러 Viewport를 동시에 지원하지만, 현재는 하나만 사용 중이다.
+	// 추후 멀티 뷰포트를 지원해야 할 경우, 같은 Back Buffer의 영역을 나눠서 렌더링한다. (D3D11_VIEWPORT를 영역마다 바꾸고 다시 그린다.)
+	// 에디터 뷰포트는 별도 RTT(Render Target Texture)로 렌더링한 뒤 ImGui에 표시한다.
 	ID3D11RenderTargetView* RenderTarget = FrameBufferRTV.Get();
 	DeviceContext->RSSetViewports(1, &NativeViewport);
 	DeviceContext->OMSetRenderTargets(1, &RenderTarget, DepthStencilView.Get());

@@ -13,7 +13,7 @@
 
 #pragma comment(lib, "d3dcompiler.lib")
 
-// Depth State, Rasterizer, Shader 및 Constant Buffer 정의
+// Depth State, Rasterizer, Shader 및 Constant Buffer 등 파이프라인 상태를 정의하여 생성한다.
 void FD3D11Pipeline::Create(ID3D11Device* Device)
 {
 	Release();

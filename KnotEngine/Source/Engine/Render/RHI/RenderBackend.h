@@ -18,8 +18,6 @@ public:
 	IRenderBackend(IRenderBackend&&) = delete;
 	IRenderBackend& operator=(IRenderBackend&&) = delete;
 
-	// 성공하면 완전히 초기화된 상태로 반환한다.
-	// 복구할 수 없는 초기화 실패는 구현부가 원인을 보고하고 프로세스를 종료한다.
 	virtual void Create(void* NativeWindowHandle) = 0;
 	virtual void Release() = 0;
 

@@ -123,6 +123,7 @@ target_link_libraries(KnotEngine PRIVATE
 set_target_properties(KnotEngine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${KNOTENGINE_BIN_DIR}"
     VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:KnotEngine>"
+    INTERPROCEDURAL_OPTIMIZATION_SHIPPING TRUE
 )
 
 add_custom_command(TARGET KnotEngine POST_BUILD
