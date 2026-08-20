@@ -27,6 +27,7 @@ public:
 	const FWindowsWindow& GetWindow() const { return Window; }
 	const FInputSnapshot& GetInputSnapshot() const { return InputSnapshot; }
 
+	void RequestExit() { bIsExitRequested = true; }
 	bool IsExitRequested() const { return bIsExitRequested; }
 	bool IsResizing() const { return bIsResizing; }
 

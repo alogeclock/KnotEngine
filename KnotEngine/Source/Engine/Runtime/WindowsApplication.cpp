@@ -23,6 +23,20 @@ LRESULT CALLBACK FWindowsApplication::WindowProc(HWND WindowHandle, UINT Message
 // OS 입력은 ImGui 소비 여부와 무관하게 먼저 수집하고, 창 수명과 크기 메시지는 애플리케이션에서 처리한다.
 LRESULT FWindowsApplication::ProcessMessage(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam)
 {
+	// 네이티브 창 수명 메시지는 UI와 입력 시스템보다 먼저 처리한다.
+	switch (Message)
+	{
+	case WM_CLOSE:
+		RequestExit();
+		return 0;
+	case WM_DESTROY:
+		RequestExit();
+		PostQuitMessage(0);
+		return 0;
+	default:
+		break;
+	}
+
 	WindowsInput.ProcessMessage(WindowHandle, Message, WParam, LParam);
 	if (ImGui_ImplWin32_WndProcHandler(WindowHandle, Message, WParam, LParam))
 	{
@@ -59,9 +73,6 @@ LRESULT FWindowsApplication::ProcessMessage(HWND WindowHandle, UINT Message, WPA
 			}
 		}
 		break;
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		return 0;
 	case WM_UNICHAR:
 		if (WParam == UNICODE_NOCHAR)
 		{
