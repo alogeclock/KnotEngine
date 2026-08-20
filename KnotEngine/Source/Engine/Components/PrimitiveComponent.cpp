@@ -22,6 +22,5 @@ void UPrimitiveComponent::Render(float DeltaTime, URenderer& Renderer)
 	const FMatrix Projection = FMatrix::MakePerspectiveFov(KMath::ToRadian(60.0f), AspectRatio, 0.1f, 100.0f);
 
 	Renderer.UpdateConstant(World * View * Projection);
-	Renderer.PrepareShader();
 	Renderer.DrawMeshBuffer(*Mesh->GetMeshBuffer());
 }

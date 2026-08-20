@@ -33,7 +33,6 @@ public:
 	void DestroyBuffer(FBufferHandle& Handle) override;
 
 	void UpdateConstant(const FMatrix& WorldViewProjection) override;
-	void PrepareShader() override;
 	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer) override;
 
 	FRenderViewport GetViewport() const override;
@@ -42,6 +41,20 @@ public:
 	ID3D11DeviceContext* GetNativeContext() const;
 
 private:
+	struct FD3D11StateCache
+	{
+		const FVertexLayout* VertexLayout = nullptr;
+		ID3D11InputLayout* InputLayout = nullptr;
+		ID3D11Buffer* VertexBuffer = nullptr;
+		ID3D11Buffer* IndexBuffer = nullptr;
+		uint32 VertexStride = 0;
+		bool bIndexBufferKnown = false;
+
+		void Reset();
+	};
+
+	FD3D11StateCache StateCache;
+
 	FD3D11Device Device;
 	FD3D11Viewport Viewport;
 	FD3D11BufferPool BufferPool;

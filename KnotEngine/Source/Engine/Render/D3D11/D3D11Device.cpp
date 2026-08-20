@@ -25,25 +25,33 @@ Microsoft::WRL::ComPtr<IDXGISwapChain> FD3D11Device::Create(void* NativeWindowHa
 	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain> SwapChain;
-	UINT CreateFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG;
+	UINT CreateFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+
+#if !defined(KNOT_BUILD_SHIPPING)
+	CreateFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
 	HRESULT Result = D3D11CreateDeviceAndSwapChain(
 	    nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, CreateFlags,
 	    FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION,
 	    &SwapChainDesc, SwapChain.GetAddressOf(), Device.GetAddressOf(), nullptr,
 	    DeviceContext.GetAddressOf());
-	if (FAILED(Result))
+
+#if !defined(KNOT_BUILD_SHIPPING)
+	if (FAILED(Result) && (CreateFlags & D3D11_CREATE_DEVICE_DEBUG) != 0)
 	{
-		CreateFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+		CreateFlags &= ~D3D11_CREATE_DEVICE_DEBUG;
 		Result = D3D11CreateDeviceAndSwapChain(
 		    nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, CreateFlags,
 		    FeatureLevels, ARRAYSIZE(FeatureLevels), D3D11_SDK_VERSION,
 		    &SwapChainDesc, SwapChain.ReleaseAndGetAddressOf(),
-		    Device.ReleaseAndGetAddressOf(), nullptr,
-		    DeviceContext.ReleaseAndGetAddressOf());
+		    Device.ReleaseAndGetAddressOf(), nullptr, DeviceContext.ReleaseAndGetAddressOf());
 	}
+#endif
 
 	panicf(SUCCEEDED(Result) && Device && DeviceContext && SwapChain,
-	       "D3D11CreateDeviceAndSwapChain 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		"D3D11CreateDeviceAndSwapChain 실패. HRESULT=0x{:08X}", 
+		static_cast<uint32>(Result));
 	return SwapChain;
 }
 

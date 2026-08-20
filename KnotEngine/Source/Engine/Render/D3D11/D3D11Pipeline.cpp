@@ -10,6 +10,7 @@
 #include <d3dcompiler.h>
 
 #include <cstring>
+#include <utility>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -36,9 +37,19 @@ void FD3D11Pipeline::Create(ID3D11Device* Device)
 	Microsoft::WRL::ComPtr<ID3DBlob> VertexShaderCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> PixelShaderCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> ErrorBlob;
+
 	const FWString ShaderPath = FPaths::ShaderDir() + L"Common.hlsl";
+	UINT ShaderCompileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+
+	// Shader Compile Flags: 디버그 정보를 포함하여 셰이더를 컴파일할지, 최적화 과정을 생략할지 선택한다.
+#if defined(KNOT_BUILD_DEBUG)
+	ShaderCompileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+	ShaderCompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
+#endif
+
 	Result = D3DCompileFromFile(
-	    ShaderPath.c_str(), nullptr, nullptr, "VS", "vs_5_0", 0, 0,
+	    ShaderPath.c_str(), nullptr, nullptr, "VS", "vs_5_0", ShaderCompileFlags, 0,
 	    VertexShaderCode.ReleaseAndGetAddressOf(), ErrorBlob.ReleaseAndGetAddressOf());
 	panicf(SUCCEEDED(Result), "Vertex Shader 컴파일 실패. HRESULT=0x{:08X}\n{}", static_cast<uint32>(Result), GetShaderError(ErrorBlob.Get()));
 
@@ -54,7 +65,7 @@ void FD3D11Pipeline::Create(ID3D11Device* Device)
 
 	ErrorBlob.Reset();
 	Result = D3DCompileFromFile(
-	    ShaderPath.c_str(), nullptr, nullptr, "PS", "ps_5_0", 0, 0,
+	    ShaderPath.c_str(), nullptr, nullptr, "PS", "ps_5_0", ShaderCompileFlags, 0,
 	    PixelShaderCode.ReleaseAndGetAddressOf(), ErrorBlob.ReleaseAndGetAddressOf());
 	panicf(SUCCEEDED(Result), "Pixel Shader 컴파일 실패. HRESULT=0x{:08X}\n{}", static_cast<uint32>(Result), GetShaderError(ErrorBlob.Get()));
 
@@ -75,8 +86,7 @@ void FD3D11Pipeline::Create(ID3D11Device* Device)
 
 void FD3D11Pipeline::Release()
 {
-	InputLayout.Reset();
-	InputLayoutDescription = {};
+	InputLayouts.clear();
 	VertexShaderInputSignature.Reset();
 	VertexShader.Reset();
 	PixelShader.Reset();
@@ -90,22 +100,17 @@ void FD3D11Pipeline::PrepareFrame(ID3D11DeviceContext* DeviceContext)
 	panic(DeviceContext);
 	panic(RasterizerState);
 	panic(DepthStencilState);
+	panic(VertexShader);
+	panic(PixelShader);
+	panic(ConstantBuffer);
 
 	DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	DeviceContext->RSSetState(RasterizerState.Get());
 	DeviceContext->OMSetDepthStencilState(DepthStencilState.Get(), 0);
 	DeviceContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
-}
-
-void FD3D11Pipeline::PrepareShader(ID3D11DeviceContext* DeviceContext)
-{
-	panic(DeviceContext);
-	panic(VertexShader);
-	panic(PixelShader);
-	panic(ConstantBuffer);
-
 	DeviceContext->VSSetShader(VertexShader.Get(), nullptr, 0);
 	DeviceContext->PSSetShader(PixelShader.Get(), nullptr, 0);
+
 	ID3D11Buffer* NativeConstantBuffer = ConstantBuffer.Get();
 	DeviceContext->VSSetConstantBuffers(0, 1, &NativeConstantBuffer);
 }
@@ -115,27 +120,26 @@ void FD3D11Pipeline::UpdateConstant(ID3D11DeviceContext* DeviceContext, const FM
 	panic(DeviceContext);
 	panic(ConstantBuffer);
 
-	FConstants Constants = {};
-	std::memcpy(Constants.ModelViewProjection, WorldViewProjection.M, sizeof(Constants.ModelViewProjection));
 	D3D11_MAPPED_SUBRESOURCE Mapped = {};
 	const HRESULT Result = DeviceContext->Map(ConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped);
 	if (FAILED(Result))
 	{
-		KE_LOG_ONCE(LogD3D11, Error, "ID3D11DeviceContext::Map(ConstantBuffer) 실패. HRESULT=0x{:08X}",
-		            static_cast<uint32>(Result));
+		KE_LOG_ONCE(LogD3D11, Error, "ID3D11DeviceContext::Map(ConstantBuffer) 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 		return;
 	}
-
-	std::memcpy(Mapped.pData, &Constants, sizeof(Constants));
+	
+	std::memcpy(Mapped.pData, WorldViewProjection.M, sizeof(FConstants));
 	DeviceContext->Unmap(ConstantBuffer.Get(), 0);
 }
 
 ID3D11InputLayout* FD3D11Pipeline::GetOrCreateInputLayout(ID3D11Device* Device, const FVertexLayout& VertexLayout)
 {
-	if (InputLayout)
+	for (const FInputLayoutEntry& Entry : InputLayouts)
 	{
-		panicf(InputLayoutDescription == VertexLayout, "Pipeline은 서로 다른 FVertexLayout을 동시에 지원하지 않는다.");
-		return InputLayout.Get();
+		if (Entry.Description == VertexLayout)
+		{
+			return Entry.InputLayout.Get();
+		}
 	}
 
 	panic(Device);
@@ -162,15 +166,15 @@ ID3D11InputLayout* FD3D11Pipeline::GetOrCreateInputLayout(ID3D11Device* Device, 
 		Desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
 		LayoutDescs.push_back(Desc);
 	}
-
+	
+	FInputLayoutEntry Entry;
+	Entry.Description = VertexLayout;
 	const HRESULT Result = Device->CreateInputLayout(
 	    LayoutDescs.data(), static_cast<UINT>(LayoutDescs.size()),
 	    VertexShaderInputSignature->GetBufferPointer(), VertexShaderInputSignature->GetBufferSize(),
-	    InputLayout.ReleaseAndGetAddressOf());
-	panicf(SUCCEEDED(Result) && InputLayout,
-	       "ID3D11Device::CreateInputLayout 실패. HRESULT=0x{:08X} "
-	       "(FVertexLayout이 Vertex Shader 입력 시그니처와 일치하는지 확인할 것)",
-	       static_cast<uint32>(Result));
-	InputLayoutDescription = VertexLayout;
-	return InputLayout.Get();
+	    Entry.InputLayout.ReleaseAndGetAddressOf());
+	panicf(SUCCEEDED(Result) && Entry.InputLayout, "FVertexLayout이 정점 셰이더 입력 시그니처와 불일치. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+
+	InputLayouts.push_back(std::move(Entry));
+	return InputLayouts.back().InputLayout.Get();
 }

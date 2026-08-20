@@ -71,16 +71,22 @@ void FD3D11BufferPool::DestroyBuffer(FBufferHandle& Handle)
 	{
 		Slot.Buffer.Reset();
 		AdvanceGeneration(Slot);
+		FreeBufferIndices.push_back(Handle.Index);
 	}
 	Handle.Reset();
 }
 
+// 버퍼 파괴 시 빈 슬롯 번호를 저장해, 새 버퍼를 만들 때 마지막 빈 슬롯을 꺼내 O(1)에 찾도록 한다.
 void FD3D11BufferPool::Release()
 {
-	for (FBufferSlot& Slot : BufferSlots)
+	FreeBufferIndices.clear();
+	FreeBufferIndices.reserve(BufferSlots.size());
+	for (uint32 Index = 0; Index < BufferSlots.size(); ++Index)
 	{
+		FBufferSlot& Slot = BufferSlots[Index];
 		Slot.Buffer.Reset();
 		AdvanceGeneration(Slot);
+		FreeBufferIndices.push_back(Index);
 	}
 }
 
@@ -97,20 +103,22 @@ ID3D11Buffer* FD3D11BufferPool::ResolveBuffer(FBufferHandle Handle) const
 	return Slot.Generation == Handle.Generation ? Slot.Buffer.Get() : nullptr;
 }
 
-// Buffer Pool에서 빈 슬롯을 찾고 버퍼를 저장하거나, 새로운 슬롯을 생성한다.
+// Buffer Pool의 free list에서 빈 슬롯을 재사용하거나, 새로운 슬롯을 생성한다.
 FBufferHandle FD3D11BufferPool::StoreBuffer(Microsoft::WRL::ComPtr<ID3D11Buffer>&& Buffer)
 {
-	for (uint32 Index = 0; Index < BufferSlots.size(); ++Index)
+	// 버퍼가 비어 있을 경우 std::move로 Slot에 소유권을 이전하여 재사용한다. 
+	if (!FreeBufferIndices.empty())
 	{
+		const uint32 Index = FreeBufferIndices.back();
+		FreeBufferIndices.pop_back();
 		FBufferSlot& Slot = BufferSlots[Index];
-		if (!Slot.Buffer)
-		{
-			// StoreBuffer의 Buffer 매개변수에서 BufferSlots[Index].Buffer로 소유권이 이동한다.
-			Slot.Buffer = std::move(Buffer);
-			return { Index, Slot.Generation };
-		}
+		check(!Slot.Buffer);
+
+		Slot.Buffer = std::move(Buffer);
+		return { Index, Slot.Generation };
 	}
 
+	panicf(BufferSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Buffer 슬롯 수가 uint32 범위를 초과했다.");
 	FBufferSlot& Slot = BufferSlots.emplace_back();
 	Slot.Buffer = std::move(Buffer);
 	return { static_cast<uint32>(BufferSlots.size() - 1), Slot.Generation };

@@ -23,7 +23,6 @@ public:
 	void Release();
 
 	void PrepareFrame(ID3D11DeviceContext* DeviceContext);
-	void PrepareShader(ID3D11DeviceContext* DeviceContext);
 	void UpdateConstant(ID3D11DeviceContext* DeviceContext, const FMatrix& WorldViewProjection);
 	ID3D11InputLayout* GetOrCreateInputLayout(ID3D11Device* Device, const FVertexLayout& VertexLayout);
 
@@ -33,6 +32,12 @@ private:
 		alignas(16) float ModelViewProjection[4][4];
 	};
 
+	struct FInputLayoutEntry
+	{
+		FVertexLayout Description;
+		Microsoft::WRL::ComPtr<ID3D11InputLayout> InputLayout;
+	};
+
 	// ComPtr<T>: COM 객체의 수명을 자동으로 관리하는 스마트 포인터
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> DepthStencilState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> RasterizerState;
@@ -40,6 +45,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> VertexShader;
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> PixelShader;
 	Microsoft::WRL::ComPtr<ID3D10Blob> VertexShaderInputSignature;
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> InputLayout;
-	FVertexLayout InputLayoutDescription;
+
+	TArray<FInputLayoutEntry> InputLayouts;
 };

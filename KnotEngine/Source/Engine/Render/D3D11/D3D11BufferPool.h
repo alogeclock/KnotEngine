@@ -31,4 +31,5 @@ private:
 	static void AdvanceGeneration(FBufferSlot& Slot);
 
 	std::vector<FBufferSlot> BufferSlots;
+	std::vector<uint32> FreeBufferIndices;
 };

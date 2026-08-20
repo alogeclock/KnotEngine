@@ -40,11 +40,6 @@ void URenderer::UpdateConstant(const FMatrix& WorldViewProjection)
 	Backend.UpdateConstant(WorldViewProjection);
 }
 
-void URenderer::PrepareShader()
-{
-	Backend.PrepareShader();
-}
-
 void URenderer::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
 {
 	Backend.DrawMeshBuffer(MeshBuffer);

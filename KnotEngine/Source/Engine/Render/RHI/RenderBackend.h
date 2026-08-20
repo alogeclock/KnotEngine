@@ -29,7 +29,6 @@ public:
 	virtual void DestroyBuffer(FBufferHandle& Handle) = 0;
 
 	virtual void UpdateConstant(const FMatrix& WorldViewProjection) = 0;
-	virtual void PrepareShader() = 0;
 	virtual void DrawMeshBuffer(const FMeshBuffer& MeshBuffer) = 0;
 
 	virtual FRenderViewport GetViewport() const = 0;

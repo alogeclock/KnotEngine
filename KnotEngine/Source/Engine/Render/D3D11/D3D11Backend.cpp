@@ -38,6 +38,8 @@ void FD3D11Backend::Prepare()
 	ID3D11DeviceContext* DeviceContext = Device.GetContext();
 	panic(DeviceContext);
 
+	// ImGui가 이전 프레임 끝에서 Immediate Context 상태를 변경하므로 엔진 상태 캐시를 매 프레임 무효화한다.
+	StateCache.Reset();
 	Viewport.Prepare(DeviceContext);
 	Pipeline.PrepareFrame(DeviceContext);
 }
@@ -48,7 +50,7 @@ void FD3D11Backend::SwapBuffer()
 }
 
 FBufferHandle FD3D11Backend::CreateVertexBuffer(
-    std::span<const uint8> Data, uint32 VertexCount, uint32 Stride)
+	std::span<const uint8> Data, uint32 VertexCount, uint32 Stride)
 {
 	return BufferPool.CreateVertexBuffer(Device.GetDevice(), Data, VertexCount, Stride);
 }
@@ -68,48 +70,78 @@ void FD3D11Backend::UpdateConstant(const FMatrix& WorldViewProjection)
 	Pipeline.UpdateConstant(Device.GetContext(), WorldViewProjection);
 }
 
-void FD3D11Backend::PrepareShader()
-{
-	Pipeline.PrepareShader(Device.GetContext());
-}
-
 void FD3D11Backend::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
 {
 	ID3D11Device* NativeDevice = Device.GetDevice();
 	ID3D11DeviceContext* DeviceContext = Device.GetContext();
-	panic(NativeDevice);
-	panic(DeviceContext);
-	panicf(MeshBuffer.IsValid(), "유효하지 않은 FMeshBuffer가 DrawMeshBuffer로 전달되었다.");
 
-	ID3D11InputLayout* InputLayout =
-	    Pipeline.GetOrCreateInputLayout(NativeDevice, MeshBuffer.GetLayout());
-	ID3D11Buffer* VertexBuffer =
-	    BufferPool.ResolveBuffer(MeshBuffer.GetVertexBuffer().GetHandle());
+	check(NativeDevice);
+	check(DeviceContext);
+	checkf(MeshBuffer.IsValid(), "유효하지 않은 FMeshBuffer가 DrawMeshBuffer로 전달되었다.");
 
-	panic(InputLayout);
-	panicf(VertexBuffer, "Vertex Buffer 핸들 해석 실패. Index={}, Generation={} (이미 파괴된 핸들)",
+	const FVertexLayout& VertexLayout = MeshBuffer.GetLayout();
+	ID3D11InputLayout* InputLayout = StateCache.InputLayout;
+	if (StateCache.VertexLayout != &VertexLayout)
+	{
+		StateCache.VertexLayout = &VertexLayout;
+		InputLayout = Pipeline.GetOrCreateInputLayout(NativeDevice, VertexLayout);
+	}
+
+	ID3D11Buffer* VertexBuffer = BufferPool.ResolveBuffer(MeshBuffer.GetVertexBuffer().GetHandle());
+	
+	check(InputLayout);
+	checkf(VertexBuffer, "Vertex Buffer 핸들 해석 실패. Index={}, Generation={} (이미 파괴된 핸들)",
 	       MeshBuffer.GetVertexBuffer().GetHandle().Index,
 	       MeshBuffer.GetVertexBuffer().GetHandle().Generation);
 
-	DeviceContext->IASetInputLayout(InputLayout);
 	const UINT Stride = MeshBuffer.GetStride();
-	const UINT Offset = 0;
-	DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
+	if (StateCache.InputLayout != InputLayout)
+	{
+		DeviceContext->IASetInputLayout(InputLayout);
+		StateCache.InputLayout = InputLayout;
+	}
+	if (StateCache.VertexBuffer != VertexBuffer || StateCache.VertexStride != Stride)
+	{
+		const UINT Offset = 0;
+		DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
+		StateCache.VertexBuffer = VertexBuffer;
+		StateCache.VertexStride = Stride;
+	}
 
 	if (MeshBuffer.GetIndexCount() > 0)
 	{
 		ID3D11Buffer* IndexBuffer = BufferPool.ResolveBuffer(MeshBuffer.GetIndexBuffer().GetHandle());
-		panicf(IndexBuffer, "Index Buffer 핸들 해석 실패. Index={}, Generation={} (이미 파괴된 핸들)",
-		       MeshBuffer.GetIndexBuffer().GetHandle().Index,
-		       MeshBuffer.GetIndexBuffer().GetHandle().Generation);
+		checkf(IndexBuffer, "Index Buffer 핸들 해석 실패. Index={}, Generation={} (이미 파괴된 핸들)",
+			MeshBuffer.GetVertexBuffer().GetHandle().Index,
+			MeshBuffer.GetVertexBuffer().GetHandle().Generation);
 
-		DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		if (!StateCache.bIndexBufferKnown || StateCache.IndexBuffer != IndexBuffer)
+		{
+			DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			StateCache.IndexBuffer = IndexBuffer;
+			StateCache.bIndexBufferKnown = true;
+		}
 		DeviceContext->DrawIndexed(MeshBuffer.GetIndexCount(), 0, 0);
 		return;
 	}
-
-	DeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
+	
+	if (!StateCache.bIndexBufferKnown || StateCache.IndexBuffer)
+	{
+		DeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
+		StateCache.IndexBuffer = nullptr;
+		StateCache.bIndexBufferKnown = true;
+	}
 	DeviceContext->Draw(MeshBuffer.GetVertexCount(), 0);
+}
+
+void FD3D11Backend::FD3D11StateCache::Reset()
+{
+	VertexLayout = nullptr;
+	InputLayout = nullptr;
+	VertexBuffer = nullptr;
+	IndexBuffer = nullptr;
+	VertexStride = 0;
+	bIndexBufferKnown = false;
 }
 
 FRenderViewport FD3D11Backend::GetViewport() const

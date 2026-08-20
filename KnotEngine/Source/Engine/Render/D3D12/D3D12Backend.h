@@ -27,7 +27,6 @@ public:
 	void DestroyBuffer(FBufferHandle& Handle) override;
 
 	void UpdateConstant(const FMatrix& WorldViewProjection) override;
-	void PrepareShader() override;
 	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer) override;
 
 	FRenderViewport GetViewport() const override;
