@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
+#include "Input/InputSnapshot.h"
+#include "Runtime/WindowsInput.h"
 #include "Runtime/WindowsWindow.h"
 
 #include <Windows.h>
@@ -23,13 +25,19 @@ public:
 
 	FWindowsWindow& GetWindow() { return Window; }
 	const FWindowsWindow& GetWindow() const { return Window; }
+	const FInputSnapshot& GetInputSnapshot() const { return InputSnapshot; }
 
 	bool IsExitRequested() const { return bIsExitRequested; }
 	bool IsResizing() const { return bIsResizing; }
 
 private:
+	static LRESULT CALLBACK WindowProc(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
+	LRESULT ProcessMessage(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
+
 	HINSTANCE Instance = nullptr;
 	FWindowsWindow Window;
+	FWindowsInput WindowsInput;
+	FInputSnapshot InputSnapshot;
 
 	bool bIsExitRequested = false;
 	bool bIsResizing = false;

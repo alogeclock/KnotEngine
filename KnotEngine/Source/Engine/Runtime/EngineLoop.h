@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Runtime/FrameTimer.h"
 #include "Runtime/WindowsApplication.h"
 
 class UEngine;
@@ -18,4 +19,5 @@ public:
 private:
 	FCreateEngineFn CreateEngine = nullptr;
 	FWindowsApplication Application; // Windows 전용으로 사용, 추후 플랫폼 확장 시 FGenericApplication으로 대응
+	FFrameTimer FrameTimer;
 };
