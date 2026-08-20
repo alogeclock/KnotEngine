@@ -25,7 +25,8 @@
 ```text
 KnotEngine/Source/Engine/
 ├─ Input/
-│  ├─ InputTypes.h
+│  ├─ InputKeys.h
+│  ├─ InputEvents.h
 │  ├─ InputSnapshot.h
 │  └─ InputSnapshot.cpp
 └─ Runtime/
@@ -39,7 +40,7 @@ KnotEngine/Source/Engine/
 ```text
 Runtime/WindowsInput
         ↓
-Input/InputTypes + Input/InputSnapshot
+Input/InputKeys + Input/InputSnapshot
         ↓
 Slate / Viewport / Gameplay
 ```
@@ -99,16 +100,16 @@ UEngine::ProcessInput
 
 ### 엔진 입력 타입
 
-`InputTypes.h`는 다음 플랫폼 독립 타입을 정의한다.
+`InputKeys.h`는 키, 버튼 및 비트 마스크를 정의하고 `InputEvents.h`는 순서 보존 이벤트를 정의한다.
 
 | 타입 | 의미 |
 |---|---|
 | `EKeyboardKey` | 엔진에서 사용하는 키 식별자 |
 | `EMouseButton` | Left, Right, Middle, Thumb1, Thumb2 |
 | `EMouseButtonMask` | 동시에 눌린 마우스 버튼 비트 집합 |
-| `EInputModifier` | Shift, Control, Alt, Super 비트 집합 |
-| `FKeyInputEvent` | 키 Down/Up, modifier, 반복 여부 |
-| `FPointerInputEvent` | 이동, Raw 이동, 버튼, 더블 클릭, 휠 |
+| `EModifierKeyMask` | Shift, Control, Alt, Super 비트 집합 |
+| `FKeyInputEvent` | 키와 `bDown`, modifier, 반복 여부 |
+| `FPointerInputEvent` | 이동, Raw 이동, 버튼 Down/Up과 더블 클릭 여부, 휠 |
 | `FCharacterInputEvent` | UTF-32 문자 입력 |
 | `FFocusInputEvent` | 네이티브 윈도우 포커스 변경 |
 
@@ -116,7 +117,7 @@ UEngine::ProcessInput
 
 ### 상태와 이벤트를 함께 보관하는 이유
 
-스냅샷에는 상태 배열과 순서 보존 이벤트 배열이 모두 있다.
+스냅샷에는 현재 상태와 순서 보존 이벤트 배열이 모두 있다.
 
 - 상태 조회는 카메라 이동처럼 매 프레임 계속 확인하는 입력에 사용한다.
 - 이벤트 배열은 텍스트 입력, 더블 클릭, 한 프레임 안의 Down/Up 순서처럼 상태만으로 복원할 수 없는 정보에 사용한다.
@@ -153,8 +154,8 @@ const TArray<FInputEvent>& GetEvents() const;
 | `KeysPressed` | `false`로 초기화 |
 | `KeysReleased` | `false`로 초기화 |
 | `MouseButtonsDown` | 다음 프레임까지 유지 |
-| `MouseButtonsPressed` | `false`로 초기화 |
-| `MouseButtonsReleased` | `false`로 초기화 |
+| `MouseButtonsPressed` | `None`으로 초기화 |
+| `MouseButtonsReleased` | `None`으로 초기화 |
 | `PointerPosition` | 마지막 클라이언트 위치 유지 |
 | `PointerDelta` | Zero로 초기화 |
 | `RawPointerDelta` | Zero로 초기화 |
@@ -167,6 +168,12 @@ const TArray<FInputEvent>& GetEvents() const;
 `TakeSnapshot()`은 프레임당 한 번만 호출해야 한다. 한 프레임에 여러 번 호출하면 첫 번째 호출 이후 순간 상태와 이벤트가 초기화되어 뒤 소비자는 빈 전환 상태를 받는다.
 
 ## FWindowsInput
+
+### 수명
+
+`FWindowsInput`은 `FWindowsApplication`의 값 멤버이며 수명은 프로세스 범위다. `Startup()`과 `Shutdown()`은 `FEngineLoop::Startup()`과 `FEngineLoop::Shutdown()`에서 각각 한 번만 호출한다. 창을 다시 만드는 경로가 없으므로 같은 인스턴스를 다시 `Startup()`하는 재시작은 지원하지 않는다.
+
+`Shutdown()`은 Raw Input 등록을 해제하고 `WindowHandle`과 `PendingEvents`만 정리한다. 눌린 키와 마우스 버튼 상태는 초기화하지 않으므로 재시작하면 이전 상태를 물려받는다. 재시작이 필요해지면 그 시점의 요구사항에 맞춰 초기화 범위와 `NextFrameNumber` 처리 규칙을 함께 정의해야 한다.
 
 ### 메시지 분배
 
@@ -196,6 +203,7 @@ ProcessCaptureChanged
 - Shift는 스캔 코드와 `MapVirtualKeyW()`를 사용해 좌우를 구분한다.
 - Control과 Alt는 extended-key 비트로 좌우를 구분한다.
 - extended Enter는 `NumPadEnter`로 구분한다.
+- NumLock이 꺼진 NumPad 숫자 키는 extended-key 비트가 없는 탐색 키 메시지를 NumPad 키로 복원한다.
 - 등록하지 않은 Virtual Key는 `EKeyboardKey::Unknown`으로 변환한다.
 - `Unknown`은 키 상태와 이벤트에 기록하지 않는다.
 
@@ -215,7 +223,7 @@ Key Up은 `KeysDown`을 해제하고 `KeysReleased`와 Up 이벤트를 기록한
 - 눌린 모든 마우스 버튼을 해제하고 `MouseButtonsReleased`에 기록한다.
 - 포인터 델타와 Raw 델타를 초기화한다.
 - 마지막 포인터 위치를 유효하지 않은 상태로 만든다.
-- 조합 중이던 UTF-16 high surrogate를 폐기한다.
+- 조합 대기 중인 UTF-16 상위 서로게이트를 폐기한다.
 
 포커스 손실에 의한 일괄 해제는 현재 개별 Key Up 및 Button Up 이벤트를 만들지 않고 release 상태와 Focus 이벤트로 표현한다. 향후 이벤트 소비자가 포커스 손실 시 개별 release 이벤트를 요구하는지 결정해야 한다.
 
@@ -224,6 +232,8 @@ Key Up은 `KeysDown`을 해제하고 `KeysReleased`와 Up 이벤트를 기록한
 버튼을 누르면 해당 시점의 포인터 위치를 반영하고 `SetCapture()`를 호출한다. 버튼을 뗀 뒤 눌린 버튼이 하나도 남지 않았을 때만 `ReleaseCapture()`를 호출한다. 따라서 여러 버튼을 동시에 누른 상태에서 하나만 떼어도 캡처가 유지된다.
 
 `WM_CAPTURECHANGED`로 다른 윈도우에 캡처를 빼앗기면 눌린 버튼을 모두 해제하고 Button Up 이벤트를 생성한다.
+
+더블 클릭의 두 번째 누름도 `ButtonDown` 이벤트로 전달하며 `bDoubleClick`만 `true`로 설정한다. 따라서 이벤트 순서는 `ButtonDown → ButtonUp → ButtonDown(bDoubleClick) → ButtonUp`으로 유지된다.
 
 ### 포인터 좌표와 두 종류의 델타
 
@@ -251,9 +261,9 @@ Key Up은 `KeysDown`을 해제하고 `KeysReleased`와 Up 이벤트를 기록한
 
 ### 문자 입력
 
-키 이벤트와 문자 이벤트는 분리한다. 텍스트 입력은 키보드 배열을 문자로 재해석하지 않고 `WM_CHAR`, `WM_SYSCHAR`, `WM_UNICHAR`에서 생성한다.
+키 이벤트와 문자 이벤트는 분리한다. 텍스트 입력은 키보드 배열을 문자로 재해석하지 않고 `WM_CHAR`와 `WM_UNICHAR`에서 생성한다. Alt 조합으로 발생하는 `WM_SYSCHAR`는 시스템 메뉴 처리를 위해 `DefWindowProc()`에 맡긴다.
 
-UTF-16 high/low surrogate 쌍은 하나의 UTF-32 code point로 조합한다. 잘못된 단독 low surrogate는 폐기하며 포커스를 잃으면 미완성 surrogate 상태도 초기화한다.
+U+FFFF를 넘는 문자는 UTF-16 서로게이트 쌍으로 표현되어 `WM_CHAR` 두 번에 나뉘어 도착한다. 상위 서로게이트를 보관했다가 하위 서로게이트가 오면 하나의 UTF-32 코드 포인트로 조합한다. 유효한 쌍을 만들지 못한 서로게이트는 버린다. 문자 메시지의 하위 16비트 반복 횟수만큼 문자 이벤트를 생성한다.
 
 ## ImGui와의 관계
 
@@ -444,7 +454,11 @@ Knot Engine은 typed key, typed event, snapshot ownership은 현재 구조를 �
 - 같은 프레임의 Key Down/Up 이벤트 순서가 보존된다.
 - 좌우 Shift, Control, Alt가 구분된다.
 - 일반 Enter와 NumPad Enter가 구분된다.
-- UTF-16 surrogate pair가 하나의 UTF-32 문자로 변환된다.
+- NumLock이 꺼져도 NumPad 숫자 키와 전용 탐색 키가 구분된다.
+- 문자 메시지의 반복 횟수만큼 문자 이벤트가 생성된다.
+- `WM_SYSCHAR`는 일반 문자 이벤트를 생성하지 않는다.
+- 두 조각으로 쪼개져 오는 UTF-16 문자가 하나의 UTF-32 문자로 변환된다.
+- 더블 클릭이 `ButtonDown → ButtonUp → ButtonDown(bDoubleClick) → ButtonUp` 순서로 기록된다.
 - 여러 마우스 버튼 중 하나만 떼면 포인터 캡처가 유지된다.
 - 캡처를 빼앗기면 모든 눌린 마우스 버튼이 해제된다.
 - 포커스를 잃으면 held key와 mouse button이 남지 않는다.
@@ -456,7 +470,8 @@ Knot Engine은 typed key, typed event, snapshot ownership은 현재 구조를 �
 
 ## 관련 파일
 
-- [InputTypes.h](../../KnotEngine/Source/Engine/Input/InputTypes.h)
+- [InputKeys.h](../../KnotEngine/Source/Engine/Input/InputKeys.h)
+- [InputEvents.h](../../KnotEngine/Source/Engine/Input/InputEvents.h)
 - [InputSnapshot.h](../../KnotEngine/Source/Engine/Input/InputSnapshot.h)
 - [InputSnapshot.cpp](../../KnotEngine/Source/Engine/Input/InputSnapshot.cpp)
 - [WindowsInput.h](../../KnotEngine/Source/Engine/Runtime/WindowsInput.h)

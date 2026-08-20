@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Input/InputTypes.h"
+#include "Input/InputEvents.h"
 
 class FWindowsInput;
 
@@ -24,31 +24,29 @@ public:
 	const FVector2& GetPointerDelta() const { return PointerDelta; }
 	const FVector2& GetRawPointerDelta() const { return RawPointerDelta; }
 	const FVector2& GetWheelDelta() const { return WheelDelta; }
-	EInputModifier GetModifiers() const { return Modifiers; }
+	EModifierKeyMask GetModifiers() const { return Modifiers; }
 	const TArray<FInputEvent>& GetEvents() const { return Events; }
 
 private:
 	friend class FWindowsInput;
 
-	static constexpr SIZE_T KeyCount = static_cast<SIZE_T>(EKeyboardKey::Count);
-	static constexpr SIZE_T MouseButtonCount = static_cast<SIZE_T>(EMouseButton::Count);
-
 	uint64 FrameNumber = 0;
 
+	static constexpr SIZE_T KeyCount = static_cast<SIZE_T>(EKeyboardKey::Count);
 	TStaticArray<bool, KeyCount> KeysDown = {};
 	TStaticArray<bool, KeyCount> KeysPressed = {};
 	TStaticArray<bool, KeyCount> KeysReleased = {};
+	EModifierKeyMask Modifiers = EModifierKeyMask::None;
 
-	TStaticArray<bool, MouseButtonCount> MouseButtonsDown = {};
-	TStaticArray<bool, MouseButtonCount> MouseButtonsPressed = {};
-	TStaticArray<bool, MouseButtonCount> MouseButtonsReleased = {};
+	EMouseButtonMask MouseButtonsDown = EMouseButtonMask::None;
+	EMouseButtonMask MouseButtonsPressed = EMouseButtonMask::None;
+	EMouseButtonMask MouseButtonsReleased = EMouseButtonMask::None;
 
 	FVector2 PointerPosition = FVector2::ZeroVector;
 	FVector2 PointerDelta = FVector2::ZeroVector;
 	FVector2 RawPointerDelta = FVector2::ZeroVector;
 	FVector2 WheelDelta = FVector2::ZeroVector;
 
-	EInputModifier Modifiers = EInputModifier::None;
 	TArray<FInputEvent> Events;
 
 	bool bHasPointerPosition = false;

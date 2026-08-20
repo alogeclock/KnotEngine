@@ -20,18 +20,15 @@ bool FInputSnapshot::WasKeyReleased(EKeyboardKey Key) const
 
 bool FInputSnapshot::IsMouseButtonDown(EMouseButton Button) const
 {
-	const SIZE_T ButtonIndex = static_cast<SIZE_T>(Button);
-	return ButtonIndex < MouseButtonCount && MouseButtonsDown[ButtonIndex];
+	return HasMouseButton(MouseButtonsDown, GetMouseButtonMask(Button));
 }
 
 bool FInputSnapshot::WasMouseButtonPressed(EMouseButton Button) const
 {
-	const SIZE_T ButtonIndex = static_cast<SIZE_T>(Button);
-	return ButtonIndex < MouseButtonCount && MouseButtonsPressed[ButtonIndex];
+	return HasMouseButton(MouseButtonsPressed, GetMouseButtonMask(Button));
 }
 
 bool FInputSnapshot::WasMouseButtonReleased(EMouseButton Button) const
 {
-	const SIZE_T ButtonIndex = static_cast<SIZE_T>(Button);
-	return ButtonIndex < MouseButtonCount && MouseButtonsReleased[ButtonIndex];
+	return HasMouseButton(MouseButtonsReleased, GetMouseButtonMask(Button));
 }

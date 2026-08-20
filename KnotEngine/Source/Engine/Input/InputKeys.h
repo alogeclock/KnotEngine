@@ -1,9 +1,6 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
-#include "Core/Math/Vector2.h"
-
-#include <variant>
 
 // 엔진에서 식별할 수 있는 플랫폼 독립 키보드 키를 정의한다.
 enum class EKeyboardKey : uint16
@@ -150,13 +147,39 @@ constexpr EMouseButtonMask& operator|=(EMouseButtonMask& Left, EMouseButtonMask 
 	return Left;
 }
 
+constexpr EMouseButtonMask operator&(EMouseButtonMask Left, EMouseButtonMask Right) noexcept
+{
+	return static_cast<EMouseButtonMask>(static_cast<uint8>(Left) & static_cast<uint8>(Right));
+}
+
+constexpr EMouseButtonMask operator~(EMouseButtonMask Value) noexcept
+{
+	return static_cast<EMouseButtonMask>(static_cast<uint8>(~static_cast<uint8>(Value)));
+}
+
+constexpr EMouseButtonMask& operator&=(EMouseButtonMask& Left, EMouseButtonMask Right) noexcept
+{
+	Left = Left & Right;
+	return Left;
+}
+
+constexpr EMouseButtonMask GetMouseButtonMask(EMouseButton Button) noexcept
+{
+	static_assert(static_cast<uint8>(EMouseButton::Count) <= 8);
+
+	const uint8 ButtonIndex = static_cast<uint8>(Button);
+	return ButtonIndex < static_cast<uint8>(EMouseButton::Count)
+	           ? static_cast<EMouseButtonMask>(1u << ButtonIndex)
+	           : EMouseButtonMask::None;
+}
+
 constexpr bool HasMouseButton(EMouseButtonMask Value, EMouseButtonMask Button) noexcept
 {
 	return (static_cast<uint8>(Value) & static_cast<uint8>(Button)) != 0;
 }
 
 // 입력 이벤트 발생 시 함께 눌린 modifier key를 표현하는 비트 마스크를 정의한다.
-enum class EInputModifier : uint8
+enum class EModifierKeyMask : uint8
 {
 	None = 0,
 	Shift = 1 << 0,
@@ -165,73 +188,34 @@ enum class EInputModifier : uint8
 	Super = 1 << 3,
 };
 
-constexpr EInputModifier operator|(EInputModifier Left, EInputModifier Right) noexcept
+constexpr EModifierKeyMask operator|(EModifierKeyMask Left, EModifierKeyMask Right) noexcept
 {
-	return static_cast<EInputModifier>(static_cast<uint8>(Left) | static_cast<uint8>(Right));
+	return static_cast<EModifierKeyMask>(static_cast<uint8>(Left) | static_cast<uint8>(Right));
 }
 
-constexpr EInputModifier& operator|=(EInputModifier& Left, EInputModifier Right) noexcept
+constexpr EModifierKeyMask& operator|=(EModifierKeyMask& Left, EModifierKeyMask Right) noexcept
 {
 	Left = Left | Right;
 	return Left;
 }
 
-constexpr bool HasInputModifier(EInputModifier Value, EInputModifier Modifier) noexcept
+constexpr EModifierKeyMask operator&(EModifierKeyMask Left, EModifierKeyMask Right) noexcept
+{
+	return static_cast<EModifierKeyMask>(static_cast<uint8>(Left) & static_cast<uint8>(Right));
+}
+
+constexpr EModifierKeyMask operator~(EModifierKeyMask Value) noexcept
+{
+	return static_cast<EModifierKeyMask>(static_cast<uint8>(~static_cast<uint8>(Value)));
+}
+
+constexpr EModifierKeyMask& operator&=(EModifierKeyMask& Left, EModifierKeyMask Right) noexcept
+{
+	Left = Left & Right;
+	return Left;
+}
+
+constexpr bool HasModifierKey(EModifierKeyMask Value, EModifierKeyMask Modifier) noexcept
 {
 	return (static_cast<uint8>(Value) & static_cast<uint8>(Modifier)) != 0;
 }
-
-// 키 입력 이벤트의 누름과 뗌 상태를 구분한다.
-enum class EKeyInputEventType : uint8
-{
-	Down,
-	Up,
-};
-
-// 키 상태 변화와 당시 modifier key 및 반복 여부를 전달한다.
-struct FKeyInputEvent
-{
-	EKeyInputEventType Type = EKeyInputEventType::Down;
-	EKeyboardKey Key = EKeyboardKey::Unknown;
-	EInputModifier Modifiers = EInputModifier::None;
-	bool bRepeat = false;
-};
-
-// 포인터 입력 이벤트의 이동, 버튼, 더블 클릭, 휠 종류를 구분한다.
-enum class EPointerInputEventType : uint8
-{
-	Moved,
-	RawMoved,
-	ButtonDown,
-	ButtonUp,
-	DoubleClick,
-	Wheel,
-};
-
-// 포인터 위치와 이동량, 버튼 및 휠 상태를 전달한다.
-struct FPointerInputEvent
-{
-	EPointerInputEventType Type = EPointerInputEventType::Moved;
-	EMouseButton Button = EMouseButton::Invalid;
-	EMouseButtonMask PressedButtons = EMouseButtonMask::None;
-	EInputModifier Modifiers = EInputModifier::None;
-	FVector2 Position = FVector2::ZeroVector;
-	FVector2 Delta = FVector2::ZeroVector;
-	FVector2 WheelDelta = FVector2::ZeroVector;
-};
-
-// 텍스트 입력으로 생성된 UTF-32 문자와 modifier key 상태를 전달한다.
-struct FCharacterInputEvent
-{
-	char32_t Character = U'\0';
-	EInputModifier Modifiers = EInputModifier::None;
-};
-
-// 네이티브 윈도우의 입력 포커스 획득과 상실을 전달한다.
-struct FFocusInputEvent
-{
-	bool bHasFocus = false;
-};
-
-// 모든 입력 이벤트 구조체 중 하나를 타입 안전하게 보관한다.
-using FInputEvent = std::variant<std::monostate, FKeyInputEvent, FPointerInputEvent, FCharacterInputEvent, FFocusInputEvent>;

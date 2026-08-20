@@ -5,7 +5,7 @@
 #include <hidusage.h>
 #include <windowsx.h>
 
-#include <algorithm>
+#include <utility>
 
 void FWindowsInput::Startup(HWND InWindowHandle)
 {
@@ -17,7 +17,9 @@ void FWindowsInput::Startup(HWND InWindowHandle)
 	RawMouse.usUsagePage = HID_USAGE_PAGE_GENERIC;
 	RawMouse.usUsage = HID_USAGE_GENERIC_MOUSE;
 	RawMouse.hwndTarget = WindowHandle;
-	panicf(RegisterRawInputDevices(&RawMouse, 1, sizeof(RawMouse)), "마우스 Raw Input 등록 실패. GetLastError()={}", GetLastError());
+
+	// Raw Input은 RawPointerDelta 전용이며 실패해도 WM_MOUSEMOVE 기반 입력은 계속 동작한다.
+	ensuref(RegisterRawInputDevices(&RawMouse, 1, sizeof(RawMouse)), "마우스 Raw Input 등록 실패. RawPointerDelta를 사용할 수 없다. GetLastError()={}", GetLastError());
 }
 
 void FWindowsInput::Shutdown()
@@ -69,12 +71,11 @@ void FWindowsInput::ProcessMessage(HWND MessageWindowHandle, UINT Message, WPARA
 
 	// Character
 	case WM_CHAR:
-	case WM_SYSCHAR:
-		ProcessUtf16Character(static_cast<char16_t>(WParam));
+		ProcessUtf16Character(static_cast<char16_t>(WParam), static_cast<uint16>(LOWORD(LParam)));
 		break;
 
 	case WM_UNICHAR:
-		ProcessUtf32Character(WParam);
+		ProcessUtf32Character(WParam, static_cast<uint16>(LOWORD(LParam)));
 		break;
 
 	// Pointer Movement
@@ -139,8 +140,6 @@ void FWindowsInput::ProcessMessage(HWND MessageWindowHandle, UINT Message, WPARA
 	default:
 		break;
 	}
-
-	ReleaseMouseCaptureIfUnused();
 }
 
 FInputSnapshot FWindowsInput::TakeSnapshot()
@@ -160,14 +159,14 @@ FInputSnapshot FWindowsInput::TakeSnapshot()
 	Snapshot.RawPointerDelta = RawPointerDelta;
 	Snapshot.WheelDelta = WheelDelta;
 	Snapshot.Modifiers = GetModifiers();
-	Snapshot.Events = PendingEvents;
+	Snapshot.Events = std::move(PendingEvents);
 	Snapshot.bHasPointerPosition = bHasPointerPosition;
 	Snapshot.bHasFocus = bHasFocus;
 
 	KeysPressed.fill(false);
 	KeysReleased.fill(false);
-	MouseButtonsPressed.fill(false);
-	MouseButtonsReleased.fill(false);
+	MouseButtonsPressed = EMouseButtonMask::None;
+	MouseButtonsReleased = EMouseButtonMask::None;
 	PointerDelta = FVector2::ZeroVector;
 	RawPointerDelta = FVector2::ZeroVector;
 	WheelDelta = FVector2::ZeroVector;
@@ -175,7 +174,7 @@ FInputSnapshot FWindowsInput::TakeSnapshot()
 	return Snapshot;
 }
 
-// 포커스 전환을 입력 상태에 반영하고 포커스를 잃을 때 미완성 UTF-16 문자를 폐기한다.
+// 포커스 전환을 반영하고 포커스를 잃으면 조합 대기 중인 상위 서로게이트를 버린다.
 void FWindowsInput::ProcessFocusChange(bool bInHasFocus)
 {
 	SetWindowFocusState(bInHasFocus);
@@ -188,7 +187,6 @@ void FWindowsInput::ProcessFocusChange(bool bInHasFocus)
 // 키 누름 메시지를 엔진 키와 반복 여부로 변환한다.
 void FWindowsInput::ProcessKeyDown(WPARAM WParam, LPARAM LParam)
 {
-	static constexpr LPARAM PreviousKeyStateMask = 1LL << 30;
 	SetKeyState(TranslateVirtualKey(WParam, LParam), true, (LParam & PreviousKeyStateMask) != 0);
 }
 
@@ -199,11 +197,11 @@ void FWindowsInput::ProcessKeyUp(WPARAM WParam, LPARAM LParam)
 }
 
 // UTF-32 문자 메시지의 기능 확인 값을 제외하고 문자 이벤트를 생성한다.
-void FWindowsInput::ProcessUtf32Character(WPARAM WParam)
+void FWindowsInput::ProcessUtf32Character(WPARAM WParam, uint16 RepeatCount)
 {
 	if (WParam != UNICODE_NOCHAR)
 	{
-		AddCharacter(static_cast<char32_t>(WParam));
+		AddCharacter(static_cast<char32_t>(WParam), RepeatCount);
 	}
 }
 
@@ -221,11 +219,12 @@ void FWindowsInput::ProcessMouseButtonDown(EMouseButton Button, bool bDoubleClic
 	SetCapture(WindowHandle);
 }
 
-// 마우스 버튼 뗌과 해당 시점의 포인터 위치를 반영한다.
+// 마우스 버튼 뗌과 해당 시점의 포인터 위치를 반영하고 남은 버튼이 없으면 캡처를 해제한다.
 void FWindowsInput::ProcessMouseButtonUp(EMouseButton Button, LPARAM LParam)
 {
 	ProcessMouseMove(LParam);
 	SetMouseButtonState(Button, false);
+	ReleaseMouseCaptureIfUnused();
 }
 
 // 화면 좌표로 전달된 휠 메시지를 클라이언트 좌표와 축별 델타로 변환한다.
@@ -239,8 +238,7 @@ void FWindowsInput::ProcessMouseWheel(UINT Message, WPARAM WParam, LPARAM LParam
 		SetPointerPosition(FVector2(static_cast<float>(ClientPosition.x), static_cast<float>(ClientPosition.y)));
 	}
 
-	const float Delta =
-	    static_cast<float>(GET_WHEEL_DELTA_WPARAM(WParam)) / static_cast<float>(WHEEL_DELTA);
+	const float Delta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(WParam)) / static_cast<float>(WHEEL_DELTA);
 	AddWheelDelta(Message == WM_MOUSEWHEEL ? FVector2(0.0f, Delta) : FVector2(-Delta, 0.0f));
 }
 
@@ -257,6 +255,7 @@ void FWindowsInput::ProcessCaptureChanged(LPARAM LParam)
 EKeyboardKey FWindowsInput::TranslateVirtualKey(WPARAM WParam, LPARAM LParam)
 {
 	uint32 VirtualKey = static_cast<uint32>(WParam);
+	const bool bIsExtendedKey = (LParam & ExtendedKeyMask) != 0;
 	if (VirtualKey == VK_SHIFT)
 	{
 		const uint32 ScanCode = (static_cast<uint32>(LParam) >> 16) & 0xff;
@@ -264,15 +263,45 @@ EKeyboardKey FWindowsInput::TranslateVirtualKey(WPARAM WParam, LPARAM LParam)
 	}
 	else if (VirtualKey == VK_CONTROL)
 	{
-		VirtualKey = (LParam & (1 << 24)) != 0 ? VK_RCONTROL : VK_LCONTROL;
+		VirtualKey = bIsExtendedKey ? VK_RCONTROL : VK_LCONTROL;
 	}
 	else if (VirtualKey == VK_MENU)
 	{
-		VirtualKey = (LParam & (1 << 24)) != 0 ? VK_RMENU : VK_LMENU;
+		VirtualKey = bIsExtendedKey ? VK_RMENU : VK_LMENU;
 	}
-	else if (VirtualKey == VK_RETURN && (LParam & (1 << 24)) != 0)
+	else if (VirtualKey == VK_RETURN && bIsExtendedKey)
 	{
 		return EKeyboardKey::NumPadEnter;
+	}
+
+	if (!bIsExtendedKey)
+	{
+		static constexpr TStaticArray<EKeyboardKey, 256> NumPadNavigationMap = []
+		{
+			TStaticArray<EKeyboardKey, 256> Mapping = {};
+			Mapping.fill(EKeyboardKey::Unknown);
+			Mapping[VK_INSERT] = EKeyboardKey::NumPad0;
+			Mapping[VK_END] = EKeyboardKey::NumPad1;
+			Mapping[VK_DOWN] = EKeyboardKey::NumPad2;
+			Mapping[VK_NEXT] = EKeyboardKey::NumPad3;
+			Mapping[VK_LEFT] = EKeyboardKey::NumPad4;
+			Mapping[VK_CLEAR] = EKeyboardKey::NumPad5;
+			Mapping[VK_RIGHT] = EKeyboardKey::NumPad6;
+			Mapping[VK_HOME] = EKeyboardKey::NumPad7;
+			Mapping[VK_UP] = EKeyboardKey::NumPad8;
+			Mapping[VK_PRIOR] = EKeyboardKey::NumPad9;
+			Mapping[VK_DELETE] = EKeyboardKey::NumPadDecimal;
+			return Mapping;
+		}();
+
+		if (VirtualKey < NumPadNavigationMap.size())
+		{
+			const EKeyboardKey NumPadKey = NumPadNavigationMap[VirtualKey];
+			if (NumPadKey != EKeyboardKey::Unknown)
+			{
+				return NumPadKey;
+			}
+		}
 	}
 
 	static_assert(static_cast<uint16>(EKeyboardKey::Nine) - static_cast<uint16>(EKeyboardKey::Zero) == 9);
@@ -356,14 +385,6 @@ EMouseButton FWindowsInput::TranslateXButton(WPARAM WParam)
 	return GET_XBUTTON_WPARAM(WParam) == XBUTTON1 ? EMouseButton::Thumb1 : EMouseButton::Thumb2;
 }
 
-EMouseButtonMask FWindowsInput::GetMouseButtonMask(EMouseButton Button)
-{
-	static_assert(MouseButtonCount <= sizeof(uint8) * 8);
-
-	const SIZE_T ButtonIndex = static_cast<SIZE_T>(Button);
-	return ButtonIndex < MouseButtonCount ? static_cast<EMouseButtonMask>(1u << ButtonIndex) : EMouseButtonMask::None;
-}
-
 void FWindowsInput::SetKeyState(EKeyboardKey Key, bool bDown, bool bRepeat)
 {
 	const SIZE_T KeyIndex = static_cast<SIZE_T>(Key);
@@ -389,48 +410,47 @@ void FWindowsInput::SetKeyState(EKeyboardKey Key, bool bDown, bool bRepeat)
 	}
 
 	PendingEvents.emplace_back(FKeyInputEvent{
-	    bDown ? EKeyInputEventType::Down : EKeyInputEventType::Up,
 	    Key,
 	    GetModifiers(),
+	    bDown,
 	    bRepeat,
 	});
 }
 
 void FWindowsInput::SetMouseButtonState(EMouseButton Button, bool bDown, bool bDoubleClick)
 {
-	const SIZE_T ButtonIndex = static_cast<SIZE_T>(Button);
-	if (ButtonIndex >= MouseButtonCount)
+	const EMouseButtonMask ButtonMask = GetMouseButtonMask(Button);
+	if (ButtonMask == EMouseButtonMask::None)
 	{
 		return;
 	}
 
-	const bool bWasDown = MouseButtonsDown[ButtonIndex];
-	if (bWasDown == bDown && !bDoubleClick)
+	const bool bWasDown = HasMouseButton(MouseButtonsDown, ButtonMask);
+	if (bWasDown == bDown)
 	{
 		return;
 	}
 
-	MouseButtonsDown[ButtonIndex] = bDown;
-	if (bDown && !bWasDown)
+	if (bDown)
 	{
-		MouseButtonsPressed[ButtonIndex] = true;
+		MouseButtonsDown |= ButtonMask;
+		MouseButtonsPressed |= ButtonMask;
 	}
-	else if (!bDown && bWasDown)
+	else
 	{
-		MouseButtonsReleased[ButtonIndex] = true;
+		MouseButtonsDown &= ~ButtonMask;
+		MouseButtonsReleased |= ButtonMask;
 	}
 
-	EPointerInputEventType EventType = bDown ? EPointerInputEventType::ButtonDown : EPointerInputEventType::ButtonUp;
-	if (bDoubleClick)
-	{
-		EventType = EPointerInputEventType::DoubleClick;
-	}
 	PendingEvents.emplace_back(FPointerInputEvent{
-	    EventType,
+	    bDown ? EPointerInputEventType::ButtonDown : EPointerInputEventType::ButtonUp,
 	    Button,
-	    GetPressedMouseButtons(),
+	    MouseButtonsDown,
 	    GetModifiers(),
 	    PointerPosition,
+	    FVector2::ZeroVector,
+	    FVector2::ZeroVector,
+	    bDoubleClick,
 	});
 }
 
@@ -453,7 +473,7 @@ void FWindowsInput::SetPointerPosition(const FVector2& InPointerPosition)
 	PendingEvents.emplace_back(FPointerInputEvent{
 	    EPointerInputEventType::Moved,
 	    EMouseButton::Invalid,
-	    GetPressedMouseButtons(),
+	    MouseButtonsDown,
 	    GetModifiers(),
 	    PointerPosition,
 	    EventDelta,
@@ -471,7 +491,7 @@ void FWindowsInput::AddRawPointerDelta(const FVector2& InRawPointerDelta)
 	PendingEvents.emplace_back(FPointerInputEvent{
 	    EPointerInputEventType::RawMoved,
 	    EMouseButton::Invalid,
-	    GetPressedMouseButtons(),
+	    MouseButtonsDown,
 	    GetModifiers(),
 	    PointerPosition,
 	    InRawPointerDelta,
@@ -488,20 +508,25 @@ void FWindowsInput::AddWheelDelta(const FVector2& InWheelDelta)
 	WheelDelta += InWheelDelta;
 	FPointerInputEvent Event;
 	Event.Type = EPointerInputEventType::Wheel;
-	Event.PressedButtons = GetPressedMouseButtons();
+	Event.PressedButtons = MouseButtonsDown;
 	Event.Modifiers = GetModifiers();
 	Event.Position = PointerPosition;
 	Event.WheelDelta = InWheelDelta;
 	PendingEvents.emplace_back(Event);
 }
 
-void FWindowsInput::AddCharacter(char32_t Character)
+void FWindowsInput::AddCharacter(char32_t Character, uint16 RepeatCount)
 {
-	if (Character == U'\0')
+	if (Character == U'\0' || RepeatCount == 0)
 	{
 		return;
 	}
-	PendingEvents.emplace_back(FCharacterInputEvent{ Character, GetModifiers() });
+
+	const EModifierKeyMask Modifiers = GetModifiers();
+	for (uint16 RepeatIndex = 0; RepeatIndex < RepeatCount; ++RepeatIndex)
+	{
+		PendingEvents.emplace_back(FCharacterInputEvent{ Character, Modifiers });
+	}
 }
 
 void FWindowsInput::SetWindowFocusState(bool bInHasFocus)
@@ -534,19 +559,21 @@ void FWindowsInput::ReleaseMouseButtons(bool bEmitReleaseEvents)
 {
 	for (SIZE_T ButtonIndex = 0; ButtonIndex < MouseButtonCount; ++ButtonIndex)
 	{
-		if (!MouseButtonsDown[ButtonIndex])
+		const EMouseButton Button = static_cast<EMouseButton>(ButtonIndex);
+		const EMouseButtonMask ButtonMask = GetMouseButtonMask(Button);
+		if (!HasMouseButton(MouseButtonsDown, ButtonMask))
 		{
 			continue;
 		}
 
-		MouseButtonsDown[ButtonIndex] = false;
-		MouseButtonsReleased[ButtonIndex] = true;
+		MouseButtonsDown &= ~ButtonMask;
+		MouseButtonsReleased |= ButtonMask;
 		if (bEmitReleaseEvents)
 		{
 			PendingEvents.emplace_back(FPointerInputEvent{
 			    EPointerInputEventType::ButtonUp,
-			    static_cast<EMouseButton>(ButtonIndex),
-			    GetPressedMouseButtons(),
+			    Button,
+			    MouseButtonsDown,
 			    GetModifiers(),
 			    PointerPosition,
 			});
@@ -557,7 +584,7 @@ void FWindowsInput::ReleaseMouseButtons(bool bEmitReleaseEvents)
 // 눌린 마우스 버튼이 없을 때 이 윈도우가 보유한 포인터 캡처를 해제한다.
 void FWindowsInput::ReleaseMouseCaptureIfUnused()
 {
-	if (!HasMouseButtonDown() && GetCapture() == WindowHandle)
+	if (MouseButtonsDown == EMouseButtonMask::None && GetCapture() == WindowHandle)
 	{
 		ReleaseCapture();
 	}
@@ -580,71 +607,54 @@ void FWindowsInput::ProcessRawInput(LPARAM LParam)
 	AddRawPointerDelta(FVector2(static_cast<float>(RawInput.data.mouse.lLastX), static_cast<float>(RawInput.data.mouse.lLastY)));
 }
 
-void FWindowsInput::ProcessUtf16Character(char16_t Character)
+// UTF-16 코드 단위를 문자로 변환하고 Surrogate 쌍은 하나의 UTF-32 값으로 조합한다.
+// Surrogate: UTF-16 인코딩 방식에서 16-bit로 표현할 수 없는 문자를 표현하기 위해 예약된 값 쌍
+void FWindowsInput::ProcessUtf16Character(char16_t CodeUnit, uint16 RepeatCount)
 {
 	static constexpr char16_t HighSurrogateStart = 0xd800;
 	static constexpr char16_t HighSurrogateEnd = 0xdbff;
 	static constexpr char16_t LowSurrogateStart = 0xdc00;
 	static constexpr char16_t LowSurrogateEnd = 0xdfff;
 
-	if (Character >= HighSurrogateStart && Character <= HighSurrogateEnd)
+	if (CodeUnit >= HighSurrogateStart && CodeUnit <= HighSurrogateEnd)
 	{
-		PendingHighSurrogate = Character;
+		PendingHighSurrogate = CodeUnit;
 		return;
 	}
-	if (Character >= LowSurrogateStart && Character <= LowSurrogateEnd && PendingHighSurrogate != 0)
+
+	const bool bIsLowSurrogate = CodeUnit >= LowSurrogateStart && CodeUnit <= LowSurrogateEnd;
+	if (!bIsLowSurrogate)
 	{
-		const char32_t High = static_cast<char32_t>(PendingHighSurrogate - HighSurrogateStart);
-		const char32_t Low = static_cast<char32_t>(Character - LowSurrogateStart);
-		AddCharacter(U'\x10000' + (High << 10) + Low);
-		PendingHighSurrogate = 0;
-		return;
+		AddCharacter(static_cast<char32_t>(CodeUnit), RepeatCount);
+	}
+	else if (PendingHighSurrogate != 0)
+	{
+		const char32_t HighBits = static_cast<char32_t>(PendingHighSurrogate - HighSurrogateStart);
+		const char32_t LowBits = static_cast<char32_t>(CodeUnit - LowSurrogateStart);
+		AddCharacter(U'\x10000' + (HighBits << 10) + LowBits, RepeatCount);
 	}
 
 	PendingHighSurrogate = 0;
-	if (Character < LowSurrogateStart || Character > LowSurrogateEnd)
-	{
-		AddCharacter(static_cast<char32_t>(Character));
-	}
 }
 
-bool FWindowsInput::HasMouseButtonDown() const
+EModifierKeyMask FWindowsInput::GetModifiers() const
 {
-	return std::any_of(MouseButtonsDown.begin(), MouseButtonsDown.end(), [](bool bDown)
-	                   { return bDown; });
-}
-
-EInputModifier FWindowsInput::GetModifiers() const
-{
-	EInputModifier Modifiers = EInputModifier::None;
+	EModifierKeyMask Modifiers = EModifierKeyMask::None;
 	if (KeysDown[static_cast<SIZE_T>(EKeyboardKey::LeftShift)] || KeysDown[static_cast<SIZE_T>(EKeyboardKey::RightShift)])
 	{
-		Modifiers |= EInputModifier::Shift;
+		Modifiers |= EModifierKeyMask::Shift;
 	}
 	if (KeysDown[static_cast<SIZE_T>(EKeyboardKey::LeftControl)] || KeysDown[static_cast<SIZE_T>(EKeyboardKey::RightControl)])
 	{
-		Modifiers |= EInputModifier::Control;
+		Modifiers |= EModifierKeyMask::Control;
 	}
 	if (KeysDown[static_cast<SIZE_T>(EKeyboardKey::LeftAlt)] || KeysDown[static_cast<SIZE_T>(EKeyboardKey::RightAlt)])
 	{
-		Modifiers |= EInputModifier::Alt;
+		Modifiers |= EModifierKeyMask::Alt;
 	}
 	if (KeysDown[static_cast<SIZE_T>(EKeyboardKey::LeftWindows)] || KeysDown[static_cast<SIZE_T>(EKeyboardKey::RightWindows)])
 	{
-		Modifiers |= EInputModifier::Super;
+		Modifiers |= EModifierKeyMask::Super;
 	}
 	return Modifiers;
-}
-
-EMouseButtonMask FWindowsInput::GetPressedMouseButtons() const
-{
-	EMouseButtonMask PressedButtons = EMouseButtonMask::None;
-	for (SIZE_T ButtonIndex = 0; ButtonIndex < MouseButtonCount; ++ButtonIndex)
-	{
-		if (MouseButtonsDown[ButtonIndex])
-		{
-			PressedButtons |= GetMouseButtonMask(static_cast<EMouseButton>(ButtonIndex));
-		}
-	}
-	return PressedButtons;
 }
