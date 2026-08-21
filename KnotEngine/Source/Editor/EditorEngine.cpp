@@ -26,7 +26,7 @@ void UEditorEngine::Tick(float DeltaTime)
 	Cube->Render(DeltaTime, Renderer);
 
 	EditorUISystem.BeginFrame();
-	EditorUISystem.Draw();
+	EditorUISystem.Draw(DeltaTime);
 	EditorUISystem.EndFrame();
 
 	Renderer.SwapBuffer();

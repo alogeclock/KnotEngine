@@ -90,6 +90,6 @@ void FD3D11Viewport::Prepare(ID3D11DeviceContext* DeviceContext)
 void FD3D11Viewport::Present()
 {
 	panic(SwapChain);
-	const HRESULT Result = SwapChain->Present(1, 0);
+	const HRESULT Result = SwapChain->Present(0, 0);
 	panicf(SUCCEEDED(Result), "IDXGISwapChain::Present 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 }

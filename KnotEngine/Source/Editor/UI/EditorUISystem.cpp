@@ -39,10 +39,25 @@ void FEditorUISystem::BeginFrame()
 	ImGui::NewFrame();
 }
 
-void FEditorUISystem::Draw()
+void FEditorUISystem::Draw(float DeltaTime)
 {
+	// TO-DO: 프레임 통계는 별도 Overlay Panel로 분리하여 콘솔을 통해 출력할 수 있도록 한다.
+	if (DeltaTime > 0.0f)
+	{
+		ElapsedTime += DeltaTime;
+		++FrameCount;
+	}
+
+	if (ElapsedTime >= 0.5f)
+	{
+		DisplayedFramesPerSecond = static_cast<float>(FrameCount) / ElapsedTime;
+		DisplayedFrameTimeMs = ElapsedTime / static_cast<float>(FrameCount) * 1000.0f;
+		ElapsedTime = 0.0f;
+		FrameCount = 0;
+	}
+
 	ImGui::Begin("Knot Engine Property Window");
-	ImGui::Text("Hello, Knot Engine!");
+	ImGui::Text("FPS: %.1f (%.3f ms)", DisplayedFramesPerSecond, DisplayedFrameTimeMs);
 	ImGui::Separator();
 	ImGui::ColorEdit4("Background Color", ClearColor);
 	ImGui::End();

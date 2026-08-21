@@ -57,7 +57,7 @@ CMake, Python, vcpkg, and third-party packages are prepared automatically by the
 
 ```bash
 # 1. Clone Engine
-git clone https://github.com/your-repo/KnotEngine.git
+git clone https://github.com/alogeclock/KnotEngine.git
 cd KnotEngine
 
 # 2. Prepare dependencies and generate Visual Studio project files
@@ -145,7 +145,7 @@ CMake, Python, vcpkg, 서드파티 패키지는 프로젝트 스크립트가 자
 
 ```bash
 # 1. 엔진 클론
-git clone https://github.com/your-repo/KnotEngine.git
+git clone https://github.com/alogeclock/KnotEngine.git
 cd KnotEngine
 
 # 2. 의존성 준비 및 Visual Studio 프로젝트 파일 생성
