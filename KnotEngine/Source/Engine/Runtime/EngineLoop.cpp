@@ -11,20 +11,19 @@
 #include "Runtime/GameEngine.h"
 #endif
 
-FEngineLoop::FEngineLoop(FCreateEngineFn InFactory)
-	: CreateEngine(InFactory)
-{
-	check(CreateEngine);
-}
-
 void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
 {
 	FName::Startup();
 
 	Application.Startup(Instance, ShowCmd);
 
-	CreateEngine();
-	checkf(GEngine, "CreateEngine 팩토리가 GEngine을 설정하지 않았다.");
+	check(!GEngine);
+
+#if WITH_EDITOR
+	GEngine = GUObjectManager.Create<UEditorEngine>();
+#else
+	GEngine = GUObjectManager.Create<UGameEngine>();
+#endif
 
 	GEngine->Startup(Application.GetWindow());
 }
