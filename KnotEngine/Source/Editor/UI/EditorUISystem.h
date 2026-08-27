@@ -4,11 +4,12 @@
 #include <cstdint>
 
 class IImGuiRenderBackend;
+class FEditorInputRouter;
 
 class FEditorUISystem
 {
 public:
-	explicit FEditorUISystem(IImGuiRenderBackend& InRenderBackend);
+	FEditorUISystem(IImGuiRenderBackend& InRenderBackend, FEditorInputRouter& InInputRouter);
 
 	void Startup(HWND WindowHandle);
 	void BeginFrame();
@@ -18,6 +19,7 @@ public:
 
 private:
 	IImGuiRenderBackend& RenderBackend;
+	FEditorInputRouter& InputRouter;
 	float ClearColor[4] = { 0.025f, 0.025f, 0.025f, 1.0f };
 	
 	// TO-DO: 프레임 통계는 별도 Overlay Panel로 분리하여 콘솔을 통해 출력할 수 있도록 한다.

@@ -4,7 +4,7 @@
 #include "Core/Assert.h"
 
 UEditorEngine::UEditorEngine()
-	: Renderer(RenderBackend), ImGuiRenderBackend(RenderBackend), EditorUISystem(ImGuiRenderBackend)
+	: Renderer(RenderBackend), ImGuiRenderBackend(RenderBackend), EditorUISystem(ImGuiRenderBackend, EditorInputRouter)
 {
 }
 
@@ -18,15 +18,21 @@ void UEditorEngine::Startup(FWindowsWindow InWindow)
 	Cube = new UCubeComponent(Renderer);
 }
 
+void UEditorEngine::ProcessInput(const FInputSnapshot& InputSnapshot)
+{
+	EditorInputRouter.BeginFrame(InputSnapshot);
+}
+
 void UEditorEngine::Tick(float DeltaTime)
 {
 	check(Cube);
 
 	Renderer.Prepare();
-	Cube->Render(DeltaTime, Renderer);
-
 	EditorUISystem.BeginFrame();
 	EditorUISystem.Draw(DeltaTime);
+	EditorInputRouter.RouteInput();
+
+	Cube->Render(DeltaTime, Renderer);
 	EditorUISystem.EndFrame();
 
 	Renderer.SwapBuffer();
@@ -39,6 +45,7 @@ void UEditorEngine::Shutdown()
 	delete Cube;
 	Cube = nullptr;
 
+	EditorInputRouter.Reset();
 	EditorUISystem.Shutdown();
 	Renderer.Release();
 }

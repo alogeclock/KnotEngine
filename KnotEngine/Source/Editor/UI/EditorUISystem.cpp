@@ -2,6 +2,7 @@
 
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
+#include "Input/EditorInputRouter.h"
 #include "UI/ImGui/ImGuiRenderBackend.h"
 
 #include <filesystem>
@@ -10,8 +11,8 @@
 #include <string>
 #include <system_error>
 
-FEditorUISystem::FEditorUISystem(IImGuiRenderBackend& InRenderBackend)
-	: RenderBackend(InRenderBackend)
+FEditorUISystem::FEditorUISystem(IImGuiRenderBackend& InRenderBackend, FEditorInputRouter& InInputRouter)
+	: RenderBackend(InRenderBackend), InputRouter(InInputRouter)
 {
 }
 
@@ -37,6 +38,9 @@ void FEditorUISystem::BeginFrame()
 	RenderBackend.BeginFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+
+	const ImGuiIO& IO = ImGui::GetIO();
+	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
 void FEditorUISystem::Draw(float DeltaTime)
@@ -61,6 +65,9 @@ void FEditorUISystem::Draw(float DeltaTime)
 	ImGui::Separator();
 	ImGui::ColorEdit4("Background Color", ClearColor);
 	ImGui::End();
+
+	const ImGuiIO& IO = ImGui::GetIO();
+	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
 void FEditorUISystem::EndFrame()
