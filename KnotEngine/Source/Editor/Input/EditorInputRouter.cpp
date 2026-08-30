@@ -261,7 +261,7 @@ bool FEditorInputRouter::RouteKeyEvent(const FKeyInputEvent& Event)
 
 bool FEditorInputRouter::RoutePointerEvent(const FPointerInputEvent& Event)
 {
-	if (Event.Type == EPointerInputEventType::RawMoved)
+	if (Event.Type == EPointerInputEventType::MouseMoved)
 	{
 		if (MouseCaptureOwner)
 		{

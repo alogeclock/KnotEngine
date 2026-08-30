@@ -7,13 +7,14 @@
 class FIndexBuffer;
 class FMeshBuffer;
 class FVertexBuffer;
-class IRenderBackend;
+class IRenderContext;
+class IRenderDevice;
 struct FMatrix;
 
 class URenderer
 {
 public:
-	explicit URenderer(IRenderBackend& InBackend);
+	URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext);
 	~URenderer();
 
 	URenderer(const URenderer&) = delete;
@@ -24,11 +25,10 @@ public:
 	void Create(void* NativeWindowHandle);
 	void Release();
 
-	void Prepare();
-	void SwapBuffer();
+	void BeginFrame();
+	void EndFrame();
 
 	void UpdateConstant(const FMatrix& WorldViewProjection);
-	void PrepareShader();
 	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer);
 
 	FRenderViewport GetViewport() const;
@@ -39,5 +39,11 @@ private:
 	bool CreateVertexBuffer(FVertexBuffer& OutVertexBuffer, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride);
 	bool CreateIndexBuffer(FIndexBuffer& OutIndexBuffer, std::span<const uint32> Indices);
 
-	IRenderBackend& Backend;
+	IRenderDevice& RenderDevice;
+	IRenderContext& RenderContext;
+	FShaderHandle VertexShader;
+	FShaderHandle PixelShader;
+	FGraphicsPipelineHandle GraphicsPipeline;
+	FBufferHandle FrameConstantBuffer;
+	FCommandListHandle CommandList;
 };

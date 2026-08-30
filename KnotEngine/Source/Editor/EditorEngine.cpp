@@ -4,7 +4,8 @@
 #include "Core/Assert.h"
 
 UEditorEngine::UEditorEngine()
-	: Renderer(RenderBackend), ImGuiRenderBackend(RenderBackend), EditorUISystem(ImGuiRenderBackend, EditorInputRouter)
+	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
+	  ImGuiRenderBackend(RenderDevice), EditorUISystem(ImGuiRenderBackend, EditorInputRouter)
 {
 }
 
@@ -27,7 +28,8 @@ void UEditorEngine::Tick(float DeltaTime)
 {
 	check(Cube);
 
-	Renderer.Prepare();
+	Renderer.BeginFrame();
+
 	EditorUISystem.BeginFrame();
 	EditorUISystem.Draw(DeltaTime);
 	EditorInputRouter.RouteInput();
@@ -35,7 +37,7 @@ void UEditorEngine::Tick(float DeltaTime)
 	Cube->Render(DeltaTime, Renderer);
 	EditorUISystem.EndFrame();
 
-	Renderer.SwapBuffer();
+	Renderer.EndFrame();
 }
 
 void UEditorEngine::Shutdown()

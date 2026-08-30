@@ -4,62 +4,72 @@
 
 #include <d3d11.h>
 
+#include <cstring>
 #include <limits>
 #include <utility>
 
-FBufferHandle FD3D11BufferPool::CreateVertexBuffer(ID3D11Device* Device, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride)
+FBufferHandle FD3D11BufferPool::CreateBuffer(ID3D11Device* Device, const FBufferDesc& Desc, std::span<const uint8> InitialData)
 {
 	panic(Device);
-	panicf(!Data.empty() && VertexCount > 0 && Stride > 0 &&
-	           VertexCount <= (std::numeric_limits<uint32>::max)() / Stride &&
-	           Data.size() == static_cast<size_t>(VertexCount) * Stride,
-	       "잘못된 Vertex Buffer 생성 요청. Bytes={}, VertexCount={}, Stride={}",
-	       Data.size(), VertexCount, Stride);
+	panicf(Desc.Size > 0 && InitialData.size() <= Desc.Size,
+	       "잘못된 Buffer 생성 요청. Size={}, InitialBytes={}", Desc.Size, InitialData.size());
+	panicf(Desc.Access == EResourceAccess::CPUWrite || InitialData.size() == Desc.Size,
+	       "GPUOnly Buffer는 전체 초기 데이터가 필요하다. Size={}, InitialBytes={}", Desc.Size, InitialData.size());
 
-	D3D11_BUFFER_DESC Desc = {};
-	Desc.ByteWidth = VertexCount * Stride;
-	Desc.Usage = D3D11_USAGE_IMMUTABLE;
-	Desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	D3D11_SUBRESOURCE_DATA InitialData = {};
-	InitialData.pSysMem = Data.data();
-	
+	D3D11_BUFFER_DESC NativeDesc = {};
+	NativeDesc.ByteWidth = Desc.Size;
+	switch (Desc.Usage)
+	{
+	case EBufferUsage::Vertex: NativeDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER; break;
+	case EBufferUsage::Index: NativeDesc.BindFlags = D3D11_BIND_INDEX_BUFFER; break;
+	case EBufferUsage::Constant:
+		panicf(Desc.Size % 16 == 0, "Constant Buffer 크기는 16바이트 정렬이어야 한다. Size={}", Desc.Size);
+		NativeDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		break;
+	}
+
+	if (Desc.Access == EResourceAccess::CPUWrite)
+	{
+		NativeDesc.Usage = D3D11_USAGE_DYNAMIC;
+		NativeDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	else
+	{
+		NativeDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	}
+
+	D3D11_SUBRESOURCE_DATA NativeInitialData = {};
+	NativeInitialData.pSysMem = InitialData.data();
+
 	Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer;
-	const HRESULT Result = Device->CreateBuffer(&Desc, &InitialData, Buffer.GetAddressOf());
-	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer(Vertex) 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
-	// 생성한 D3D Buffer의 소유권을 Buffer Pool로 넘기고, 외부에서는 핸들로 접근하도록 한다.
-	const FBufferHandle Handle = StoreBuffer(std::move(Buffer));
+	const HRESULT Result = Device->CreateBuffer(&NativeDesc, InitialData.empty() ? nullptr : &NativeInitialData, Buffer.GetAddressOf());
+	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+
+	const FBufferHandle Handle = StoreBuffer(std::move(Buffer), Desc);
 	panic(Handle.IsValid());
 	return Handle;
 }
 
-FBufferHandle FD3D11BufferPool::CreateIndexBuffer(ID3D11Device* Device, std::span<const uint32> Indices)
+void FD3D11BufferPool::UpdateBuffer(ID3D11DeviceContext* DeviceContext, FBufferHandle Handle, std::span<const uint8> Data)
 {
-	panic(Device);
-	panicf(!Indices.empty() && Indices.size() <= (std::numeric_limits<uint32>::max)() / sizeof(uint32),
-	       "잘못된 Index Buffer 생성 요청. IndexCount={}", Indices.size());
+	panic(DeviceContext);
+	ID3D11Buffer* Buffer = ResolveBuffer(Handle);
+	const FBufferDesc* Desc = ResolveDesc(Handle);
+	checkf(Buffer && Desc, "유효하지 않은 Buffer 핸들. Index={}, Generation={}", Handle.Index, Handle.Generation);
+	panicf(Desc->Access == EResourceAccess::CPUWrite && Data.size() == Desc->Size,
+	       "CPUWrite Buffer 갱신 크기 불일치. Expected={}, Actual={}", Desc->Size, Data.size());
 
-	D3D11_BUFFER_DESC Desc = {};
-	Desc.ByteWidth = static_cast<UINT>(Indices.size_bytes());
-	Desc.Usage = D3D11_USAGE_IMMUTABLE;
-	Desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	D3D11_SUBRESOURCE_DATA InitialData = {};
-	InitialData.pSysMem = Indices.data();
-
-	Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer;
-	const HRESULT Result = Device->CreateBuffer(&Desc, &InitialData, Buffer.GetAddressOf());
-	// 생성한 D3D Buffer의 소유권을 Buffer Pool로 넘기고, 외부에서는 핸들로 접근하도록 한다.
-	panicf(SUCCEEDED(Result) && Buffer, "ID3D11Device::CreateBuffer(Index) 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
-	const FBufferHandle Handle = StoreBuffer(std::move(Buffer));
-	panic(Handle.IsValid());
-	return Handle;
+	D3D11_MAPPED_SUBRESOURCE Mapped = {};
+	const HRESULT Result = DeviceContext->Map(Buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped);
+	panicf(SUCCEEDED(Result), "ID3D11DeviceContext::Map 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	std::memcpy(Mapped.pData, Data.data(), Data.size());
+	DeviceContext->Unmap(Buffer, 0);
 }
 
-// 핸들을 통해 버퍼를 파괴하되, 슬롯의 세대를 증가시켜 이전의 핸들로 참조하지 못하도록 한다.
 void FD3D11BufferPool::DestroyBuffer(FBufferHandle& Handle)
 {
 	checkf(!Handle.IsValid() || Handle.Index < BufferSlots.size(),
 	       "슬롯 범위를 벗어난 Buffer 핸들. Index={}, SlotCount={}", Handle.Index, BufferSlots.size());
-
 	if (!Handle.IsValid() || Handle.Index >= BufferSlots.size())
 	{
 		Handle.Reset();
@@ -70,13 +80,13 @@ void FD3D11BufferPool::DestroyBuffer(FBufferHandle& Handle)
 	if (Slot.Generation == Handle.Generation)
 	{
 		Slot.Buffer.Reset();
+		Slot.Desc = {};
 		AdvanceGeneration(Slot);
 		FreeBufferIndices.push_back(Handle.Index);
 	}
 	Handle.Reset();
 }
 
-// 버퍼 파괴 시 빈 슬롯 번호를 저장해, 새 버퍼를 만들 때 마지막 빈 슬롯을 꺼내 O(1)에 찾도록 한다.
 void FD3D11BufferPool::Release()
 {
 	FreeBufferIndices.clear();
@@ -85,42 +95,49 @@ void FD3D11BufferPool::Release()
 	{
 		FBufferSlot& Slot = BufferSlots[Index];
 		Slot.Buffer.Reset();
+		Slot.Desc = {};
 		AdvanceGeneration(Slot);
 		FreeBufferIndices.push_back(Index);
 	}
 }
 
-// Buffer Handle을 통해 적절한 Buffer에 접근하고, 슬롯과 핸들의 세대가 다를 때 실패하도록 한다.
-// 파괴된 슬롯을 다른 버퍼가 재사용할 때, 이전의 핸들로 접근할 수 없도록 방어한다.
 ID3D11Buffer* FD3D11BufferPool::ResolveBuffer(FBufferHandle Handle) const
 {
 	if (!Handle.IsValid() || Handle.Index >= BufferSlots.size())
 	{
 		return nullptr;
 	}
-
 	const FBufferSlot& Slot = BufferSlots[Handle.Index];
 	return Slot.Generation == Handle.Generation ? Slot.Buffer.Get() : nullptr;
 }
 
-// Buffer Pool의 free list에서 빈 슬롯을 재사용하거나, 새로운 슬롯을 생성한다.
-FBufferHandle FD3D11BufferPool::StoreBuffer(Microsoft::WRL::ComPtr<ID3D11Buffer>&& Buffer)
+const FBufferDesc* FD3D11BufferPool::ResolveDesc(FBufferHandle Handle) const
 {
-	// 버퍼가 비어 있을 경우 std::move로 Slot에 소유권을 이전하여 재사용한다. 
+	if (!Handle.IsValid() || Handle.Index >= BufferSlots.size())
+	{
+		return nullptr;
+	}
+	const FBufferSlot& Slot = BufferSlots[Handle.Index];
+	return Slot.Generation == Handle.Generation && Slot.Buffer ? &Slot.Desc : nullptr;
+}
+
+FBufferHandle FD3D11BufferPool::StoreBuffer(Microsoft::WRL::ComPtr<ID3D11Buffer>&& Buffer, const FBufferDesc& Desc)
+{
 	if (!FreeBufferIndices.empty())
 	{
 		const uint32 Index = FreeBufferIndices.back();
 		FreeBufferIndices.pop_back();
 		FBufferSlot& Slot = BufferSlots[Index];
 		check(!Slot.Buffer);
-
 		Slot.Buffer = std::move(Buffer);
+		Slot.Desc = Desc;
 		return { Index, Slot.Generation };
 	}
 
 	panicf(BufferSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Buffer 슬롯 수가 uint32 범위를 초과했다.");
 	FBufferSlot& Slot = BufferSlots.emplace_back();
 	Slot.Buffer = std::move(Buffer);
+	Slot.Desc = Desc;
 	return { static_cast<uint32>(BufferSlots.size() - 1), Slot.Generation };
 }
 

@@ -8,26 +8,28 @@
 
 struct ID3D11Buffer;
 struct ID3D11Device;
+struct ID3D11DeviceContext;
 
-// D3D11 버퍼를 생성 및 소유하고, 버퍼의 조회와 생성/파괴를 담당하는 객체.
 class FD3D11BufferPool final
 {
 public:
-	FBufferHandle CreateVertexBuffer(ID3D11Device* Device, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride);
-	FBufferHandle CreateIndexBuffer(ID3D11Device* Device, std::span<const uint32> Indices);
+	FBufferHandle CreateBuffer(ID3D11Device* Device, const FBufferDesc& Desc, std::span<const uint8> InitialData);
+	void UpdateBuffer(ID3D11DeviceContext* DeviceContext, FBufferHandle Handle, std::span<const uint8> Data);
 	void DestroyBuffer(FBufferHandle& Handle);
 	void Release();
 
 	ID3D11Buffer* ResolveBuffer(FBufferHandle Handle) const;
+	const FBufferDesc* ResolveDesc(FBufferHandle Handle) const;
 
 private:
 	struct FBufferSlot
 	{
 		Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer;
+		FBufferDesc Desc;
 		uint32 Generation = 1;
 	};
 
-	FBufferHandle StoreBuffer(Microsoft::WRL::ComPtr<ID3D11Buffer>&& Buffer);
+	FBufferHandle StoreBuffer(Microsoft::WRL::ComPtr<ID3D11Buffer>&& Buffer, const FBufferDesc& Desc);
 	static void AdvanceGeneration(FBufferSlot& Slot);
 
 	std::vector<FBufferSlot> BufferSlots;

@@ -2,7 +2,7 @@
 
 #include "Render/Resource/Buffer.h"
 #include "Render/Resource/RenderResource.h"
-#include "Render/Resource/VertexLayouts.h"
+#include "Render/RHI/VertexLayout.h"
 
 #include <span>
 

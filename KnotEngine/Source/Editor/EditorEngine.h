@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Render/D3D11/D3D11Backend.h"
+#include "Render/D3D11/D3D11RenderContext.h"
+#include "Render/D3D11/D3D11RenderDevice.h"
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
 #include "Input/EditorInputRouter.h"
@@ -21,7 +22,8 @@ public:
 	void Shutdown() override;
 
 private:
-	FD3D11Backend RenderBackend;
+	FD3D11RenderDevice RenderDevice;
+	FD3D11RenderContext RenderContext;
 	URenderer Renderer;
 	FD3D11ImGuiBackend ImGuiRenderBackend;
 	FEditorInputRouter EditorInputRouter;

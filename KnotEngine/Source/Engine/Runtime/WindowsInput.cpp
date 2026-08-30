@@ -471,7 +471,7 @@ void FWindowsInput::SetPointerPosition(const FVector2& InPointerPosition)
 	bHasPointerPosition = true;
 
 	PendingEvents.emplace_back(FPointerInputEvent{
-	    EPointerInputEventType::Moved,
+	    EPointerInputEventType::CursorMoved,
 	    EMouseButton::Invalid,
 	    MouseButtonsDown,
 	    GetModifiers(),
@@ -489,7 +489,7 @@ void FWindowsInput::AddRawPointerDelta(const FVector2& InRawPointerDelta)
 
 	RawPointerDelta += InRawPointerDelta;
 	PendingEvents.emplace_back(FPointerInputEvent{
-	    EPointerInputEventType::RawMoved,
+	    EPointerInputEventType::MouseMoved,
 	    EMouseButton::Invalid,
 	    MouseButtonsDown,
 	    GetModifiers(),

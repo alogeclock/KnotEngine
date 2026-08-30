@@ -3,7 +3,7 @@
 #include "Core/CoreTypes.h"
 #include "Render/RHI/RenderTypes.h"
 
-class IRenderBackend;
+class IRenderDevice;
 class URenderer;
 
 class FVertexBuffer
@@ -27,9 +27,9 @@ public:
 private:
 	friend class URenderer;
 
-	void Adopt(IRenderBackend& InOwner, FBufferHandle InHandle, uint32 InVertexCount, uint32 InStride);
+	void Adopt(IRenderDevice& InOwner, FBufferHandle InHandle, uint32 InVertexCount, uint32 InStride);
 
-	IRenderBackend* Owner = nullptr;
+	IRenderDevice* Owner = nullptr;
 	FBufferHandle Handle;
 	uint32 VertexCount = 0;
 	uint32 Stride = 0;
@@ -55,9 +55,9 @@ public:
 private:
 	friend class URenderer;
 
-	void Adopt(IRenderBackend& InOwner, FBufferHandle InHandle, uint32 InIndexCount);
+	void Adopt(IRenderDevice& InOwner, FBufferHandle InHandle, uint32 InIndexCount);
 
-	IRenderBackend* Owner = nullptr;
+	IRenderDevice* Owner = nullptr;
 	FBufferHandle Handle;
 	uint32 IndexCount = 0;
 };
