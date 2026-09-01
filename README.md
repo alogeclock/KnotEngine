@@ -55,12 +55,12 @@ Code readability and architectural integrity are maintained as first-class prior
 
 CMake, Python, vcpkg, and third-party packages are prepared automatically by the project scripts.
 
-```bash
+```bat
 # 1. Clone Engine
 git clone https://github.com/alogeclock/KnotEngine.git
 cd KnotEngine
 
-# 2. Prepare dependencies and generate Visual Studio project files
+# 2. Prepare dependencies, generate the solution, and open Visual Studio
 GenerateProjects.bat
 
 # 3. Build Development (default), Debug, Shipping, or all configurations
@@ -70,11 +70,13 @@ BuildEngine.bat Shipping
 BuildEngine.bat All
 ```
 
-Open the generated root solution at `KnotEngine.sln` in Visual Studio 2022 and build.
+`GenerateProjects.bat` prepares the toolchain and dependencies, generates the solution at `KnotEngine/Build/VS2022-x64/KnotEngine.sln`, and opens it in Visual Studio. Use `GenerateProjects.bat --no-open` to generate project files without opening Visual Studio, or add `--no-pause` for unattended automation.
 
-Run `GenerateProjects.bat` for initial setup and after adding or removing source files. Use `BuildEngine.bat` for regular builds without regenerating the Visual Studio solution.
+The generated `.sln`, `.vcxproj`, and `.vcxproj.filters` files are local build artifacts and are not committed to the repository. Run `GenerateProjects.bat` for initial setup or explicit project regeneration, and use `BuildEngine.bat` for regular builds.
 
-Generated tools, package files, and intermediate build files are kept under `KnotEngine/Intermediate`. Build outputs are written to `KnotEngine/Bin/x64/<Configuration>`.
+New or removed source, header, content, setting, and shader files are detected automatically during the next build. Visual Studio filters mirror the source directory structure, while CMake-generated precompiled-header files are isolated under `Generated/CMake`.
+
+Generated tools and package files are kept under `KnotEngine/Intermediate`, and generated Visual Studio project files are kept under `KnotEngine/Build/VS2022-x64`. Build outputs are written to `KnotEngine/Bin/x64/<Configuration>`.
 
 Logs are written to the Visual Studio Output window and `Saved/Logs/KnotEngine.log`.
 
@@ -143,12 +145,12 @@ KnotEngine은 처음부터 완전한 3D 게임 엔진을 만들어 보는 개인
 
 CMake, Python, vcpkg, 서드파티 패키지는 프로젝트 스크립트가 자동으로 준비합니다.
 
-```bash
+```bat
 # 1. 엔진 클론
 git clone https://github.com/alogeclock/KnotEngine.git
 cd KnotEngine
 
-# 2. 의존성 준비 및 Visual Studio 프로젝트 파일 생성
+# 2. 의존성 준비, 솔루션 생성 및 Visual Studio 실행
 GenerateProjects.bat
 
 # 3. Development(기본), Debug, Shipping 또는 전체 구성 빌드
@@ -158,11 +160,13 @@ BuildEngine.bat Shipping
 BuildEngine.bat All
 ```
 
-루트에 생성된 `KnotEngine.sln` 파일을 Visual Studio 2022에서 열고 빌드합니다.
+`GenerateProjects.bat`은 툴체인과 의존성을 준비하고 `KnotEngine/Build/VS2022-x64/KnotEngine.sln`에 솔루션을 생성한 다음 Visual Studio에서 엽니다. Visual Studio를 열지 않고 프로젝트 파일만 생성하려면 `GenerateProjects.bat --no-open`을 사용하고, 무인 자동화에서는 `--no-pause`도 함께 지정합니다.
 
-`GenerateProjects.bat`는 최초 설정과 소스 파일 추가·삭제 후에 실행합니다. 일반 빌드는 Visual Studio 솔루션을 재생성하지 않는 `BuildEngine.bat`를 사용합니다.
+생성된 `.sln`, `.vcxproj`, `.vcxproj.filters` 파일은 로컬 빌드 결과물이므로 저장소에 커밋하지 않습니다. `GenerateProjects.bat`은 최초 설정 또는 명시적인 프로젝트 재생성에 사용하고, 일반 빌드에는 `BuildEngine.bat`을 사용합니다.
 
-생성된 도구, 패키지 파일, 중간 빌드 파일은 `KnotEngine/Intermediate` 아래에 정리됩니다. 빌드 결과물은 `KnotEngine/Bin/x64/<Configuration>`에 생성됩니다.
+소스, 헤더, 콘텐츠, 설정, 셰이더 파일의 추가·삭제는 다음 빌드에서 자동으로 감지됩니다. Visual Studio 필터는 소스 디렉터리 구조를 따르며, CMake가 생성한 프리컴파일 헤더 파일은 `Generated/CMake` 아래에 격리됩니다.
+
+생성된 도구와 패키지 파일은 `KnotEngine/Intermediate` 아래에, Visual Studio 프로젝트 파일은 `KnotEngine/Build/VS2022-x64` 아래에 정리됩니다. 빌드 결과물은 `KnotEngine/Bin/x64/<Configuration>`에 생성됩니다.
 
 로그는 Visual Studio 출력 창과 `Saved/Logs/KnotEngine.log`에 기록됩니다.
 

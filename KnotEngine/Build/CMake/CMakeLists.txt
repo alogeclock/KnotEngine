@@ -33,12 +33,16 @@ endif()
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-set(KNOTENGINE_SHADER_FILES
-    "${KNOTENGINE_ROOT}/Shaders/Common.hlsl"
+file(GLOB_RECURSE KNOTENGINE_SHADER_FILES CONFIGURE_DEPENDS
+    "${KNOTENGINE_ROOT}/Shaders/*.hlsl"
+    "${KNOTENGINE_ROOT}/Shaders/*.hlsli"
+    "${KNOTENGINE_ROOT}/Shaders/*.fx"
+    "${KNOTENGINE_ROOT}/Shaders/*.fxh"
 )
 
 set(KNOTENGINE_RESOURCE_FILES
     "${KNOTENGINE_ROOT}/KnotEngine.rc"
+    "${KNOTENGINE_ROOT}/resource.h"
 )
 
 file(GLOB_RECURSE KNOTENGINE_CONTENT_FILES CONFIGURE_DEPENDS
@@ -59,11 +63,19 @@ set_source_files_properties(${KNOTENGINE_CONTENT_FILES} ${KNOTENGINE_SETTING_FIL
 )
 
 file(GLOB_RECURSE KNOTENGINE_SOURCE_FILES CONFIGURE_DEPENDS
+    "${KNOTENGINE_ROOT}/Source/*.c"
+    "${KNOTENGINE_ROOT}/Source/*.cc"
     "${KNOTENGINE_ROOT}/Source/*.cpp"
+    "${KNOTENGINE_ROOT}/Source/*.cxx"
 )
 
 file(GLOB_RECURSE KNOTENGINE_HEADER_FILES CONFIGURE_DEPENDS
     "${KNOTENGINE_ROOT}/Source/*.h"
+    "${KNOTENGINE_ROOT}/Source/*.hh"
+    "${KNOTENGINE_ROOT}/Source/*.hpp"
+    "${KNOTENGINE_ROOT}/Source/*.hxx"
+    "${KNOTENGINE_ROOT}/Source/*.inl"
+    "${KNOTENGINE_ROOT}/Source/*.ipp"
 )
 
 add_executable(KnotEngine WIN32
@@ -76,6 +88,36 @@ add_executable(KnotEngine WIN32
     ${KNOTENGINE_RESOURCE_FILES}
     ${KNOTENGINE_SETTING_FILES}
     ${KNOTENGINE_SHADER_FILES}
+)
+
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT KnotEngine)
+
+source_group(TREE "${KNOTENGINE_ROOT}/Source" PREFIX "Source" FILES
+    ${KNOTENGINE_SOURCE_FILES}
+    ${KNOTENGINE_HEADER_FILES}
+)
+
+source_group(TREE "${KNOTENGINE_ROOT}/Contents" PREFIX "Contents" FILES
+    ${KNOTENGINE_CONTENT_FILES}
+)
+
+source_group(TREE "${KNOTENGINE_ROOT}/Settings" PREFIX "Settings" FILES
+    ${KNOTENGINE_SETTING_FILES}
+)
+
+source_group(TREE "${KNOTENGINE_ROOT}/Shaders" PREFIX "Shaders" FILES
+    ${KNOTENGINE_SHADER_FILES}
+)
+
+source_group("" FILES
+    "${KNOTENGINE_ROOT}/main.cpp"
+    "${KNOTENGINE_ROOT}/pch.cpp"
+    "${KNOTENGINE_ROOT}/pch.h"
+    ${KNOTENGINE_RESOURCE_FILES}
+)
+
+source_group("Generated\\CMake" REGULAR_EXPRESSION
+    ".*[/\\\\]CMakeFiles[/\\\\].*cmake_pch.*"
 )
 
 target_compile_features(KnotEngine PRIVATE cxx_std_20)
