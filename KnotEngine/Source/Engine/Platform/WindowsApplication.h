@@ -2,8 +2,8 @@
 
 #include "Core/CoreTypes.h"
 #include "Input/InputSnapshot.h"
-#include "Runtime/WindowsInput.h"
-#include "Runtime/WindowsWindow.h"
+#include "Platform/WindowsInput.h"
+#include "Platform/WindowsWindow.h"
 
 #include <Windows.h>
 #include <functional>

@@ -184,7 +184,9 @@ bool FInputRouter::RouteEvent(const FInputEvent& Event)
 	return std::visit(
 		[this](const auto& TypedEvent)
 		{
-			using EventType = std::decay_t<decltype(TypedEvent)>;
+			// remove_cvref_t는 TypedEvent의 참조와 const/volatile 한정자를 제거해 실제 이벤트 타입을 얻는다.
+			using EventType = std::remove_cvref_t<decltype(TypedEvent)>;
+
 			if constexpr (std::is_same_v<EventType, FKeyInputEvent>)
 			{
 				return RouteKeyEvent(TypedEvent);

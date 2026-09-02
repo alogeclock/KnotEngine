@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Object/Object.h"
-#include "Runtime/WindowsWindow.h"
+#include "Platform/WindowsWindow.h"
 
 class FInputSnapshot;
 

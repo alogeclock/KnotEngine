@@ -75,10 +75,11 @@ KnotEngine/Source/
 │  │  ├─ InputEvents.h
 │  │  ├─ InputSnapshot.h
 │  │  └─ InputSnapshot.cpp
+│  ├─ Platform/
+│  │  ├─ WindowsApplication.h/.cpp
+│  │  ├─ WindowsWindow.h/.cpp
+│  │  └─ WindowsInput.h/.cpp
 │  └─ Runtime/
-│     ├─ WindowsApplication.h/.cpp
-│     ├─ WindowsWindow.h/.cpp
-│     ├─ WindowsInput.h/.cpp
 │     ├─ EngineLoop.h/.cpp
 │     └─ Engine.h/.cpp
 └─ Editor/
@@ -454,10 +455,12 @@ ImGui DockSpace
 - [InputEvents.h](../KnotEngine/Source/Engine/Input/InputEvents.h)
 - [InputSnapshot.h](../KnotEngine/Source/Engine/Input/InputSnapshot.h)
 - [InputSnapshot.cpp](../KnotEngine/Source/Engine/Input/InputSnapshot.cpp)
-- [WindowsInput.h](../KnotEngine/Source/Engine/Runtime/WindowsInput.h)
-- [WindowsInput.cpp](../KnotEngine/Source/Engine/Runtime/WindowsInput.cpp)
-- [WindowsApplication.h](../KnotEngine/Source/Engine/Runtime/WindowsApplication.h)
-- [WindowsApplication.cpp](../KnotEngine/Source/Engine/Runtime/WindowsApplication.cpp)
+- [WindowsInput.h](../KnotEngine/Source/Engine/Platform/WindowsInput.h)
+- [WindowsInput.cpp](../KnotEngine/Source/Engine/Platform/WindowsInput.cpp)
+- [WindowsApplication.h](../KnotEngine/Source/Engine/Platform/WindowsApplication.h)
+- [WindowsApplication.cpp](../KnotEngine/Source/Engine/Platform/WindowsApplication.cpp)
+- [WindowsWindow.h](../KnotEngine/Source/Engine/Platform/WindowsWindow.h)
+- [WindowsWindow.cpp](../KnotEngine/Source/Engine/Platform/WindowsWindow.cpp)
 - [EngineLoop.cpp](../KnotEngine/Source/Engine/Runtime/EngineLoop.cpp)
 - [Engine.h](../KnotEngine/Source/Engine/Runtime/Engine.h)
 - [EditorEngine.h](../KnotEngine/Source/Editor/EditorEngine.h)
