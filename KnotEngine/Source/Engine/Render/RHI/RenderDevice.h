@@ -44,7 +44,7 @@ public:
 	virtual void SetGraphicsPipeline(FCommandListHandle CommandList, FGraphicsPipelineHandle Pipeline) = 0;
 	virtual void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset = 0) = 0;
 	virtual void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset = 0) = 0;
-	virtual void SetConstantBuffer(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FBufferHandle Buffer) = 0;
+	virtual void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) = 0;
 
 	virtual void Draw(FCommandListHandle CommandList, uint32 VertexCount, uint32 FirstVertex = 0) = 0;
 	virtual void DrawIndexed(FCommandListHandle CommandList, uint32 IndexCount, uint32 FirstIndex = 0, int32 VertexOffset = 0) = 0;

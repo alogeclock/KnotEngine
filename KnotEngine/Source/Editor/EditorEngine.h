@@ -4,7 +4,7 @@
 #include "Render/D3D11/D3D11RenderDevice.h"
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
-#include "Input/EditorInputRouter.h"
+#include "Input/InputRouter.h"
 #include "UI/EditorUISystem.h"
 #include "UI/ImGui/D3D11ImGuiBackend.h"
 
@@ -26,7 +26,8 @@ private:
 	FD3D11RenderContext RenderContext;
 	URenderer Renderer;
 	FD3D11ImGuiBackend ImGuiRenderBackend;
-	FEditorInputRouter EditorInputRouter;
+
+	FInputRouter InputRouter;
 	FEditorUISystem EditorUISystem;
 
 	UCubeComponent* Cube = nullptr;

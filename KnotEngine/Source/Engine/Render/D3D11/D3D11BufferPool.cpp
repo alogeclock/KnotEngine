@@ -22,10 +22,6 @@ FBufferHandle FD3D11BufferPool::CreateBuffer(ID3D11Device* Device, const FBuffer
 	{
 	case EBufferUsage::Vertex: NativeDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER; break;
 	case EBufferUsage::Index: NativeDesc.BindFlags = D3D11_BIND_INDEX_BUFFER; break;
-	case EBufferUsage::Constant:
-		panicf(Desc.Size % 16 == 0, "Constant Buffer 크기는 16바이트 정렬이어야 한다. Size={}", Desc.Size);
-		NativeDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		break;
 	}
 
 	if (Desc.Access == EResourceAccess::CPUWrite)

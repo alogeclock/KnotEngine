@@ -6,6 +6,7 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
+#include <cstring>
 #include <limits>
 
 #pragma comment(lib, "d3dcompiler.lib")
@@ -36,6 +37,7 @@ void FD3D11RenderDevice::Release()
 	PipelineSlots.clear();
 	ShaderSlots.clear();
 	TextureSlots.clear();
+	ConstantBufferBindings.clear();
 	BufferPool.Release();
 	NativeDevice.FlushAndUnbindTargets();
 	NativeDevice.Release();
@@ -177,7 +179,7 @@ void FD3D11RenderDevice::DestroyShader(FShaderHandle& Handle)
 	Handle.Reset();
 }
 
-// Shader, Vertex Layout, Depth 및 Rasterizer 상태를 하나의 Graphics Pipeline Handle로 묶는다.
+// Shader, Vertex Layout, 출력 형식 및 고정 기능 상태를 하나의 Graphics Pipeline Handle로 묶는다.
 FGraphicsPipelineHandle FD3D11RenderDevice::CreateGraphicsPipeline(const FGraphicsPipelineDesc& Desc)
 {
 	FShaderSlot* VertexShader = ResolveShader(Desc.VertexShader);
@@ -185,6 +187,12 @@ FGraphicsPipelineHandle FD3D11RenderDevice::CreateGraphicsPipeline(const FGraphi
 	panicf(VertexShader && VertexShader->Stage == EShaderStage::Vertex && VertexShader->VertexShader, "Graphics Pipeline에 유효한 Vertex Shader가 필요하다.");
 	panicf(PixelShader && PixelShader->Stage == EShaderStage::Pixel && PixelShader->PixelShader, "Graphics Pipeline에 유효한 Pixel Shader가 필요하다.");
 	panicf(!Desc.VertexLayout.Elements.empty() && Desc.VertexLayout.Stride > 0, "Graphics Pipeline에 유효한 Vertex Layout이 필요하다.");
+	// TODO: Render Target 선택 API가 추가되면 현재 출력 대상의 Format과 Sample Count를 Pipeline 계약과 비교한다.
+	panicf(Desc.RenderTargetFormat == ETextureFormat::BGRA8UNorm,
+		"D3D11 Graphics Pipeline은 BGRA8UNorm Render Target만 지원한다. Value={}", static_cast<uint8>(Desc.RenderTargetFormat));
+	panicf(Desc.DepthStencilFormat == ETextureFormat::D24UNormS8UInt,
+		"지원하지 않는 Graphics Pipeline Depth Stencil Format. Value={}", static_cast<uint8>(Desc.DepthStencilFormat));
+	panicf(Desc.SampleCount == 1, "D3D11 Graphics Pipeline은 Sample Count 1만 지원한다. Value={}", Desc.SampleCount);
 
 	FPipelineSlot Slot;
 	Slot.VertexShader = Desc.VertexShader;
@@ -221,9 +229,84 @@ FGraphicsPipelineHandle FD3D11RenderDevice::CreateGraphicsPipeline(const FGraphi
 	Result = NativeDevice.GetDevice()->CreateDepthStencilState(&DepthDesc, Slot.DepthStencilState.GetAddressOf());
 	panicf(SUCCEEDED(Result), "ID3D11Device::CreateDepthStencilState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 
+	static const auto GetNativeBlendFactor = [](EBlendFactor BlendFactor)
+	{
+		switch (BlendFactor)
+		{
+		case EBlendFactor::Zero: return D3D11_BLEND_ZERO;
+		case EBlendFactor::One: return D3D11_BLEND_ONE;
+		case EBlendFactor::SourceColor: return D3D11_BLEND_SRC_COLOR;
+		case EBlendFactor::InverseSourceColor: return D3D11_BLEND_INV_SRC_COLOR;
+		case EBlendFactor::SourceAlpha: return D3D11_BLEND_SRC_ALPHA;
+		case EBlendFactor::InverseSourceAlpha: return D3D11_BLEND_INV_SRC_ALPHA;
+		case EBlendFactor::DestinationColor: return D3D11_BLEND_DEST_COLOR;
+		case EBlendFactor::InverseDestinationColor: return D3D11_BLEND_INV_DEST_COLOR;
+		case EBlendFactor::DestinationAlpha: return D3D11_BLEND_DEST_ALPHA;
+		case EBlendFactor::InverseDestinationAlpha: return D3D11_BLEND_INV_DEST_ALPHA;
+		}
+		panicf(false, "지원하지 않는 Blend Factor. Value={}", static_cast<uint8>(BlendFactor));
+		return D3D11_BLEND_ZERO;
+	};
+	static const auto GetNativeBlendOperation = [](EBlendOperation BlendOperation)
+	{
+		switch (BlendOperation)
+		{
+		case EBlendOperation::Add: return D3D11_BLEND_OP_ADD;
+		case EBlendOperation::Subtract: return D3D11_BLEND_OP_SUBTRACT;
+		case EBlendOperation::ReverseSubtract: return D3D11_BLEND_OP_REV_SUBTRACT;
+		case EBlendOperation::Minimum: return D3D11_BLEND_OP_MIN;
+		case EBlendOperation::Maximum: return D3D11_BLEND_OP_MAX;
+		}
+		panicf(false, "지원하지 않는 Blend Operation. Value={}", static_cast<uint8>(BlendOperation));
+		return D3D11_BLEND_OP_ADD;
+	};
+
+	const FRenderTargetBlendDesc& RenderTargetBlend = Desc.BlendState.RenderTarget;
+	D3D11_BLEND_DESC BlendDesc = {};
+	BlendDesc.AlphaToCoverageEnable = Desc.BlendState.bAlphaToCoverageEnabled;
+	BlendDesc.RenderTarget[0].BlendEnable = RenderTargetBlend.bBlendEnabled;
+	BlendDesc.RenderTarget[0].SrcBlend = GetNativeBlendFactor(RenderTargetBlend.SourceColorBlend);
+	BlendDesc.RenderTarget[0].DestBlend = GetNativeBlendFactor(RenderTargetBlend.DestinationColorBlend);
+	BlendDesc.RenderTarget[0].BlendOp = GetNativeBlendOperation(RenderTargetBlend.ColorBlendOperation);
+	BlendDesc.RenderTarget[0].SrcBlendAlpha = GetNativeBlendFactor(RenderTargetBlend.SourceAlphaBlend);
+	BlendDesc.RenderTarget[0].DestBlendAlpha = GetNativeBlendFactor(RenderTargetBlend.DestinationAlphaBlend);
+	BlendDesc.RenderTarget[0].BlendOpAlpha = GetNativeBlendOperation(RenderTargetBlend.AlphaBlendOperation);
+	BlendDesc.RenderTarget[0].RenderTargetWriteMask = static_cast<uint8>(RenderTargetBlend.ColorWriteMask);
+	Result = NativeDevice.GetDevice()->CreateBlendState(&BlendDesc, Slot.BlendState.GetAddressOf());
+	panicf(SUCCEEDED(Result), "ID3D11Device::CreateBlendState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+
+	static const auto GetNativeFillMode = [](EFillMode FillMode)
+	{
+		switch (FillMode)
+		{
+		case EFillMode::Solid: return D3D11_FILL_SOLID;
+		case EFillMode::Wireframe: return D3D11_FILL_WIREFRAME;
+		}
+		panicf(false, "지원하지 않는 Fill Mode. Value={}", static_cast<uint8>(FillMode));
+		return D3D11_FILL_SOLID;
+	};
+	static const auto GetNativeCullMode = [](ECullMode CullMode)
+	{
+		switch (CullMode)
+		{
+		case ECullMode::None: return D3D11_CULL_NONE;
+		case ECullMode::Front: return D3D11_CULL_FRONT;
+		case ECullMode::Back: return D3D11_CULL_BACK;
+		}
+		panicf(false, "지원하지 않는 Cull Mode. Value={}", static_cast<uint8>(CullMode));
+		return D3D11_CULL_NONE;
+	};
+
 	D3D11_RASTERIZER_DESC RasterizerDesc = {};
-	RasterizerDesc.FillMode = D3D11_FILL_SOLID;
-	RasterizerDesc.CullMode = D3D11_CULL_BACK;
+	RasterizerDesc.FillMode = GetNativeFillMode(Desc.RasterizerState.FillMode);
+	RasterizerDesc.CullMode = GetNativeCullMode(Desc.RasterizerState.CullMode);
+	RasterizerDesc.FrontCounterClockwise = Desc.RasterizerState.bFrontCounterClockwise;
+	RasterizerDesc.DepthBias = Desc.RasterizerState.DepthBias;
+	RasterizerDesc.DepthBiasClamp = Desc.RasterizerState.DepthBiasClamp;
+	RasterizerDesc.SlopeScaledDepthBias = Desc.RasterizerState.SlopeScaledDepthBias;
+	RasterizerDesc.DepthClipEnable = Desc.RasterizerState.bDepthClipEnabled;
+	RasterizerDesc.MultisampleEnable = Desc.RasterizerState.bMultisampleEnabled;
+	RasterizerDesc.AntialiasedLineEnable = Desc.RasterizerState.bAntialiasedLineEnabled;
 	Result = NativeDevice.GetDevice()->CreateRasterizerState(&RasterizerDesc, Slot.RasterizerState.GetAddressOf());
 	panicf(SUCCEEDED(Result), "ID3D11Device::CreateRasterizerState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 
@@ -239,6 +322,7 @@ void FD3D11RenderDevice::DestroyGraphicsPipeline(FGraphicsPipelineHandle& Handle
 	FPipelineSlot* Slot = ResolvePipeline(Handle);
 	if (Slot)
 	{
+		Slot->BlendState.Reset();
 		Slot->DepthStencilState.Reset();
 		Slot->RasterizerState.Reset();
 		Slot->InputLayout.Reset();
@@ -291,7 +375,7 @@ void FD3D11RenderDevice::SetGraphicsPipeline(FCommandListHandle CommandList, FGr
 	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	Context->RSSetState(PipelineSlot->RasterizerState.Get());
 	Context->OMSetDepthStencilState(PipelineSlot->DepthStencilState.Get(), 0);
-	Context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+	Context->OMSetBlendState(PipelineSlot->BlendState.Get(), nullptr, 0xffffffff);
 	Context->VSSetShader(VertexShader->VertexShader.Get(), nullptr, 0);
 	Context->PSSetShader(PixelShader->PixelShader.Get(), nullptr, 0);
 }
@@ -317,13 +401,54 @@ void FD3D11RenderDevice::SetIndexBuffer(FCommandListHandle CommandList, FBufferH
 	NativeDevice.GetContext()->IASetIndexBuffer(NativeBuffer, NativeFormat, Offset);
 }
 
-// Constant Buffer를 지정한 Shader Stage와 Register Slot에 설정한다.
-void FD3D11RenderDevice::SetConstantBuffer(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FBufferHandle Buffer)
+// Draw에 사용할 상수 데이터를 Stage와 Register Slot별 동적 Buffer에 복사하고 즉시 바인딩한다.
+void FD3D11RenderDevice::SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data)
 {
 	ValidateCommandList(CommandList);
-	ID3D11Buffer* NativeBuffer = BufferPool.ResolveBuffer(Buffer);
-	const FBufferDesc* Desc = BufferPool.ResolveDesc(Buffer);
-	panicf(NativeBuffer && Desc && Desc->Usage == EBufferUsage::Constant, "유효하지 않은 Constant Buffer 바인딩.");
+	panicf(!Data.empty() && Data.size() <= D3D11_REQ_CONSTANT_BUFFER_ELEMENT_COUNT * 16,
+		"Constant Data 크기가 유효 범위를 벗어났다. Bytes={}", Data.size());
+	panicf(Slot < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, "Constant Buffer Slot 범위를 벗어났다. Slot={}", Slot);
+
+	const uint32 AlignedSize = static_cast<uint32>((Data.size() + 15) & ~static_cast<size_t>(15));
+	FConstantBufferBinding* Binding = nullptr;
+	for (FConstantBufferBinding& Candidate : ConstantBufferBindings)
+	{
+		if (Candidate.Stage == Stage && Candidate.Slot == Slot)
+		{
+			Binding = &Candidate;
+			break;
+		}
+	}
+	if (!Binding)
+	{
+		Binding = &ConstantBufferBindings.emplace_back();
+		Binding->Stage = Stage;
+		Binding->Slot = Slot;
+	}
+	if (!Binding->Buffer || Binding->Size != AlignedSize)
+	{
+		Binding->Buffer.Reset();
+		D3D11_BUFFER_DESC BufferDesc = {};
+		BufferDesc.ByteWidth = AlignedSize;
+		BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		const HRESULT Result = NativeDevice.GetDevice()->CreateBuffer(&BufferDesc, nullptr, Binding->Buffer.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Binding->Buffer, "D3D11 동적 Constant Buffer 생성 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		Binding->Size = AlignedSize;
+	}
+
+	D3D11_MAPPED_SUBRESOURCE Mapped = {};
+	const HRESULT Result = NativeDevice.GetContext()->Map(Binding->Buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped);
+	panicf(SUCCEEDED(Result), "D3D11 Constant Data Map 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	std::memcpy(Mapped.pData, Data.data(), Data.size());
+	if (Data.size() < AlignedSize)
+	{
+		std::memset(static_cast<uint8*>(Mapped.pData) + Data.size(), 0, AlignedSize - Data.size());
+	}
+	NativeDevice.GetContext()->Unmap(Binding->Buffer.Get(), 0);
+
+	ID3D11Buffer* NativeBuffer = Binding->Buffer.Get();
 	if (Stage == EShaderStage::Vertex)
 	{
 		NativeDevice.GetContext()->VSSetConstantBuffers(Slot, 1, &NativeBuffer);
@@ -334,7 +459,7 @@ void FD3D11RenderDevice::SetConstantBuffer(FCommandListHandle CommandList, EShad
 	}
 }
 
-// 현재 Graphics 상태를 사용해 비인덱스 Geometry를 그린다.
+// 현재 Graphics 상태를 사용해 인덱스가 없는 Geometry를 그린다.
 void FD3D11RenderDevice::Draw(FCommandListHandle CommandList, uint32 VertexCount, uint32 FirstVertex)
 {
 	ValidateCommandList(CommandList);

@@ -25,8 +25,9 @@ void FD3D11ImGuiBackend::BeginFrame()
 	ImGui_ImplDX11_NewFrame();
 }
 
-void FD3D11ImGuiBackend::Render(ImDrawData* DrawData)
+void FD3D11ImGuiBackend::Render(FCommandListHandle CommandList, ImDrawData* DrawData)
 {
+	check(CommandList.IsValid());
 	check(DrawData);
 	ImGui_ImplDX11_RenderDrawData(DrawData);
 }

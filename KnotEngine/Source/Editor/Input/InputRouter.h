@@ -3,21 +3,21 @@
 #include "Input/InputSnapshot.h"
 
 // 에디터 입력 대상이 이벤트 처리 결과와 함께 포커스 및 캡처 변경을 요청한다.
-class FEditorInputReply
+class FInputReply
 {
 public:
-	static FEditorInputReply Handled();
-	static FEditorInputReply Unhandled();
+	static FInputReply Handled();
+	static FInputReply Unhandled();
 
-	FEditorInputReply& SetKeyboardFocus();
-	FEditorInputReply& ClearKeyboardFocus();
-	FEditorInputReply& CaptureMouse();
-	FEditorInputReply& ReleaseMouse();
+	FInputReply& SetKeyboardFocus();
+	FInputReply& ClearKeyboardFocus();
+	FInputReply& CaptureMouse();
+	FInputReply& ReleaseMouse();
 
 	bool IsHandled() const { return bHandled; }
 
 private:
-	friend class FEditorInputRouter;
+	friend class FInputRouter;
 
 	bool bHandled = false;
 	bool bSetKeyboardFocus = false;
@@ -27,55 +27,57 @@ private:
 };
 
 // ImGui 바깥에서 동작하는 뷰포트, 기즈모 등의 에디터 입력 소비 지점이다.
-class IEditorInputTarget
+class IInputTarget
 {
 public:
-	virtual ~IEditorInputTarget() = default;
+	virtual ~IInputTarget() = default;
 
-	virtual FEditorInputReply OnInputEvent(const FInputEvent& Event) = 0;
+	virtual FInputReply OnInputEvent(const FInputEvent& Event) = 0;
 	virtual void OnKeyboardFocusLost() {}
 	virtual void OnMouseCaptureLost() {}
 };
 
 // ImGui의 UI 판정과 엔진 입력 이벤트 사이에서 에디터 대상의 포커스 및 캡처를 관리한다.
 // 대상 등록은 프레임 단위이며, 같은 대상 객체는 입력 라우팅이 끝날 때까지 살아 있어야 한다.
-class FEditorInputRouter final
+class FInputRouter final
 {
 public:
 	void BeginFrame(const FInputSnapshot& InputSnapshot);
-	void RegisterTarget(IEditorInputTarget& Target, bool bHovered, bool bFocused);
-	void UnregisterTarget(IEditorInputTarget& Target);
+	void RegisterTarget(IInputTarget& Target, bool bHovered, bool bFocused);
+	void UnregisterTarget(IInputTarget& Target);
 
 	void SetImGuiCaptureState(bool bWantsMouse, bool bWantsKeyboard, bool bWantsTextInput);
 	void RouteInput();
 	void Reset();
 
-	IEditorInputTarget* GetHoveredTarget() const { return HoveredTarget; }
-	IEditorInputTarget* GetKeyboardFocusOwner() const { return KeyboardFocusOwner; }
-	IEditorInputTarget* GetMouseCaptureOwner() const { return MouseCaptureOwner; }
+	IInputTarget* GetHoveredTarget() const { return HoveredTarget; }
+	IInputTarget* GetKeyboardFocusOwner() const { return KeyboardFocusOwner; }
+	IInputTarget* GetMouseCaptureOwner() const { return MouseCaptureOwner; }
 
-	bool DoesTargetOwnMouseInput(const IEditorInputTarget& Target) const;
-	bool DoesTargetOwnKeyboardInput(const IEditorInputTarget& Target) const;
+	bool DoesTargetOwnMouseInput(const IInputTarget& Target) const;
+	bool DoesTargetOwnKeyboardInput(const IInputTarget& Target) const;
 
 	const TArray<bool>& GetHandledEvents() const { return HandledEvents; }
 
 private:
+	// 입력의 라우팅 대상이 될 수 있는 Sequence Owner의 종류 (Native Editor, ImGui)
 	enum class ESequenceOwner : uint8
 	{
 		None,
-		EditorTarget,
+		Native,
 		ImGui,
 	};
 
+	// 입력의 라우팅 대상
 	struct FSequenceOwner
 	{
-		IEditorInputTarget* Target = nullptr;
+		IInputTarget* Target = nullptr;
 		ESequenceOwner Owner = ESequenceOwner::None;
 	};
 
 	struct FRegisteredTarget
 	{
-		IEditorInputTarget* Target = nullptr;
+		IInputTarget* Target = nullptr;
 		bool bHovered = false;
 		bool bFocused = false;
 	};
@@ -89,16 +91,16 @@ private:
 	bool RouteCharacterEvent(const FCharacterInputEvent& Event);
 	bool RouteFocusEvent(const FFocusInputEvent& Event);
 
-	bool DispatchEvent(IEditorInputTarget* Target, const FInputEvent& Event);
-	void ApplyReply(IEditorInputTarget& Target, const FEditorInputReply& Reply);
+	bool DispatchEvent(IInputTarget* Target, const FInputEvent& Event);
+	void ApplyReply(IInputTarget& Target, const FInputReply& Reply);
 	void ResolveFrameTargets();
 	void ValidatePersistentOwners();
-	void SetKeyboardFocus(IEditorInputTarget* Target);
-	void SetMouseCapture(IEditorInputTarget* Target);
+	void SetKeyboardFocus(IInputTarget* Target);
+	void SetMouseCapture(IInputTarget* Target);
 	void ClearSequenceOwners();
 	void ClearAllOwnership(bool bNotifyOwners);
 
-	bool IsTargetRegistered(const IEditorInputTarget* Target) const;
+	bool IsTargetRegistered(const IInputTarget* Target) const;
 	bool IsAnyMouseButtonDown() const;
 
 	FInputSnapshot PendingSnapshot;
@@ -107,9 +109,9 @@ private:
 	TStaticArray<FSequenceOwner, KeyCount> KeyOwners = {};
 	TStaticArray<FSequenceOwner, MouseButtonCount> MouseButtonOwners = {};
 
-	IEditorInputTarget* HoveredTarget = nullptr;
-	IEditorInputTarget* KeyboardFocusOwner = nullptr;
-	IEditorInputTarget* MouseCaptureOwner = nullptr;
+	IInputTarget* HoveredTarget = nullptr;
+	IInputTarget* KeyboardFocusOwner = nullptr;
+	IInputTarget* MouseCaptureOwner = nullptr;
 
 	bool bImGuiWantsMouse = false;
 	bool bImGuiWantsKeyboard = false;

@@ -5,7 +5,7 @@
 
 UEditorEngine::UEditorEngine()
 	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
-	  ImGuiRenderBackend(RenderDevice), EditorUISystem(ImGuiRenderBackend, EditorInputRouter)
+	  ImGuiRenderBackend(RenderDevice), EditorUISystem(ImGuiRenderBackend, InputRouter)
 {
 }
 
@@ -21,7 +21,7 @@ void UEditorEngine::Startup(FWindowsWindow InWindow)
 
 void UEditorEngine::ProcessInput(const FInputSnapshot& InputSnapshot)
 {
-	EditorInputRouter.BeginFrame(InputSnapshot);
+	InputRouter.BeginFrame(InputSnapshot);
 }
 
 void UEditorEngine::Tick(float DeltaTime)
@@ -32,10 +32,10 @@ void UEditorEngine::Tick(float DeltaTime)
 
 	EditorUISystem.BeginFrame();
 	EditorUISystem.Draw(DeltaTime);
-	EditorInputRouter.RouteInput();
+	InputRouter.RouteInput();
 
 	Cube->Render(DeltaTime, Renderer);
-	EditorUISystem.EndFrame();
+	EditorUISystem.EndFrame(Renderer.GetCommandList());
 
 	Renderer.EndFrame();
 }
@@ -47,7 +47,7 @@ void UEditorEngine::Shutdown()
 	delete Cube;
 	Cube = nullptr;
 
-	EditorInputRouter.Reset();
+	InputRouter.Reset();
 	EditorUISystem.Shutdown();
 	Renderer.Release();
 }

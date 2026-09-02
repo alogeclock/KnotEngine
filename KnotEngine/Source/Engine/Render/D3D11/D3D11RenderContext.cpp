@@ -103,6 +103,12 @@ void FD3D11RenderContext::BeginFrame(FCommandListHandle CommandList)
 	Context->OMSetRenderTargets(1, &RenderTarget, DepthStencilView.Get());
 }
 
+// D3D11 Back Buffer에는 명시적인 Present 상태 전환이 없으므로 기록 구간만 검증한다.
+void FD3D11RenderContext::EndFrame(FCommandListHandle CommandList)
+{
+	RenderDevice.ValidateCommandList(CommandList);
+}
+
 // 완성된 Back Buffer를 DXGI Swap Chain을 통해 화면에 표시한다.
 void FD3D11RenderContext::Present()
 {

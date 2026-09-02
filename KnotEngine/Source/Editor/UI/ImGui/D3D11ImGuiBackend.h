@@ -11,7 +11,7 @@ public:
 
 	void Startup() override;
 	void BeginFrame() override;
-	void Render(ImDrawData* DrawData) override;
+	void Render(FCommandListHandle CommandList, ImDrawData* DrawData) override;
 	void Shutdown() override;
 
 private:

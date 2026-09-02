@@ -4,7 +4,7 @@
 
 이 문서는 Knot Engine의 입력 수집, 프레임 스냅샷, ImGui 연동, 에디터 입력 라우팅의 책임과 실행 순서를 정의한다.
 
-Knot Engine은 에디터 UI를 자체 retained-mode 위젯 시스템으로 구현하지 않는다. 에디터 패널, 도킹, 일반 UI 상호작용은 Dear ImGui가 담당하고, ImGui 바깥에서 동작하는 뷰포트·카메라·기즈모의 입력 소유권은 `FEditorInputRouter`가 관리한다.
+Knot Engine은 에디터 UI를 자체 retained-mode 위젯 시스템으로 구현하지 않는다. 에디터 패널, 도킹, 일반 UI 상호작용은 Dear ImGui가 담당하고, ImGui 바깥에서 동작하는 뷰포트·카메라·기즈모의 입력 소유권은 `FInputRouter`가 관리한다.
 
 ## 설계 원칙
 
@@ -16,7 +16,7 @@ Knot Engine은 에디터 UI를 자체 retained-mode 위젯 시스템으로 구�
 - 지속 상태 조회와 발생 순서가 중요한 이벤트 처리를 모두 지원한다.
 - 에디터 입력은 스냅샷 전체가 아니라 이벤트 단위로 소비한다.
 - ImGui의 capture 플래그는 저수준 입력 수집을 막지 않고 에디터 라우팅 정책에만 사용한다.
-- 에디터 입력 소유권은 `FEditorInputRouter` 한 곳에서 관리한다.
+- 에디터 입력 소유권은 `FInputRouter` 한 곳에서 관리한다.
 - 게임 빌드에는 에디터 라우터를 두지 않는다.
 - 현재 엔진은 Windows 전용이므로 범용 플랫폼 Application 계층을 별도로 만들지 않는다.
 
@@ -42,11 +42,11 @@ FEngineLoop::Run
         ↓
 UEditorEngine::ProcessInput
         ↓
-FEditorInputRouter::BeginFrame
+FInputRouter::BeginFrame
         ↓
 ImGui Frame 구성 및 입력 대상 등록
         ↓
-FEditorInputRouter::RouteInput
+FInputRouter::RouteInput
         ├─ ImGui
         ├─ Mouse Capture Target
         ├─ Keyboard Focus Target
@@ -83,7 +83,7 @@ KnotEngine/Source/
 │     └─ Engine.h/.cpp
 └─ Editor/
    ├─ Input/
-   │  └─ EditorInputRouter.h/.cpp
+   │  └─ InputRouter.h/.cpp
    ├─ UI/
    │  └─ EditorUISystem.h/.cpp
    └─ Viewport/
@@ -95,8 +95,8 @@ KnotEngine/Source/
 | `FWindowsInput` | Win32 입력 해석, 상태 누적, 이벤트 생성, Raw Mouse 수집 | ImGui capture, 뷰포트 선택 |
 | `FInputSnapshot` | 한 프레임 입력의 읽기 전용 상태와 이벤트 | 소비 여부, 포커스, 캡처 정책 |
 | `FEditorUISystem` | ImGui 프레임 구성, 패널 그리기, ImGui capture 상태 전달 | 물리 키 변환, 입력 소유권 보관 |
-| `FEditorInputRouter` | 대상 등록, 이벤트별 target 결정, 논리 포커스와 캡처 | Win32 처리, ImGui 위젯 렌더링 |
-| `IEditorInputTarget` | 뷰포트·기즈모 등의 이벤트 소비 지점 | 전역 target 선택 |
+| `FInputRouter` | 대상 등록, 이벤트별 target 결정, 논리 포커스와 캡처 | Win32 처리, ImGui 위젯 렌더링 |
+| `IInputTarget` | 뷰포트·기즈모 등의 이벤트 소비 지점 | 전역 target 선택 |
 | `FViewportClient` | 향후 뷰포트 입력을 카메라 또는 게임으로 해석 | OS 메시지 직접 처리 |
 
 ## 프레임 실행 순서
@@ -119,7 +119,7 @@ GEngine::Tick
 
 ### 에디터 입력 처리
 
-`UEditorEngine::ProcessInput()`은 입력을 즉시 기능에 전달하지 않는다. 스냅샷을 `FEditorInputRouter::BeginFrame()`에 보관한다.
+`UEditorEngine::ProcessInput()`은 입력을 즉시 기능에 전달하지 않는다. 스냅샷을 `FInputRouter::BeginFrame()`에 보관한다.
 
 `UEditorEngine::Tick()`은 다음 순서를 따른다.
 
@@ -127,7 +127,7 @@ GEngine::Tick
 2. 에디터 패널을 구성한다.
 3. 패널이 뷰포트 등 엔진 입력 대상을 라우터에 등록한다.
 4. ImGui `NewFrame()` 직후와 패널 구성 이후의 `WantCaptureMouse`, `WantCaptureKeyboard`, `WantTextInput`을 라우터에 누적한다.
-5. `FEditorInputRouter::RouteInput()`이 보관한 이벤트를 발생 순서대로 처리한다.
+5. `FInputRouter::RouteInput()`이 보관한 이벤트를 발생 순서대로 처리한다.
 6. 에디터 기능과 장면을 갱신하고 렌더링한다.
 7. ImGui draw data를 렌더링한다.
 
@@ -230,7 +230,7 @@ Win32 Virtual Key는 `EKeyboardKey`로 변환된다. 좌우 Shift, Control, Alt�
 - 포인터 위치 무효화
 - UTF-16 상위 surrogate 대기 상태 폐기
 
-`FEditorInputRouter`도 같은 `FFocusInputEvent`를 받으면 논리적인 포커스, 캡처, Down/Up 소유권을 모두 해제한다.
+`FInputRouter`도 같은 `FFocusInputEvent`를 받으면 논리적인 포커스, 캡처, Down/Up 소유권을 모두 해제한다.
 
 ### 포인터와 Raw Mouse
 
@@ -239,7 +239,7 @@ Win32 Virtual Key는 `EKeyboardKey`로 변환된다. 좌우 Shift, Control, Alt�
 | `PointerDelta` | `WM_MOUSEMOVE` 클라이언트 좌표 | UI hover와 일반 드래그 |
 | `RawPointerDelta` | `WM_INPUT` 상대 이동 | 에디터/FPS 카메라 회전 |
 
-`FWindowsInput`의 `SetCapture()`는 메인 `HWND`가 창 밖의 버튼 Up까지 받기 위한 네이티브 캡처다. 에디터 기능의 논리적인 소유자는 `FEditorInputRouter::MouseCaptureOwner`가 별도로 관리한다.
+`FWindowsInput`의 `SetCapture()`는 메인 `HWND`가 창 밖의 버튼 Up까지 받기 위한 네이티브 캡처다. 에디터 기능의 논리적인 소유자는 `FInputRouter::MouseCaptureOwner`가 별도로 관리한다.
 
 ## ImGui 입력 처리
 
@@ -255,7 +255,7 @@ FWindowsApplication 창 메시지 처리
 
 따라서 ImGui가 메시지를 처리해도 엔진 스냅샷의 held, pressed, released, 이벤트가 누락되지 않는다.
 
-ImGui는 자신의 버튼, 텍스트 입력, 드래그와 창 겹침을 처리한다. `FEditorInputRouter`는 ImGui 위젯의 `ActiveId`를 복제하지 않는다. 다음 플래그만 엔진 입력 차단 정책으로 받는다.
+ImGui는 자신의 버튼, 텍스트 입력, 드래그와 창 겹침을 처리한다. `FInputRouter`는 ImGui 위젯의 `ActiveId`를 복제하지 않는다. 다음 플래그만 엔진 입력 차단 정책으로 받는다.
 
 ```cpp
 ImGuiIO::WantCaptureMouse
@@ -265,23 +265,23 @@ ImGuiIO::WantTextInput
 
 이 값들은 어떤 엔진 뷰포트가 입력을 소유하는지 알려주지 않는다. 뷰포트 패널은 `ImGui::IsItemHovered()` 또는 적절한 window hover 결과를 사용해 자신을 명시적으로 등록해야 한다.
 
-## FEditorInputRouter
+## FInputRouter
 
 ### 소유 위치
 
-`FEditorInputRouter`는 `UEditorEngine`의 값 멤버다. 에디터 수명과 함께 생성되고 종료 시 `Reset()`된다.
+`FInputRouter`는 `UEditorEngine`의 값 멤버다. 에디터 수명과 함께 생성되고 종료 시 `Reset()`된다.
 
 게임 엔진과 Windows 입력 수집기는 이 클래스를 참조하지 않는다.
 
 ### 프레임 단위 대상 등록
 
-뷰포트와 기즈모처럼 ImGui 밖에서 입력을 처리하는 객체는 `IEditorInputTarget`을 구현한다.
+뷰포트와 기즈모처럼 ImGui 밖에서 입력을 처리하는 객체는 `IInputTarget`을 구현한다.
 
 ```cpp
-class IEditorInputTarget
+class IInputTarget
 {
 public:
-    virtual FEditorInputReply OnInputEvent(
+    virtual FInputReply OnInputEvent(
         const FInputEvent& Event) = 0;
 
     virtual void OnKeyboardFocusLost() {}
@@ -300,12 +300,12 @@ InputRouter.RegisterTarget(
 
 등록은 프레임 단위다. 등록 순서는 겹친 대상의 우선순위로 사용하며 마지막에 등록된 hovered/focused 대상이 우선한다. 대상은 `RouteInput()`이 끝날 때까지 살아 있어야 한다.
 
-### FEditorInputReply
+### FInputReply
 
 대상은 이벤트 처리 결과와 상태 변경 요청을 함께 반환한다.
 
 ```cpp
-return FEditorInputReply::Handled()
+return FInputReply::Handled()
     .SetKeyboardFocus()
     .CaptureMouse();
 ```
@@ -367,14 +367,14 @@ Capture 해제
 
 ## 뷰포트 연결 계획
 
-현재 `FEditorInputRouter`와 엔진 프레임 연결은 구현되어 있지만 등록된 뷰포트 입력 대상은 아직 없다.
+현재 `FInputRouter`와 엔진 프레임 연결은 구현되어 있지만 등록된 뷰포트 입력 대상은 아직 없다.
 
 향후 뷰포트는 다음 경로로 연결한다.
 
 ```text
 ImGui Viewport Panel
         ↓ RegisterTarget
-FEditorInputRouter
+FInputRouter
         ↓ FInputEvent
 FSceneViewport 또는 FViewportClient
         ├─ Editor Camera
@@ -398,7 +398,7 @@ ImGui DockSpace
 
 ## 게임 입력과의 경계
 
-`FEditorInputRouter`는 게임 입력 시스템의 기반 클래스가 아니다.
+`FInputRouter`는 게임 입력 시스템의 기반 클래스가 아니다.
 
 에디터에서 PIE Game Viewport가 입력 대상이면 해당 viewport target이 처리되지 않은 이벤트를 게임 입력 경로로 넘긴다. 에디터가 아닌 게임 빌드에서는 `UGameEngine`이 스냅샷을 `GameViewportClient`, `LocalPlayer`, `PlayerController` 계층으로 직접 전달한다.
 
@@ -410,8 +410,8 @@ ImGui DockSpace
 
 - `WindowProc`가 `FWindowsInput` 상태를 변경한다.
 - `TakeSnapshot()`이 같은 스레드에서 완성된 값을 만든다.
-- `FEditorInputRouter`가 스냅샷을 값으로 보관한다.
-- 등록된 `IEditorInputTarget`은 해당 프레임의 `RouteInput()`까지 살아 있어야 한다.
+- `FInputRouter`가 스냅샷을 값으로 보관한다.
+- 등록된 `IInputTarget`은 해당 프레임의 `RouteInput()`까지 살아 있어야 한다.
 - 렌더 스레드나 작업 스레드는 `FWindowsInput`과 라우터를 직접 참조하지 않는다.
 
 다른 스레드가 입력을 필요로 하면 완성된 데이터의 명시적인 복사본을 전달해야 한다.
@@ -428,7 +428,7 @@ ImGui DockSpace
 - 창 포커스와 네이티브 포인터 캡처
 - 프레임 단위 `FInputSnapshot`
 - 순서 보존 `FInputEvent` 배열
-- `FEditorInputRouter`의 프레임 입력 보관
+- `FInputRouter`의 프레임 입력 보관
 - 프레임 단위 target 등록
 - hovered, keyboard focus, mouse capture owner 관리
 - ImGui mouse/keyboard/text capture 반영
@@ -462,8 +462,8 @@ ImGui DockSpace
 - [Engine.h](../KnotEngine/Source/Engine/Runtime/Engine.h)
 - [EditorEngine.h](../KnotEngine/Source/Editor/EditorEngine.h)
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/EditorEngine.cpp)
-- [EditorInputRouter.h](../KnotEngine/Source/Editor/Input/EditorInputRouter.h)
-- [EditorInputRouter.cpp](../KnotEngine/Source/Editor/Input/EditorInputRouter.cpp)
+- [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
+- [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
 - [EditorUISystem.h](../KnotEngine/Source/Editor/UI/EditorUISystem.h)
 - [EditorUISystem.cpp](../KnotEngine/Source/Editor/UI/EditorUISystem.cpp)
 - [Conventions.md](Conventions.md)

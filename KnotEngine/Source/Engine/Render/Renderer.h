@@ -31,6 +31,7 @@ public:
 	void UpdateConstant(const FMatrix& WorldViewProjection);
 	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer);
 
+	FCommandListHandle GetCommandList() const { return CommandList; }
 	FRenderViewport GetViewport() const;
 
 private:
@@ -44,6 +45,5 @@ private:
 	FShaderHandle VertexShader;
 	FShaderHandle PixelShader;
 	FGraphicsPipelineHandle GraphicsPipeline;
-	FBufferHandle FrameConstantBuffer;
 	FCommandListHandle CommandList;
 };

@@ -38,19 +38,11 @@ void URenderer::Create(void* NativeWindowHandle)
 		true,
 		true,
 	});
-
-	const FBufferDesc ConstantDesc = {
-		static_cast<uint32>(sizeof(FMatrix)),
-		EBufferUsage::Constant,
-		EResourceAccess::CPUWrite,
-	};
-	FrameConstantBuffer = RenderDevice.CreateBuffer(ConstantDesc);
 }
 
 void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
-	RenderDevice.DestroyBuffer(FrameConstantBuffer);
 	RenderDevice.DestroyGraphicsPipeline(GraphicsPipeline);
 	RenderDevice.DestroyShader(PixelShader);
 	RenderDevice.DestroyShader(VertexShader);
@@ -64,12 +56,12 @@ void URenderer::BeginFrame()
 	CommandList = RenderDevice.BeginCommandList();
 	RenderContext.BeginFrame(CommandList);
 	RenderDevice.SetGraphicsPipeline(CommandList, GraphicsPipeline);
-	RenderDevice.SetConstantBuffer(CommandList, EShaderStage::Vertex, 0, FrameConstantBuffer);
 }
 
 void URenderer::EndFrame()
 {
 	checkf(CommandList.IsValid(), "Renderer Frame이 시작되지 않았다.");
+	RenderContext.EndFrame(CommandList);
 	RenderDevice.EndCommandList(CommandList);
 	RenderDevice.Submit(CommandList);
 	RenderContext.Present();
@@ -79,7 +71,7 @@ void URenderer::UpdateConstant(const FMatrix& WorldViewProjection)
 {
 	check(CommandList.IsValid());
 	const auto* Bytes = reinterpret_cast<const uint8*>(&WorldViewProjection);
-	RenderDevice.UpdateBuffer(FrameConstantBuffer, std::span<const uint8>(Bytes, sizeof(FMatrix)));
+	RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, 0, std::span<const uint8>(Bytes, sizeof(FMatrix)));
 }
 
 void URenderer::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
