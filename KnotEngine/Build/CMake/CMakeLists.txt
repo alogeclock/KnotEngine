@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
+# Visual Studio Output 창에서 vcpkg의 지역화된 메시지가 깨지지 않도록 영어 출력을 사용한다.
+set(ENV{VSLANG} "1033")
+
 # Visual Studio에서 사용할 빌드 구성을 세 가지로 제한한다.
 set(CMAKE_CONFIGURATION_TYPES "Debug;Development;Shipping" CACHE STRING "KnotEngine build configurations" FORCE)
 
