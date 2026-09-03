@@ -7,7 +7,11 @@ const FMatrix FMatrix::Identity;
 FMatrix FMatrix::GetInverse(float Tolerance) const noexcept
 {
 	FMatrix Result;
-	return ensuref(TryInverse(*this, Result, Tolerance), "FMatrix::GetInverse() failed: matrix is singular or invalid.") ? Result : Identity;
+	if (!TryInverse(*this, Result, Tolerance))
+	{
+		return Identity;
+	}
+	return Result;
 }
 
 bool FMatrix::Decompose(FVector& OutTranslation, FMatrix& OutRotation, FVector& OutScale, float Tolerance) const noexcept

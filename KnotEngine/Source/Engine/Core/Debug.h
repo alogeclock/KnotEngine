@@ -1,13 +1,12 @@
 #pragma once
 
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <string_view>
 #include <utility>
 
-// 로그 상세도. Fatal은 두지 않는다. 치명적 실패는 Assert.h의 check 계열이 담당한다.
+// 로그 상세도. Fatal은 두지 않는다. 치명적 실패는 Assert.h의 panic/check 계열이 담당한다.
 enum class ELogVerbosity : uint8_t
 {
 	Log,
@@ -55,32 +54,7 @@ public:
 		ReportFailure("Panic", Context, FormatToBuffer(Message, Format, std::forward<TArgs>(Args)...));
 	}
 
-	// Ensure 계열 Assertion 실패 보고, 실패 기록 후에도 실행을 계속한다.
-	// 이번 호출에서 실제로 보고했는지를 반환한다. 매크로가 이 값을 보고 호출 지점에서 중단점을 건다.
-	static bool EnsureFailed(const FDebugContext& Context);
-
-	template <typename... TArgs>
-	static bool EnsureFailed(const FDebugContext& Context, std::format_string<TArgs...> Format, TArgs&&... Args)
-	{
-		char Message[MessageCapacity];
-		ReportFailure("Ensure", Context, FormatToBuffer(Message, Format, std::forward<TArgs>(Args)...));
-		return true;
-	}
-
-	// 호출 지점당 최초 1회만 보고한다. bReported는 매크로가 호출 지점마다 따로 만들어 넘긴다.
-	static bool EnsureFailedOnce(std::atomic_bool& bReported, const FDebugContext& Context);
-
-	template <typename... TArgs>
-	static bool EnsureFailedOnce(std::atomic_bool& bReported, const FDebugContext& Context, std::format_string<TArgs...> Format, TArgs&&... Args)
-	{
-		if (bReported.exchange(true, std::memory_order_relaxed))
-		{
-			return false;
-		}
-		return EnsureFailed(Context, Format, std::forward<TArgs>(Args)...);
-	}
-
-	// 카테고리 로그. assert와 달리 NDEBUG 구성에서도 살아남는다.
+	// 카테고리 로그. 빌드 구성과 관계없이 살아남는다.
 	template <typename... TArgs>
 	static void LogMessage(ELogVerbosity Verbosity, const char* Category, const char* File, int Line,
 	                       std::format_string<TArgs...> Format, TArgs&&... Args)

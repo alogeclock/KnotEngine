@@ -19,8 +19,9 @@
 
 ## Error Handling
 
-- Debug, Development, Shipping 빌드에 따른 표현식 평가 여부를 panic(), check(), verify(), ensure() 함수를 통해 관리한다.
+- Debug, Development, Shipping 빌드에 따른 표현식 평가 여부를 `panic()`, `check()`, `verify()` 매크로를 통해 관리한다. 엔진의 오류 정책은 `KNOT_BUILD_*` 구성 매크로를 따른다.
 - 실패를 단순히 `nullptr`이나 null handle 반환으로 숨기지 않는다. 호출자가 복구할 수 있는 정상적인 실패만 nullable 반환으로 표현한다.
-- `panic()`은 모든 빌드에서 반드시 평가하며 실패 시 즉시 종료해야 하는 조건에 사용한다.
-- `check()`는 개발 중 내부 불변식 검증, `verify()`는 빌드 구성과 관계없이 실행해야 하는 표현식에 사용한다. 
-- `ensure()`는 실패를 보고하되 실행을 계속할 수 있는 조건에 사용한다.
+- `panic()`은 모든 빌드에서 반드시 평가하며 실패 시 즉시 종료해야 하는 조건에 사용한다. 외부 데이터나 런타임 상태에서 감지한 실패를 현재 API가 안전하게 반환할 수 없을 때 사용한다.
+- `check()`는 Debug와 Development에서 내부 불변식과 프로그래머 계약을 검증할 때 사용한다. `operator[]`의 범위와 내부 호출 순서처럼 부수 효과가 없는 저수준 API 계약은 Shipping 비용을 추가하지 않도록 `check()`로 검증한다.
+- `verify()`는 모든 빌드에서 실행해야 하는 부수 효과가 있는 표현식에 사용한다. Debug와 Development에서는 실패 시 종료하고 Shipping에서는 결과만 버린다.
+- 복구 가능한 정상 실패는 명시적인 조건문과 로그로 처리한다.

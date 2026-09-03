@@ -31,21 +31,6 @@ void FDebug::PanicFailed(const FDebugContext& Context)
 	ReportFailure("Panic", Context, {});
 }
 
-bool FDebug::EnsureFailed(const FDebugContext& Context)
-{
-	ReportFailure("Ensure", Context, {});
-	return true;
-}
-
-bool FDebug::EnsureFailedOnce(std::atomic_bool& bReported, const FDebugContext& Context)
-{
-	if (bReported.exchange(true, std::memory_order_relaxed))
-	{
-		return false;
-	}
-	return EnsureFailed(Context);
-}
-
 void FDebug::Startup()
 {
 	FState& State = GetState();

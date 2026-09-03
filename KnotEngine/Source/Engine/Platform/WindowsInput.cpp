@@ -1,6 +1,7 @@
 #include "Platform/WindowsInput.h"
 
 #include "Core/Assert.h"
+#include "Core/Log.h"
 
 #include <hidusage.h>
 #include <windowsx.h>
@@ -19,7 +20,11 @@ void FWindowsInput::Startup(HWND InWindowHandle)
 	RawMouse.hwndTarget = WindowHandle;
 
 	// Raw Input은 RawPointerDelta 전용이며 실패해도 WM_MOUSEMOVE 기반 입력은 계속 동작한다.
-	ensuref(RegisterRawInputDevices(&RawMouse, 1, sizeof(RawMouse)), "마우스 Raw Input 등록 실패. RawPointerDelta를 사용할 수 없다. GetLastError()={}", GetLastError());
+	if (!RegisterRawInputDevices(&RawMouse, 1, sizeof(RawMouse)))
+	{
+		const DWORD Error = GetLastError();
+		KE_LOG(LogInput, Warning, "마우스 Raw Input 등록 실패. RawPointerDelta를 사용할 수 없다. GetLastError()={}", Error);
+	}
 }
 
 void FWindowsInput::Shutdown()
