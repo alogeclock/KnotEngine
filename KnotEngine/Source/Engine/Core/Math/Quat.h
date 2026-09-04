@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Object/Reflection/ReflectionMacros.h"
+
 #include <cmath>
 
 #include "Core/Math/Math.h"
@@ -8,14 +10,17 @@
 struct FMatrix;
 struct FRotator;
 
+USTRUCT()
 struct FQuat
 {
+	GENERATED_STRUCT(FQuat)
+
 public:
 	// 멤버 변수 (Member Variables)
-	float X = 0.0f;
-	float Y = 0.0f;
-	float Z = 0.0f;
-	float W = 1.0f;
+	UPROPERTY() float X = 0.0f;
+	UPROPERTY() float Y = 0.0f;
+	UPROPERTY() float Z = 0.0f;
+	UPROPERTY() float W = 1.0f;
 
 	static const FQuat Identity;
 

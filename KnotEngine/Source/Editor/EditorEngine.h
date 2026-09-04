@@ -10,8 +10,11 @@
 
 class UCubeComponent;
 
+UCLASS()
 class UEditorEngine : public UEngine
 {
+	GENERATED_CLASS(UEditorEngine, UEngine)
+
 public:
 	UEditorEngine();
 	~UEditorEngine() override = default;
@@ -30,5 +33,5 @@ private:
 	FInputRouter InputRouter;
 	FEditorUISystem EditorUISystem;
 
-	UCubeComponent* Cube = nullptr;
+	UPROPERTY(NoEdit, Transient) TObjectPtr<UCubeComponent> Cube;
 };

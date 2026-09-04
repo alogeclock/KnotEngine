@@ -41,15 +41,7 @@ void FStructProperty::CopyElement(void* Dst, const void* Src) const
 // 상속을 포함한 구조체 프로퍼티를 순회하며 Transient가 아닌 멤버를 직렬화한다.
 void FStructProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
-	TArray<const FProperty*> StructProperties;
-	Struct->GetAllProperties(StructProperties);
-	for (const FProperty* Property : StructProperties)
-	{
-		if (!Property->HasAnyPropertyFlags(EPropertyFlags::Transient))
-		{
-			Property->SerializeInContainer(Ar, Value);
-		}
-	}
+	Struct->SerializeProperties(Ar, Value);
 }
 
 // 상속을 포함한 구조체 프로퍼티를 순회하며 모든 멤버의 객체 참조를 방문한다.

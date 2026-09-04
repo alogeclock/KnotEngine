@@ -27,9 +27,14 @@ UFunction::UFunction(
 // 타입이 지워진 객체와 매개변수 버퍼를 생성 코드의 중간 함수에 전달해 실제 C++ 함수를 호출한다.
 void UFunction::Invoke(UObject* Context, void* Params) const
 {
-	check(HasAnyFunctionFlags(EFunctionFlags::Native));
-	check(Invoker);
-	check(GetParamsSize() == 0 || Params);
+	panic(HasAnyFunctionFlags(EFunctionFlags::Native));
+	panic(HasAnyFunctionFlags(EFunctionFlags::Callable));
+	panic(Invoker);
+	panic(GetParamsSize() == 0 || Params);
+
+	const UClass* OwnerClass = dynamic_cast<const UClass*>(OuterStruct);
+	panic(OwnerClass && Context && Context->IsA(OwnerClass));
+
 	Invoker(Context, Params);
 }
 

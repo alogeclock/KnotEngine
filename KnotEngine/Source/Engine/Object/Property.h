@@ -14,8 +14,7 @@ enum class EPropertyFlags : uint64
 	Parameter = 1ull << 8,
 	OutParameter = 1ull << 9,
 	ReturnParameter = 1ull << 10,
-	EditorOnly = 1ull << 16,
-	ObjectReference = 1ull << 24,
+	NoEdit = 1ull << 16,
 };
 
 constexpr EPropertyFlags operator|(EPropertyFlags Lhs, EPropertyFlags Rhs)
@@ -34,6 +33,7 @@ constexpr EPropertyFlags& operator|=(EPropertyFlags& Lhs, EPropertyFlags Rhs)
 	return Lhs;
 }
 
+// UObject 기반 리플렉션 스키마의 멤버 변수에 대한 메타데이터와 연산을 제공하는 추상 클래스.
 class FProperty
 {
 public:

@@ -1,20 +1,25 @@
 #pragma once
 
+#include "Object/Reflection/ReflectionMacros.h"
+
 #include <cmath>
 
 #include "Core/CoreTypes.h"
 #include "Core/Math/Math.h"
 
+USTRUCT()
 struct FVector2
 {
+	GENERATED_STRUCT(FVector2)
+
 public:
 	// 멤버 변수 (Member Variables)
 	union
 	{
 		struct
 		{
-			float X;
-			float Y;
+			UPROPERTY() float X;
+			UPROPERTY() float Y;
 		};
 		float Data[2];
 	};

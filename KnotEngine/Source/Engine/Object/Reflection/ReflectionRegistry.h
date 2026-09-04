@@ -48,3 +48,7 @@ private:
 };
 
 extern FReflectionRegistry* GReflectionRegistry;
+
+// UENUM 타입의 특수화는 생성된 cpp에서 정의한다.
+template <typename T>
+UEnum* StaticEnum();

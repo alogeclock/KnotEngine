@@ -5,22 +5,26 @@
 #include "Core/Math/Rotator.h"
 #include "Core/Math/Vector.h"
 
+UCLASS()
 class USceneComponent : public UActorComponent
 {
+	GENERATED_CLASS(USceneComponent, UActorComponent)
+
 public:
 	bool IsVisible() const { return bVisible; }
-	void SetVisible(uint8 bInVisible) { bVisible = bInVisible; }
+	void SetVisible(bool bInVisible) { bVisible = bInVisible; }
 
 private:
-	TObjectPtr<USceneComponent> AttachParent;
-	TArray<TObjectPtr<USceneComponent>> AttachChildren;
+	UPROPERTY(NoEdit, Transient) TObjectPtr<USceneComponent> AttachParent;
+	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<USceneComponent>> AttachChildren;
 
-	FVector RelativeLocation = FVector::ZeroVector;
-	FRotator RelativeRotation = FRotator::ZeroRotator;
-	FVector RelativeScale = FVector::OneVector;
+	UPROPERTY(Category = "Transform") FVector RelativeLocation = FVector::ZeroVector;
+	UPROPERTY(Category = "Transform") FRotator RelativeRotation = FRotator::ZeroRotator;
+	UPROPERTY(Category = "Transform") FVector RelativeScale = FVector::OneVector;
 
 	FTransform WorldTransform = FTransform::Identity;
 
-	uint8 bWorldTransformDirty = false;
-	uint8 bVisible = true;
+	bool bWorldTransformDirty = false;
+
+	UPROPERTY() bool bVisible = true;
 };

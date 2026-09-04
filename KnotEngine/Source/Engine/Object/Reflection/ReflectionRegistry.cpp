@@ -26,47 +26,22 @@ FReflectionRegistry::~FReflectionRegistry()
 void FReflectionRegistry::Startup()
 {
 	panic(GReflectionRegistry == nullptr);
-	GReflectionRegistry = this;
-	RegisterStaticClass();
-}
-
-// 등록된 모든 필드를 파괴하고 전역 활성 레지스트리 포인터를 해제한다.
-void FReflectionRegistry::Shutdown()
-{
-	panic(GReflectionRegistry == this);
-	ResetStaticClass();
-	FieldsByName.clear();
-	Fields.clear();
-	GReflectionRegistry = nullptr;
-}
-
-// 모든 코어 UClass 저장 공간을 만든 뒤 StaticClass 포인터를 연결하고 부모부터 레지스트리에 등록한다.
-void FReflectionRegistry::RegisterStaticClass()
-{
-	panic(UObject::StaticClassPrivate == nullptr);
-	panic(UField::StaticClassPrivate == nullptr);
-	panic(UStruct::StaticClassPrivate == nullptr);
 	panic(UClass::StaticClassPrivate == nullptr);
-	panic(UScriptStruct::StaticClassPrivate == nullptr);
-	panic(UFunction::StaticClassPrivate == nullptr);
-	panic(UEnum::StaticClassPrivate == nullptr);
-
 	auto UObjectClass = std::make_unique<UClass>(
 		FName("UObject"), nullptr, sizeof(UObject), alignof(UObject), EClassFlags::None,
-		[](UClass* Class) -> UObject* { return GUObjectManager.Create<UObject>(Class); });
+		[](UClass* Class) -> UObject* { panic(Class == UObject::StaticClass()); return GUObjectManager.Create<UObject>(); });
 	auto UFieldClass = std::make_unique<UClass>(
-		FName("UField"), UObjectClass.get(), sizeof(UField), alignof(UField), EClassFlags::Abstract);
+		FName("UField"), UObjectClass.get(), sizeof(UField), alignof(UField), EClassFlags::None);
 	auto UStructClass = std::make_unique<UClass>(
-		FName("UStruct"), UFieldClass.get(), sizeof(UStruct), alignof(UStruct), EClassFlags::Abstract);
+		FName("UStruct"), UFieldClass.get(), sizeof(UStruct), alignof(UStruct), EClassFlags::None);
 	auto UClassClass = std::make_unique<UClass>(
-		FName("UClass"), UStructClass.get(), sizeof(UClass), alignof(UClass), EClassFlags::Abstract);
+		FName("UClass"), UStructClass.get(), sizeof(UClass), alignof(UClass), EClassFlags::None);
 	auto UScriptStructClass = std::make_unique<UClass>(
-		FName("UScriptStruct"), UStructClass.get(), sizeof(UScriptStruct), alignof(UScriptStruct), EClassFlags::Abstract);
+		FName("UScriptStruct"), UStructClass.get(), sizeof(UScriptStruct), alignof(UScriptStruct), EClassFlags::None);
 	auto UFunctionClass = std::make_unique<UClass>(
-		FName("UFunction"), UStructClass.get(), sizeof(UFunction), alignof(UFunction), EClassFlags::Abstract);
+		FName("UFunction"), UStructClass.get(), sizeof(UFunction), alignof(UFunction), EClassFlags::None);
 	auto UEnumClass = std::make_unique<UClass>(
-		FName("UEnum"), UFieldClass.get(), sizeof(UEnum), alignof(UEnum), EClassFlags::Abstract);
-
+		FName("UEnum"), UFieldClass.get(), sizeof(UEnum), alignof(UEnum), EClassFlags::None);
 	UObject::StaticClassPrivate = UObjectClass.get();
 	UField::StaticClassPrivate = UFieldClass.get();
 	UStruct::StaticClassPrivate = UStructClass.get();
@@ -74,7 +49,6 @@ void FReflectionRegistry::RegisterStaticClass()
 	UScriptStruct::StaticClassPrivate = UScriptStructClass.get();
 	UFunction::StaticClassPrivate = UFunctionClass.get();
 	UEnum::StaticClassPrivate = UEnumClass.get();
-
 	RegisterClass(std::move(UObjectClass));
 	RegisterClass(std::move(UFieldClass));
 	RegisterClass(std::move(UStructClass));
@@ -82,35 +56,26 @@ void FReflectionRegistry::RegisterStaticClass()
 	RegisterClass(std::move(UScriptStructClass));
 	RegisterClass(std::move(UFunctionClass));
 	RegisterClass(std::move(UEnumClass));
-
 	panic(UClass::StaticClass()->GetClass() == UClass::StaticClass());
-	panic(UObject::StaticClass()->GetSuperClass() == nullptr);
-	panic(UField::StaticClass()->GetSuperClass() == UObject::StaticClass());
-	panic(UStruct::StaticClass()->GetSuperClass() == UField::StaticClass());
-	panic(UClass::StaticClass()->GetSuperClass() == UStruct::StaticClass());
-	panic(UScriptStruct::StaticClass()->GetSuperClass() == UStruct::StaticClass());
-	panic(UFunction::StaticClass()->GetSuperClass() == UStruct::StaticClass());
-	panic(UEnum::StaticClass()->GetSuperClass() == UField::StaticClass());
+	RegisterStaticClass();
+	GReflectionRegistry = this;
 }
 
-// 레지스트리가 소유한 코어 스키마를 파괴하기 전에 각 타입의 StaticClass 연결을 해제한다.
-void FReflectionRegistry::ResetStaticClass()
+// 등록된 모든 필드를 파괴하고 전역 활성 레지스트리 포인터를 해제한다.
+void FReflectionRegistry::Shutdown()
 {
-	panic(UObject::StaticClassPrivate);
-	panic(UField::StaticClassPrivate);
-	panic(UStruct::StaticClassPrivate);
-	panic(UClass::StaticClassPrivate);
-	panic(UScriptStruct::StaticClassPrivate);
-	panic(UFunction::StaticClassPrivate);
-	panic(UEnum::StaticClassPrivate);
-
-	UEnum::StaticClassPrivate = nullptr;
-	UFunction::StaticClassPrivate = nullptr;
-	UScriptStruct::StaticClassPrivate = nullptr;
-	UClass::StaticClassPrivate = nullptr;
-	UStruct::StaticClassPrivate = nullptr;
-	UField::StaticClassPrivate = nullptr;
+	panic(GReflectionRegistry == this);
+	GReflectionRegistry = nullptr;
+	ResetStaticClass();
 	UObject::StaticClassPrivate = nullptr;
+	UField::StaticClassPrivate = nullptr;
+	UStruct::StaticClassPrivate = nullptr;
+	UClass::StaticClassPrivate = nullptr;
+	UScriptStruct::StaticClassPrivate = nullptr;
+	UFunction::StaticClassPrivate = nullptr;
+	UEnum::StaticClassPrivate = nullptr;
+	FieldsByName.clear();
+	Fields.clear();
 }
 
 // 클래스 스키마의 소유권을 공통 필드 저장소에 등록하고 UClass 포인터를 반환한다.
@@ -166,7 +131,7 @@ UEnum* FReflectionRegistry::FindEnum(const FName& Name) const
 // 유효하고 중복되지 않는 필드를 이름 검색 맵과 소유 배열에 함께 등록한다.
 UField* FReflectionRegistry::RegisterField(std::unique_ptr<UField> Field)
 {
-	panic(GReflectionRegistry == this);
+	panic(GReflectionRegistry == nullptr);
 	panic(Field);
 
 	const FName Name = Field->GetFName();

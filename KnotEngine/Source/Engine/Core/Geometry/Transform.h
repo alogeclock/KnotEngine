@@ -1,18 +1,23 @@
 #pragma once
 
+#include "Object/Reflection/ReflectionMacros.h"
+
 #include "Core/Math/Quat.h"
 #include "Core/Math/Vector.h"
 
 struct FMatrix;
 
+USTRUCT()
 struct FTransform
 {
+	GENERATED_STRUCT(FTransform)
+
 	// 멤버 변수 (Member Variables)
 	static const FTransform Identity;
 
-	FQuat Rotation = FQuat::Identity;
-	FVector Translation = FVector::ZeroVector;
-	FVector Scale3D = FVector::OneVector;
+	UPROPERTY() FQuat Rotation = FQuat::Identity;
+	UPROPERTY() FVector Translation = FVector::ZeroVector;
+	UPROPERTY() FVector Scale3D = FVector::OneVector;
 
 	// 생성자 (Constructors)
 	FTransform() noexcept = default;

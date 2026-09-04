@@ -5,8 +5,11 @@
 
 class FInputSnapshot;
 
+UCLASS()
 class UEngine : public UObject
 {
+	GENERATED_CLASS(UEngine, UObject)
+
 public:
 	virtual ~UEngine() = default;
 

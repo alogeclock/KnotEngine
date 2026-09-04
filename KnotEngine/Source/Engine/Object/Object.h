@@ -1,20 +1,30 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
+#include "Object/Reflection/ReflectionMacros.h"
+#include "Object/Reflection/ReflectionRegistry.h"
 
 #include <type_traits>
 
 class UClass;
 class FReferenceCollector;
 class FReflectionRegistry;
+class FArchive;
 
 // 엔진 런타임 객체의 공통 기반 클래스.
 // GUObjectArray 등록/해제와 생명주기를 함께하며 UUID 기반 식별.
 class UObject
 {
 public:
+	using ThisClass = UObject;
+
 	UObject();
 	virtual ~UObject();
+
+	UObject(const UObject&) = delete;
+	UObject& operator=(const UObject&) = delete;
+	UObject(UObject&&) = delete;
+	UObject& operator=(UObject&&) = delete;
 
 	static UClass* StaticClass()
 	{
@@ -25,6 +35,7 @@ public:
 	UClass* GetClass() const;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
 	bool IsA(const UClass* Class) const;
+	void Serialize(FArchive& Ar);
 
 	uint32 GetUUID() const { return UUID; }
 	uint32 GetInternalIndex() const { return InternalIndex; }
@@ -49,21 +60,15 @@ extern TArray<UObject*> GUObjectArray;
 class FUObjectManager
 {
 public:
-	template <typename T>
-	T* Create()
-	{
-		return Create<T>(T::StaticClass());
-	}
-
-	template <typename T>
-	T* Create(UClass* InClass)
+	template <typename T, typename... Args>
+	T* Create(Args&&... Arguments)
 	{
 		static_assert(std::is_base_of_v<UObject, T>, "T must derive from UObject");
-		panic(InClass);
-
-		T* Object = new T();
-		Object->SetClass(InClass);
-
+		static_assert(std::is_same_v<typename T::ThisClass, T>, "UObject subclasses require GENERATED_CLASS");
+		panic(GReflectionRegistry);
+		UClass* Class = T::StaticClass();
+		T* Object = new T(std::forward<Args>(Arguments)...);
+		Object->SetClass(Class);
 		return Object;
 	}
 

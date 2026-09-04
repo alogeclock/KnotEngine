@@ -37,6 +37,7 @@ constexpr bool HasFunctionFlag(EFunctionFlags Value, EFunctionFlags Flag)
 class UFunction : public UStruct
 {
 public:
+	using ThisClass = UFunction;
 	// 타입이 지워진 Context와 Params를 원래 C++ 객체 및 매개변수 타입으로 변환한 뒤 실제 멤버 함수를 호출하는 중간 함수다.
 	using FNativeInvoker = void (*)(UObject* Context, void* Params);
 

@@ -200,6 +200,9 @@ target_link_libraries(KnotEngine PRIVATE
     dxgi
 )
 
+# Reflection.cmake를 포함하여, 헤더 파일에서 선언된 클래스와 구조체를 자동으로 등록하는 코드를 생성한다.
+include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
+
 # Visual Studio에서 실행 파일의 출력 디렉터리와 디버거 작업 디렉터리를 설정하고, Shipping 구성에서 인터프로시저 최적화를 활성화한다.
 set_target_properties(KnotEngine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${KNOTENGINE_BIN_DIR}"

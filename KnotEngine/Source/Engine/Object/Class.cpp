@@ -24,7 +24,9 @@ FProperty* UStruct::AddProperty(std::unique_ptr<FProperty> Property)
 {
 	check(Property);
 	check(Property->GetOwner() == this);
-	check(!FindProperty(Property->GetFName()));
+	panic(!FindProperty(Property->GetFName()));
+	panic(Property->GetSize() <= StructureSize);
+	panic(Property->GetOffset() <= StructureSize - Property->GetSize());
 
 	FProperty* Result = Property.get();
 	Properties.push_back(std::move(Property));
@@ -65,6 +67,31 @@ void UStruct::GetAllProperties(TArray<const FProperty*>& OutProperties) const
 	GetDeclaredProperties(OutProperties);
 }
 
+// NoEdit은 에디터 열거에서만 제외한다. 직렬화와 참조 수집은 전체 프로퍼티를 사용한다.
+void UStruct::GetEditorProperties(TArray<const FProperty*>& OutProperties) const
+{
+	TArray<const FProperty*> AllProperties;
+	GetAllProperties(AllProperties);
+	for (const FProperty* Property : AllProperties)
+	{
+		if (!Property->HasAnyPropertyFlags(EPropertyFlags::NoEdit))
+		{
+			OutProperties.push_back(Property);
+		}
+	}
+}
+
+// 객체와 중첩 값 타입이 같은 Transient 선택 규칙으로 필드를 저장하고 복원한다.
+void UStruct::SerializeProperties(FArchive& Ar, void* Container) const
+{
+	TArray<const FProperty*> AllProperties;
+	GetAllProperties(AllProperties);
+	for (const FProperty* Property : AllProperties)
+	{
+		Property->SerializeInContainer(Ar, Container);
+	}
+}
+
 // 클래스의 상속 정보, 메모리 크기, 플래그와 객체 생성 함수를 저장한다.
 UClass::UClass(FName InName, UClass* InSuperClass, SIZE_T InClassSize, SIZE_T InMinAlignment, EClassFlags InClassFlags, FCreateObjectFunc InCreateFunc)
 	: UStruct(std::move(InName), nullptr, InSuperClass, InClassSize, InMinAlignment), ClassFlags(InClassFlags), CreateFunc(InCreateFunc)
@@ -97,8 +124,7 @@ bool UClass::IsChildOf(const UClass* Other) const
 // 추상 클래스가 아닌지 확인한 뒤 등록된 생성 함수로 UObject 인스턴스를 만든다.
 UObject* UClass::CreateObject() const
 {
-	check(!HasAnyClassFlags(EClassFlags::Abstract));
-	check(CreateFunc);
+	panic(CreateFunc && !HasAnyClassFlags(EClassFlags::Abstract));
 
 	UObject* Object = CreateFunc(const_cast<UClass*>(this));
 	panic(Object);
@@ -111,7 +137,8 @@ UFunction* UClass::AddFunction(std::unique_ptr<UFunction> Function)
 {
 	check(Function);
 	check(Function->GetOuterStruct() == this);
-	check(!FindFunction(Function->GetFName()));
+	panic(!FindFunction(Function->GetFName()));
+
 	Function->SetClass(UFunction::StaticClass());
 
 	UFunction* Result = Function.get();

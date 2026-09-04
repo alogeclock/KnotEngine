@@ -53,3 +53,8 @@ bool UObject::IsA(const UClass* Class) const
 	const UClass* ObjectClass = GetClass();
 	return ObjectClass && ObjectClass->IsChildOf(Class);
 }
+
+void UObject::Serialize(FArchive& Ar)
+{
+	GetClass()->SerializeProperties(Ar, this);
+}

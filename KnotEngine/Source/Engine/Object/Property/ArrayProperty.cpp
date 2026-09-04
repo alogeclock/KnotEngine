@@ -16,6 +16,7 @@ FArrayProperty::FArrayProperty(
 	check(ArrayOps);
 	check(ArrayOps->Construct && ArrayOps->Destruct && ArrayOps->Copy && ArrayOps->Num && ArrayOps->Resize && ArrayOps->GetElement);
 	check(Inner);
+	panic(Inner->GetSize() == ArrayOps->ElementSize);
 }
 
 // 등록된 배열 연산으로 빈 배열 컨테이너를 생성한다.

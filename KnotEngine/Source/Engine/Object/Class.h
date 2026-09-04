@@ -9,6 +9,7 @@
 
 class FProperty;
 class UFunction;
+class FArchive;
 
 enum class EClassFlags : uint32
 {
@@ -31,6 +32,7 @@ constexpr EClassFlags operator&(EClassFlags Lhs, EClassFlags Rhs)
 class UField : public UObject
 {
 public:
+	using ThisClass = UField;
 	UField(FName InName, UField* InOwner = nullptr);
 
 	static UClass* StaticClass()
@@ -59,6 +61,7 @@ private:
 class UStruct : public UField
 {
 public:
+	using ThisClass = UStruct;
 	UStruct(FName InName, UField* InOwner, const UStruct* InSuperStruct, SIZE_T InStructureSize, SIZE_T InMinAlignment);
 	virtual ~UStruct();
 
@@ -76,6 +79,8 @@ public:
 	const FProperty* FindProperty(const FName& PropertyName) const;
 	void GetDeclaredProperties(TArray<const FProperty*>& OutProperties) const;
 	void GetAllProperties(TArray<const FProperty*>& OutProperties) const;
+	void GetEditorProperties(TArray<const FProperty*>& OutProperties) const;
+	void SerializeProperties(FArchive& Ar, void* Container) const;
 
 protected:
 	const UStruct* SuperStruct = nullptr;
@@ -92,6 +97,7 @@ private:
 class UClass : public UStruct
 {
 public:
+	using ThisClass = UClass;
 	using FCreateObjectFunc = UObject* (*)(UClass* Class);
 
 	UClass(FName InName, UClass* InSuperClass, SIZE_T InClassSize, SIZE_T InMinAlignment, EClassFlags InClassFlags, FCreateObjectFunc InCreateFunc = nullptr);
@@ -163,6 +169,7 @@ inline const IStructOps* GetStructOps()
 class UScriptStruct : public UStruct
 {
 public:
+	using ThisClass = UScriptStruct;
 	UScriptStruct(
 		FName InName,
 		SIZE_T InSize,
@@ -200,6 +207,7 @@ struct FEnumValue
 class UEnum : public UField
 {
 public:
+	using ThisClass = UEnum;
 	UEnum(FName InName, uint8 InSize, TArray<FEnumValue> InValues, UField* InOwner = nullptr);
 
 	static UClass* StaticClass()

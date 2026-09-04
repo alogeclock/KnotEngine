@@ -7,8 +7,11 @@
 class FGeometryMesh;
 class URenderer;
 
+UCLASS()
 class UPrimitiveComponent : public UObject
 {
+	GENERATED_CLASS(UPrimitiveComponent, UObject)
+
 public:
 	~UPrimitiveComponent() override = default;
 

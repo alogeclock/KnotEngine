@@ -11,8 +11,6 @@ FProperty::FProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint
 	check(Owner);
 	check(ElementSize > 0);
 	check(ArrayDimension > 0);
-	check(GetSize() <= Owner->GetStructureSize());
-	check(Offset <= Owner->GetStructureSize() - GetSize());
 }
 
 // 컨테이너 시작 주소에 프로퍼티 오프셋과 고정 배열 인덱스를 더해 수정 가능한 값 주소를 구한다.
@@ -86,7 +84,10 @@ void FProperty::VisitReferences(void* Value, FReferenceCollector& Collector) con
 // 컨테이너에서 프로퍼티 값 주소를 계산해 모든 원소를 직렬화한다.
 void FProperty::SerializeInContainer(FArchive& Ar, void* Container) const
 {
-	SerializeValue(Ar, ContainerPtrToValuePtr(Container));
+	if (!HasAnyPropertyFlags(EPropertyFlags::Transient))
+	{
+		SerializeValue(Ar, ContainerPtrToValuePtr(Container));
+	}
 }
 
 // 컨테이너에서 프로퍼티 값 주소를 계산해 모든 원소의 객체 참조를 방문한다.

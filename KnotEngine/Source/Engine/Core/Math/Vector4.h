@@ -1,23 +1,28 @@
 #pragma once
 
+#include "Object/Reflection/ReflectionMacros.h"
+
 #include <cmath>
 
 #include "Core/Math/Vector.h"
 
 struct FMatrix;
 
+USTRUCT()
 struct alignas(16) FVector4
 {
+	GENERATED_STRUCT(FVector4)
+
 public:
 	// 멤버 변수 (Member Variables)
 	union
 	{
 		struct
 		{
-			float X;
-			float Y;
-			float Z;
-			float W;
+			UPROPERTY() float X;
+			UPROPERTY() float Y;
+			UPROPERTY() float Z;
+			UPROPERTY() float W;
 		};
 		float Data[4];
 	};

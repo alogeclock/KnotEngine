@@ -13,6 +13,7 @@ struct FArrayOps
 	SIZE_T (*Num)(const void* Array) = nullptr;
 	void (*Resize)(void* Array, SIZE_T Num) = nullptr;
 	void* (*GetElement)(void* Array, SIZE_T Index) = nullptr;
+	SIZE_T ElementSize = 0;
 };
 
 template <typename T>
@@ -26,6 +27,7 @@ inline const FArrayOps* GetArrayOps()
 		[](const void* Array) { return static_cast<const TArray<T>*>(Array)->size(); },
 		[](void* Array, SIZE_T Num) { static_cast<TArray<T>*>(Array)->resize(Num); },
 		[](void* Array, SIZE_T Index) -> void* { return &(*static_cast<TArray<T>*>(Array))[Index]; },
+		sizeof(T),
 	};
 	return &Ops;
 }

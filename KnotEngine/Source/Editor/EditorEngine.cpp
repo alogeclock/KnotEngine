@@ -16,7 +16,7 @@ void UEditorEngine::Startup(FWindowsWindow InWindow)
 
 	Renderer.Create(InWindow.GetHwnd());
 	EditorUISystem.Startup(InWindow.GetHwnd());
-	Cube = new UCubeComponent(Renderer);
+	Cube = GUObjectManager.Create<UCubeComponent>(Renderer);
 }
 
 void UEditorEngine::ProcessInput(const FInputSnapshot& InputSnapshot)
@@ -44,7 +44,7 @@ void UEditorEngine::Shutdown()
 {
 	check(Cube);
 
-	delete Cube;
+	GUObjectManager.Destroy(Cube);
 	Cube = nullptr;
 
 	InputRouter.Reset();

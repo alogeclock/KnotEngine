@@ -5,15 +5,16 @@
 
 // 참조할 클래스와 실제 포인터 저장 형식의 연산을 사용하는 강한 객체 참조 프로퍼티를 생성한다.
 FObjectProperty::FObjectProperty(
-	FName InName,
-	const UStruct* InOwner,
-	uint32 InOffset,
-	const UClass* InPropertyClass,
-	const IObjectPtrOps* InObjectPtrOps,
-	uint32 InArrayDimension,
-	EPropertyFlags InFlags)
-	: FProperty(std::move(InName), InOwner, InOffset, InObjectPtrOps ? InObjectPtrOps->GetValueSize() : 0, InArrayDimension,
-		InFlags | EPropertyFlags::ObjectReference), PropertyClass(InPropertyClass), ObjectPtrOps(InObjectPtrOps)
+    FName InName,
+    const UStruct* InOwner,
+    uint32 InOffset,
+    const UClass* InPropertyClass,
+    const IObjectPtrOps* InObjectPtrOps,
+    uint32 InArrayDimension,
+    EPropertyFlags InFlags)
+    : FProperty(std::move(InName), InOwner, InOffset, InObjectPtrOps ? InObjectPtrOps->GetValueSize() : 0, InArrayDimension, InFlags),
+      PropertyClass(InPropertyClass),
+      ObjectPtrOps(InObjectPtrOps)
 {
 	check(PropertyClass);
 	check(ObjectPtrOps);

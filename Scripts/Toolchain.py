@@ -1,4 +1,5 @@
 import os
+import hashlib
 import shutil
 import subprocess
 import tempfile
@@ -30,6 +31,44 @@ VCPKG_URL = f"https://github.com/microsoft/vcpkg/archive/refs/tags/{VCPKG_REF}.z
 CMAKE_ROOT = TOOLS_DIR / "cmake"
 VCPKG_ROOT = TOOLS_DIR / "vcpkg"
 TRIPLET = "x64-windows"
+
+LLVM_VERSION = "20.1.8"
+LLVM_ROOT = TOOLS_DIR / f"llvm-{LLVM_VERSION}"
+LLVM_SHA256 = "3197846a2b19063687dd56e93e34cd941e3548d907f23a6131571321bdf9fe7b"
+
+
+def ensure_reflection_tools() -> Path:
+    """Extract the pinned Clang parser locally without running a system installer."""
+    library = LLVM_ROOT / "bin" / "libclang.dll"
+    bindings = LLVM_ROOT / "python" / "clang"
+    if has_tool(LLVM_ROOT, LLVM_VERSION, library) and (bindings / "cindex.py").exists():
+        return LLVM_ROOT
+
+    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    archive = DOWNLOAD_DIR / f"LLVM-{LLVM_VERSION}-win64.exe"
+    download(f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_VERSION}/{archive.name}", archive)
+    with archive.open("rb") as source:
+        archive_hash = hashlib.sha256()
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            archive_hash.update(block)
+        digest = archive_hash.hexdigest()
+    if digest != LLVM_SHA256:
+        raise RuntimeError(f"LLVM archive checksum mismatch: {archive}")
+
+    vcpkg = ensure_vcpkg()
+    fetched = subprocess.check_output([str(vcpkg), "fetch", "7zip"], text=True)
+    seven_zip = Path(fetched.strip().splitlines()[-1].strip('"'))
+    if not seven_zip.is_file():
+        raise RuntimeError(f"vcpkg did not return a valid 7zip executable: {fetched}")
+    LLVM_ROOT.mkdir(parents=True, exist_ok=True)
+    run([str(seven_zip), "x", "-y", f"-o{LLVM_ROOT}", str(archive), "bin/libclang.dll", "lib/clang/*"], cwd=LLVM_ROOT)
+    bindings.mkdir(parents=True, exist_ok=True)
+    for name in ("__init__.py", "cindex.py"):
+        download(f"https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-{LLVM_VERSION}/clang/bindings/python/clang/{name}", bindings / name)
+    if not library.is_file():
+        raise RuntimeError(f"LLVM extraction did not produce {library}")
+    version_file(LLVM_ROOT).write_text(LLVM_VERSION + "\n", encoding="utf-8")
+    return LLVM_ROOT
 
 
 @dataclass(frozen=True)
