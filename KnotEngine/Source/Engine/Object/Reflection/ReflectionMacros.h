@@ -14,16 +14,15 @@ class UScriptStruct;
 #define UINTERFACE(...)
 
 // 런타임 UClass 진입점 표시
-#define GENERATED_CLASS(ClassName, ParentClass) \
-public:                                         \
-	using ThisClass = ClassName;                \
-	using Super = ParentClass;                  \
-	static UClass* StaticClass();               \
-	virtual UClass* GetClass() const override   \
-	{                                           \
-		return StaticClass();                   \
-	}                                           \
-	friend struct Z_Construct_UClass_##ClassName;
+#define GENERATED_CLASS(ClassName, ParentClass)   \
+private:                                          \
+	static UClass* StaticClassPrivate;            \
+	friend struct Z_Construct_UClass_##ClassName; \
+                                                  \
+public:                                           \
+	using ThisClass = ClassName;                  \
+	using Super = ParentClass;                    \
+	static UClass* StaticClass();
 
 // 런타임 UScriptSturct 진입점 표시
 #define GENERATED_STRUCT(StructName)            \

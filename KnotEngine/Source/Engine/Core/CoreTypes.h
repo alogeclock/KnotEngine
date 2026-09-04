@@ -43,9 +43,6 @@ using TSet = std::unordered_set<T, Hasher, KeyEqual, Allocator>;
 template <typename T, std::size_t N>
 using TStaticArray = std::array<T, N>;
 
-template <typename T>
-using TObjectPtr = T*;
-
 using FString = std::string;
 using FWString = std::wstring;
 

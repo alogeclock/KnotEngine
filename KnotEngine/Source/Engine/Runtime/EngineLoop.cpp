@@ -14,6 +14,7 @@
 void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
 {
 	FName::Startup();
+	ReflectionRegistry.Startup();
 
 	Application.Startup(Instance, ShowCmd);
 
@@ -60,5 +61,6 @@ void FEngineLoop::Shutdown()
 
 	Application.Shutdown();
 
+	ReflectionRegistry.Shutdown();
 	FName::Shutdown();
 }
