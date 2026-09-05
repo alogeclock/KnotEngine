@@ -15,6 +15,7 @@ public:
 	void Startup(HINSTANCE Instance, int32 ShowCmd);
 	int32 Run(UEngine& Engine);
 	void Shutdown();
+
 	FReflectionRegistry& GetReflectionRegistry() { return ReflectionRegistry; }
 	FWindowsApplication& GetApplication() { return Application; }
 

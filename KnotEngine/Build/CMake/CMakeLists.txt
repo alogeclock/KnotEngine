@@ -100,9 +100,9 @@ target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)
 target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui)
 
-# 기존 전역 new/delete가 DLL 경계를 지나도 같은 메모리 헤더 형식을 사용하도록 각 바이너리에 포함한다.
-target_sources(Renderer PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory.cpp")
-target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory.cpp")
+# 전역 new/delete만 각 바이너리에 포함하고, 실제 할당과 통계는 Engine.dll에서 공유한다.
+target_sources(Renderer PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory/MemoryOperators.cpp")
+target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory/MemoryOperators.cpp")
 
 target_compile_definitions(Editor PRIVATE WITH_EDITOR=1)
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT Editor)
