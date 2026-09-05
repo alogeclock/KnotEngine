@@ -9,6 +9,10 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Development;Shipping" CACHE STRING "KnotEng
 # KnotEngine 프로젝트를 만들고, C++와 Windows 리소스 컴파일러를 활성화한다.
 project(KnotEngine VERSION 0.1.0 LANGUAGES CXX RC)
 
+# CMake가 자동 생성하는 ALL_BUILD, ZERO_CHECK 등의 타깃을 하나의 솔루션 폴더로 묶는다.
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
+
 # 빌드 구성에 따라 컴파일러 및 링커 플래그를 설정한다.
 # - Debug 구성은 디버깅 심볼을 포함하고 최적화를 비활성화한다.
 # - Development 구성은 디버깅 심볼을 포함하고 일부 최적화를 활성화한다.
