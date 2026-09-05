@@ -1,4 +1,5 @@
 #include "ReflectionRegistry.h"
+#include "EngineReflection.h"
 
 #include "Object/Class.h"
 #include "Object/Function.h"
@@ -27,6 +28,7 @@ void FReflectionRegistry::Startup()
 {
 	panic(GReflectionRegistry == nullptr);
 	panic(UClass::StaticClassPrivate == nullptr);
+	GReflectionRegistry = this;
 	auto UObjectClass = std::make_unique<UClass>(
 		FName("UObject"), nullptr, sizeof(UObject), alignof(UObject), EClassFlags::None,
 		[](UClass* Class) -> UObject* { panic(Class == UObject::StaticClass()); return GUObjectManager.Create<UObject>(); });
@@ -57,16 +59,14 @@ void FReflectionRegistry::Startup()
 	RegisterClass(std::move(UFunctionClass));
 	RegisterClass(std::move(UEnumClass));
 	panic(UClass::StaticClass()->GetClass() == UClass::StaticClass());
-	RegisterStaticClass();
-	GReflectionRegistry = this;
+	RegisterEngineTypes(*this);
 }
 
 // 등록된 모든 필드를 파괴하고 전역 활성 레지스트리 포인터를 해제한다.
 void FReflectionRegistry::Shutdown()
 {
 	panic(GReflectionRegistry == this);
-	GReflectionRegistry = nullptr;
-	ResetStaticClass();
+	ResetEngineTypes();
 	UObject::StaticClassPrivate = nullptr;
 	UField::StaticClassPrivate = nullptr;
 	UStruct::StaticClassPrivate = nullptr;
@@ -76,6 +76,7 @@ void FReflectionRegistry::Shutdown()
 	UEnum::StaticClassPrivate = nullptr;
 	FieldsByName.clear();
 	Fields.clear();
+	GReflectionRegistry = nullptr;
 }
 
 // 클래스 스키마의 소유권을 공통 필드 저장소에 등록하고 UClass 포인터를 반환한다.
@@ -131,7 +132,7 @@ UEnum* FReflectionRegistry::FindEnum(const FName& Name) const
 // 유효하고 중복되지 않는 필드를 이름 검색 맵과 소유 배열에 함께 등록한다.
 UField* FReflectionRegistry::RegisterField(std::unique_ptr<UField> Field)
 {
-	panic(GReflectionRegistry == nullptr);
+	panic(GReflectionRegistry == this);
 	panic(Field);
 
 	const FName Name = Field->GetFName();

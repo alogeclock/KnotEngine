@@ -1,21 +1,25 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Reflection/ReflectionRegistry.h"
 #include "Platform/WindowsApplication.h"
 #include "Runtime/FrameTimer.h"
 
 class UEngine;
 
-// 빌드 구성(WITH_EDITOR)에 따라 엔진을 생성하고, 엔진 실행/종료 및 엔진 루프를 관리하는 객체
-class FEngineLoop
+// 공통 실행 수명과 루프. 구체 엔진 객체는 실행 프로그램이 생성하고 소유한다.
+class ENGINE_API FEngineLoop
 {
 public:
 	void Startup(HINSTANCE Instance, int32 ShowCmd);
-	int32 Run();
+	int32 Run(UEngine& Engine);
 	void Shutdown();
+	FReflectionRegistry& GetReflectionRegistry() { return ReflectionRegistry; }
+	FWindowsApplication& GetApplication() { return Application; }
 
 private:
 	FReflectionRegistry ReflectionRegistry;
-	FWindowsApplication Application; // Windows 전용으로 사용, 추후 플랫폼 확장 시 FGenericApplication으로 대응
+	FWindowsApplication Application;
 	FFrameTimer FrameTimer;
 };

@@ -1,8 +1,10 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 
-class ObjectStatics
+class ENGINE_API ObjectStatics
 {
 public:
 	static uint32 GenerateUUID() { return NextUUID++; }

@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Core/Geometry/Plane.h"
 
 struct FAABB;
 struct FMatrix;
 
-struct FFrustum
+struct ENGINE_API FFrustum
 {
 	// 멤버 타입 및 변수 (Member Types and Variables)
 	FPlane Planes[6];

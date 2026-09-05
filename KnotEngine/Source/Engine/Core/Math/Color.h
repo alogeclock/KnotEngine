@@ -1,9 +1,11 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Core/Math/Vector4.h"
 
-struct FColor
+struct ENGINE_API FColor
 {
 	// 멤버 변수 (Member Variables)
 	union

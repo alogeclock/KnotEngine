@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 
 #include <cstddef>
@@ -47,7 +49,7 @@ private:
 };
 
 // FObjectProperty가 실제 저장 형식(raw pointer 또는 TObjectPtr)을 알지 않고 객체 참조를 다루기 위한 타입 소거 인터페이스.
-class IObjectPtrOps
+class ENGINE_API IObjectPtrOps
 {
 public:
 	virtual ~IObjectPtrOps() = default;
@@ -182,7 +184,7 @@ private:
 };
 
 // FSoftObjectProperty가 TSoftObjectPtr의 템플릿 인자를 알지 않고 물리 에셋 경로를 다루기 위한 타입 소거 인터페이스.
-class ISoftObjectPtrOps
+class ENGINE_API ISoftObjectPtrOps
 {
 public:
 	virtual ~ISoftObjectPtrOps() = default;

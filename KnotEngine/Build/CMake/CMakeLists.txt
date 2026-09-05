@@ -20,6 +20,8 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
 set(CMAKE_CXX_FLAGS_DEVELOPMENT "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" CACHE STRING "Compiler flags for Development builds" FORCE)
 set(CMAKE_CXX_FLAGS_SHIPPING "${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "Compiler flags for Shipping builds" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}" CACHE STRING "Linker flags for Development builds" FORCE)
+set(CMAKE_SHARED_LINKER_FLAGS_DEVELOPMENT "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO}" CACHE STRING "DLL linker flags for Development" FORCE)
+set(CMAKE_SHARED_LINKER_FLAGS_SHIPPING "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}" CACHE STRING "DLL linker flags for Shipping" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_SHIPPING "${CMAKE_EXE_LINKER_FLAGS_RELEASE}" CACHE STRING "Linker flags for Shipping builds" FORCE)
 
 # Development과 Shipping 구성에서 CMake가 가져온 라이브러리를 올바르게 매핑하도록 설정한다.
@@ -55,184 +57,76 @@ endif()
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-# Shaders 폴더 아래의 모든 셰이더 파일을 재귀적으로 수집한다.
-file(GLOB_RECURSE KNOTENGINE_SHADER_FILES CONFIGURE_DEPENDS
-    "${KNOTENGINE_ROOT}/Shaders/*.hlsl"
-    "${KNOTENGINE_ROOT}/Shaders/*.hlsli"
-    "${KNOTENGINE_ROOT}/Shaders/*.fx"
-    "${KNOTENGINE_ROOT}/Shaders/*.fxh"
-)
+# 세 개의 바이너리 타깃을 생성한다.
+foreach(MODULE Engine Renderer Editor)
+    file(GLOB_RECURSE ${MODULE}_SOURCES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Source/${MODULE}/*.cpp")
+    file(GLOB_RECURSE ${MODULE}_HEADERS CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Source/${MODULE}/*.h" "${KNOTENGINE_ROOT}/Source/${MODULE}/*.inl")
+    if(MODULE STREQUAL "Editor")
+        add_executable(${MODULE} WIN32 ${${MODULE}_SOURCES} ${${MODULE}_HEADERS} "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.rc" "${KNOTENGINE_ROOT}/Source/Resources/resource.h")
+    else()
+        add_library(${MODULE} SHARED ${${MODULE}_SOURCES} ${${MODULE}_HEADERS})
+        string(TOUPPER "${MODULE}" MODULE_UPPER)
+        target_compile_definitions(${MODULE} PRIVATE KNOT_${MODULE_UPPER}_EXPORTS)
+    endif()
 
-# Windows 리소스 파일을 수집한다.
-set(KNOTENGINE_RESOURCE_FILES
-    "${KNOTENGINE_ROOT}/KnotEngine.rc"
-    "${KNOTENGINE_ROOT}/resource.h"
-)
-
-# Contents 폴더 아래의 모든 콘텐츠 파일을 재귀적으로 수집한다.
-file(GLOB_RECURSE KNOTENGINE_CONTENT_FILES CONFIGURE_DEPENDS
-    "${KNOTENGINE_ROOT}/Contents/*"
-)
-
-# Settings 폴더 아래의 모든 설정 파일을 재귀적으로 수집한다.
-file(GLOB_RECURSE KNOTENGINE_SETTING_FILES CONFIGURE_DEPENDS
-    "${KNOTENGINE_ROOT}/Settings/*"
-)
-
-# 셰이더를 Visual Studio 프로젝트에는 표시하지만 빌드 대상으로 처리하지 않는다.
-set_source_files_properties(${KNOTENGINE_SHADER_FILES} PROPERTIES
-    HEADER_FILE_ONLY TRUE
-    VS_TOOL_OVERRIDE "None"
-)
-
-# 콘텐츠와 설정 파일도 컴파일하지 않는다.
-set_source_files_properties(${KNOTENGINE_CONTENT_FILES} ${KNOTENGINE_SETTING_FILES} PROPERTIES
-    HEADER_FILE_ONLY TRUE
-)
-# Source 아래의 C/C++ 구현 파일을 모두 수집한다.
-file(GLOB_RECURSE KNOTENGINE_SOURCE_FILES CONFIGURE_DEPENDS
-    "${KNOTENGINE_ROOT}/Source/*.c"
-    "${KNOTENGINE_ROOT}/Source/*.cc"
-    "${KNOTENGINE_ROOT}/Source/*.cpp"
-    "${KNOTENGINE_ROOT}/Source/*.cxx"
-)
-
-# Source 아래의 헤더와 인라인 구현 파일을 모두 수집한다.
-file(GLOB_RECURSE KNOTENGINE_HEADER_FILES CONFIGURE_DEPENDS
-    "${KNOTENGINE_ROOT}/Source/*.h"
-    "${KNOTENGINE_ROOT}/Source/*.hh"
-    "${KNOTENGINE_ROOT}/Source/*.hpp"
-    "${KNOTENGINE_ROOT}/Source/*.hxx"
-    "${KNOTENGINE_ROOT}/Source/*.inl"
-    "${KNOTENGINE_ROOT}/Source/*.ipp"
-)
-
-# 수집한 모든 파일로 Windows GUI 실행 파일을 만든다. main.cpp와 pch.cpp, pch.h는 반드시 포함한다.
-add_executable(KnotEngine WIN32
-    "${KNOTENGINE_ROOT}/main.cpp"
-    "${KNOTENGINE_ROOT}/pch.cpp"
-    "${KNOTENGINE_ROOT}/pch.h"
-    ${KNOTENGINE_SOURCE_FILES}
-    ${KNOTENGINE_HEADER_FILES}
-    ${KNOTENGINE_CONTENT_FILES}
-    ${KNOTENGINE_RESOURCE_FILES}
-    ${KNOTENGINE_SETTING_FILES}
-    ${KNOTENGINE_SHADER_FILES}
-)
-
-# 솔루션을 열었을 때 KnotEngine 프로젝트가 기본 시작 프로젝트가 되도록 설정한다.
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT KnotEngine)
-
-# Source 디렉터리 구조를 Visual Studio의 Source 필터로 표현한다.
-source_group(TREE "${KNOTENGINE_ROOT}/Source" PREFIX "Source" FILES
-    ${KNOTENGINE_SOURCE_FILES}
-    ${KNOTENGINE_HEADER_FILES}
-)
-
-# Contents, Settings, Shaders 폴더 구조도 Visual Studio의 필터로 표현한다.
-source_group(TREE "${KNOTENGINE_ROOT}/Contents" PREFIX "Contents" FILES
-    ${KNOTENGINE_CONTENT_FILES}
-)
-
-source_group(TREE "${KNOTENGINE_ROOT}/Settings" PREFIX "Settings" FILES
-    ${KNOTENGINE_SETTING_FILES}
-)
-
-source_group(TREE "${KNOTENGINE_ROOT}/Shaders" PREFIX "Shaders" FILES
-    ${KNOTENGINE_SHADER_FILES}
-)
-
-# Visual Studio에서 프로젝트를 열었을 때, main.cpp, pch.cpp, pch.h, KnotEngine.rc 파일이 최상위에 표시되도록 설정한다.
-source_group("" FILES
-    "${KNOTENGINE_ROOT}/main.cpp"
-    "${KNOTENGINE_ROOT}/pch.cpp"
-    "${KNOTENGINE_ROOT}/pch.h"
-    ${KNOTENGINE_RESOURCE_FILES}
-)
-
-# Visual Studio가 생성한 CMake 관련 파일들은 프로젝트 필터에서 숨긴다.
-source_group("Generated\\CMake" REGULAR_EXPRESSION
-    ".*[/\\\\]CMakeFiles[/\\\\].*cmake_pch.*"
-)
-
-# C++20 표준을 사용하도록 설정한다.
-target_compile_features(KnotEngine PRIVATE cxx_std_20)
-
-# Precompiled Header를 사용하도록 설정한다.
-target_precompile_headers(KnotEngine PRIVATE
-    "${KNOTENGINE_ROOT}/pch.h"
-)
-
-# Include 디렉터리를 설정한다. Source, Core, Engine, Editor 폴더를 포함한다.
-target_include_directories(KnotEngine PRIVATE
-    "${KNOTENGINE_ROOT}"
-    "${KNOTENGINE_ROOT}/Source"
-    "${KNOTENGINE_ROOT}/Source/Core"
-    "${KNOTENGINE_ROOT}/Source/Engine"
-    "${KNOTENGINE_ROOT}/Source/Editor"
-)
-
-# 컴파일러 정의를 설정한다. WITH_EDITOR, NOMINMAX, WIN32_LEAN_AND_MEAN, UNICODE, _UNICODE를 정의하고, 
-# 빌드 구성에 따라 KNOT_BUILD_DEBUG, KNOT_BUILD_DEVELOPMENT, KNOT_BUILD_SHIPPING를 정의한다.
-target_compile_definitions(KnotEngine PRIVATE
-    WITH_EDITOR=1
-    NOMINMAX
-    WIN32_LEAN_AND_MEAN
-    UNICODE
-    _UNICODE
-    $<$<CONFIG:Debug>:KNOT_BUILD_DEBUG=1>
-    $<$<CONFIG:Development>:KNOT_BUILD_DEVELOPMENT=1>
-    $<$<CONFIG:Shipping>:KNOT_BUILD_SHIPPING=1>
-)
-
-# Visual Studio에서 UTF-8 인코딩, 병렬 빌드, 예외 처리, 전처리기 동작을 설정한다.
-if(MSVC)
-    target_compile_options(KnotEngine PRIVATE
-        /utf-8
-        /MP
-        /EHa
-        /Zc:preprocessor
+    target_compile_features(${MODULE} PUBLIC cxx_std_20)
+    target_include_directories(${MODULE} PUBLIC "${KNOTENGINE_ROOT}/Source/${MODULE}")
+    target_include_directories(${MODULE} PRIVATE "${KNOTENGINE_ROOT}")
+    set(${MODULE}_PCH "${KNOTENGINE_ROOT}/Source/${MODULE}/${MODULE}PCH.h")
+    target_precompile_headers(${MODULE} PRIVATE "${${MODULE}_PCH}")
+    target_compile_definitions(${MODULE} PUBLIC
+        NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE
+        $<$<CONFIG:Debug>:KNOT_BUILD_DEBUG=1>
+        $<$<CONFIG:Development>:KNOT_BUILD_DEVELOPMENT=1>
+        $<$<CONFIG:Shipping>:KNOT_BUILD_SHIPPING=1>
     )
-endif()
+    target_compile_options(${MODULE} PRIVATE /utf-8 /MP /EHa /Zc:preprocessor)
+    set_target_properties(${MODULE} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${KNOTENGINE_BIN_DIR}/$<CONFIG>"
+        ARCHIVE_OUTPUT_DIRECTORY "${KNOTENGINE_ROOT}/Intermediate/Lib/${KNOTENGINE_OUTPUT_PLATFORM}/$<CONFIG>"
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        INTERPROCEDURAL_OPTIMIZATION_SHIPPING TRUE
+    )
+    source_group(TREE "${KNOTENGINE_ROOT}/Source/${MODULE}" PREFIX "Source" FILES ${${MODULE}_SOURCES} ${${MODULE}_HEADERS})
+    source_group("Generated\\CMake" REGULAR_EXPRESSION ".*cmake_pch.*")
+endforeach()
 
-# 링커 라이브러리를 설정한다. ImGui, nlohmann-json, Direct3D 11, D3DCompiler, DXGI를 링크한다.
-target_link_libraries(KnotEngine PRIVATE
-    imgui::imgui
-    nlohmann_json::nlohmann_json
-    d3d11
-    d3dcompiler
-    dxgi
+source_group("Source\\Resources" FILES
+    "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.rc"
+    "${KNOTENGINE_ROOT}/Source/Resources/resource.h"
 )
 
-# Reflection.cmake를 포함하여, 헤더 파일에서 선언된 클래스와 구조체를 자동으로 등록하는 코드를 생성한다.
+target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)
+target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui)
+
+# 기존 전역 new/delete가 DLL 경계를 지나도 같은 메모리 헤더 형식을 사용하도록 각 바이너리에 포함한다.
+target_sources(Renderer PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory.cpp")
+target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory.cpp")
+
+target_compile_definitions(Editor PRIVATE WITH_EDITOR=1)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT Editor)
+set_target_properties(Editor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Editor>")
+
 include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
 
-# Visual Studio에서 실행 파일의 출력 디렉터리와 디버거 작업 디렉터리를 설정하고, Shipping 구성에서 인터프로시저 최적화를 활성화한다.
-set_target_properties(KnotEngine PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${KNOTENGINE_BIN_DIR}"
-    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:KnotEngine>"
-    INTERPROCEDURAL_OPTIMIZATION_SHIPPING TRUE
-)
-
-# 빌드 후 명령어를 추가하여 Contents, Shaders, Settings 폴더를 실행 파일과 동일한 위치로 복사한다.
-add_custom_command(TARGET KnotEngine POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${KNOTENGINE_ROOT}/Contents"
-        "$<TARGET_FILE_DIR:KnotEngine>/Contents"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${KNOTENGINE_ROOT}/Shaders"
-        "$<TARGET_FILE_DIR:KnotEngine>/Shaders"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${KNOTENGINE_ROOT}/Settings"
-        "$<TARGET_FILE_DIR:KnotEngine>/Settings"
-    COMMENT "Copying KnotEngine runtime files"
+# 데이터만 수정해도 배치한다. 실행 중 변경되는 설정은 Saved에 저장한다.
+add_custom_target(RUNTIME_FILES
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${KNOTENGINE_ROOT}/Contents" "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Contents"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${KNOTENGINE_ROOT}/Settings" "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Settings"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${KNOTENGINE_ROOT}/Shaders" "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Shaders"
+    COMMENT "Staging runtime contents, settings and shaders"
     VERBATIM
 )
-
-# Visual Studio에서 각 빌드 구성에 따라 실행 파일의 출력 디렉터리를 설정한다.
-foreach(CONFIG_TYPE Debug Development Shipping)
-    string(TOUPPER "${CONFIG_TYPE}" CONFIG_TYPE_UPPER)
-    set_target_properties(KnotEngine PROPERTIES
-        "RUNTIME_OUTPUT_DIRECTORY_${CONFIG_TYPE_UPPER}" "${KNOTENGINE_BIN_DIR}/${CONFIG_TYPE}"
-    )
+set_target_properties(RUNTIME_FILES PROPERTIES FOLDER "CMake")
+add_dependencies(Editor RUNTIME_FILES)
+foreach(DATA_DIR Contents Settings Shaders)
+    file(GLOB_RECURSE RUNTIME_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/${DATA_DIR}/*")
+    set_source_files_properties(${RUNTIME_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
+    if(DATA_DIR STREQUAL "Shaders")
+        target_sources(Renderer PRIVATE ${RUNTIME_FILES})
+    else()
+        target_sources(Editor PRIVATE ${RUNTIME_FILES})
+    endif()
+    source_group(TREE "${KNOTENGINE_ROOT}/${DATA_DIR}" PREFIX "${DATA_DIR}" FILES ${RUNTIME_FILES})
 endforeach()

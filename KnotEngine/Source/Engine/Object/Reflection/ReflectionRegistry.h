@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Core/Name.h"
 
@@ -11,7 +13,7 @@ class UField;
 class UScriptStruct;
 
 // 생성된 타입 스키마의 전역 소유권과 이름 기반 조회를 담당한다.
-class FReflectionRegistry
+class ENGINE_API FReflectionRegistry
 {
 public:
 	FReflectionRegistry();
@@ -38,16 +40,13 @@ private:
 		SIZE_T operator()(const FName& Name) const { return GetTypeHash(Name); }
 	};
 
-	void RegisterStaticClass();
-	void ResetStaticClass();
-
 	UField* RegisterField(std::unique_ptr<UField> Field);
 
 	TArray<std::unique_ptr<UField>> Fields;
 	TMap<FName, UField*, FNameHash> FieldsByName;
 };
 
-extern FReflectionRegistry* GReflectionRegistry;
+extern ENGINE_API FReflectionRegistry* GReflectionRegistry;
 
 // UENUM 타입의 특수화는 생성된 cpp에서 정의한다.
 template <typename T>

@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Components/ActorComponent.h"
 #include "Core/Geometry/Transform.h"
 #include "Core/Math/Rotator.h"
 #include "Core/Math/Vector.h"
 
 UCLASS()
-class USceneComponent : public UActorComponent
+class ENGINE_API USceneComponent : public UActorComponent
 {
 	GENERATED_CLASS(USceneComponent, UActorComponent)
 

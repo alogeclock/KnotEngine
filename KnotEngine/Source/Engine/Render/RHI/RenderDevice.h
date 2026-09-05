@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Render/RHI/RenderTypes.h"
 
 #include <span>
 
 // GPU 자원 생성과 렌더링 명령 기록을 제공하는 API 중립 계층이다.
 // D3D11은 Immediate Context로 명령을 실행하고, 명시적 API는 실제 Command List에 기록할 수 있다.
-class IRenderDevice
+class ENGINE_API IRenderDevice
 {
 public:
 	IRenderDevice() = default;

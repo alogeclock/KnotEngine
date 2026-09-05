@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RendererAPI.h"
+
 #include "Render/RHI/RenderContext.h"
 
 #include <wrl/client.h>
@@ -12,7 +14,7 @@ struct IDXGISwapChain;
 class FD3D11RenderDevice;
 
 // D3D11 Swap Chain과 화면용 Color/Depth Target의 생성 및 프레임 출력을 담당한다.
-class FD3D11RenderContext final : public IRenderContext
+class RENDERER_API FD3D11RenderContext final : public IRenderContext
 {
 public:
 	explicit FD3D11RenderContext(FD3D11RenderDevice& InRenderDevice);

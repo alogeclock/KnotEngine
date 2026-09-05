@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Name.h"
 #include "Object/Object.h"
 #include "Object/Reflection/ReflectionMetadata.h"
@@ -29,7 +31,7 @@ constexpr EClassFlags operator&(EClassFlags Lhs, EClassFlags Rhs)
 }
 
 // UObject 기반 리플렉션 스키마의 공통 기반.
-class UField : public UObject
+class ENGINE_API UField : public UObject
 {
 public:
 	using ThisClass = UField;
@@ -58,7 +60,7 @@ private:
 	static UClass* StaticClassPrivate;
 };
 
-class UStruct : public UField
+class ENGINE_API UStruct : public UField
 {
 public:
 	using ThisClass = UStruct;
@@ -94,7 +96,7 @@ private:
 	static UClass* StaticClassPrivate;
 };
 
-class UClass : public UStruct
+class ENGINE_API UClass : public UStruct
 {
 public:
 	using ThisClass = UClass;
@@ -131,7 +133,7 @@ private:
 	TArray<std::unique_ptr<UFunction>> Functions;
 };
 
-struct IStructOps
+struct ENGINE_API IStructOps
 {
 	virtual ~IStructOps() = default;
 
@@ -166,7 +168,7 @@ inline const IStructOps* GetStructOps()
 	return &Ops;
 }
 
-class UScriptStruct : public UStruct
+class ENGINE_API UScriptStruct : public UStruct
 {
 public:
 	using ThisClass = UScriptStruct;
@@ -197,14 +199,14 @@ private:
 	const IStructOps* StructOps = nullptr;
 };
 
-struct FEnumValue
+struct ENGINE_API FEnumValue
 {
 	FName Name;
 	FString DisplayName;
 	int64 Value = 0;
 };
 
-class UEnum : public UField
+class ENGINE_API UEnum : public UField
 {
 public:
 	using ThisClass = UEnum;

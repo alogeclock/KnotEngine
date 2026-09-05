@@ -1,9 +1,11 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 
 // 전역 FNamePool 안의 문자열 entry 위치를 나타내는 id.
-struct FNameEntryId
+struct ENGINE_API FNameEntryId
 {
 	uint32 Value = 0;
 
@@ -53,7 +55,7 @@ enum class EName : uint32
 };
 
 // 전역 FNamePool의 entry id와 number suffix만 저장하는 경량 name handle.
-class FName
+class ENGINE_API FName
 {
 public:
 	FName() = default;

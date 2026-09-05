@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Math/Math.h"
 #include "Core/Math/Vector.h"
 
 struct FMatrix;
 struct FRay;
 
-struct FAABB
+struct ENGINE_API FAABB
 {
 	FVector Min;
 	FVector Max;

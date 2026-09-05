@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Render/RHI/VertexLayout.h"
 
@@ -51,7 +53,7 @@ enum class EBufferUsage : uint8 { Vertex, Index };
 enum class EResourceAccess : uint8 { GPUOnly, CPUWrite };
 
 // Buffer 생성에 필요한 크기, 용도 및 접근 방식을 정의한다.
-struct FBufferDesc
+struct ENGINE_API FBufferDesc
 {
 	uint32 Size = 0;
 	EBufferUsage Usage = EBufferUsage::Vertex;
@@ -65,7 +67,7 @@ enum class ETextureFormat : uint8 { RGBA8UNorm, BGRA8UNorm, D24UNormS8UInt };
 enum class ETextureUsage : uint8 { ShaderResource, RenderTarget, DepthStencil };
 
 // Texture 생성에 필요한 크기, 형식 및 용도를 정의한다.
-struct FTextureDesc
+struct ENGINE_API FTextureDesc
 {
 	uint32 Width = 0;
 	uint32 Height = 0;
@@ -77,7 +79,7 @@ struct FTextureDesc
 enum class EShaderStage : uint8 { Vertex, Pixel };
 
 // Shader 생성에 필요한 소스 경로, 진입점 및 Stage를 정의한다.
-struct FShaderDesc
+struct ENGINE_API FShaderDesc
 {
 	FWString SourcePath;
 	FString EntryPoint;
@@ -123,7 +125,7 @@ constexpr EColorWriteMask operator|(EColorWriteMask Left, EColorWriteMask Right)
 }
 
 // 하나의 Render Target에 적용할 Color 및 Alpha Blend 상태를 정의한다.
-struct FRenderTargetBlendDesc
+struct ENGINE_API FRenderTargetBlendDesc
 {
 	bool bBlendEnabled = false;
 	EBlendFactor SourceColorBlend = EBlendFactor::One;
@@ -136,7 +138,7 @@ struct FRenderTargetBlendDesc
 };
 
 // Graphics Pipeline의 전체 Blend 상태를 정의한다.
-struct FBlendStateDesc
+struct ENGINE_API FBlendStateDesc
 {
 	bool bAlphaToCoverageEnabled = false;
 	FRenderTargetBlendDesc RenderTarget;
@@ -149,7 +151,7 @@ enum class EFillMode : uint8 { Solid, Wireframe };
 enum class ECullMode : uint8 { None, Front, Back };
 
 // Primitive를 Pixel Fragment로 변환할 때 적용할 Rasterizer 상태를 정의한다.
-struct FRasterizerStateDesc
+struct ENGINE_API FRasterizerStateDesc
 {
 	EFillMode FillMode = EFillMode::Solid;
 	ECullMode CullMode = ECullMode::Back;
@@ -163,7 +165,7 @@ struct FRasterizerStateDesc
 };
 
 // Shader와 고정 기능 상태를 하나의 Graphics Pipeline으로 생성하기 위한 계약이다.
-struct FGraphicsPipelineDesc
+struct ENGINE_API FGraphicsPipelineDesc
 {
 	FShaderHandle VertexShader;
 	FShaderHandle PixelShader;
@@ -182,7 +184,7 @@ struct FGraphicsPipelineDesc
 enum class EIndexFormat : uint8 { UInt16, UInt32 };
 
 // Render Target에서 Rasterization이 수행될 사각 영역과 Depth 범위를 정의한다.
-struct FRenderViewport
+struct ENGINE_API FRenderViewport
 {
 	float TopLeftX = 0.0f;
 	float TopLeftY = 0.0f;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Property.h"
 
 #include <type_traits>
@@ -23,25 +25,25 @@ protected:
 	void SerializeElement(FArchive& Ar, void* Value) const override { Ar << *static_cast<T*>(Value); }
 };
 
-class FIntProperty final : public TNumericProperty<int32>
+class ENGINE_API FIntProperty final : public TNumericProperty<int32>
 {
 public:
 	using TNumericProperty::TNumericProperty;
 };
 
-class FBoolProperty final : public TNumericProperty<bool>
+class ENGINE_API FBoolProperty final : public TNumericProperty<bool>
 {
 public:
 	using TNumericProperty::TNumericProperty;
 };
 
-class FFloatProperty final : public TNumericProperty<float>
+class ENGINE_API FFloatProperty final : public TNumericProperty<float>
 {
 public:
 	using TNumericProperty::TNumericProperty;
 };
 
-class FDoubleProperty final : public TNumericProperty<double>
+class ENGINE_API FDoubleProperty final : public TNumericProperty<double>
 {
 public:
 	using TNumericProperty::TNumericProperty;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Reflection/ReflectionMacros.h"
 
 #include <cmath>
@@ -8,7 +10,7 @@
 #include "Core/Math/Math.h"
 
 USTRUCT()
-struct FVector
+struct ENGINE_API FVector
 {
 	GENERATED_STRUCT(FVector)
 

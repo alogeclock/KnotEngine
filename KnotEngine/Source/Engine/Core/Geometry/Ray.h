@@ -1,10 +1,12 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Math/Vector.h"
 
 struct FMatrix;
 
-struct FRay
+struct ENGINE_API FRay
 {
 	// 멤버 변수 (Member Variables)
 	FVector Origin;

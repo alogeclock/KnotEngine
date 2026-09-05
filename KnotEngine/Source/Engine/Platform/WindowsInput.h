@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Input/InputSnapshot.h"
 
 #include <Windows.h>
@@ -7,7 +9,7 @@
 // Win32 입력 메시지를 엔진 입력 상태와 프레임 스냅샷으로 변환한다.
 // 수명은 프로세스 범위이며 Startup/Shutdown은 각각 한 번만 호출한다.
 // Shutdown은 누적된 입력 상태를 초기화하지 않으므로 같은 인스턴스를 다시 Startup할 수 없다.
-class FWindowsInput final
+class ENGINE_API FWindowsInput final
 {
 public:
 	void Startup(HWND InWindowHandle);

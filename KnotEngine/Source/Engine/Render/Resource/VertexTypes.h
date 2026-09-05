@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Math/Vector.h"
 #include "Render/RHI/VertexLayout.h"
 
@@ -11,7 +13,7 @@ constexpr uint32 PackRGBA(uint8 R, uint8 G, uint8 B, uint8 A = 255)
 }
 
 // 선, 큐브, 삼각형 등 단순 디버그용 Geometry를 그리기 위한 Vertex 구조체
-struct FGeometryVertex
+struct ENGINE_API FGeometryVertex
 {
 	FVector Position;
 	uint32 Color;

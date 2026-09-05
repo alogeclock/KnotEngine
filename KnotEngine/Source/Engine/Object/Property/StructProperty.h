@@ -1,10 +1,12 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Property.h"
 
 class UScriptStruct;
 
-class FStructProperty final : public FProperty
+class ENGINE_API FStructProperty final : public FProperty
 {
 public:
 	FStructProperty(

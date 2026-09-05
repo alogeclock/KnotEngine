@@ -1,10 +1,12 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Render/RHI/RenderTypes.h"
 
 // Native Window에 연결되는 Surface, Swap Chain 및 화면 출력 대상을 관리한다.
 // 일반 GPU 자원과 명령은 IRenderDevice에 두어 창 수명과 Device 수명을 분리한다.
-class IRenderContext
+class ENGINE_API IRenderContext
 {
 public:
 	IRenderContext() = default;

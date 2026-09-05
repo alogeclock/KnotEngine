@@ -1,11 +1,13 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 
 #include <Windows.h>
 
 // Windows 실제 OS 창(HWND)를 감싸는 엔진 래퍼 객체, 창 크기/상태/타이틀/핸들 관리
-class FWindowsWindow
+class ENGINE_API FWindowsWindow
 {
 public:
 	FWindowsWindow() = default;

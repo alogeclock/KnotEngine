@@ -1,11 +1,13 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/ObjectPtr.h"
 #include "Object/Property.h"
 
 class UClass;
 
-class FSoftObjectProperty final : public FProperty
+class ENGINE_API FSoftObjectProperty final : public FProperty
 {
 public:
 	FSoftObjectProperty(

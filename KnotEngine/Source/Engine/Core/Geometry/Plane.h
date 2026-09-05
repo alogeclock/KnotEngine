@@ -1,9 +1,11 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Math/Math.h"
 #include "Core/Math/Vector.h"
 
-struct FPlane
+struct ENGINE_API FPlane
 {
 	// 멤버 변수 (Member Variables)
 	FVector Normal;

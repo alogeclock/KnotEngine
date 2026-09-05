@@ -9,7 +9,7 @@
 struct FMatrix;
 
 USTRUCT()
-struct alignas(16) FVector4
+struct alignas(16) ENGINE_API FVector4
 {
 	GENERATED_STRUCT(FVector4)
 

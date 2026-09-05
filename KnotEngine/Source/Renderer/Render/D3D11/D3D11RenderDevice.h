@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RendererAPI.h"
+
 #include "Render/D3D11/D3D11BufferPool.h"
 #include "Render/D3D11/D3D11Device.h"
 #include "Render/RHI/RenderDevice.h"
@@ -18,7 +20,7 @@ struct ID3D11Texture2D;
 struct ID3D11VertexShader;
 
 // API 중립 RHI 요청을 D3D11 자원 생성과 Immediate Context 명령으로 변환하는 Render Device 구현체다.
-class FD3D11RenderDevice final : public IRenderDevice
+class RENDERER_API FD3D11RenderDevice final : public IRenderDevice
 {
 public:
 	FD3D11RenderDevice();

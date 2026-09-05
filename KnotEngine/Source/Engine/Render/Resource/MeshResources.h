@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Render/Resource/Buffer.h"
 #include "Render/Resource/RenderResource.h"
 #include "Render/RHI/VertexLayout.h"
@@ -9,7 +11,7 @@
 class URenderer;
 
 // GPU 생성 호출 동안만 유효한 비소유 업로드 뷰.
-struct FMeshDataView
+struct ENGINE_API FMeshDataView
 {
 	std::span<const uint8> VertexBytes;
 	std::span<const uint32> Indices;
@@ -19,7 +21,7 @@ struct FMeshDataView
 
 // 하나의 Draw/DrawIndexed 호출에 필요한 GPU Mesh Buffer 묶음.
 // FStaticMesh, FSkeletalMesh 등 상위 계층에서 FMeshBuffer를 소유한다.
-class FMeshBuffer final : public FRenderResource
+class ENGINE_API FMeshBuffer final : public FRenderResource
 {
 public:
 	FMeshBuffer() = default;

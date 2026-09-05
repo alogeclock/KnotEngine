@@ -1,11 +1,13 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Input/InputEvents.h"
 
 class FWindowsInput;
 
 // 한 프레임 동안 수집된 입력 상태와 순서 보존 이벤트를 읽기 전용으로 제공한다.
-class FInputSnapshot
+class ENGINE_API FInputSnapshot
 {
 public:
 	uint64 GetFrameNumber() const { return FrameNumber; }

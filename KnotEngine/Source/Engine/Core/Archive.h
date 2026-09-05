@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Core/Name.h"
 
 #include <limits>
 #include <type_traits>
 
-class FArchive
+class ENGINE_API FArchive
 {
 public:
 	virtual ~FArchive() = default;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -15,7 +17,7 @@ enum class ELogVerbosity : uint8_t
 };
 
 // 실패 지점의 소스 위치. 매크로만 채울 수 있으므로 집합 초기화로 넘긴다.
-struct FDebugContext
+struct ENGINE_API FDebugContext
 {
 	const char* Expression = nullptr;
 	const char* File = nullptr;
@@ -26,7 +28,7 @@ struct FDebugContext
 // Visual Studio 및 파일 로그 출력, assertion 실패 보고, 디버거 중단을 담당하는 low-level 유틸리티 클래스.
 // 출력은 MSVC 진단 형식 "파일(줄): 내용" 한 줄로 통일한다.
 // Visual Studio 출력 창에서 더블클릭하면 해당 소스 줄로 이동하므로 절대 경로는 그대로 둔다.
-class FDebug
+class ENGINE_API FDebug
 {
 public:
 	static void Startup();

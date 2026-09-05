@@ -3,7 +3,7 @@
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
 #include "Input/InputRouter.h"
-#include "UI/ImGui/ImGuiRenderBackend.h"
+#include "Render/ImGui/ImGuiRenderBackend.h"
 
 #include <filesystem>
 #include <imgui.h>
@@ -30,7 +30,7 @@ void FEditorUISystem::Startup(HWND WindowHandle)
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 
-	RenderBackend.Startup();
+	RenderBackend.Startup(ImGui::GetCurrentContext());
 }
 
 void FEditorUISystem::BeginFrame()

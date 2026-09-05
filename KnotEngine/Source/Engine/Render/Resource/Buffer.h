@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Render/RHI/RenderTypes.h"
 
 class IRenderDevice;
 class URenderer;
 
-class FVertexBuffer
+class ENGINE_API FVertexBuffer
 {
 public:
 	FVertexBuffer() = default;
@@ -35,7 +37,7 @@ private:
 	uint32 Stride = 0;
 };
 
-class FIndexBuffer
+class ENGINE_API FIndexBuffer
 {
 public:
 	FIndexBuffer() = default;

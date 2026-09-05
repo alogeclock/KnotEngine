@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Core/Math/Vector.h"
 #include <functional>
 
 // 두 FVector 정점으로 구성된 간선(Edge)을 표현하는 자료형
 // {A, B}와 {B, A}는 동일한 간선으로 취급됨 (비방향 간선)
-struct FEdge
+struct ENGINE_API FEdge
 {
 	// 멤버 변수 (Member Variables)
 	FVector A;
@@ -44,7 +46,7 @@ namespace std
 
 // 두 정점의 인덱스(Index)로 구성된 간선(Edge)을 표현하는 자료형
 // (A, B)와 (B, A)는 동일한 간선으로 취급됨 (비방향 간선)
-struct FIndexEdge
+struct ENGINE_API FIndexEdge
 {
 public:
 	// 멤버 변수 (Member Variables)

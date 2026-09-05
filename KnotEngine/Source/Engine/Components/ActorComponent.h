@@ -1,9 +1,11 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Object.h"
 
 UCLASS()
-class UActorComponent : public UObject
+class ENGINE_API UActorComponent : public UObject
 {
 	GENERATED_CLASS(UActorComponent, UObject)
 

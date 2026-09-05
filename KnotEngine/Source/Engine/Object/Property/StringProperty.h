@@ -1,8 +1,10 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Property.h"
 
-class FStringProperty final : public FProperty
+class ENGINE_API FStringProperty final : public FProperty
 {
 public:
 	FStringProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint32 InArrayDimension = 1, EPropertyFlags InFlags = EPropertyFlags::None);

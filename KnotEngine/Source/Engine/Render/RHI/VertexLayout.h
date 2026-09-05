@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 
 // Shader 입력에서 정점 Attribute가 갖는 의미를 API와 무관하게 표현한다.
@@ -23,7 +25,7 @@ enum class EVertexFormat : uint8
 };
 
 // 하나의 정점 Attribute가 사용하는 Semantic, Format 및 Vertex 내 Byte Offset을 정의한다.
-struct FVertexElement
+struct ENGINE_API FVertexElement
 {
 	EVertexSemantic Semantic;
 	EVertexFormat Format;
@@ -34,7 +36,7 @@ struct FVertexElement
 };
 
 // Graphics Pipeline과 Vertex Buffer가 공유하는 정점 입력 계약이다.
-struct FVertexLayout
+struct ENGINE_API FVertexLayout
 {
 	TArray<FVertexElement> Elements;
 	uint16 Stride = 0;

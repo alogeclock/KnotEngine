@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 
 class UObject;
@@ -8,7 +10,7 @@ template <typename T>
 class TObjectPtr;
 
 // 루트에서 도달 가능한 UObject 집합을 구성하는 mark 수집기.
-class FReferenceCollector
+class ENGINE_API FReferenceCollector
 {
 public:
 	void CollectReferences(UObject* RootObject);

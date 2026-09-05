@@ -2,11 +2,11 @@
 
 #include "Render/D3D11/D3D11RenderContext.h"
 #include "Render/D3D11/D3D11RenderDevice.h"
+#include "Render/ImGui/D3D11ImGuiBackend.h"
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
 #include "Input/InputRouter.h"
 #include "UI/EditorUISystem.h"
-#include "UI/ImGui/D3D11ImGuiBackend.h"
 
 class UCubeComponent;
 
@@ -18,6 +18,10 @@ class UEditorEngine : public UEngine
 public:
 	UEditorEngine();
 	~UEditorEngine() override = default;
+
+	// Editor 모듈 전체의 리플렉션 등록/해제 진입점. 구현은 Reflection.gen.cpp에서 생성한다.
+	static void RegisterTypes(FReflectionRegistry& Registry);
+	static void ResetTypes();
 
 	void Startup(FWindowsWindow InWindow) override;
 	void ProcessInput(const FInputSnapshot& InputSnapshot) override;

@@ -1,9 +1,11 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include <chrono>
 
 // 프레임 간 경과 시간과 누적 시간, FPS 통계 및 최대 FPS 제한을 관리한다.
-class FFrameTimer final
+class ENGINE_API FFrameTimer final
 {
 public:
 	FFrameTimer();

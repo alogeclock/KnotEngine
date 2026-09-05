@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Object.h"
 
 #include <memory>
@@ -8,7 +10,7 @@ class FGeometryMesh;
 class URenderer;
 
 UCLASS()
-class UPrimitiveComponent : public UObject
+class ENGINE_API UPrimitiveComponent : public UObject
 {
 	GENERATED_CLASS(UPrimitiveComponent, UObject)
 

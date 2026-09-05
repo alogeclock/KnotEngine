@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Object.h"
 #include "Platform/WindowsWindow.h"
 
 class FInputSnapshot;
 
 UCLASS()
-class UEngine : public UObject
+class ENGINE_API UEngine : public UObject
 {
 	GENERATED_CLASS(UEngine, UObject)
 
@@ -19,4 +21,4 @@ public:
 	virtual void Shutdown() {}
 };
 
-extern UEngine* GEngine;
+extern ENGINE_API UEngine* GEngine;

@@ -1,10 +1,12 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Property.h"
 
 class UEnum;
 
-class FEnumProperty final : public FProperty
+class ENGINE_API FEnumProperty final : public FProperty
 {
 public:
 	FEnumProperty(FName InName, const UStruct* InOwner, uint32 InOffset, const UEnum* InEnum, uint32 InArrayDimension = 1,

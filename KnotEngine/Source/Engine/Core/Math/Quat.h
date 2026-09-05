@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Reflection/ReflectionMacros.h"
 
 #include <cmath>
@@ -11,7 +13,7 @@ struct FMatrix;
 struct FRotator;
 
 USTRUCT()
-struct FQuat
+struct ENGINE_API FQuat
 {
 	GENERATED_STRUCT(FQuat)
 

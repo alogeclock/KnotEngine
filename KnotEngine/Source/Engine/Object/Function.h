@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Class.h"
 
 // 리플렉션에 등록된 함수의 호출 방식과 C++ 함수 특성을 나타낸다.
@@ -34,7 +36,7 @@ constexpr bool HasFunctionFlag(EFunctionFlags Value, EFunctionFlags Flag)
 
 // 하나의 함수와 매개변수 구조체의 스키마를 함께 표현한다.
 // UStruct가 가진 Properties에는 입력, 출력 및 반환값에 해당하는 FProperty가 등록된다.
-class UFunction : public UStruct
+class ENGINE_API UFunction : public UStruct
 {
 public:
 	using ThisClass = UFunction;
@@ -82,7 +84,7 @@ private:
 };
 
 // UFunction 호출에 필요한 정렬된 매개변수 메모리와 그 안의 객체 수명을 범위 단위로 관리한다.
-class FScopedFunctionParams
+class ENGINE_API FScopedFunctionParams
 {
 public:
 	explicit FScopedFunctionParams(const UFunction* InFunction);

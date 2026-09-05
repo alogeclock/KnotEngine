@@ -1,11 +1,8 @@
 #include "Platform/WindowsApplication.h"
-#include "resource.h"
+#include "Source/Resources/resource.h"
 
 #include "Core/Assert.h"
 
-#include <imgui_impl_win32.h>
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
 LRESULT CALLBACK FWindowsApplication::WindowProc(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam)
 {
@@ -38,7 +35,7 @@ LRESULT FWindowsApplication::ProcessMessage(HWND WindowHandle, UINT Message, WPA
 	}
 
 	WindowsInput.ProcessMessage(WindowHandle, Message, WParam, LParam);
-	if (ImGui_ImplWin32_WndProcHandler(WindowHandle, Message, WParam, LParam))
+	if (MessageHandler && MessageHandler(WindowHandle, Message, WParam, LParam))
 	{
 		return true;
 	}

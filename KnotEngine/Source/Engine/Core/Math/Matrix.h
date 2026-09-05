@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include <cmath>
 
 #include "Core/Math/Vector4.h"
@@ -11,7 +13,7 @@ enum class EAxis : uint8
 	Z
 };
 
-struct FMatrix
+struct ENGINE_API FMatrix
 {
 	// 멤버 변수 (Member Variables)
 	alignas(16) float M[4][4];

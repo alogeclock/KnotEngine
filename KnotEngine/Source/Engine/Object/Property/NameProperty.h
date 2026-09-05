@@ -1,8 +1,10 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Property.h"
 
-class FNameProperty final : public FProperty
+class ENGINE_API FNameProperty final : public FProperty
 {
 public:
 	FNameProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint32 InArrayDimension = 1, EPropertyFlags InFlags = EPropertyFlags::None);

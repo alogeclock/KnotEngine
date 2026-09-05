@@ -1,12 +1,14 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Math/Vector.h"
 #include "Core/Math/Quat.h"
 
 struct FAABB;
 struct FMatrix;
 
-struct FOBB
+struct ENGINE_API FOBB
 {
 	// 멤버 변수 (Member Variables)
 	FVector Center = FVector::ZeroVector;

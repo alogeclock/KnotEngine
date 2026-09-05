@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Object/Reflection/ReflectionMacros.h"
 #include "Object/Reflection/ReflectionRegistry.h"
@@ -13,7 +15,7 @@ class FArchive;
 
 // 엔진 런타임 객체의 공통 기반 클래스.
 // GUObjectArray 등록/해제와 생명주기를 함께하며 UUID 기반 식별.
-class UObject
+class ENGINE_API UObject
 {
 public:
 	using ThisClass = UObject;
@@ -54,10 +56,10 @@ private:
 	uint32 InternalIndex;
 };
 
-extern TArray<UObject*> GUObjectArray;
+extern ENGINE_API TArray<UObject*> GUObjectArray;
 
 // UObject의 생성/파괴 생명주기 관리 및 UUID/InternalIndex 기반 조회를 담당하는 런타임 관리자.
-class FUObjectManager
+class ENGINE_API FUObjectManager
 {
 public:
 	template <typename T, typename... Args>
@@ -107,6 +109,6 @@ public:
 
 };
 
-extern FUObjectManager GUObjectManager;
+extern ENGINE_API FUObjectManager GUObjectManager;
 
 #include "Object/ObjectPtr.h"

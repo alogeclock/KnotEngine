@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Render/Resource/VertexTypes.h"
 
 #include <span>
@@ -8,7 +10,7 @@ class FMeshBuffer;
 class URenderer;
 
 // 단순 Geometry Mesh의 CPU 원본 데이터와 GPU Mesh Buffer를 소유한다.
-class FGeometryMesh
+class ENGINE_API FGeometryMesh
 {
 public:
 	FGeometryMesh();

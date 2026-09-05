@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Render/RHI/RenderTypes.h"
 
 #include <span>
@@ -11,7 +13,7 @@ class IRenderContext;
 class IRenderDevice;
 struct FMatrix;
 
-class URenderer
+class ENGINE_API URenderer
 {
 public:
 	URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext);

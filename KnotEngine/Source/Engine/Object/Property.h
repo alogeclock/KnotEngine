@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/Archive.h"
 #include "Object/ReferenceCollector.h"
 #include "Object/Reflection/ReflectionMetadata.h"
@@ -34,7 +36,7 @@ constexpr EPropertyFlags& operator|=(EPropertyFlags& Lhs, EPropertyFlags Rhs)
 }
 
 // UObject 기반 리플렉션 스키마의 멤버 변수에 대한 메타데이터와 연산을 제공하는 추상 클래스.
-class FProperty
+class ENGINE_API FProperty
 {
 public:
 	FProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint32 InElementSize, uint32 InArrayDimension, EPropertyFlags InFlags);

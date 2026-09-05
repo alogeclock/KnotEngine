@@ -1,11 +1,13 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Object/Property.h"
 
 #include <memory>
 #include <type_traits>
 
-struct FArrayOps
+struct ENGINE_API FArrayOps
 {
 	void (*Construct)(void* Array) = nullptr;
 	void (*Destruct)(void* Array) = nullptr;
@@ -32,7 +34,7 @@ inline const FArrayOps* GetArrayOps()
 	return &Ops;
 }
 
-class FArrayProperty final : public FProperty
+class ENGINE_API FArrayProperty final : public FProperty
 {
 public:
 	FArrayProperty(

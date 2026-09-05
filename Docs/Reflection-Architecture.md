@@ -236,7 +236,7 @@ public:
 
 `UPROPERTY() float X, Y;`처럼 한 선언에 여러 필드를 묶는 것은 허용하지 않는다. 잘못된 옵션, 미지원 타입과 연결되지 않은 마커는 원본 파일과 줄 위치를 포함한 오류를 낸다.
 
-[Reflection.cmake](../KnotEngine/Build/CMake/Reflection.cmake)는 MSVC/SDK, include·define, PCH와 구성별 플래그를 생성기에 전달한다. `KnotEngine`의 `PRE_BUILD`에서 입력을 확인하고 `Intermediate/Reflection/<구성>/Reflection.gen.cpp`를 생성한다. 별도 솔루션 프로젝트는 추가하지 않으며 크기, 정렬과 오프셋은 생성된 C++의 `sizeof`, `alignof`, `offsetof`로 계산한다.
+[Reflection.cmake](../KnotEngine/Build/CMake/Reflection.cmake)는 MSVC/SDK, include·define, PCH와 구성별 플래그를 생성기에 전달한다. `Engine`과 `Editor`의 `PRE_BUILD`에서 각각 입력을 확인하고 `Intermediate/Reflection/<모듈>/<구성>/Reflection.gen.cpp`를 생성한다. 모듈별 PCH, include 경로, export/import 정의를 사용하며 Editor 생성기는 Engine 선언도 검증하지만 Editor 소유 타입만 출력한다. 별도 솔루션 프로젝트는 추가하지 않으며 크기, 정렬과 오프셋은 생성된 C++의 `sizeof`, `alignof`, `offsetof`로 계산한다.
 
 [Toolchain.py](../Scripts/Toolchain.py)는 LLVM 배포본의 해시를 검증하고 필요한 도구만 `Intermediate`에 추출해 재사용한다. 매 빌드에서 헤더, 전이 include, 도구, 환경과 산출물의 해시를 확인한다. 변경 없는 파일은 다시 쓰지 않으며 생성 실패 시 빌드를 중단한다.
 
@@ -268,29 +268,31 @@ Registry는 최상위 `UClass`, `UScriptStruct`, `UEnum`을 소유한다. `UStru
 ```text
 FName 시작
     ↓
+GReflectionRegistry 설정
+    ↓
 코어 스키마 생성 및 등록
     ↓
-생성 타입 전체 등록
+Engine 생성 타입 등록 및 멤버 연결
     ↓
-프로퍼티와 함수 연결
-    ↓
-GReflectionRegistry 설정
+Editor Launch에서 Editor 생성 타입 등록 및 멤버 연결
 ```
 
-코어 스키마는 `UObject`, `UField`, `UStruct`, `UClass`, `UScriptStruct`, `UFunction`, `UEnum` 순으로 기반 관계를 연결한다. 모든 타입을 먼저 등록한 다음 멤버를 연결하므로 서로 참조하는 타입도 처리할 수 있다. `UClass` 스키마의 실제 클래스는 `UClass::StaticClass()`이며 `UClass` 자신은 자기 스키마를 가리킨다.
+코어 스키마는 `UObject`, `UField`, `UStruct`, `UClass`, `UScriptStruct`, `UFunction`, `UEnum` 순으로 기반 관계를 연결한다. 각 모듈에서 모든 타입을 먼저 등록한 다음 멤버를 연결하므로 같은 모듈 내의 상호 참조도 처리할 수 있다. `FReflectionRegistry::Startup()`은 Engine 타입까지만 등록한다. Editor의 `Launch()`가 `UEditorEngine::RegisterTypes()`를 직접 호출하므로 Registry는 Editor의 존재를 알지 않는다. 상위 모듈은 Engine 타입을 참조할 수 있지만 Engine 타입은 Editor 타입을 참조하지 않는다. `UClass` 스키마의 실제 클래스는 `UClass::StaticClass()`이며 `UClass` 자신은 자기 스키마를 가리킨다.
 
-등록 중에는 `GReflectionRegistry`가 아직 `nullptr`이므로 현재 Registry 인스턴스와 타입별 정적 포인터를 사용한다. 등록이 모두 끝난 뒤 `GReflectionRegistry`를 설정하며, 이 포인터가 존재하면 리플렉션 사용 준비가 끝난 것이다.
+`FReflectionRegistry::Startup()`은 등록을 시작하기 전에 자신을 `GReflectionRegistry`로 설정한다. 이후 Engine과 Editor의 타입 등록 함수는 현재 활성 Registry에만 필드를 추가할 수 있다.
 
 종료 시에는 일반 객체를 먼저 파괴하고 다음 순서로 스키마를 정리한다.
 
 ```text
-GReflectionRegistry 해제
+Editor Launch에서 Editor 생성 타입의 정적 포인터 해제
     ↓
-생성 타입의 정적 포인터 해제
+Engine 생성 타입의 정적 포인터 해제
     ↓
 코어 타입의 정적 포인터 해제
     ↓
 이름 검색 맵과 스키마 파괴
+    ↓
+GReflectionRegistry 해제
     ↓
 FName 종료
 ```
@@ -405,3 +407,5 @@ FProperty로 출력·반환값 조회
 - [Function.h](../KnotEngine/Source/Engine/Object/Function.h), [ReferenceCollector.h](../KnotEngine/Source/Engine/Object/ReferenceCollector.h), [ObjectPtr.h](../KnotEngine/Source/Engine/Object/ObjectPtr.h)
 - [KnotHeaderTool.py](../Scripts/KnotHeaderTool.py), [Reflection.cmake](../KnotEngine/Build/CMake/Reflection.cmake)
 - [Conventions.md](Conventions.md)
+
+모듈 경계, 실행 순서와 DLL 메모리 계약은 [Modules.md](Modules.md)를 참고한다.

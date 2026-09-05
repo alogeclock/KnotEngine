@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.h"
+
 #include "Core/CoreTypes.h"
 #include "Input/InputSnapshot.h"
 #include "Platform/WindowsInput.h"
@@ -13,13 +15,15 @@ using FOnResizingCallback = std::function<void(uint32, uint32)>;
 
 // Windows 애플리케이션과 메시지 루프를 관리하는 객체
 // Windows Class 등록, 여러 FWindowsWindow 관리, WndProc에서 HWND → FWindowsWindow 맵핑
-class FWindowsApplication
+class ENGINE_API FWindowsApplication
 {
 public:
 	FWindowsApplication() = default;
 	~FWindowsApplication() = default;
 
 	void Startup(HINSTANCE InInstance, int ShowCmd);
+	using FMessageHandler = LRESULT (*)(HWND, UINT, WPARAM, LPARAM);
+	void SetMessageHandler(FMessageHandler Handler) { MessageHandler = Handler; }
 	void PumpMessages();
 	void Shutdown();
 
@@ -35,6 +39,7 @@ private:
 	static LRESULT CALLBACK WindowProc(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 	LRESULT ProcessMessage(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
+	FMessageHandler MessageHandler = nullptr;
 	HINSTANCE Instance = nullptr;
 	FWindowsWindow Window;
 	FWindowsInput WindowsInput;

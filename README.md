@@ -78,6 +78,8 @@ New or removed source, header, content, setting, and shader files are detected a
 
 Generated tools and package files are kept under `KnotEngine/Intermediate`, and generated Visual Studio project files are kept under `KnotEngine/Build/VS2022-x64`. Build outputs are written to `KnotEngine/Bin/x64/<Configuration>`.
 
+The solution contains `Engine` (Engine.dll), `Renderer` (Renderer.dll), and `Editor` (Editor.exe). Start `Editor` in Visual Studio. Each target has its own PCH; reflection is generated separately for Engine and Editor. See [module architecture](Docs/Modules.md) for initialization, data paths, and DLL memory ownership.
+
 Logs are written to the Visual Studio Output window and `Saved/Logs/KnotEngine.log`.
 
 ---
@@ -175,3 +177,5 @@ BuildEngine.bat All
 ## 라이선스
 
 Knot Engine은 [MIT 라이선스](LICENSE)로 배포됩니다.
+
+엔진은 `Engine.dll`, `Renderer.dll`, `Editor.exe` 세 타깃으로 빌드합니다. Visual Studio의 시작 프로젝트는 `Editor`입니다. 초기화, 데이터 배치, PCH, 리플렉션과 DLL 메모리 계약은 [모듈 문서](Docs/Modules.md)를 참고하세요.
