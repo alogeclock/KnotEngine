@@ -25,10 +25,10 @@
 
 ## 전체 구조
 
-현재 구현은 Component가 `URenderer`에 직접 상수 데이터와 Mesh Draw를 제출한다.
+현재 구현은 `UComponent` 아래에 `UTransformComponent`와 `URendererComponent`를 분리한다. `UMeshRendererComponent`는 `URendererComponent`를 상속하며, 소유 Node의 Transform과 호출자가 전달한 ViewProjection으로 `URenderer`에 상수 데이터와 Mesh Draw를 제출한다. 회전은 `UMovementComponent`가 갱신하고, 카메라 계산은 현재 데모를 구동하는 `UEditorEngine`에서 수행한다. 현재 틱과 렌더링은 `UWorld → ULevel → UNode → UComponent` 소유 계층을 직접 순회하며, 컴포넌트 등록이나 별도 틱 실행 목록은 사용하지 않는다.
 
 ```text
-UPrimitiveComponent
+URendererComponent
         ↓
 URenderer::UpdateConstant / DrawMeshBuffer
         ↓
@@ -50,7 +50,7 @@ ID3D11DeviceContext
 장기 목표 구조는 다음과 같다.
 
 ```text
-UPrimitiveComponent / LightComponent
+URendererComponent / LightComponent
         ↓ Add, Update, Remove
 FScene
 ├─ FPrimitiveSceneProxy
@@ -81,8 +81,11 @@ IRenderContext::Present
 ```text
 KnotEngine/Source/
 ├─ Engine/
-│  ├─ Components/
-│  │  ├─ PrimitiveComponent.h/.cpp
+│  ├─ Component/
+│  │  ├─ Component.h/.cpp
+│  │  ├─ TransformComponent.h/.cpp
+│  │  ├─ RendererComponent.h/.cpp
+│  │  ├─ MeshRendererComponent.h/.cpp
 │  │  └─ LightComponent.h/.cpp               향후 구현
 │  └─ Render/
 │     ├─ Renderer.h/.cpp
@@ -104,7 +107,7 @@ KnotEngine/Source/
 
 | 계층 | 책임 | 포함하지 않는 것 |
 |---|---|---|
-| `UPrimitiveComponent` | Mesh, Material, Transform 변경을 Scene에 전달 | View culling, Draw 호출, Pipeline 선택 |
+| `URendererComponent` | Mesh, Material, Transform 변경을 Scene에 전달 | View culling, Draw 호출, Pipeline 선택 |
 | `FScene` | Primitive와 Light proxy의 non-owning 등록과 조회 | Proxy 소유권, View별 가시 Primitive, Pass 정렬 |
 | `FSceneRenderer` | View 준비, 가시성 판정, Pass 스케줄링 | 네이티브 D3D 호출 |
 | `FRenderPass` | Pass 참여 필터링, Draw Command 생성, Sort Key 계산과 제출 | Scene 객체 수명 관리 |
@@ -126,7 +129,9 @@ URenderer::BeginFrame
     ├─ Back Buffer와 Depth Target Clear
     └─ 기본 Graphics Pipeline 설정
         ↓
-UPrimitiveComponent::Render
+UWorld::Render → ULevel::Render → UNode::Render
+        ↓
+UMeshRendererComponent::Render
     ├─ World/View/Projection 상수 설정
     └─ Mesh Draw
         ↓
@@ -730,8 +735,8 @@ D3D12에서는 CPU 프레임 수명과 GPU 완료 시점이 다르므로 Frame R
 - [D3D11RenderDevice.cpp](../KnotEngine/Source/Engine/Render/D3D11/D3D11RenderDevice.cpp)
 - [D3D11RenderContext.h](../KnotEngine/Source/Engine/Render/D3D11/D3D11RenderContext.h)
 - [D3D11RenderContext.cpp](../KnotEngine/Source/Engine/Render/D3D11/D3D11RenderContext.cpp)
-- [PrimitiveComponent.h](../KnotEngine/Source/Engine/Components/PrimitiveComponent.h)
-- [PrimitiveComponent.cpp](../KnotEngine/Source/Engine/Components/PrimitiveComponent.cpp)
+- [RendererComponent.h](../KnotEngine/Source/Engine/Component/RendererComponent.h)
+- [RendererComponent.cpp](../KnotEngine/Source/Engine/Component/RendererComponent.cpp)
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/EditorEngine.cpp)
 - [ImGuiRenderBackend.h](../KnotEngine/Source/Editor/UI/ImGui/ImGuiRenderBackend.h)
 - [Conventions.md](Conventions.md)

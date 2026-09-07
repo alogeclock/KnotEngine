@@ -1,4 +1,4 @@
-#include "Components/CubeComponent.h"
+#include "Component/CubeComponent.h"
 
 #include "Core/Assert.h"
 #include "Core/Math/Vector.h"

@@ -8,8 +8,6 @@
 #include "Input/InputRouter.h"
 #include "UI/EditorUISystem.h"
 
-class UCubeComponent;
-
 UCLASS()
 class UEditorEngine : public UEngine
 {
@@ -37,5 +35,5 @@ private:
 	FInputRouter InputRouter;
 	FEditorUISystem EditorUISystem;
 
-	UPROPERTY(NoEdit, Transient) TObjectPtr<UCubeComponent> Cube;
+	uint64 EditorContextId = 0;
 };
