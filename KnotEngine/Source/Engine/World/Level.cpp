@@ -1,5 +1,5 @@
-#include "GameFramework/Level.h"
-#include "GameFramework/World.h"
+#include "World/Level.h"
+#include "World/World.h"
 
 ULevel::ULevel(UWorld& World) : OwningWorld(&World)
 {
@@ -32,7 +32,7 @@ UNode& ULevel::CreateNode(FName Name)
 
 void ULevel::BeginPlay()
 {
-	for (const auto& Node : Nodes)
+	for (const TObjectPtr<UNode>& Node : Nodes)
 	{
 		Node->BeginPlay();
 	}
@@ -40,7 +40,7 @@ void ULevel::BeginPlay()
 
 void ULevel::EndPlay()
 {
-	for (const auto& Node : Nodes)
+	for (const TObjectPtr<UNode>& Node : Nodes)
 	{
 		Node->EndPlay();
 	}
@@ -48,7 +48,7 @@ void ULevel::EndPlay()
 
 void ULevel::Tick(float DeltaTime)
 {
-	for (const auto& Node : Nodes)
+	for (const TObjectPtr<UNode>& Node : Nodes)
 	{
 		Node->Tick(DeltaTime);
 	}
@@ -56,7 +56,7 @@ void ULevel::Tick(float DeltaTime)
 
 void ULevel::Render(URenderer& Renderer, const FMatrix& ViewProjection) const
 {
-	for (const auto& Node : Nodes)
+	for (const TObjectPtr<UNode>& Node : Nodes)
 	{
 		Node->Render(Renderer, ViewProjection);
 	}

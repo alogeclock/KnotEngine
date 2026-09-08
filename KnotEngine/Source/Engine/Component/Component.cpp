@@ -1,8 +1,8 @@
 #include "Component/Component.h"
 
 #include "Core/Assert.h"
-#include "GameFramework/Node.h"
-#include "GameFramework/World.h"
+#include "World/Node.h"
+#include "World/World.h"
 
 UNode& UComponent::GetOwner() const
 {
@@ -20,14 +20,66 @@ UTransformComponent& UComponent::GetTransform() const
 	return GetOwner().GetTransform();
 }
 
+void UComponent::RegisterComponent()
+{
+	check(Owner && !bIsRegistered && !bHasBegunPlay && !bIsActive);
+	bIsRegistered = true;
+	OnRegister();
+}
+
+void UComponent::UnregisterComponent()
+{
+	if (!bIsRegistered)
+	{
+		return;
+	}
+
+	if (bHasBegunPlay)
+	{
+		EndPlay();
+	}
+
+	check(!bIsActive);
+	OnUnregister();
+	bIsRegistered = false;
+}
+
+void UComponent::Activate()
+{
+	check(bIsRegistered && bHasBegunPlay);
+	if (bIsActive)
+	{
+		return;
+	}
+
+	bIsActive = true;
+	OnActivated();
+}
+
+void UComponent::Deactivate()
+{
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	bIsActive = false;
+	OnDeactivated();
+}
+
 void UComponent::BeginPlay()
 {
-	check(Owner && !bIsActive);
-	bIsActive = true;
+	check(Owner && bIsRegistered && !bHasBegunPlay);
+	bHasBegunPlay = true;
+	if (bAutoActivate)
+	{
+		Activate();
+	}
 }
 
 void UComponent::EndPlay()
 {
-	check(bIsActive);
-	bIsActive = false;
+	check(bHasBegunPlay);
+	Deactivate();
+	bHasBegunPlay = false;
 }

@@ -1,4 +1,4 @@
-#include "GameFramework/World.h"
+#include "World/World.h"
 
 UWorld::UWorld()
 {
@@ -50,7 +50,7 @@ void UWorld::BeginPlay()
 		return;
 	}
 	PlayState = EPlayState::Playing;
-	for (const auto& Level : Levels)
+	for (const TObjectPtr<ULevel>& Level : Levels)
 	{
 		Level->BeginPlay();
 	}
@@ -63,7 +63,7 @@ void UWorld::EndPlay()
 		return;
 	}
 	PlayState = EPlayState::Stopped;
-	for (const auto& Level : Levels)
+	for (const TObjectPtr<ULevel>& Level : Levels)
 	{
 		Level->EndPlay();
 	}
@@ -91,7 +91,7 @@ void UWorld::Tick(float DeltaTime)
 	{
 		return;
 	}
-	for (const auto& Level : Levels)
+	for (const TObjectPtr<ULevel>& Level : Levels)
 	{
 		Level->Tick(DeltaTime);
 	}
@@ -99,7 +99,7 @@ void UWorld::Tick(float DeltaTime)
 
 void UWorld::Render(URenderer& Renderer, const FMatrix& ViewProjection) const
 {
-	for (const auto& Level : Levels)
+	for (const TObjectPtr<ULevel>& Level : Levels)
 	{
 		Level->Render(Renderer, ViewProjection);
 	}

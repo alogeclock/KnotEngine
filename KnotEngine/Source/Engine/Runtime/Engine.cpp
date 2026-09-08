@@ -1,5 +1,5 @@
 #include "Engine.h"
-#include "GameFramework/World.h"
+#include "World/World.h"
 #include "Object/ReferenceCollector.h"
 
 UEngine* GEngine = nullptr;

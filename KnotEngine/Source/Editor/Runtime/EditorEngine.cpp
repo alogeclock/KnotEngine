@@ -2,7 +2,7 @@
 
 #include "Component/CubeComponent.h"
 #include "Component/MovementComponent.h"
-#include "GameFramework/World.h"
+#include "World/World.h"
 #include "Core/Assert.h"
 #include "Render/RHI/RenderTypes.h"
 

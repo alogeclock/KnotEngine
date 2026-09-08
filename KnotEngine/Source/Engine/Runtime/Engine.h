@@ -4,7 +4,7 @@
 
 #include "Object/Object.h"
 #include "Platform/WindowsWindow.h"
-#include "GameFramework/WorldContext.h"
+#include "World/WorldContext.h"
 
 class FInputSnapshot;
 enum class EWorldType : uint8;

@@ -10,6 +10,9 @@ class UTransformComponent;
 class UComponent;
 class URenderer;
 
+// Level에 배치되는 최소 단위 객체로, Component의 합성을 통해 기능을 구현한다.
+// 모든 Node는 생성과 함께 정확히 하나의 TransformComponent를 소유하며, 이를 제거하거나 추가할 수 없다.
+// TransformComponent도 Components 배열에 포함되고, 렌더링과 게임 동작은 함께 소유한 다른 Component를 조합하여 구성한다.
 UCLASS()
 class ENGINE_API UNode final : public UObject
 {
