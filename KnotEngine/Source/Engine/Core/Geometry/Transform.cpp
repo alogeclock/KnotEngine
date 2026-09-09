@@ -14,14 +14,14 @@ FVector FTransform::ComponentDivideSafe(const FVector& Numerator, const FVector&
 
 const FTransform FTransform::Identity;
 
-FTransform::FTransform(const FQuat& InRotation, const FVector& InTranslation, const FVector& InScale3D) noexcept
-	: Rotation(InRotation.GetNormalized()), Translation(InTranslation), Scale3D(InScale3D)
+FTransform::FTransform(const FQuat& InRotation, const FVector& InTranslation, const FVector& InScale) noexcept
+	: Rotation(InRotation.GetNormalized()), Translation(InTranslation), Scale(InScale)
 {
 }
 
 FTransform FTransform::operator*(const FTransform& Other) const noexcept
 {
-	return FTransform(Other.Rotation * Rotation, Other.TransformPosition(Translation), Scale3D * Other.Scale3D);
+	return FTransform(Other.Rotation * Rotation, Other.TransformPosition(Translation), Scale * Other.Scale);
 }
 
 FTransform& FTransform::operator*=(const FTransform& Other) noexcept
@@ -32,33 +32,33 @@ FTransform& FTransform::operator*=(const FTransform& Other) noexcept
 
 FVector FTransform::TransformPosition(const FVector& Position) const noexcept
 {
-	return Rotation.RotateVector(Position * Scale3D) + Translation;
+	return Rotation.RotateVector(Position * Scale) + Translation;
 }
 
 FVector FTransform::TransformVector(const FVector& Vector) const noexcept
 {
-	return Rotation.RotateVector(Vector * Scale3D);
+	return Rotation.RotateVector(Vector * Scale);
 }
 
 FVector FTransform::InverseTransformPosition(const FVector& Position) const noexcept
 {
-	return ComponentDivideSafe(Rotation.UnrotateVector(Position - Translation), Scale3D);
+	return ComponentDivideSafe(Rotation.UnrotateVector(Position - Translation), Scale);
 }
 
 FVector FTransform::InverseTransformVector(const FVector& Vector) const noexcept
 {
-	return ComponentDivideSafe(Rotation.UnrotateVector(Vector), Scale3D);
+	return ComponentDivideSafe(Rotation.UnrotateVector(Vector), Scale);
 }
 
 FMatrix FTransform::ToMatrix() const noexcept
 {
-	return FMatrix::MakeWorld(Translation, Rotation.ToMatrix(), Scale3D);
+	return FMatrix::MakeWorld(Translation, Rotation.ToMatrix(), Scale);
 }
 
 FTransform FTransform::Inverse() const noexcept
 {
-	const FVector InverseScale3D = ComponentDivideSafe(FVector::OneVector, Scale3D);
+	const FVector InverseScale = ComponentDivideSafe(FVector::OneVector, Scale);
 	const FQuat InverseRotation = Rotation.Inverse();
-	const FVector InverseTranslation = InverseRotation.RotateVector(-Translation * InverseScale3D);
-	return FTransform(InverseRotation, InverseTranslation, InverseScale3D);
+	const FVector InverseTranslation = InverseRotation.RotateVector(-Translation * InverseScale);
+	return FTransform(InverseRotation, InverseTranslation, InverseScale);
 }

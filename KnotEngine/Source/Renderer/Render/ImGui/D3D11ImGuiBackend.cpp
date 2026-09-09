@@ -35,6 +35,12 @@ void FD3D11ImGuiBackend::Render(FCommandListHandle CommandList, ImDrawData* Draw
 	ImGui_ImplDX11_RenderDrawData(DrawData);
 }
 
+// 엔진 Texture Handle을 현재 ImGui 렌더 백엔드가 사용하는 Texture ID로 변환한다.
+ImTextureID FD3D11ImGuiBackend::GetImGuiTextureID(FTextureHandle Texture) const
+{
+	return reinterpret_cast<ImTextureID>(RenderDevice.GetNativeShaderResourceView(Texture));
+}
+
 void FD3D11ImGuiBackend::Shutdown()
 {
 	ImGui_ImplDX11_Shutdown();

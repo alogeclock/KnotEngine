@@ -64,7 +64,23 @@ struct ENGINE_API FBufferDesc
 enum class ETextureFormat : uint8 { RGBA8UNorm, BGRA8UNorm, D24UNormS8UInt };
 
 // Texture가 GPU Pipeline에서 사용되는 용도를 정의한다.
-enum class ETextureUsage : uint8 { ShaderResource, RenderTarget, DepthStencil };
+enum class ETextureUsage : uint8
+{
+	None = 0,
+	ShaderResource = 1 << 0,
+	RenderTarget = 1 << 1,
+	DepthStencil = 1 << 2,
+};
+
+constexpr ETextureUsage operator|(ETextureUsage Left, ETextureUsage Right)
+{
+	return static_cast<ETextureUsage>(static_cast<uint8>(Left) | static_cast<uint8>(Right));
+}
+
+constexpr bool HasAnyTextureUsage(ETextureUsage Value, ETextureUsage Flags)
+{
+	return (static_cast<uint8>(Value) & static_cast<uint8>(Flags)) != 0;
+}
 
 // Texture 생성에 필요한 크기, 형식 및 용도를 정의한다.
 struct ENGINE_API FTextureDesc

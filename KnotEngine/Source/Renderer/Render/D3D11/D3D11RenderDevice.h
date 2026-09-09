@@ -16,6 +16,9 @@ struct ID3D11Buffer;
 struct ID3D11InputLayout;
 struct ID3D11PixelShader;
 struct ID3D11RasterizerState;
+struct ID3D11DepthStencilView;
+struct ID3D11RenderTargetView;
+struct ID3D11ShaderResourceView;
 struct ID3D11Texture2D;
 struct ID3D11VertexShader;
 
@@ -50,12 +53,17 @@ public:
 	void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset) override;
 	void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset) override;
 	void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) override;
+	void SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget) override;
+	void SetViewport(FCommandListHandle CommandList, const FRenderViewport& Viewport) override;
+	void ClearRenderTarget(FCommandListHandle CommandList, FTextureHandle Target, const float Color[4]) override;
+	void ClearDepthStencil(FCommandListHandle CommandList, FTextureHandle Target, float Depth, uint8 Stencil) override;
 
 	void Draw(FCommandListHandle CommandList, uint32 VertexCount, uint32 FirstVertex) override;
 	void DrawIndexed(FCommandListHandle CommandList, uint32 IndexCount, uint32 FirstIndex, int32 VertexOffset) override;
 
 	ID3D11Device* GetNativeDevice() const { return NativeDevice.GetDevice(); }
 	ID3D11DeviceContext* GetNativeContext() const { return NativeDevice.GetContext(); }
+	ID3D11ShaderResourceView* GetNativeShaderResourceView(FTextureHandle Handle) const;
 
 private:
 	friend class FD3D11RenderContext;
@@ -64,6 +72,9 @@ private:
 	struct FTextureSlot
 	{
 		Microsoft::WRL::ComPtr<ID3D11Texture2D> Texture;
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ShaderResourceView;
+		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> RenderTargetView;
+		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> DepthStencilView;
 		uint32 Generation = 1;
 	};
 
@@ -102,6 +113,8 @@ private:
 	FShaderSlot* ResolveShader(FShaderHandle Handle);
 	const FShaderSlot* ResolveShader(FShaderHandle Handle) const;
 	FPipelineSlot* ResolvePipeline(FGraphicsPipelineHandle Handle);
+	FTextureSlot* ResolveTexture(FTextureHandle Handle);
+	const FTextureSlot* ResolveTexture(FTextureHandle Handle) const;
 	static void AdvanceGeneration(uint32& Generation);
 
 	// Device가 모든 GPU 자원을 소유하고 Render Context는 Swap Chain 자원만 소유한다.

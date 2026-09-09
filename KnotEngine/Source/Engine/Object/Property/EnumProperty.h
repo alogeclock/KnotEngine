@@ -13,6 +13,7 @@ public:
 		EPropertyFlags InFlags = EPropertyFlags::None);
 
 	const UEnum* GetEnum() const { return Enum; }
+	EPropertyKind GetKind() const override { return EPropertyKind::Enum; }
 
 protected:
 	void InitializeElement(void* Value) const override;

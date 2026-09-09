@@ -103,6 +103,21 @@ void FD3D11RenderContext::BeginFrame(FCommandListHandle CommandList)
 	Context->OMSetRenderTargets(1, &RenderTarget, DepthStencilView.Get());
 }
 
+// Offscreen 렌더링이 변경한 Viewport와 출력 대상을 현재 Swap Chain의 Back Buffer 및 Depth Buffer로 복구한다.
+void FD3D11RenderContext::BindBackBuffer(FCommandListHandle CommandList)
+{
+	RenderDevice.ValidateCommandList(CommandList);
+	ID3D11DeviceContext* Context = RenderDevice.GetNativeContext();
+	const D3D11_VIEWPORT NativeViewport = {
+		Viewport.TopLeftX, Viewport.TopLeftY,
+		Viewport.Width, Viewport.Height,
+		Viewport.MinDepth, Viewport.MaxDepth
+	};
+	ID3D11RenderTargetView* RenderTarget = FrameBufferRTV.Get();
+	Context->RSSetViewports(1, &NativeViewport);
+	Context->OMSetRenderTargets(1, &RenderTarget, DepthStencilView.Get());
+}
+
 // D3D11 Back Buffer에는 명시적인 Present 상태 전환이 없으므로 기록 구간만 검증한다.
 void FD3D11RenderContext::EndFrame(FCommandListHandle CommandList)
 {

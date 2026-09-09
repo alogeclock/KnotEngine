@@ -29,22 +29,26 @@ class ENGINE_API FIntProperty final : public TNumericProperty<int32>
 {
 public:
 	using TNumericProperty::TNumericProperty;
+	EPropertyKind GetKind() const override { return EPropertyKind::Int32; }
 };
 
 class ENGINE_API FBoolProperty final : public TNumericProperty<bool>
 {
 public:
 	using TNumericProperty::TNumericProperty;
+	EPropertyKind GetKind() const override { return EPropertyKind::Bool; }
 };
 
 class ENGINE_API FFloatProperty final : public TNumericProperty<float>
 {
 public:
 	using TNumericProperty::TNumericProperty;
+	EPropertyKind GetKind() const override { return EPropertyKind::Float; }
 };
 
 class ENGINE_API FDoubleProperty final : public TNumericProperty<double>
 {
 public:
 	using TNumericProperty::TNumericProperty;
+	EPropertyKind GetKind() const override { return EPropertyKind::Double; }
 };

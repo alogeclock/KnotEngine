@@ -7,6 +7,8 @@
 #include "Runtime/Engine.h"
 #include "Input/InputRouter.h"
 #include "UI/EditorUISystem.h"
+#include "Viewport/LevelEditorViewportClient.h"
+#include "Viewport/Viewport.h"
 
 UCLASS()
 class UEditorEngine : public UEngine
@@ -27,10 +29,15 @@ public:
 	void Shutdown() override;
 
 private:
+	URenderer Renderer;
+
+	// TO-DO: EditorEngine는 Editor 전용이므로 추상화된 IRenderDevice와 IRenderContext를 사용하도록 한다.
 	FD3D11RenderDevice RenderDevice;
 	FD3D11RenderContext RenderContext;
-	URenderer Renderer;
 	FD3D11ImGuiBackend ImGuiRenderBackend;
+
+	FViewport LevelViewport;
+	FLevelEditorViewportClient LevelViewportClient;
 
 	FInputRouter InputRouter;
 	FEditorUISystem EditorUISystem;

@@ -19,11 +19,11 @@ struct ENGINE_API FTransform
 
 	UPROPERTY() FQuat Rotation = FQuat::Identity;
 	UPROPERTY() FVector Translation = FVector::ZeroVector;
-	UPROPERTY() FVector Scale3D = FVector::OneVector;
+	UPROPERTY() FVector Scale = FVector::OneVector;
 
 	// 생성자 (Constructors)
 	FTransform() noexcept = default;
-	FTransform(const FQuat& InRotation, const FVector& InTranslation = FVector::ZeroVector, const FVector& InScale3D = FVector::OneVector) noexcept;
+	FTransform(const FQuat& InRotation, const FVector& InTranslation = FVector::ZeroVector, const FVector& InScale = FVector::OneVector) noexcept;
 
 	FTransform operator*(const FTransform& Other) const noexcept;
 	FTransform& operator*=(const FTransform& Other) noexcept;

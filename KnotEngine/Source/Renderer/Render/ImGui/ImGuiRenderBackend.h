@@ -4,6 +4,8 @@
 
 #include "Render/RHI/RenderTypes.h"
 
+#include <imgui.h>
+
 struct ImDrawData;
 struct ImGuiContext;
 
@@ -23,4 +25,6 @@ public:
 	virtual void BeginFrame() = 0;
 	virtual void Render(FCommandListHandle CommandList, ImDrawData* DrawData) = 0;
 	virtual void Shutdown() = 0;
+
+	virtual ImTextureID GetImGuiTextureID(FTextureHandle Texture) const = 0;
 };

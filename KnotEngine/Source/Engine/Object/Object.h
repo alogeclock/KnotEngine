@@ -12,6 +12,7 @@ class UClass;
 class FReferenceCollector;
 class FReflectionRegistry;
 class FArchive;
+class FProperty;
 
 // 엔진 런타임 객체의 공통 기반 클래스.
 // GUObjectArray 등록/해제와 생명주기를 함께하며 UUID 기반 식별.
@@ -36,6 +37,7 @@ public:
 
 	UClass* GetClass() const;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
+	virtual void PostEditProperty(const FProperty& Property) {}
 	bool IsA(const UClass* Class) const;
 	void Serialize(FArchive& Ar);
 

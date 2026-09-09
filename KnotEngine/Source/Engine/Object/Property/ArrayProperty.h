@@ -47,6 +47,7 @@ public:
 		EPropertyFlags InFlags = EPropertyFlags::None);
 
 	const FProperty* GetInner() const { return Inner.get(); }
+	EPropertyKind GetKind() const override { return EPropertyKind::Array; }
 
 protected:
 	void InitializeElement(void* Value) const override;

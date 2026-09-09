@@ -32,6 +32,8 @@ public:
 
 	void UpdateConstant(const FMatrix& WorldViewProjection);
 	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer);
+	void BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport);
+	void EndRenderTarget();
 
 	FCommandListHandle GetCommandList() const { return CommandList; }
 	FRenderViewport GetViewport() const;

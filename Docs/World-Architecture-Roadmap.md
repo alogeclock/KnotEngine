@@ -461,69 +461,6 @@ Worker는 immutable snapshot을 읽거나 자신에게 할당된 데이터만 �
 
 작은 Component Tick을 각각 worker task로 만들면 scheduler 비용이 더 클 수 있다. 대량 동종 작업은 subsystem의 batch node로 처리한다. 이 사례가 생길 때 Component 전용 등록 API를 일반 function node API로 확장한다.
 
-## 채택하지 않는 UE 호환 구조
-
-Knot Engine에는 기존 Unreal 실행 경로가 없으므로 다음 구조를 구현하지 않는다.
-
-- Engine 전역 `FExecutionManager`
-- `OnBeginFrame`에서 모든 World graph를 실행하는 Engine Subsystem
-- 기존 `ETickingGroup`에 등록되는 Phase별 `FTickFunction`
-- graph를 중단하고 외부 Tick에서 재개하는 continuation node
-- stand-alone graph를 inline 실행하는 graph link
-- delegate로 별도 재개하는 EndFrame 경로
-- `PostUpdateWork`, `LastDemotable`, `NewlySpawned`
-- `TickGroup`과 `EndTickGroup` deadline 모델
-
-이 기능들이 해결하는 문제가 Knot Engine에서 나타나면 그 문제에 맞는 작은 기능을 추가한다.
-
-## 구현 순서
-
-### 1단계: Component Registration
-
-1. 완료: `RegisterComponent()`와 `UnregisterComponent()`, 대응 virtual 훅을 추가했다.
-2. 완료: BegunPlay와 Active 상태를 분리하고 activation 훅을 추가했다.
-3. Level 연결과 분리 시 모든 Component 등록 상태를 일괄 전환한다.
-4. Render와 Physics subsystem을 `OnRegister()` 및 `OnUnregister()`에 연결한다.
-5. 재등록과 Level 이동 계약을 검증한다.
-
-### 2단계: 여섯 Phase 직렬 Registry
-
-1. `EWorldExecutionPhase`와 `FComponentTickFunction`을 추가한다.
-2. `UWorld` 소유 `FWorldExecutionManager`를 추가한다.
-3. generation이 있는 `FExecutionNodeHandle`과 node pool을 구현한다.
-4. Component 등록과 함께 TickFunction을 실행기에 등록한다.
-5. Phase별 node를 Game Thread에서 직렬 실행한다.
-6. `ULevel::Tick()`과 `UNode::Tick()` 직접 순회를 제거한다.
-
-### 3단계: 안전한 동적 변경
-
-1. 실행 상태와 `PendingAdds`, `PendingRemoves`를 추가한다.
-2. 실행 중 추가는 다음 프레임부터 반영한다.
-3. 실행 중 제거는 즉시 disable하고 안전 지점에서 실제 제거한다.
-4. Level unload와 Node 및 Component 지연 파괴 순서를 연결한다.
-
-### 4단계: Phase 내부 DAG
-
-1. handle 기반 `AddRunAfter()`와 `RemoveRunAfter()`를 추가한다.
-2. Phase별 graph revision과 정렬 cache를 구현한다.
-3. Kahn 알고리즘으로 정렬하고 cycle을 오류로 처리한다.
-4. Transform, Movement와 Camera의 실제 dependency로 계약을 검증한다.
-
-### 5단계: 필요한 실행 정책
-
-1. 실제 사용처가 생기면 Tick interval을 추가한다.
-2. Paused Tick 요구가 생기면 pause delta time을 정의한다.
-3. Dirty queue로 부족한 변경 전파가 확인되면 signal dependency를 추가한다.
-4. Component 이외의 실행 대상이 생기면 일반 callback node를 추출한다.
-
-### 6단계: Task Graph
-
-1. 직렬 DAG와 같은 검증 데이터를 사용하는 task executor를 만든다.
-2. Phase barrier와 child completion을 구현한다.
-3. thread safety가 확인된 node만 worker 실행을 허용한다.
-4. Physics 비동기 실행을 Start/During/EndPhysics 경계에 연결한다.
-5. 프로파일링 결과에 따라 동종 Component batch node를 추가한다.
-
 ## 완료 조건
 
 | 단계 | 완료 조건 |

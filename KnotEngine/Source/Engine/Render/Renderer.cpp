@@ -95,6 +95,25 @@ void URenderer::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
 	}
 }
 
+// World를 offscreen Color/Depth Target에 렌더링하도록 출력 대상과 Viewport를 설정하고 이전 프레임의 내용을 초기화한다.
+void URenderer::BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport)
+{
+	check(CommandList.IsValid());
+	static constexpr float ViewportClearColor[4] = { 0.035f, 0.04f, 0.05f, 1.0f };
+	RenderDevice.SetRenderTargets(CommandList, ColorTarget, DepthTarget);
+	RenderDevice.SetViewport(CommandList, Viewport);
+	RenderDevice.ClearRenderTarget(CommandList, ColorTarget, ViewportClearColor);
+	RenderDevice.ClearDepthStencil(CommandList, DepthTarget, 1.0f, 0);
+	RenderDevice.SetGraphicsPipeline(CommandList, GraphicsPipeline);
+}
+
+// Offscreen RTV 바인딩을 끝내고 Back Buffer를 복구하여 이후 ImGui가 Color Target의 SRV를 화면에 렌더링할 수 있게 한다.
+void URenderer::EndRenderTarget()
+{
+	check(CommandList.IsValid());
+	RenderContext.BindBackBuffer(CommandList);
+}
+
 FRenderViewport URenderer::GetViewport() const
 {
 	return RenderContext.GetViewport();

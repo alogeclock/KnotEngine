@@ -14,6 +14,7 @@ public:
 	void Startup(ImGuiContext* Context) override;
 	void BeginFrame() override;
 	void Render(FCommandListHandle CommandList, ImDrawData* DrawData) override;
+	ImTextureID GetImGuiTextureID(FTextureHandle Texture) const override;
 	void Shutdown() override;
 
 private:

@@ -21,7 +21,7 @@ public:
 	bool IsOwned() const { return Owner != nullptr; }
 	bool IsRegistered() const { return bIsRegistered; }
 	bool HasBegunPlay() const { return bHasBegunPlay; }
-	bool IsTickEnabled() const { return bTickEnabled; }
+	bool IsTickEnabled() const { return bTickEnable; }
 	bool IsActive() const { return bIsActive; }
 
 	void RegisterComponent();
@@ -39,7 +39,7 @@ protected:
 	virtual void OnActivated() {}
 	virtual void OnDeactivated() {}
 
-	UPROPERTY(Category = "Component") bool bTickEnabled = true;
+	UPROPERTY(Category = "Component") bool bTickEnable = true;
 	UPROPERTY(Category = "Component") bool bAutoActivate = true;
 
 private:

@@ -8,6 +8,21 @@
 
 class UStruct;
 
+enum class EPropertyKind : uint8
+{
+	Int32,
+	Bool,
+	Float,
+	Double,
+	String,
+	Name,
+	Enum,
+	Struct,
+	Object,
+	SoftObject,
+	Array,
+};
+
 enum class EPropertyFlags : uint64
 {
 	None = 0,
@@ -41,6 +56,7 @@ class ENGINE_API FProperty
 public:
 	FProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint32 InElementSize, uint32 InArrayDimension, EPropertyFlags InFlags);
 	virtual ~FProperty() = default;
+	virtual EPropertyKind GetKind() const = 0;
 
 	const FName& GetFName() const { return Name; }
 	FString GetName() const { return Name.ToString(); }

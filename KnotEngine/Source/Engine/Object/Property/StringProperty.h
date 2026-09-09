@@ -8,6 +8,7 @@ class ENGINE_API FStringProperty final : public FProperty
 {
 public:
 	FStringProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint32 InArrayDimension = 1, EPropertyFlags InFlags = EPropertyFlags::None);
+	EPropertyKind GetKind() const override { return EPropertyKind::String; }
 
 protected:
 	void InitializeElement(void* Value) const override;

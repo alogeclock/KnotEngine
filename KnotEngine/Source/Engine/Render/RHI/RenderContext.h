@@ -20,9 +20,11 @@ public:
 	virtual void Create(void* NativeWindowHandle) = 0;
 	virtual void Release() = 0;
 
-	virtual void Resize(uint32 Width, uint32 Height) = 0;
 	virtual void BeginFrame(FCommandListHandle CommandList) = 0;
 	virtual void EndFrame(FCommandListHandle CommandList) = 0;
+	virtual void Resize(uint32 Width, uint32 Height) = 0;
+
+	virtual void BindBackBuffer(FCommandListHandle CommandList) = 0;
 	virtual void Present() = 0;
 
 	virtual FRenderViewport GetViewport() const = 0;

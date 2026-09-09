@@ -21,6 +21,7 @@ public:
 
 	const UClass* GetPropertyClass() const { return PropertyClass; }
 	const ISoftObjectPtrOps* GetSoftObjectPtrOps() const { return SoftObjectPtrOps; }
+	EPropertyKind GetKind() const override { return EPropertyKind::SoftObject; }
 
 protected:
 	void InitializeElement(void* Value) const override;

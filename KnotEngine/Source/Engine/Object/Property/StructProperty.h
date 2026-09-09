@@ -18,6 +18,7 @@ public:
 		EPropertyFlags InFlags = EPropertyFlags::None);
 
 	const UScriptStruct* GetStruct() const { return Struct; }
+	EPropertyKind GetKind() const override { return EPropertyKind::Struct; }
 
 protected:
 	void InitializeElement(void* Value) const override;

@@ -63,6 +63,7 @@ void FInputRouter::BeginFrame(const FInputSnapshot& InputSnapshot)
 	bHasPendingFrame = true;
 }
 
+// 매 프레임 Input Target을 새로 등록하며, 같은 Input Target 객체는 입력 라우팅이 끝날 때까지 살아 있어야 한다.
 void FInputRouter::RegisterTarget(IInputTarget& Target, bool bHovered, bool bFocused)
 {
 	checkf(bHasPendingFrame, "FInputRouter::BeginFrame()보다 먼저 입력 대상을 등록할 수 없다.");

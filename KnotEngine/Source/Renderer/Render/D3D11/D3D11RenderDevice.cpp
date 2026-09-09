@@ -62,8 +62,7 @@ void FD3D11RenderDevice::DestroyBuffer(FBufferHandle& Handle)
 }
 
 // 공통 Texture Description과 초기 데이터를 D3D11 2D Texture로 변환해 생성한다.
-FTextureHandle FD3D11RenderDevice::CreateTexture(
-	const FTextureDesc& Desc, std::span<const uint8> InitialData)
+FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::span<const uint8> InitialData)
 {
 	panic(NativeDevice.GetDevice());
 	panicf(Desc.Width > 0 && Desc.Height > 0, "잘못된 Texture 크기. Width={}, Height={}", Desc.Width, Desc.Height);
@@ -81,12 +80,19 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(
 	case ETextureFormat::BGRA8UNorm: NativeDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; break;
 	case ETextureFormat::D24UNormS8UInt: NativeDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; break;
 	}
-	switch (Desc.Usage)
+	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
 	{
-	case ETextureUsage::ShaderResource: NativeDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; break;
-	case ETextureUsage::RenderTarget: NativeDesc.BindFlags = D3D11_BIND_RENDER_TARGET; break;
-	case ETextureUsage::DepthStencil: NativeDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL; break;
+		NativeDesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 	}
+	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::RenderTarget))
+	{
+		NativeDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+	}
+	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::DepthStencil))
+	{
+		NativeDesc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
+	}
+	panicf(NativeDesc.BindFlags != 0, "Texture Usage가 비어 있다.");
 
 	D3D11_SUBRESOURCE_DATA NativeInitialData = {};
 	if (!InitialData.empty())
@@ -99,9 +105,24 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(
 
 	// 네이티브 생성 결과까지 검증한 다음에만 외부에서 사용할 Handle 슬롯에 보관한다.
 	FTextureSlot Slot;
-	const HRESULT Result = NativeDevice.GetDevice()->CreateTexture2D(
+	HRESULT Result = NativeDevice.GetDevice()->CreateTexture2D(
 		&NativeDesc, InitialData.empty() ? nullptr : &NativeInitialData, Slot.Texture.GetAddressOf());
 	panicf(SUCCEEDED(Result) && Slot.Texture, "ID3D11Device::CreateTexture2D 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
+	{
+		Result = NativeDevice.GetDevice()->CreateShaderResourceView(Slot.Texture.Get(), nullptr, Slot.ShaderResourceView.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Slot.ShaderResourceView, "ID3D11Device::CreateShaderResourceView 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	}
+	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::RenderTarget))
+	{
+		Result = NativeDevice.GetDevice()->CreateRenderTargetView(Slot.Texture.Get(), nullptr, Slot.RenderTargetView.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Slot.RenderTargetView, "ID3D11Device::CreateRenderTargetView 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	}
+	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::DepthStencil))
+	{
+		Result = NativeDevice.GetDevice()->CreateDepthStencilView(Slot.Texture.Get(), nullptr, Slot.DepthStencilView.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Slot.DepthStencilView, "ID3D11Device::CreateDepthStencilView 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	}
 
 	panicf(TextureSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Texture 슬롯 수가 uint32 범위를 초과했다.");
 	TextureSlots.push_back(std::move(Slot));
@@ -117,6 +138,9 @@ void FD3D11RenderDevice::DestroyTexture(FTextureHandle& Handle)
 		FTextureSlot& Slot = TextureSlots[Handle.Index];
 		if (Slot.Generation == Handle.Generation)
 		{
+			Slot.DepthStencilView.Reset();
+			Slot.RenderTargetView.Reset();
+			Slot.ShaderResourceView.Reset();
 			Slot.Texture.Reset();
 			AdvanceGeneration(Slot.Generation);
 		}
@@ -458,6 +482,47 @@ void FD3D11RenderDevice::SetConstantData(FCommandListHandle CommandList, EShader
 		NativeDevice.GetContext()->PSSetConstantBuffers(Slot, 1, &NativeBuffer);
 	}
 }
+void FD3D11RenderDevice::SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget)
+{
+	ValidateCommandList(CommandList);
+	FTextureSlot* ColorSlot = ResolveTexture(ColorTarget);
+	FTextureSlot* DepthSlot = ResolveTexture(DepthTarget);
+	panic(ColorSlot && ColorSlot->RenderTargetView);
+	panic(DepthSlot && DepthSlot->DepthStencilView);
+	ID3D11RenderTargetView* RenderTargetView = ColorSlot->RenderTargetView.Get();
+	NativeDevice.GetContext()->OMSetRenderTargets(1, &RenderTargetView, DepthSlot->DepthStencilView.Get());
+}
+
+void FD3D11RenderDevice::SetViewport(FCommandListHandle CommandList, const FRenderViewport& Viewport)
+{
+	ValidateCommandList(CommandList);
+	const D3D11_VIEWPORT NativeViewport = {
+		Viewport.TopLeftX, Viewport.TopLeftY, Viewport.Width, Viewport.Height, Viewport.MinDepth, Viewport.MaxDepth
+	};
+	NativeDevice.GetContext()->RSSetViewports(1, &NativeViewport);
+}
+
+void FD3D11RenderDevice::ClearRenderTarget(FCommandListHandle CommandList, FTextureHandle Target, const float Color[4])
+{
+	ValidateCommandList(CommandList);
+	FTextureSlot* Slot = ResolveTexture(Target);
+	panic(Slot && Slot->RenderTargetView);
+	NativeDevice.GetContext()->ClearRenderTargetView(Slot->RenderTargetView.Get(), Color);
+}
+
+void FD3D11RenderDevice::ClearDepthStencil(FCommandListHandle CommandList, FTextureHandle Target, float Depth, uint8 Stencil)
+{
+	ValidateCommandList(CommandList);
+	FTextureSlot* Slot = ResolveTexture(Target);
+	panic(Slot && Slot->DepthStencilView);
+	NativeDevice.GetContext()->ClearDepthStencilView(Slot->DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, Depth, Stencil);
+}
+
+ID3D11ShaderResourceView* FD3D11RenderDevice::GetNativeShaderResourceView(FTextureHandle Handle) const
+{
+	const FTextureSlot* Slot = ResolveTexture(Handle);
+	return Slot ? Slot->ShaderResourceView.Get() : nullptr;
+}
 
 // 현재 Graphics 상태를 사용해 인덱스가 없는 Geometry를 그린다.
 void FD3D11RenderDevice::Draw(FCommandListHandle CommandList, uint32 VertexCount, uint32 FirstVertex)
@@ -509,6 +574,21 @@ FD3D11RenderDevice::FPipelineSlot* FD3D11RenderDevice::ResolvePipeline(FGraphics
 	}
 	FPipelineSlot& Slot = PipelineSlots[Handle.Index];
 	return Slot.Generation == Handle.Generation && Slot.bValid ? &Slot : nullptr;
+}
+
+FD3D11RenderDevice::FTextureSlot* FD3D11RenderDevice::ResolveTexture(FTextureHandle Handle)
+{
+	return const_cast<FTextureSlot*>(static_cast<const FD3D11RenderDevice*>(this)->ResolveTexture(Handle));
+}
+
+const FD3D11RenderDevice::FTextureSlot* FD3D11RenderDevice::ResolveTexture(FTextureHandle Handle) const
+{
+	if (!Handle.IsValid() || Handle.Index >= TextureSlots.size())
+	{
+		return nullptr;
+	}
+	const FTextureSlot& Slot = TextureSlots[Handle.Index];
+	return Slot.Generation == Handle.Generation && Slot.Texture ? &Slot : nullptr;
 }
 
 // 파괴된 슬롯의 과거 Handle이 다시 유효해지지 않도록 Generation을 다음 유효 값으로 전진시킨다.

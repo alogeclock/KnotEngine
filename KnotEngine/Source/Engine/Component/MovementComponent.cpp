@@ -3,7 +3,7 @@
 
 UMovementComponent::UMovementComponent() : RotationRate(30.0f, 45.0f, 15.0f)
 {
-	bTickEnabled = true;
+	bTickEnable = true;
 }
 
 void UMovementComponent::TickComponent(float DeltaTime)

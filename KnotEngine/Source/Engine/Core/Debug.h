@@ -31,10 +31,13 @@ struct ENGINE_API FDebugContext
 class ENGINE_API FDebug
 {
 public:
+	using FLogSink = void (*)(ELogVerbosity Verbosity, std::string_view Category, std::string_view Message, std::string_view File, int Line, void* UserData);
+
 	static void Startup();
 	static void Shutdown();
 	static void Flush();
 	static bool IsDebuggerAttached();
+	static void SetLogSink(FLogSink Sink, void* UserData);
 
 	// Check 계열 Assertion 실패 보고, 호출 직후 즉시 디버거를 중단한다.
 	static void CheckFailed(const FDebugContext& Context);
@@ -69,7 +72,9 @@ public:
 		                                     File, Line, ToString(Verbosity), Category, MessageView);
 		*Result.out = '\0';
 
-		WriteMessage(Buffer, static_cast<size_t>(Result.out - Buffer), Verbosity == ELogVerbosity::Error);
+		const size_t Length = static_cast<size_t>(Result.out - Buffer);
+		DispatchLog(Verbosity, Category, MessageView, File, Line);
+		WriteMessage(Buffer, Length, Verbosity == ELogVerbosity::Error);
 	}
 
 	// Visual Studio 출력 창과 로그 파일에 Formatted String을 출력한다.
@@ -92,6 +97,7 @@ private:
 	static constexpr size_t BufferCapacity = 4096;
 	static FState& GetState();
 	static void WriteMessage(const char* Message, size_t Length, bool bFlush);
+	static void DispatchLog(ELogVerbosity Verbosity, std::string_view Category, std::string_view Message, std::string_view File, int Line);
 
 	static const char* ToString(ELogVerbosity Verbosity);
 

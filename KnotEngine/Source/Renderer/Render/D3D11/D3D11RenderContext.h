@@ -25,6 +25,7 @@ public:
 
 	void Resize(uint32 Width, uint32 Height) override;
 	void BeginFrame(FCommandListHandle CommandList) override;
+	void BindBackBuffer(FCommandListHandle CommandList) override;
 	void EndFrame(FCommandListHandle CommandList) override;
 	void Present() override;
 

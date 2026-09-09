@@ -8,6 +8,7 @@ class ENGINE_API FNameProperty final : public FProperty
 {
 public:
 	FNameProperty(FName InName, const UStruct* InOwner, uint32 InOffset, uint32 InArrayDimension = 1, EPropertyFlags InFlags = EPropertyFlags::None);
+	EPropertyKind GetKind() const override { return EPropertyKind::Name; }
 
 protected:
 	void InitializeElement(void* Value) const override;

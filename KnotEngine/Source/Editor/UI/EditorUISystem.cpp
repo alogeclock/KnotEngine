@@ -4,15 +4,24 @@
 #include "Core/IO/Paths.h"
 #include "Input/InputRouter.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
+#include "Viewport/LevelEditorViewportClient.h"
+#include "Viewport/Viewport.h"
+#include "World/World.h"
 
 #include <filesystem>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_win32.h>
 #include <string>
 #include <system_error>
 
-FEditorUISystem::FEditorUISystem(IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter)
-	: RenderBackend(InRenderBackend), InputRouter(InInputRouter)
+FEditorUISystem::FEditorUISystem(
+	IImGuiRenderBackend& InRenderBackend,
+	FInputRouter& InInputRouter,
+	FViewport& InViewport,
+	FLevelEditorViewportClient& InViewportClient)
+	: RenderBackend(InRenderBackend), InputRouter(InInputRouter),
+	  ViewportPanel(InViewport, InViewportClient, InRenderBackend, InInputRouter)
 {
 }
 
@@ -27,10 +36,12 @@ void FEditorUISystem::Startup(HWND WindowHandle)
 
 	static const std::string ImGuiSettingsPath = FPaths::ToUtf8(FPaths::ImGuiSettingsPath());
 	ImGui::GetIO().IniFilename = ImGuiSettingsPath.c_str();
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 
 	RenderBackend.Startup(ImGui::GetCurrentContext());
+	ConsolePanel.Startup();
 }
 
 void FEditorUISystem::BeginFrame()
@@ -43,7 +54,7 @@ void FEditorUISystem::BeginFrame()
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
-void FEditorUISystem::Draw(float DeltaTime)
+void FEditorUISystem::Draw(UWorld& World, float DeltaTime)
 {
 	// TO-DO: 프레임 통계는 별도 Overlay Panel로 분리하여 콘솔을 통해 출력할 수 있도록 한다.
 	if (DeltaTime > 0.0f)
@@ -60,25 +71,87 @@ void FEditorUISystem::Draw(float DeltaTime)
 		FrameCount = 0;
 	}
 
-	ImGui::Begin("Knot Engine Property Window");
-	ImGui::Text("FPS: %.1f (%.3f ms)", DisplayedFramesPerSecond, DisplayedFrameTimeMs);
-	ImGui::Separator();
-	ImGui::ColorEdit4("Background Color", ClearColor);
-	ImGui::End();
+	DrawMenuBar();
+	const ImGuiID DockspaceId = ImGui::GetID("KnotEditorDockspace");
+	const bool bNeedsDefaultLayout = ImGui::DockBuilderGetNode(DockspaceId) == nullptr;
+	ImGui::DockSpaceOverViewport(DockspaceId, ImGui::GetMainViewport(), ImGuiDockNodeFlags_None);
+	if (bNeedsDefaultLayout)
+	{
+		BuildDefaultDockLayout(DockspaceId);
+	}
+	if (bShowHierarchy)
+	{
+		HierarchyPanel.Draw(World, Selection);
+	}
+	if (bShowInspector)
+	{
+		InspectorPanel.Draw(Selection);
+	}
+	if (bShowViewport)
+	{
+		ViewportPanel.Draw();
+	}
+	if (bShowConsole)
+	{
+		ConsolePanel.Draw();
+	}
 
 	const ImGuiIO& IO = ImGui::GetIO();
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
-void FEditorUISystem::EndFrame(FCommandListHandle CommandList)
+void FEditorUISystem::Render(FCommandListHandle CommandList)
 {
+	// Draw()에서 쌓은 UI 명령을 확정한 뒤, World 렌더링이 끝난 Viewport Texture를 포함한 ImGui Draw Data를 Back Buffer에 렌더링한다.
 	ImGui::Render();
 	RenderBackend.Render(CommandList, ImGui::GetDrawData());
 }
 
 void FEditorUISystem::Shutdown()
 {
+	ConsolePanel.Shutdown();
 	RenderBackend.Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+}
+
+void FEditorUISystem::DrawMenuBar()
+{
+	if (!ImGui::BeginMainMenuBar())
+	{
+		return;
+	}
+	if (ImGui::BeginMenu("Window"))
+	{
+		ImGui::MenuItem("Hierarchy", nullptr, &bShowHierarchy);
+		ImGui::MenuItem("Inspector", nullptr, &bShowInspector);
+		ImGui::MenuItem("Viewport", nullptr, &bShowViewport);
+		ImGui::MenuItem("Console", nullptr, &bShowConsole);
+		ImGui::EndMenu();
+	}
+	ImGui::Separator();
+	ImGui::Text("FPS %.1f | %.3f ms", DisplayedFramesPerSecond, DisplayedFrameTimeMs);
+	ImGui::EndMainMenuBar();
+}
+
+void FEditorUISystem::BuildDefaultDockLayout(std::uint32_t DockspaceId)
+{
+	const ImGuiViewport* MainViewport = ImGui::GetMainViewport();
+	ImGui::DockBuilderRemoveNode(DockspaceId);
+	ImGui::DockBuilderAddNode(DockspaceId, ImGuiDockNodeFlags_DockSpace);
+	ImGui::DockBuilderSetNodePos(DockspaceId, MainViewport->WorkPos);
+	ImGui::DockBuilderSetNodeSize(DockspaceId, MainViewport->WorkSize);
+
+	ImGuiID CenterId = DockspaceId;
+	ImGuiID LeftId = 0;
+	ImGuiID RightId = 0;
+	ImGuiID BottomId = 0;
+	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Left, 0.20f, &LeftId, &CenterId);
+	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Right, 0.25f, &RightId, &CenterId);
+	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Down, 0.25f, &BottomId, &CenterId);
+	ImGui::DockBuilderDockWindow("Hierarchy", LeftId);
+	ImGui::DockBuilderDockWindow("Inspector", RightId);
+	ImGui::DockBuilderDockWindow("Console", BottomId);
+	ImGui::DockBuilderDockWindow("Viewport", CenterId);
+	ImGui::DockBuilderFinish(DockspaceId);
 }

@@ -12,7 +12,9 @@ struct FDebug::FState
 {
 	HANDLE LogFileHandle = INVALID_HANDLE_VALUE;
 	std::mutex Mutex;
-	bool bFileWriteFailureReported = false;
+	FLogSink LogSink = nullptr; // 로그를 실시간으로 받을 단일 콜백
+	void* LogSinkUserData = nullptr; // 로그를 받을 객체의 주소
+	bool bFileWriteFailureReported = false; // 로그 파일 쓰기 실패 메시지를 한 번만 출력하기 위한 플래그
 };
 
 FDebug::FState& FDebug::GetState()
@@ -90,6 +92,32 @@ void FDebug::Flush()
 bool FDebug::IsDebuggerAttached()
 {
 	return ::IsDebuggerPresent() != FALSE;
+}
+
+// Editor Console처럼 로그를 실시간으로 받을 단일 콜백과 사용자 데이터를 thread-safe하게 등록하거나 해제한다.
+void FDebug::SetLogSink(FLogSink Sink, void* UserData)
+{
+	FState& State = GetState();
+	std::scoped_lock Lock(State.Mutex);
+	State.LogSink = Sink;
+	State.LogSinkUserData = UserData;
+}
+
+// 등록된 sink 정보를 락 안에서 복사한 뒤, logger mutex를 잡지 않은 상태에서 콜백 함수를 호출한다.
+void FDebug::DispatchLog(ELogVerbosity Verbosity, std::string_view Category, std::string_view Message, std::string_view File, int Line)
+{
+	FLogSink Sink = nullptr;
+	void* UserData = nullptr;
+	{
+		FState& State = GetState();
+		std::scoped_lock Lock(State.Mutex);
+		Sink = State.LogSink;
+		UserData = State.LogSinkUserData;
+	}
+	if (Sink)
+	{
+		Sink(Verbosity, Category, Message, File, Line, UserData);
+	}
 }
 
 [[noreturn]] void FDebug::Fatal()
