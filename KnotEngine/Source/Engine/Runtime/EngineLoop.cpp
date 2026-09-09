@@ -26,6 +26,11 @@ int32 FEngineLoop::Run(UEngine& Engine)
 			break;
 		}
 
+		if (const auto Resize = Application.ConsumePendingResize())
+		{
+			Engine.OnWindowResized(*Resize);
+		}
+
 		Engine.ProcessInput(Application.GetInputSnapshot());
 		Engine.Tick(FrameTimer.GetDeltaTime());
 	}

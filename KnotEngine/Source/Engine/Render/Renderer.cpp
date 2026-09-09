@@ -50,6 +50,12 @@ void URenderer::Release()
 	RenderDevice.Release();
 }
 
+void URenderer::Resize(uint32 Width, uint32 Height)
+{
+	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Render Context 크기를 변경할 수 없다.");
+	RenderContext.Resize(Width, Height);
+}
+
 void URenderer::BeginFrame()
 {
 	checkf(!CommandList.IsValid(), "Renderer Frame이 이미 시작되었다.");

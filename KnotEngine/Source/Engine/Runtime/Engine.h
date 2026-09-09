@@ -23,6 +23,7 @@ public:
 	// Life Cycle & Input
 	virtual void Startup(FWindowsWindow InWindow) {}
 	virtual void ProcessInput(const FInputSnapshot& InputSnapshot) {}
+	virtual void OnWindowResized(FWindowSize Size) {}
 	virtual void Tick(float DeltaTime) {}
 	virtual void Shutdown() {}
 

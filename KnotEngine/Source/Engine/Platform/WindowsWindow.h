@@ -6,6 +6,12 @@
 
 #include <Windows.h>
 
+struct FWindowSize
+{
+	uint32 Width = 0;
+	uint32 Height = 0;
+};
+
 // Windows 실제 OS 창(HWND)를 감싸는 엔진 래퍼 객체, 창 크기/상태/타이틀/핸들 관리
 class ENGINE_API FWindowsWindow
 {

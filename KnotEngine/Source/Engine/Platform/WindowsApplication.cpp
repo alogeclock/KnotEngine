@@ -47,15 +47,9 @@ LRESULT FWindowsApplication::ProcessMessage(HWND WindowHandle, UINT Message, WPA
 		break;
 	case WM_EXITSIZEMOVE:
 		bIsResizing = false;
-		if (OnResizingCallback && Window.GetHwnd())
+		if (Window.GetHwnd())
 		{
-			OnResizingCallback(static_cast<uint32>(Window.GetWidth()), static_cast<uint32>(Window.GetHeight()));
-		}
-		break;
-	case WM_SIZING:
-		if (OnSizingCallback)
-		{
-			OnSizingCallback();
+			PendingResize = { static_cast<uint32>(Window.GetWidth()), static_cast<uint32>(Window.GetHeight()) };
 		}
 		break;
 	case WM_SIZE:
@@ -64,10 +58,24 @@ LRESULT FWindowsApplication::ProcessMessage(HWND WindowHandle, UINT Message, WPA
 			const uint32 Width = static_cast<uint32>(LOWORD(LParam));
 			const uint32 Height = static_cast<uint32>(HIWORD(LParam));
 			Window.OnResized(Width, Height);
-			if (!bIsResizing && OnResizingCallback)
+			if (!bIsResizing)
 			{
-				OnResizingCallback(Width, Height);
+				PendingResize = { Width, Height };
 			}
+		}
+		break;
+	case WM_DPICHANGED:
+		if (Window.GetHwnd() == WindowHandle)
+		{
+			const RECT& SuggestedRect = *reinterpret_cast<const RECT*>(LParam);
+			verify(SetWindowPos(
+				WindowHandle,
+				nullptr,
+				SuggestedRect.left,
+				SuggestedRect.top,
+				SuggestedRect.right - SuggestedRect.left,
+				SuggestedRect.bottom - SuggestedRect.top,
+				SWP_NOACTIVATE | SWP_NOZORDER));
 		}
 		break;
 	case WM_UNICHAR:
@@ -132,6 +140,13 @@ void FWindowsApplication::PumpMessages()
 		DispatchMessageW(&Message);
 	}
 	InputSnapshot = WindowsInput.TakeSnapshot();
+}
+
+std::optional<FWindowSize> FWindowsApplication::ConsumePendingResize()
+{
+	const std::optional<FWindowSize> Resize = PendingResize;
+	PendingResize.reset();
+	return Resize;
 }
 
 void FWindowsApplication::Shutdown()

@@ -35,8 +35,11 @@ void FImGuiSystem::Startup(HWND WindowHandle)
 	panicf(!FileSystemError, "ImGui 설정 디렉터리 생성 실패. Error={}", FileSystemError.message());
 
 	static const std::string ImGuiSettingsPath = FPaths::ToUtf8(FPaths::ImGuiSettingsPath());
-	ImGui::GetIO().IniFilename = ImGuiSettingsPath.c_str();
-	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	ImGuiIO& IO = ImGui::GetIO();
+	IO.IniFilename = ImGuiSettingsPath.c_str();
+	IO.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	IO.ConfigDpiScaleFonts = true;
+	IO.ConfigDpiScaleViewports = true;
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 
@@ -77,7 +80,7 @@ void FImGuiSystem::Draw(UWorld& World, float DeltaTime)
 	ImGui::DockSpaceOverViewport(DockspaceId, ImGui::GetMainViewport(), ImGuiDockNodeFlags_None);
 	if (bNeedsDefaultLayout)
 	{
-		BuildDefaultDockLayout(DockspaceId);
+		BuildLayout(DockspaceId);
 	}
 	if (bShowHierarchy)
 	{
@@ -87,10 +90,7 @@ void FImGuiSystem::Draw(UWorld& World, float DeltaTime)
 	{
 		InspectorPanel.Draw(Selection);
 	}
-	if (bShowViewport)
-	{
-		ViewportPanel.Draw();
-	}
+	ViewportPanel.Draw(bShowViewport);
 	if (bShowConsole)
 	{
 		ConsolePanel.Draw();
@@ -134,7 +134,7 @@ void FImGuiSystem::DrawMenuBar()
 	ImGui::EndMainMenuBar();
 }
 
-void FImGuiSystem::BuildDefaultDockLayout(std::uint32_t DockspaceId)
+void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)
 {
 	const ImGuiViewport* MainViewport = ImGui::GetMainViewport();
 	ImGui::DockBuilderRemoveNode(DockspaceId);

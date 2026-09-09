@@ -26,6 +26,7 @@ public:
 
 	void Create(void* NativeWindowHandle);
 	void Release();
+	void Resize(uint32 Width, uint32 Height);
 
 	void BeginFrame();
 	void EndFrame();

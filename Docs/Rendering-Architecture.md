@@ -117,6 +117,8 @@ KnotEngine/Source/
 | D3D11/D3D12 백엔드 | RHI 계약을 네이티브 API로 변환 | 엔진 장면과 Material 정책 |
 | ImGui Render Backend | Overlay Pass에서 ImGui draw data 기록 | 장면 Pass 실행 순서 결정 |
 
+`FSceneRenderer`는 Editor Panel이나 `FEditorViewportClient`를 열거하지 않는다. 현재 단일 Viewport 구현에서는 에디터 UI build 단계가 표시되지 않는 Viewport의 offscreen target을 해제하고, Editor 프레임 조율 코드가 유효한 Viewport만 `FViewInfo`로 변환하여 `FSceneRenderer`에 전달한다. 유효한 Viewport가 없으면 Scene Pass를 실행하지 않지만 Back Buffer의 Editor Overlay와 Present는 계속 수행한다.
+
 ## 프레임 실행 순서
 
 ### 현재 구현

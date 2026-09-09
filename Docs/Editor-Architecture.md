@@ -407,6 +407,22 @@ Back Buffer의 Editor UI
 
 World rendering은 ImGui draw data 제출 전에 수행한다. UI layout을 먼저 구성해야 이번 프레임 Viewport 크기를 알 수 있으므로 프레임은 UI build와 Viewport render를 분리한다.
 
+### 프레임 Viewport 렌더 여부
+
+현재 단일 Viewport 구현에서는 별도의 렌더 요청 상태를 만들지 않는다. `FViewportPanel::Draw()`은 Panel이 숨겨졌거나 collapse되었거나 framebuffer pixel 크기가 0이면 offscreen target을 해제한다. 실제 Image 영역이 있으면 target을 유효한 크기로 유지한다. `UEditorEngine`은 `FViewport::IsValid()`인 경우에만 World를 해당 Viewport에 렌더링한다.
+
+```text
+FViewportPanel::Draw
+    ├─ 숨김, collapse, 0 크기 → offscreen target 해제
+    └─ 유효한 Image 영역 → offscreen target 생성 또는 크기 유지
+        ↓
+UEditorEngine
+    ├─ FViewport가 유효하지 않음 → Viewport Scene 렌더링 생략
+    └─ FViewport가 유효함 → ViewportClient의 View로 offscreen 렌더링
+```
+
+여러 Level, Asset 또는 PIE Viewport가 추가되고 숨겨진 Viewport의 target을 cache해야 할 필요가 생기면 Viewport와 ViewportClient 쌍을 담는 frame-local 요청 배열을 도입한다. Panel registry나 별도 Viewport manager는 그 전까지 만들지 않는다.
+
 ### Viewport 입력 등록
 
 `ImGui::Image()` 직후 실제 item 상태로 target을 등록한다.
@@ -519,14 +535,22 @@ void UEditorEngine::Tick(float DeltaTime)
 	UWorld* World = FindWorld(EditorContextId);
 	check(World);
 
-	Renderer.BeginFrame();
 	ImGuiSystem.BeginFrame();
 	ImGuiSystem.BuildDockedUI(*World, Renderer, DeltaTime);
 	InputRouter.RouteInput();
 
 	World->Tick(DeltaTime);
 	ImGuiSystem.TickViewports(DeltaTime);
-	ImGuiSystem.RenderViewports(Renderer);
+	Render(*World);
+}
+
+void UEditorEngine::Render(UWorld& World)
+{
+	Renderer.BeginFrame();
+	if (LevelViewport.IsValid())
+	{
+		ImGuiSystem.RenderViewports(World, Renderer);
+	}
 	ImGuiSystem.Render(Renderer.GetCommandList());
 	Renderer.EndFrame();
 }

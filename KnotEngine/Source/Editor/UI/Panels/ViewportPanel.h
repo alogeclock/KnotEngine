@@ -11,7 +11,7 @@ class FViewportPanel
 public:
 	FViewportPanel(FViewport& InViewport, FLevelEditorViewportClient& InViewportClient, IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter);
 
-	void Draw();
+	void Draw(bool bVisible);
 
 private:
 	FViewport& Viewport;

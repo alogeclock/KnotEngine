@@ -93,8 +93,11 @@ endforeach()
 
 source_group("Source\\Resources" FILES
     "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.rc"
+    "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.manifest"
     "${KNOTENGINE_ROOT}/Source/Resources/resource.h"
 )
+
+target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.manifest")
 
 target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)

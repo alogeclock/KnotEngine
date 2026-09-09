@@ -26,7 +26,6 @@ public:
 	void Draw(UWorld& World, float DeltaTime);
 	void Render(FCommandListHandle CommandList);
 	void Shutdown();
-	bool IsViewportVisible() const { return bShowViewport; }
 
 private:
 	IImGuiRenderBackend& RenderBackend;
@@ -51,5 +50,5 @@ private:
 	float DisplayedFrameTimeMs = 0.0f;
 
 	void DrawMenuBar();
-	void BuildDefaultDockLayout(std::uint32_t DockspaceId);
+	void BuildLayout(std::uint32_t DockspaceId);
 };

@@ -69,8 +69,19 @@ void FD3D11RenderContext::Release()
 // 크기가 0인 최소화 상태는 백엔드가 유효한 출력 크기를 받을 때까지 보류한다.
 void FD3D11RenderContext::Resize(uint32 Width, uint32 Height)
 {
-	// 최소화 중 전달되는 0 크기로는 DXGI Buffer를 재생성하지 않는다.
-	if (!SwapChain || Width == 0 || Height == 0)
+	if (!SwapChain)
+	{
+		return;
+	}
+
+	// 최소화 중에는 DXGI 자원을 유지하되, 논리적인 출력 크기를 0으로 기록하여 프레임 출력을 중단한다.
+	if (Width == 0 || Height == 0)
+	{
+		Viewport = {};
+		return;
+	}
+
+	if (Viewport.Width == static_cast<float>(Width) && Viewport.Height == static_cast<float>(Height))
 	{
 		return;
 	}
