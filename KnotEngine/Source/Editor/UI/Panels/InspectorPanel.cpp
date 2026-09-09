@@ -1,6 +1,8 @@
 #include "UI/Panels/InspectorPanel.h"
 
 #include "Component/Component.h"
+#include "Core/Geometry/Transform.h"
+#include "Core/Math/Rotator.h"
 #include "Object/Class.h"
 #include "Object/Property.h"
 #include "Object/Property/EnumProperty.h"
@@ -12,6 +14,8 @@
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include <algorithm>
+#include <cfloat>
 #include <cstring>
 
 // Editor에서 선택된 객체의 프로퍼티를 그리는 패널을 구현한다.
@@ -40,8 +44,14 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 		{
 			continue;
 		}
+		const FString ClassName = Component->GetClass()->GetName();
+		FString HeaderName = ClassName;
+		if (ClassName.size() > 10 && ClassName.starts_with('U') && ClassName.ends_with("Component"))
+		{
+			HeaderName = ClassName.substr(1, ClassName.size() - 10);
+		}
 		ImGui::PushID(Component);
-		if (ImGui::CollapsingHeader(Component->GetClass()->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader(HeaderName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			DrawObject(*Component);
 		}
@@ -69,6 +79,87 @@ void FInspectorPanel::DrawObject(UObject& Object)
 			DrawProperty(Object, *Property, &Object);
 		}
 	}
+}
+
+bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
+{
+	ImGui::PushID(Label);
+	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
+	const bool bVisible = ImGui::BeginTable("##Vector", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
+	bool bChanged = false;
+	if (bVisible)
+	{
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
+		ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableNextRow();
+		ImGui::TableNextColumn();
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted(Label);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("X##Value", &Vector.X, 0.1f);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("Y##Value", &Vector.Y, 0.1f);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("Z##Value", &Vector.Z, 0.1f);
+		ImGui::EndTable();
+	}
+	ImGui::PopID();
+	return bChanged;
+}
+
+bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
+{
+	FRotator Rotator = Quat.Rotator();
+	ImGui::PushID(Label);
+	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
+	const bool bVisible = ImGui::BeginTable("##Quat", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
+	bool bChanged = false;
+	if (bVisible)
+	{
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
+		ImGui::TableSetupColumn("Pitch", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Yaw", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Roll", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableNextRow();
+		ImGui::TableNextColumn();
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted(Label);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("Pitch##Value", &Rotator.Pitch, 0.1f);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("Yaw##Value", &Rotator.Yaw, 0.1f);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("Roll##Value", &Rotator.Roll, 0.1f);
+		ImGui::EndTable();
+	}
+	ImGui::PopID();
+	if (bChanged)
+	{
+		Quat = Rotator.Quaternion().GetNormalized();
+	}
+	return bChanged;
+}
+
+bool FInspectorPanel::DrawTransform(const char* Label, FTransform& Transform)
+{
+	if (!ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		return false;
+	}
+	bool bChanged = false;
+	bChanged |= DrawVector("Translation", Transform.Translation);
+	bChanged |= DrawQuat("Rotation", Transform.Rotation);
+	bChanged |= DrawVector("Scale", Transform.Scale);
+	ImGui::TreePop();
+	return bChanged;
 }
 
 // Editor에서 객체의 속성을 프로퍼티를 어떻게 그릴지 결정한다.
@@ -177,10 +268,38 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::Struct:
 	{
 		const FStructProperty& StructProperty = static_cast<const FStructProperty&>(Property);
-		if (ImGui::TreeNodeEx(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+		const UScriptStruct* Struct = StructProperty.GetStruct();
+		if (Struct == FVector::StaticStruct())
+		{
+			FVector EditedValue = *static_cast<FVector*>(Value);
+			bChanged = DrawVector(Label.c_str(), EditedValue);
+			if (bChanged)
+			{
+				Property.CopyValue(Value, &EditedValue);
+			}
+		}
+		else if (Struct == FQuat::StaticStruct())
+		{
+			FQuat EditedValue = *static_cast<FQuat*>(Value);
+			bChanged = DrawQuat(Label.c_str(), EditedValue);
+			if (bChanged)
+			{
+				Property.CopyValue(Value, &EditedValue);
+			}
+		}
+		else if (Struct == FTransform::StaticStruct())
+		{
+			FTransform EditedValue = *static_cast<FTransform*>(Value);
+			bChanged = DrawTransform(Label.c_str(), EditedValue);
+			if (bChanged)
+			{
+				Property.CopyValue(Value, &EditedValue);
+			}
+		}
+		else if (ImGui::TreeNodeEx(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			TArray<const FProperty*> Members;
-			StructProperty.GetStruct()->GetEditorProperties(Members);
+			Struct->GetEditorProperties(Members);
 			for (const FProperty* Member : Members)
 			{
 				bChanged |= Member && DrawProperty(Object, *Member, Value, false);

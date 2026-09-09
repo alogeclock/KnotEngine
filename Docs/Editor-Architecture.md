@@ -313,7 +313,7 @@ enum class EPropertyKind : uint8
 | `FSoftObjectProperty` | Asset path 표시, 초기에는 read-only |
 | `FArrayProperty` | 원소 재귀 표시, resize는 이후 구현 |
 
-`FVector`, `FRotator`, `FTransform`을 이름으로 특별 처리하지 않는다. 등록된 `UScriptStruct`의 자식 프로퍼티를 재귀적으로 그리면 기본 편집이 가능하다. 축을 한 행에 배치하는 customization은 기본 편집이 동작한 뒤 추가한다.
+`FVector`, `FQuat`, `FTransform`은 Inspector의 구체 함수에서 특별 처리한다. `FVector`는 X/Y/Z를 한 행에 배치하고, `FTransform`은 Translation/Rotation/Scale 전용 행을 사용한다. `FQuat`은 권위 있는 저장 타입으로 유지하되 UI에서는 Pitch/Yaw/Roll `FRotator`로 변환해 편집하고, 변경된 값은 정규화한 `FQuat`으로 다시 반영한다. 그 밖의 `UScriptStruct`는 등록된 자식 프로퍼티를 재귀적으로 그린다.
 
 고정 배열은 `FProperty::GetArrayDimension()`만큼 원소를 반복한다. 동적 `FArrayProperty`는 현재 `FArrayOps`가 private이므로 Inspector 편집을 추가할 때 `GetNum()`, `GetElementPtr()`와 `Resize()` 같은 검증된 public 연산을 `FArrayProperty`에 제공한다. Inspector가 `FArrayOps` 함수 포인터를 직접 다루지 않는다.
 
