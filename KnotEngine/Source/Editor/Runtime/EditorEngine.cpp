@@ -9,7 +9,7 @@
 UEditorEngine::UEditorEngine()
 	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
 	  ImGuiRenderBackend(RenderDevice), LevelViewport(RenderDevice),
-	  EditorUISystem(ImGuiRenderBackend, InputRouter, LevelViewport, LevelViewportClient)
+	  ImGuiSystem(ImGuiRenderBackend, InputRouter, LevelViewport, LevelViewportClient)
 {
 }
 
@@ -19,7 +19,7 @@ void UEditorEngine::Startup(FWindowsWindow InWindow)
 	checkf(InWindow.GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 
 	Renderer.Create(InWindow.GetHwnd());
-	EditorUISystem.Startup(InWindow.GetHwnd());
+	ImGuiSystem.Startup(InWindow.GetHwnd());
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
 	UWorld* EditorWorld = FindWorld(EditorContextId);
 
@@ -45,8 +45,8 @@ void UEditorEngine::Tick(float DeltaTime)
 
 	Renderer.BeginFrame();
 
-	EditorUISystem.BeginFrame();
-	EditorUISystem.Draw(*World, DeltaTime); // TO-DO: World를 인자로 넘기는 구조 개선
+	ImGuiSystem.BeginFrame();
+	ImGuiSystem.Draw(*World, DeltaTime); // TO-DO: World를 인자로 넘기는 구조 개선
 	InputRouter.RouteInput();
 
 	World->Tick(DeltaTime);
@@ -54,14 +54,14 @@ void UEditorEngine::Tick(float DeltaTime)
 	const float AspectRatio = ViewportInfo.Height > 0.0f ? ViewportInfo.Width / ViewportInfo.Height : 1.0f;
 	const FMatrix View = FMatrix::MakeLookAt(FVector(-5.0f, 0.0f, 0.0f), FVector::ZeroVector, FVector::UpVector);
 	const FMatrix Projection = FMatrix::MakePerspectiveFov(KMath::ToRadian(60.0f), AspectRatio, 0.1f, 100.0f);
-	if (EditorUISystem.IsViewportVisible() && LevelViewport.IsValid())
+	if (ImGuiSystem.IsViewportVisible() && LevelViewport.IsValid())
 	{
 		Renderer.BeginRenderTarget(LevelViewport.GetColorTarget(), LevelViewport.GetDepthTarget(), ViewportInfo);
 		World->Render(Renderer, View * Projection);
 		Renderer.EndRenderTarget();
 	}
 
-	EditorUISystem.Render(Renderer.GetCommandList());
+	ImGuiSystem.Render(Renderer.GetCommandList());
 
 	Renderer.EndFrame();
 }
@@ -76,7 +76,7 @@ void UEditorEngine::Shutdown()
 	EditorContextId = 0;
 
 	InputRouter.Reset();
-	EditorUISystem.Shutdown();
+	ImGuiSystem.Shutdown();
 	LevelViewport.Release();
 	Renderer.Release();
 }

@@ -86,7 +86,7 @@ KnotEngine/Source/
    ├─ Input/
    │  └─ InputRouter.h/.cpp
    ├─ UI/
-   │  └─ EditorUISystem.h/.cpp
+   │  └─ ImGuiSystem.h/.cpp
    └─ Viewport/
 ```
 
@@ -95,7 +95,7 @@ KnotEngine/Source/
 | `FWindowsApplication` | 창, 메시지 펌프, `WindowProc`, 스냅샷 보관 | 키 상태 계산, 패널 입력 정책 |
 | `FWindowsInput` | Win32 입력 해석, 상태 누적, 이벤트 생성, Raw Mouse 수집 | ImGui capture, 뷰포트 선택 |
 | `FInputSnapshot` | 한 프레임 입력의 읽기 전용 상태와 이벤트 | 소비 여부, 포커스, 캡처 정책 |
-| `FEditorUISystem` | ImGui 프레임 구성, 패널 그리기, ImGui capture 상태 전달 | 물리 키 변환, 입력 소유권 보관 |
+| `FImGuiSystem` | ImGui 프레임 구성, 패널 그리기, ImGui capture 상태 전달 | 물리 키 변환, 입력 소유권 보관 |
 | `FInputRouter` | 대상 등록, 이벤트별 target 결정, 논리 포커스와 캡처 | Win32 처리, ImGui 위젯 렌더링 |
 | `IInputTarget` | 뷰포트·기즈모 등의 이벤트 소비 지점 | 전역 target 선택 |
 | `FViewportClient` | 향후 뷰포트 입력을 카메라 또는 게임으로 해석 | OS 메시지 직접 처리 |
@@ -467,6 +467,6 @@ ImGui DockSpace
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/Runtime/EditorEngine.cpp)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
-- [EditorUISystem.h](../KnotEngine/Source/Editor/UI/EditorUISystem.h)
-- [EditorUISystem.cpp](../KnotEngine/Source/Editor/UI/EditorUISystem.cpp)
+- [ImGuiSystem.h](../KnotEngine/Source/Editor/UI/ImGuiSystem.h)
+- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/UI/ImGuiSystem.cpp)
 - [Conventions.md](Conventions.md)

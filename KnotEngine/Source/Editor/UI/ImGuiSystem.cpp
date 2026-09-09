@@ -1,4 +1,4 @@
-#include "UI/EditorUISystem.h"
+#include "UI/ImGuiSystem.h"
 
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
@@ -15,7 +15,7 @@
 #include <string>
 #include <system_error>
 
-FEditorUISystem::FEditorUISystem(
+FImGuiSystem::FImGuiSystem(
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter,
 	FViewport& InViewport,
@@ -25,7 +25,7 @@ FEditorUISystem::FEditorUISystem(
 {
 }
 
-void FEditorUISystem::Startup(HWND WindowHandle)
+void FImGuiSystem::Startup(HWND WindowHandle)
 {
 	checkf(WindowHandle, "HWND 생성 실패.");
 	panicf(ImGui::CreateContext(), "ImGui Context 생성 실패.");
@@ -44,7 +44,7 @@ void FEditorUISystem::Startup(HWND WindowHandle)
 	ConsolePanel.Startup();
 }
 
-void FEditorUISystem::BeginFrame()
+void FImGuiSystem::BeginFrame()
 {
 	RenderBackend.BeginFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -54,7 +54,7 @@ void FEditorUISystem::BeginFrame()
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
-void FEditorUISystem::Draw(UWorld& World, float DeltaTime)
+void FImGuiSystem::Draw(UWorld& World, float DeltaTime)
 {
 	// TO-DO: 프레임 통계는 별도 Overlay Panel로 분리하여 콘솔을 통해 출력할 수 있도록 한다.
 	if (DeltaTime > 0.0f)
@@ -100,14 +100,14 @@ void FEditorUISystem::Draw(UWorld& World, float DeltaTime)
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
-void FEditorUISystem::Render(FCommandListHandle CommandList)
+void FImGuiSystem::Render(FCommandListHandle CommandList)
 {
 	// Draw()에서 쌓은 UI 명령을 확정한 뒤, World 렌더링이 끝난 Viewport Texture를 포함한 ImGui Draw Data를 Back Buffer에 렌더링한다.
 	ImGui::Render();
 	RenderBackend.Render(CommandList, ImGui::GetDrawData());
 }
 
-void FEditorUISystem::Shutdown()
+void FImGuiSystem::Shutdown()
 {
 	ConsolePanel.Shutdown();
 	RenderBackend.Shutdown();
@@ -115,7 +115,7 @@ void FEditorUISystem::Shutdown()
 	ImGui::DestroyContext();
 }
 
-void FEditorUISystem::DrawMenuBar()
+void FImGuiSystem::DrawMenuBar()
 {
 	if (!ImGui::BeginMainMenuBar())
 	{
@@ -134,7 +134,7 @@ void FEditorUISystem::DrawMenuBar()
 	ImGui::EndMainMenuBar();
 }
 
-void FEditorUISystem::BuildDefaultDockLayout(std::uint32_t DockspaceId)
+void FImGuiSystem::BuildDefaultDockLayout(std::uint32_t DockspaceId)
 {
 	const ImGuiViewport* MainViewport = ImGui::GetMainViewport();
 	ImGui::DockBuilderRemoveNode(DockspaceId);

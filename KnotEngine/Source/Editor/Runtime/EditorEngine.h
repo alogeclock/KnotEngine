@@ -6,7 +6,7 @@
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
 #include "Input/InputRouter.h"
-#include "UI/EditorUISystem.h"
+#include "UI/ImGuiSystem.h"
 #include "Viewport/LevelEditorViewportClient.h"
 #include "Viewport/Viewport.h"
 
@@ -40,7 +40,7 @@ private:
 	FLevelEditorViewportClient LevelViewportClient;
 
 	FInputRouter InputRouter;
-	FEditorUISystem EditorUISystem;
+	FImGuiSystem ImGuiSystem;
 
 	uint64 EditorContextId = 0;
 };

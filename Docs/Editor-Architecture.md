@@ -17,7 +17,7 @@ Main MenuBar
 └─ Navigation
 ```
 
-`Navigation`은 독립된 dockable Panel이나 Widget 객체가 아니라 `FEditorUISystem`이 그리는 Main MenuBar다.
+`Navigation`은 독립된 dockable Panel이나 Widget 객체가 아니라 `FImGuiSystem`이 그리는 Main MenuBar다.
 
 Inspector는 [Reflection-Architecture.md](Reflection-Architecture.md)의 스키마를 열거하고 값을 수정한다. Component는 에디터 파라미터마다 Setter를 제공하지 않는다. Inspector가 `FProperty` 연산으로 값을 반영한 뒤 `UObject::PostEditProperty()`를 호출하여 파생 객체가 cache, Transform, Render state와 같은 파생 상태를 갱신한다.
 
@@ -25,8 +25,8 @@ Inspector는 [Reflection-Architecture.md](Reflection-Architecture.md)의 스키�
 
 ## 설계 원칙
 
-- `FEditorUISystem`은 DockSpace와 Panel의 생성, 수명 및 프레임 Draw를 조율한다.
-- 네 창은 이름에 `Panel`을 사용하고 Main MenuBar는 `FEditorUISystem`이 직접 구성한다.
+- `FImGuiSystem`은 DockSpace와 Panel의 생성, 수명 및 프레임 Draw를 조율한다.
+- 네 창은 이름에 `Panel`을 사용하고 Main MenuBar는 `FImGuiSystem`이 직접 구성한다.
 - `Widget`은 프로퍼티 행, Asset tile처럼 Panel 안에서 재사용되는 작은 UI 단위에만 사용한다.
 - 첫 구현에서 `IEditorPanel`, Panel registry와 범용 Widget framework를 만들지 않는다.
 - Panel은 서로를 직접 참조하지 않고 `FEditorSelection`과 명시적으로 전달받은 Editor 상태를 사용한다.
@@ -47,7 +47,7 @@ Inspector는 [Reflection-Architecture.md](Reflection-Architecture.md)의 스키�
 | Dockable 창 | `FInspectorPanel` | 선택 객체의 상세 정보를 표시함 |
 | Dockable 창 | `FViewportPanel` | 엔진 Viewport를 ImGui 창에 배치함 |
 | Dockable 창 | `FConsolePanel` | 로그 목록과 필터를 소유함 |
-| Main MenuBar | `FEditorUISystem::DrawMenuBar()` | 창이 아니라 DockSpace 상단 navigation임 |
+| Main MenuBar | `FImGuiSystem::DrawMenuBar()` | 창이 아니라 DockSpace 상단 navigation임 |
 | 재사용 UI 조각 | `DrawFloatProperty()` 등 | 첫 구현은 함수로 충분함 |
 
 Panel 공통 기반 클래스는 다음 요구가 둘 이상 나타날 때만 도입한다.
@@ -69,7 +69,7 @@ KnotEngine/Source/Editor/
 ├─ Input/
 │  └─ InputRouter.h/.cpp
 ├─ UI/
-│  ├─ EditorUISystem.h/.cpp
+│  ├─ ImGuiSystem.h/.cpp
 │  ├─ EditorSelection.h
 │  └─ Panels/
 │     ├─ HierarchyPanel.h/.cpp
@@ -100,7 +100,7 @@ UEditorEngine
 ├─ FWorldContext[]                 UEngine 소유
 ├─ URenderer
 ├─ FInputRouter
-└─ FEditorUISystem
+└─ FImGuiSystem
    ├─ FEditorSelection
    ├─ FHierarchyPanel
    ├─ FInspectorPanel
@@ -112,12 +112,12 @@ UEditorEngine
 └─ FLevelEditorViewportClient
 ```
 
-`FEditorUISystem`은 Panel을 값 멤버로 소유한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
+`FImGuiSystem`은 Panel을 값 멤버로 소유한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
 
 초기 `Draw()` 진입점은 필요한 상태를 명시적으로 전달한다.
 
 ```cpp
-void FEditorUISystem::Draw(UWorld& World, float DeltaTime);
+void FImGuiSystem::Draw(UWorld& World, float DeltaTime);
 ```
 
 `FEditorContext`나 service locator 구조체는 만들지 않는다. 전달할 서비스가 실제로 늘어나 함수 계약이 불분명해질 때 작은 context 타입을 검토한다.
@@ -126,7 +126,7 @@ void FEditorUISystem::Draw(UWorld& World, float DeltaTime);
 
 ### 초기화
 
-`FEditorUISystem::Startup()`에서 ImGui context를 생성한 직후 Docking을 활성화한다.
+`FImGuiSystem::Startup()`에서 ImGui context를 생성한 직후 Docking을 활성화한다.
 
 ```cpp
 ImGuiIO& IO = ImGui::GetIO();
@@ -179,7 +179,7 @@ Window
 - `Window`: 네 Panel의 표시 bool을 토글한다.
 - 메뉴 오른쪽 영역: FPS와 frame time을 표시한다.
 
-첫 구현에서 command framework를 만들지 않는다. Menu item이 `FEditorUISystem`의 명시적인 함수 또는 Panel visibility bool을 변경한다. 동일 command를 MenuBar, 단축키와 Context Menu에서 함께 사용해야 할 때 `FEditorCommand`를 추출한다.
+첫 구현에서 command framework를 만들지 않는다. Menu item이 `FImGuiSystem`의 명시적인 함수 또는 Panel visibility bool을 변경한다. 동일 command를 MenuBar, 단축키와 Context Menu에서 함께 사용해야 할 때 `FEditorCommand`를 추출한다.
 
 ## FEditorSelection
 
@@ -487,11 +487,11 @@ UEditorEngine::ProcessInput
 	↓
 FInputRouter::BeginFrame(InputSnapshot)
 	↓
-FEditorUISystem::BeginFrame
+FImGuiSystem::BeginFrame
 	├─ ImGui::NewFrame
 	└─ 첫 ImGui capture state 전달
 		↓
-FEditorUISystem::BuildDockedUI
+FImGuiSystem::BuildDockedUI
 	├─ DockSpace와 MenuBar
 	├─ 일반 Panel ImGui widget
 	└─ Viewport image와 IInputTarget 등록
@@ -520,19 +520,19 @@ void UEditorEngine::Tick(float DeltaTime)
 	check(World);
 
 	Renderer.BeginFrame();
-	EditorUISystem.BeginFrame();
-	EditorUISystem.BuildDockedUI(*World, Renderer, DeltaTime);
+	ImGuiSystem.BeginFrame();
+	ImGuiSystem.BuildDockedUI(*World, Renderer, DeltaTime);
 	InputRouter.RouteInput();
 
 	World->Tick(DeltaTime);
-	EditorUISystem.TickViewports(DeltaTime);
-	EditorUISystem.RenderViewports(Renderer);
-	EditorUISystem.Render(Renderer.GetCommandList());
+	ImGuiSystem.TickViewports(DeltaTime);
+	ImGuiSystem.RenderViewports(Renderer);
+	ImGuiSystem.Render(Renderer.GetCommandList());
 	Renderer.EndFrame();
 }
 ```
 
-이 함수 형태는 목표 책임을 보여 주는 예시다. 첫 구현에서 Viewport가 하나라면 `FEditorUISystem::Draw()` 내부를 build와 render 준비 단계로 나누는 정도로 충분하다.
+이 함수 형태는 목표 책임을 보여 주는 예시다. 첫 구현에서 Viewport가 하나라면 `FImGuiSystem::Draw()` 내부를 build와 render 준비 단계로 나누는 정도로 충분하다.
 
 Viewport 개수와 관계없이 `World->Tick()`은 한 번만 호출한다. 여러 Viewport는 같은 최종 World 상태를 서로 다른 camera와 Render Target으로 렌더링한다.
 
@@ -590,7 +590,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 ### 1단계: DockSpace와 빈 Panel
 
 1. ImGui Docking을 활성화한다.
-2. `FEditorUISystem`에 root DockSpace와 Main MenuBar를 구현한다.
+2. `FImGuiSystem`에 root DockSpace와 Main MenuBar를 구현한다.
 3. 네 concrete Panel을 만들고 빈 창을 표시한다.
 4. Window 메뉴로 Panel visibility를 토글한다.
 5. 저장된 ini가 없을 때만 기본 layout을 만든다.
@@ -643,7 +643,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 
 - ImGui context와 Win32/RHI backend 초기화
 - ImGui ini 경로 생성과 저장
-- `FEditorUISystem`의 BeginFrame, Draw, EndFrame과 Shutdown
+- `FImGuiSystem`의 BeginFrame, Draw, Render와 Shutdown
 - `FInputRouter`의 frame snapshot 보관
 - ImGui capture 상태 누적
 - hovered, keyboard focus와 mouse capture target 라우팅
@@ -681,8 +681,8 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 
 - [EditorEngine.h](../KnotEngine/Source/Editor/Runtime/EditorEngine.h)
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/Runtime/EditorEngine.cpp)
-- [EditorUISystem.h](../KnotEngine/Source/Editor/UI/EditorUISystem.h)
-- [EditorUISystem.cpp](../KnotEngine/Source/Editor/UI/EditorUISystem.cpp)
+- [ImGuiSystem.h](../KnotEngine/Source/Editor/UI/ImGuiSystem.h)
+- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/UI/ImGuiSystem.cpp)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)

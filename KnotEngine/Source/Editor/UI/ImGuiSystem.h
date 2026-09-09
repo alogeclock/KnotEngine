@@ -16,10 +16,10 @@ class FLevelEditorViewportClient;
 class FViewport;
 class UWorld;
 
-class FEditorUISystem
+class FImGuiSystem
 {
 public:
-	FEditorUISystem(IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter, FViewport& InViewport, FLevelEditorViewportClient& InViewportClient);
+	FImGuiSystem(IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter, FViewport& InViewport, FLevelEditorViewportClient& InViewportClient);
 
 	void Startup(HWND WindowHandle);
 	void BeginFrame();
