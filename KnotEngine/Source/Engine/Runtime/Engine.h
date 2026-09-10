@@ -32,8 +32,10 @@ public:
 	UWorld* FindWorld(uint64 ContextId) const;
 	void DestroyWorldContext(uint64 ContextId);
 
-private:
+protected:
 	TArray<FWorldContext> WorldContexts;
+
+private:
 	uint64 NextContextId = 1;
 };
 

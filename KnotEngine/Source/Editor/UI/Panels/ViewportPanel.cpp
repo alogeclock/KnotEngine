@@ -2,6 +2,7 @@
 
 #include "Input/InputRouter.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
+#include "Runtime/EditorEngine.h"
 #include "Viewport/LevelEditorViewportClient.h"
 #include "Viewport/Viewport.h"
 
@@ -9,12 +10,24 @@
 #include <cmath>
 
 FViewportPanel::FViewportPanel(
-	FViewport& InViewport,
-	FLevelEditorViewportClient& InViewportClient,
+	UEditorEngine& InEditorEngine,
+	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
-	: Viewport(InViewport), ViewportClient(InViewportClient), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
+	: EditorEngine(InEditorEngine), Viewport(InRenderDevice), ViewportClient(InEditorEngine, Viewport),
+	  RenderBackend(InRenderBackend), InputRouter(InInputRouter)
 {
+	EditorEngine.RegisterViewportClient(ViewportClient);
+}
+
+FViewportPanel::~FViewportPanel()
+{
+	EditorEngine.UnregisterViewportClient(ViewportClient);
+}
+
+void FViewportPanel::Release()
+{
+	Viewport.Release();
 }
 
 void FViewportPanel::Draw(bool bVisible)

@@ -1,10 +1,21 @@
 #pragma once
 
+#include "EditorViewportClient.h"
 #include "Input/InputRouter.h"
-#include "ViewportClient.h"
 
-class FLevelEditorViewportClient : public FViewportClient, public IInputTarget
+class UEditorEngine;
+class URenderer;
+
+class FLevelEditorViewportClient : public FEditorViewportClient, public IInputTarget
 {
 public:
+	FLevelEditorViewportClient(UEditorEngine& InEditorEngine, FViewport& InViewport);
+
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
+
+protected:
+	void DrawViewport(URenderer& Renderer) override;
+
+private:
+	UEditorEngine& EditorEngine;
 };

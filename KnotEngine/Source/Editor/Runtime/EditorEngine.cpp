@@ -3,13 +3,15 @@
 #include "Component/CubeComponent.h"
 #include "Component/MovementComponent.h"
 #include "World/World.h"
-#include "Core/Assert.h"
 #include "Render/RHI/RenderTypes.h"
+#include "Viewport/EditorViewportClient.h"
+#include "Core/Assert.h"
+
+#include <algorithm>
 
 UEditorEngine::UEditorEngine()
 	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
-	  ImGuiRenderBackend(RenderDevice), LevelViewport(RenderDevice),
-	  ImGuiSystem(ImGuiRenderBackend, InputRouter, LevelViewport, LevelViewportClient)
+	  ImGuiRenderBackend(RenderDevice), ImGuiSystem(*this, RenderDevice, ImGuiRenderBackend, InputRouter)
 {
 }
 
@@ -45,38 +47,46 @@ void UEditorEngine::OnWindowResized(FWindowSize Size)
 
 void UEditorEngine::Tick(float DeltaTime)
 {
-	UWorld* World = FindWorld(EditorContextId);
-	check(World);
+	ImGuiSystem.BeginFrame();
+	ImGuiSystem.Draw(DeltaTime);
+	InputRouter.RouteInput();
 
+	for (FWorldContext& Context : WorldContexts)
+	{
+		if (UWorld* World = Context.World.Get())
+		{
+			World->Tick(DeltaTime);
+		}
+	}
+
+	for (FEditorViewportClient* ViewportClient : AllViewportClients)
+	{
+		if (ViewportClient)
+		{
+			ViewportClient->Tick(DeltaTime);
+		}
+	}
+
+	ImGuiSystem.EndFrame();
+	Render();
+}
+
+void UEditorEngine::Render()
+{
 	const FRenderViewport OutputViewport = Renderer.GetViewport();
 	if (OutputViewport.Width <= 0.0f || OutputViewport.Height <= 0.0f)
 	{
-		InputRouter.RouteInput();
-		World->Tick(DeltaTime);
 		return;
 	}
 
-	ImGuiSystem.BeginFrame();
-	ImGuiSystem.Draw(*World, DeltaTime); // TO-DO: World를 인자로 넘기는 구조 개선
-	InputRouter.RouteInput();
-
-	World->Tick(DeltaTime);
-	Render(*World);
-}
-
-void UEditorEngine::Render(UWorld& World)
-{
 	Renderer.BeginFrame();
 
-	const FRenderViewport ViewportInfo = LevelViewport.GetRenderViewport();
-	const float AspectRatio = ViewportInfo.Height > 0.0f ? ViewportInfo.Width / ViewportInfo.Height : 1.0f;
-	const FMatrix View = FMatrix::MakeLookAt(FVector(-5.0f, 0.0f, 0.0f), FVector::ZeroVector, FVector::UpVector);
-	const FMatrix Projection = FMatrix::MakePerspectiveFov(KMath::ToRadian(60.0f), AspectRatio, 0.1f, 100.0f);
-	if (LevelViewport.IsValid())
+	for (FEditorViewportClient* ViewportClient : AllViewportClients)
 	{
-		Renderer.BeginRenderTarget(LevelViewport.GetColorTarget(), LevelViewport.GetDepthTarget(), ViewportInfo);
-		World.Render(Renderer, View * Projection);
-		Renderer.EndRenderTarget();
+		if (ViewportClient)
+		{
+			ViewportClient->Draw(Renderer);
+		}
 	}
 
 	ImGuiSystem.Render(Renderer.GetCommandList());
@@ -84,9 +94,27 @@ void UEditorEngine::Render(UWorld& World)
 	Renderer.EndFrame();
 }
 
+UWorld* UEditorEngine::GetEditorWorld() const
+{
+	return FindWorld(EditorContextId);
+}
+
+void UEditorEngine::RegisterViewportClient(FEditorViewportClient& ViewportClient)
+{
+	if (std::find(AllViewportClients.begin(), AllViewportClients.end(), &ViewportClient) == AllViewportClients.end())
+	{
+		AllViewportClients.push_back(&ViewportClient);
+	}
+}
+
+void UEditorEngine::UnregisterViewportClient(FEditorViewportClient& ViewportClient)
+{
+	AllViewportClients.erase(std::remove(AllViewportClients.begin(), AllViewportClients.end(), &ViewportClient), AllViewportClients.end());
+}
+
 void UEditorEngine::Shutdown()
 {
-	if (UWorld* World = FindWorld(EditorContextId))
+	if (UWorld* World = GetEditorWorld())
 	{
 		World->EndPlay();
 	}
@@ -95,6 +123,5 @@ void UEditorEngine::Shutdown()
 
 	InputRouter.Reset();
 	ImGuiSystem.Shutdown();
-	LevelViewport.Release();
 	Renderer.Release();
 }

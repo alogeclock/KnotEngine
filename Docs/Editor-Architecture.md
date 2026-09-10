@@ -100,24 +100,35 @@ UEditorEngine
 ├─ FWorldContext[]                 UEngine 소유
 ├─ URenderer
 ├─ FInputRouter
+├─ FEditorViewportClient*[]        non-owning 순회 목록
 └─ FImGuiSystem
    ├─ FEditorSelection
    ├─ FHierarchyPanel
    ├─ FInspectorPanel
    ├─ FViewportPanel
+   │  ├─ FViewport
+   │  └─ FLevelEditorViewportClient
    └─ FConsolePanel
-
-UEditorEngine
-├─ FViewport
-└─ FLevelEditorViewportClient
 ```
 
-`FImGuiSystem`은 Panel을 값 멤버로 소유한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
+`FImGuiSystem`은 Panel을 값 멤버로 소유한다. `FViewportPanel`은 자신의 출력 surface와 concrete ViewportClient를 함께 소유하고, 생성과 소멸 시 `UEditorEngine`의 non-owning 순회 목록에 client를 등록하고 해제한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
 
-초기 `Draw()` 진입점은 필요한 상태를 명시적으로 전달한다.
+```text
+FViewportPanel 생성
+    └─ UEditorEngine::RegisterViewportClient
+            ↓
+UEditorEngine::AllViewportClients       non-owning Tick/Draw 순회
+            ↓
+FViewportPanel 소멸
+    └─ UEditorEngine::UnregisterViewportClient
+```
+
+`UEditorEngine`은 concrete Level viewport를 직접 소유하지 않는다. 등록 목록은 client의 수명을 연장하지 않으며 실제 수명은 Panel이 책임진다.
+
+`FImGuiSystem`은 `UEditorEngine`을 참조하고, 필요한 Editor 상태를 해당 엔진에서 조회한다. World는 매 프레임 `Draw()`의 매개변수로 전달하지 않는다.
 
 ```cpp
-void FImGuiSystem::Draw(UWorld& World, float DeltaTime);
+void FImGuiSystem::Draw(float DeltaTime);
 ```
 
 `FEditorContext`나 service locator 구조체는 만들지 않는다. 전달할 서비스가 실제로 늘어나 함수 계약이 불분명해질 때 작은 context 타입을 검토한다.
@@ -381,13 +392,13 @@ FViewportPanel
 │  ├─ Render Target
 │  ├─ Depth Target
 │  └─ pixel size
-└─ FLevelEditorViewportClient : FViewportClient, IInputTarget
+└─ FLevelEditorViewportClient : FEditorViewportClient, IInputTarget
    ├─ Camera state
-   ├─ WorldContext ID
+   ├─ Editor World 조회
    └─ input interpretation
 ```
 
-`FViewport`는 출력 surface와 크기를 관리한다. `FViewportClient`는 카메라, 입력과 어떤 World를 그릴지 결정한다. 현재 비어 있는 `FLevelEditorViewportClient`의 상속은 `public FViewportClient`로 수정한다.
+`FViewport`는 출력 surface와 크기를 관리한다. `FEditorViewportClient`는 연결된 Viewport가 출력 가능한지 판정하고, 파생 client는 카메라, 입력과 어떤 World를 그릴지 결정한다. `FLevelEditorViewportClient`는 `FEditorViewportClient`와 `IInputTarget`을 상속한다.
 
 ### Render Target
 
@@ -409,19 +420,21 @@ World rendering은 ImGui draw data 제출 전에 수행한다. UI layout을 먼�
 
 ### 프레임 Viewport 렌더 여부
 
-현재 단일 Viewport 구현에서는 별도의 렌더 요청 상태를 만들지 않는다. `FViewportPanel::Draw()`은 Panel이 숨겨졌거나 collapse되었거나 framebuffer pixel 크기가 0이면 offscreen target을 해제한다. 실제 Image 영역이 있으면 target을 유효한 크기로 유지한다. `UEditorEngine`은 `FViewport::IsValid()`인 경우에만 World를 해당 Viewport에 렌더링한다.
+별도의 렌더 요청 상태를 만들지 않는다. `FViewportPanel::Draw()`은 Panel이 숨겨졌거나 collapse되었거나 framebuffer pixel 크기가 0이면 offscreen target을 해제한다. 실제 Image 영역이 있으면 target을 유효한 크기로 유지한다. `UEditorEngine`은 등록된 `FEditorViewportClient`를 순회하고, 각 client의 `Draw()`가 `FViewport::IsValid()`인 경우에만 World를 해당 Viewport에 렌더링한다.
 
 ```text
 FViewportPanel::Draw
     ├─ 숨김, collapse, 0 크기 → offscreen target 해제
     └─ 유효한 Image 영역 → offscreen target 생성 또는 크기 유지
         ↓
-UEditorEngine
+UEditorEngine의 FEditorViewportClient 순회
+        ↓
+FEditorViewportClient::Draw
     ├─ FViewport가 유효하지 않음 → Viewport Scene 렌더링 생략
-    └─ FViewport가 유효함 → ViewportClient의 View로 offscreen 렌더링
+    └─ FViewport가 유효함 → 파생 ViewportClient의 View로 offscreen 렌더링
 ```
 
-여러 Level, Asset 또는 PIE Viewport가 추가되고 숨겨진 Viewport의 target을 cache해야 할 필요가 생기면 Viewport와 ViewportClient 쌍을 담는 frame-local 요청 배열을 도입한다. Panel registry나 별도 Viewport manager는 그 전까지 만들지 않는다.
+`UEditorEngine`은 수명 동안 존재하는 EditorViewportClient의 non-owning 목록을 유지하여 모든 client에 Tick과 Draw 기회를 준다. 여러 Level, Asset 또는 PIE Viewport가 추가되고 숨겨진 Viewport의 target을 cache해야 할 필요가 생기면 이 순회에서 frame-local view 요청을 수집한다. 별도 Viewport manager는 실제 등록과 동적 수명 관리가 필요해질 때 도입한다.
 
 ### Viewport 입력 등록
 
@@ -507,7 +520,7 @@ FImGuiSystem::BeginFrame
 	├─ ImGui::NewFrame
 	└─ 첫 ImGui capture state 전달
 		↓
-FImGuiSystem::BuildDockedUI
+FImGuiSystem::Draw
 	├─ DockSpace와 MenuBar
 	├─ 일반 Panel ImGui widget
 	└─ Viewport image와 IInputTarget 등록
@@ -518,9 +531,12 @@ FInputRouter::RouteInput
 		↓
 World / ViewportClient Tick
 		↓
+FImGuiSystem::EndFrame
+	└─ ImGui::Render
+		↓
 Viewport offscreen render
 		↓
-ImGui::Render 및 Back Buffer 제출
+ImGui Draw Data의 Back Buffer 합성과 제출
 ```
 
 ImGui capture 상태는 `NewFrame()` 직후와 모든 Panel 구성 이후 두 번 누적한다. Text widget이 같은 프레임에 focus를 해제해도 해당 KeyDown/KeyUp sequence가 Viewport로 넘어가지 않는다.
@@ -532,33 +548,51 @@ ImGui capture 상태는 `NewFrame()` 직후와 모든 Panel 구성 이후 두 �
 ```cpp
 void UEditorEngine::Tick(float DeltaTime)
 {
-	UWorld* World = FindWorld(EditorContextId);
-	check(World);
-
 	ImGuiSystem.BeginFrame();
-	ImGuiSystem.BuildDockedUI(*World, Renderer, DeltaTime);
+	ImGuiSystem.Draw(DeltaTime);
 	InputRouter.RouteInput();
 
-	World->Tick(DeltaTime);
-	ImGuiSystem.TickViewports(DeltaTime);
-	Render(*World);
+	for (FWorldContext& Context : WorldContexts)
+	{
+		if (UWorld* World = Context.World.Get())
+		{
+			World->Tick(DeltaTime);
+		}
+	}
+
+	for (FEditorViewportClient* ViewportClient : AllViewportClients)
+	{
+		ViewportClient->Tick(DeltaTime);
+	}
+
+	ImGuiSystem.EndFrame();
+	Render();
 }
 
-void UEditorEngine::Render(UWorld& World)
+void UEditorEngine::Render()
 {
-	Renderer.BeginFrame();
-	if (LevelViewport.IsValid())
+	const FRenderViewport OutputViewport = Renderer.GetViewport();
+	if (OutputViewport.Width <= 0.0f || OutputViewport.Height <= 0.0f)
 	{
-		ImGuiSystem.RenderViewports(World, Renderer);
+		return;
+	}
+
+	Renderer.BeginFrame();
+	for (FEditorViewportClient* ViewportClient : AllViewportClients)
+	{
+		if (ViewportClient)
+		{
+			ViewportClient->Draw(Renderer);
+		}
 	}
 	ImGuiSystem.Render(Renderer.GetCommandList());
 	Renderer.EndFrame();
 }
 ```
 
-이 함수 형태는 목표 책임을 보여 주는 예시다. 첫 구현에서 Viewport가 하나라면 `FImGuiSystem::Draw()` 내부를 build와 render 준비 단계로 나누는 정도로 충분하다.
+Native output extent 검사는 private `Render()` 진입부에 있으며 Tick과 World 처리에는 노출하지 않는다. `FEditorViewportClient::Draw()`는 연결된 Viewport가 유효하지 않으면 파생 client의 Scene draw를 호출하지 않는다.
 
-Viewport 개수와 관계없이 `World->Tick()`은 한 번만 호출한다. 여러 Viewport는 같은 최종 World 상태를 서로 다른 camera와 Render Target으로 렌더링한다.
+각 WorldContext의 World는 프레임당 한 번씩 Tick한다. Viewport 개수는 World Tick 횟수에 영향을 주지 않으며, 여러 Viewport는 같은 최종 World 상태를 서로 다른 camera와 Render Target으로 렌더링한다.
 
 ## Inspector 변경과 Runtime 반영
 
@@ -609,58 +643,6 @@ ImGui layout은 기존 `FPaths::ImGuiSettingsPath()`에 저장한다. Panel visi
 
 World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspector가 값을 바꾼 경우 Editor World 또는 Asset의 dirty 상태를 표시하고 명시적인 Save command가 Reflection serialization 경로를 사용한다.
 
-## 구현 순서
-
-### 1단계: DockSpace와 빈 Panel
-
-1. ImGui Docking을 활성화한다.
-2. `FImGuiSystem`에 root DockSpace와 Main MenuBar를 구현한다.
-3. 네 concrete Panel을 만들고 빈 창을 표시한다.
-4. Window 메뉴로 Panel visibility를 토글한다.
-5. 저장된 ini가 없을 때만 기본 layout을 만든다.
-
-### 2단계: Selection과 Hierarchy
-
-1. `FEditorSelection`을 추가한다.
-2. Hierarchy에 World, Level과 Node를 표시한다.
-3. Node click으로 Selection을 변경한다.
-4. World 교체, Level unload와 객체 파괴 전에 Selection을 해제한다.
-
-### 3단계: 읽기 전용 Inspector
-
-1. 선택 Node와 Component 목록을 표시한다.
-2. `GetEditorProperties()`를 Category와 metadata로 렌더링한다.
-3. `EPropertyKind`와 `GetKind()`를 Reflection에 추가한다.
-4. scalar, enum과 struct 값을 읽기 전용으로 먼저 검증한다.
-
-### 4단계: Inspector 편집
-
-1. public virtual `PostEditProperty(const FProperty&)`를 Engine에 추가한다.
-2. Inspector에서 임시 값 편집 후 `CopyValue()`로 commit한다.
-3. commit마다 `PostEditProperty()`를 호출한다.
-4. Transform과 Renderer Component의 실제 파생 상태 갱신을 구현한다.
-5. 내부 상태 프로퍼티에 `NoEdit`이 빠지지 않았는지 검증한다.
-
-### 5단계: Viewport Panel
-
-1. `FViewport`에 offscreen color/depth target과 크기를 구현한다.
-2. ImGui backend에 RHI texture handle 표시 경로를 추가한다.
-3. `FLevelEditorViewportClient`를 public 상속과 `IInputTarget`으로 연결한다.
-4. Viewport image 영역을 `FInputRouter`에 등록한다.
-5. Editor camera 이동, 회전과 resize를 구현한다.
-
-### 6단계: Console
-
-1. bounded Editor log sink와 Console 필터를 구현한다.
-
-### 보류한 편집 기능
-
-1. Object/SoftObject picker를 추가한다.
-2. Array element 편집과 resize를 추가한다.
-3. Content Panel과 Asset Registry 연결은 별도 작업으로 진행한다.
-4. Undo/Redo transaction은 별도 작업으로 진행한다.
-5. Component 선택, multi-selection과 mixed value는 실제 요구가 생길 때 추가한다.
-
 ## 현재 구현 상태
 
 ### 구현됨
@@ -681,6 +663,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 - Reflection property kind와 Inspector scalar/struct 편집
 - `UObject::PostEditProperty(const FProperty&)`
 - Viewport offscreen color/depth target과 ImGui texture 표시
+- `FEditorViewportClient` 공통 Tick/Draw 순회
 - `FLevelEditorViewportClient` 입력 등록
 - Editor log sink와 Console 출력
 
@@ -712,6 +695,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [Viewport.cpp](../KnotEngine/Source/Editor/Viewport/Viewport.cpp)
 - [ViewportClient.h](../KnotEngine/Source/Editor/Viewport/ViewportClient.h)
+- [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
 - [LevelEditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/LevelEditorViewportClient.h)
 - [Object.h](../KnotEngine/Source/Engine/Object/Object.h)
 - [Class.h](../KnotEngine/Source/Engine/Object/Class.h)

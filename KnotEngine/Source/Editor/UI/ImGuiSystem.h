@@ -11,23 +11,28 @@
 #include <cstdint>
 
 class IImGuiRenderBackend;
+class IRenderDevice;
 class FInputRouter;
-class FLevelEditorViewportClient;
-class FViewport;
-class UWorld;
+class UEditorEngine;
 
 class FImGuiSystem
 {
 public:
-	FImGuiSystem(IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter, FViewport& InViewport, FLevelEditorViewportClient& InViewportClient);
+	FImGuiSystem(
+		UEditorEngine& InEditorEngine,
+		IRenderDevice& InRenderDevice,
+		IImGuiRenderBackend& InRenderBackend,
+		FInputRouter& InInputRouter);
 
 	void Startup(HWND WindowHandle);
 	void BeginFrame();
-	void Draw(UWorld& World, float DeltaTime);
+	void Draw(float DeltaTime);
+	void EndFrame();
 	void Render(FCommandListHandle CommandList);
 	void Shutdown();
 
 private:
+	UEditorEngine& EditorEngine;
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
 	FEditorSelection Selection;

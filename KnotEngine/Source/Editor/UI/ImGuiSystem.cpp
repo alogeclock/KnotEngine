@@ -4,8 +4,7 @@
 #include "Core/IO/Paths.h"
 #include "Input/InputRouter.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
-#include "Viewport/LevelEditorViewportClient.h"
-#include "Viewport/Viewport.h"
+#include "Runtime/EditorEngine.h"
 #include "World/World.h"
 
 #include <filesystem>
@@ -16,12 +15,12 @@
 #include <system_error>
 
 FImGuiSystem::FImGuiSystem(
+	UEditorEngine& InEditorEngine,
+	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
-	FInputRouter& InInputRouter,
-	FViewport& InViewport,
-	FLevelEditorViewportClient& InViewportClient)
-	: RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  ViewportPanel(InViewport, InViewportClient, InRenderBackend, InInputRouter)
+	FInputRouter& InInputRouter)
+	: EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
+	  ViewportPanel(InEditorEngine, InRenderDevice, InRenderBackend, InInputRouter)
 {
 }
 
@@ -57,7 +56,7 @@ void FImGuiSystem::BeginFrame()
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
-void FImGuiSystem::Draw(UWorld& World, float DeltaTime)
+void FImGuiSystem::Draw(float DeltaTime)
 {
 	// TO-DO: 프레임 통계는 별도 Overlay Panel로 분리하여 콘솔을 통해 출력할 수 있도록 한다.
 	if (DeltaTime > 0.0f)
@@ -84,7 +83,10 @@ void FImGuiSystem::Draw(UWorld& World, float DeltaTime)
 	}
 	if (bShowHierarchy)
 	{
-		HierarchyPanel.Draw(World, Selection);
+		if (UWorld* World = EditorEngine.GetEditorWorld())
+		{
+			HierarchyPanel.Draw(*World, Selection);
+		}
 	}
 	if (bShowInspector)
 	{
@@ -100,16 +102,21 @@ void FImGuiSystem::Draw(UWorld& World, float DeltaTime)
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
+void FImGuiSystem::EndFrame()
+{
+	ImGui::Render();
+}
+
 void FImGuiSystem::Render(FCommandListHandle CommandList)
 {
-	// Draw()에서 쌓은 UI 명령을 확정한 뒤, World 렌더링이 끝난 Viewport Texture를 포함한 ImGui Draw Data를 Back Buffer에 렌더링한다.
-	ImGui::Render();
+	// World 렌더링이 끝난 Viewport Texture를 포함한 ImGui Draw Data를 Back Buffer에 렌더링한다.
 	RenderBackend.Render(CommandList, ImGui::GetDrawData());
 }
 
 void FImGuiSystem::Shutdown()
 {
 	ConsolePanel.Shutdown();
+	ViewportPanel.Release();
 	RenderBackend.Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();

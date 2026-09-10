@@ -7,8 +7,8 @@
 #include "Runtime/Engine.h"
 #include "Input/InputRouter.h"
 #include "UI/ImGuiSystem.h"
-#include "Viewport/LevelEditorViewportClient.h"
-#include "Viewport/Viewport.h"
+
+class FEditorViewportClient;
 
 UCLASS()
 class UEditorEngine : public UEngine
@@ -29,8 +29,12 @@ public:
 	void Tick(float DeltaTime) override;
 	void Shutdown() override;
 
+	UWorld* GetEditorWorld() const;
+	void RegisterViewportClient(FEditorViewportClient& ViewportClient);
+	void UnregisterViewportClient(FEditorViewportClient& ViewportClient);
+
 private:
-	void Render(UWorld& World);
+	void Render();
 
 	URenderer Renderer;
 
@@ -39,8 +43,7 @@ private:
 	FD3D11RenderContext RenderContext;
 	FD3D11ImGuiBackend ImGuiRenderBackend;
 
-	FViewport LevelViewport;
-	FLevelEditorViewportClient LevelViewportClient;
+	TArray<FEditorViewportClient*> AllViewportClients;
 
 	FInputRouter InputRouter;
 	FImGuiSystem ImGuiSystem;

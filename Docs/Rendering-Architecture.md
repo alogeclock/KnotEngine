@@ -25,7 +25,7 @@
 
 ## 전체 구조
 
-현재 구현은 `UComponent` 아래에 `UTransformComponent`와 `URendererComponent`를 분리한다. `UMeshRendererComponent`는 `URendererComponent`를 상속하며, 소유 Node의 Transform과 호출자가 전달한 ViewProjection으로 `URenderer`에 상수 데이터와 Mesh Draw를 제출한다. 회전은 `UMovementComponent`가 갱신하고, 카메라 계산은 현재 데모를 구동하는 `UEditorEngine`에서 수행한다. 현재 틱과 렌더링은 `UWorld → ULevel → UNode → UComponent` 소유 계층을 직접 순회하며, 컴포넌트 등록이나 별도 틱 실행 목록은 사용하지 않는다.
+현재 구현은 `UComponent` 아래에 `UTransformComponent`와 `URendererComponent`를 분리한다. `UMeshRendererComponent`는 `URendererComponent`를 상속하며, 소유 Node의 Transform과 호출자가 전달한 ViewProjection으로 `URenderer`에 상수 데이터와 Mesh Draw를 제출한다. 회전은 `UMovementComponent`가 갱신하고, 카메라와 ViewProjection 계산은 `FLevelEditorViewportClient`가 담당한다. `UEditorEngine`은 WorldContext와 EditorViewportClient를 각각 순회하며 프레임을 조율한다. 현재 World 틱과 Scene draw는 `UWorld → ULevel → UNode → UComponent` 소유 계층을 직접 순회하며, 컴포넌트 등록이나 별도 틱 실행 목록은 사용하지 않는다.
 
 ```text
 URendererComponent
@@ -117,7 +117,7 @@ KnotEngine/Source/
 | D3D11/D3D12 백엔드 | RHI 계약을 네이티브 API로 변환 | 엔진 장면과 Material 정책 |
 | ImGui Render Backend | Overlay Pass에서 ImGui draw data 기록 | 장면 Pass 실행 순서 결정 |
 
-`FSceneRenderer`는 Editor Panel이나 `FEditorViewportClient`를 열거하지 않는다. 현재 단일 Viewport 구현에서는 에디터 UI build 단계가 표시되지 않는 Viewport의 offscreen target을 해제하고, Editor 프레임 조율 코드가 유효한 Viewport만 `FViewInfo`로 변환하여 `FSceneRenderer`에 전달한다. 유효한 Viewport가 없으면 Scene Pass를 실행하지 않지만 Back Buffer의 Editor Overlay와 Present는 계속 수행한다.
+`FSceneRenderer`는 Editor Panel이나 `FEditorViewportClient`를 열거하지 않는다. `FViewportPanel`은 `FViewport`와 concrete `FLevelEditorViewportClient`를 함께 소유하고, client를 `UEditorEngine`의 non-owning 순회 목록에 등록한다. 에디터 UI build 단계는 표시되지 않는 Viewport의 offscreen target을 해제하고, `UEditorEngine`은 등록된 `FEditorViewportClient`를 순회한다. 각 client는 자신의 Viewport가 유효할 때만 Scene draw를 수행한다. `FSceneRenderer`가 도입되면 client가 Viewport와 카메라로 `FViewInfo`를 구성해 전달한다. 유효한 Viewport가 없으면 Scene Pass를 실행하지 않지만 Back Buffer의 Editor Overlay와 Present는 계속 수행한다.
 
 ## 프레임 실행 순서
 
@@ -126,10 +126,20 @@ KnotEngine/Source/
 현재 `UEditorEngine`의 렌더링은 다음 순서로 실행된다.
 
 ```text
+UEditorEngine::Render
+    ├─ Native output extent가 0×0 → GPU frame 생략
+    └─ Native output이 유효함
+        ↓
 URenderer::BeginFrame
     ├─ BeginCommandList
     ├─ Back Buffer와 Depth Target Clear
     └─ 기본 Graphics Pipeline 설정
+        ↓
+FEditorViewportClient 순회
+        ↓
+FEditorViewportClient::Draw
+    ├─ 유효하지 않은 Viewport → 생략
+    └─ FLevelEditorViewportClient::DrawViewport
         ↓
 UWorld::Render → ULevel::Render → UNode::Render
         ↓
@@ -146,6 +156,8 @@ URenderer::EndFrame
 ```
 
 D3D11 백엔드에서는 논리 Command List가 열린 구간을 검증하며 실제 명령은 Immediate Context에 즉시 실행된다.
+
+Viewport Panel 종료 시 offscreen target은 ImGui backend와 `URenderer`가 사용하는 RenderDevice를 해제하기 전에 먼저 해제한다. 이후 Panel 소멸 시 client를 `UEditorEngine`의 순회 목록에서 제거한다.
 
 ### 목표 실행 순서
 
