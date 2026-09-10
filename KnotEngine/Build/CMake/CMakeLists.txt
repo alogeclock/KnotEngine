@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
 
+# 모든 빌드 구성에서 MSVC가 컴파일 디버그 정보를 PDB에 기록하도록 명시한다.
+cmake_policy(SET CMP0141 NEW)
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "ProgramDatabase")
+
 # Visual Studio Output 창에서 vcpkg의 지역화된 메시지가 깨지지 않도록 영어 출력을 사용한다.
 set(ENV{VSLANG} "1033")
 
@@ -16,7 +20,7 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
 # 빌드 구성에 따라 컴파일러 및 링커 플래그를 설정한다.
 # - Debug 구성은 디버깅 심볼을 포함하고 최적화를 비활성화한다.
 # - Development 구성은 디버깅 심볼을 포함하고 일부 최적화를 활성화한다.
-# - Shipping 구성은 디버깅 심볼을 제거하고 최적화를 활성화한다.
+# - Shipping 구성은 별도 PDB에 디버깅 심볼을 기록하고 최적화를 활성화한다.
 set(CMAKE_CXX_FLAGS_DEVELOPMENT "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" CACHE STRING "Compiler flags for Development builds" FORCE)
 set(CMAKE_CXX_FLAGS_SHIPPING "${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "Compiler flags for Shipping builds" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_DEVELOPMENT "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}" CACHE STRING "Linker flags for Development builds" FORCE)
@@ -80,7 +84,15 @@ foreach(MODULE Engine Renderer Editor)
         $<$<CONFIG:Development>:KNOT_BUILD_DEVELOPMENT=1>
         $<$<CONFIG:Shipping>:KNOT_BUILD_SHIPPING=1>
     )
-    target_compile_options(${MODULE} PRIVATE /utf-8 /MP /EHa /Zc:preprocessor)
+    target_compile_options(${MODULE} PRIVATE
+        /utf-8 /MP /EHa /Zc:preprocessor
+        $<$<CONFIG:Development,Shipping>:/Zo>
+    )
+    target_link_options(${MODULE} PRIVATE
+        $<$<CONFIG:Shipping>:/DEBUG:FULL>
+        $<$<CONFIG:Shipping>:/OPT:REF>
+        $<$<CONFIG:Shipping>:/OPT:ICF>
+    )
     set_target_properties(${MODULE} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${KNOTENGINE_BIN_DIR}/$<CONFIG>"
         ARCHIVE_OUTPUT_DIRECTORY "${KNOTENGINE_ROOT}/Intermediate/Lib/${KNOTENGINE_OUTPUT_PLATFORM}/$<CONFIG>"
