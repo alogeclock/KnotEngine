@@ -58,6 +58,7 @@ void FEditorViewportClient::Draw(URenderer& Renderer)
 	DrawViewport(Renderer);
 }
 
+// Engine이 현재 참조하고 있는 World를 소유하지 않고, 매번 GEngine->GetWorld()로 상태를 참조한다.
 UWorld* FEditorViewportClient::GetWorld() const
 {
 	return GEngine ? GEngine->GetWorld() : nullptr;
@@ -130,7 +131,7 @@ void FEditorViewportClient::OnMouseCaptureLost()
 
 void FEditorViewportClient::OnCameraStateChanged()
 {
-	FViewportCameraTransform& ViewTransform = CameraState.ViewTransform;
+	FEditorViewportCameraTransform& ViewTransform = CameraState.ViewTransform;
 	CameraState.CameraSpeed = std::clamp(CameraState.CameraSpeed, MinCameraSpeed, MaxCameraSpeed);
 	ViewTransform.bIsOrtho = CameraState.ViewMode != EEditorViewportViewMode::Perspective;
 	if (!ViewTransform.bIsOrtho)
@@ -181,7 +182,7 @@ FMatrix FEditorViewportClient::GetViewProjectionMatrix()
 	const FRenderViewport ViewportInfo = Viewport.GetRenderViewport();
 	check(ViewportInfo.Width > 0.0f && ViewportInfo.Height > 0.0f);
 
-	FViewportCameraTransform& Camera = CameraState.ViewTransform;
+	FEditorViewportCameraTransform& Camera = CameraState.ViewTransform;
 	Camera.AspectRatio = ViewportInfo.Width / ViewportInfo.Height;
 	check(Camera.NearClip > 0.0f && Camera.FarClip > Camera.NearClip);
 

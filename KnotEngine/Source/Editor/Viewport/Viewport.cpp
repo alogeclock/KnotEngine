@@ -20,8 +20,7 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 	}
 
 	Release();
-	ColorTarget = RenderDevice.CreateTexture({ InWidth, InHeight, ETextureFormat::BGRA8UNorm,
-		ETextureUsage::RenderTarget | ETextureUsage::ShaderResource });
+	ColorTarget = RenderDevice.CreateTexture({ InWidth, InHeight, ETextureFormat::BGRA8UNorm, ETextureUsage::RenderTarget | ETextureUsage::ShaderResource });
 	DepthTarget = RenderDevice.CreateTexture({ InWidth, InHeight, ETextureFormat::D24UNormS8UInt, ETextureUsage::DepthStencil });
 	Width = InWidth;
 	Height = InHeight;

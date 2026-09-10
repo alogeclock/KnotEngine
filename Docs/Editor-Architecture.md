@@ -403,7 +403,7 @@ FViewportPanel
 
 `FViewport`는 출력 surface와 크기를 관리한다. `FEditorViewportClient`는 연결된 Viewport가 출력 가능한지 판정하고 공통 에디터 카메라와 입력을 관리한다. 파생 client는 어떤 World나 Asset을 그릴지 결정하며, `FLevelEditorViewportClient`는 Editor World의 draw만 담당한다.
 
-`FEditorViewportCameraState`는 `FViewportCameraTransform ViewTransform`, 에디터 전용 ViewMode와 CameraSpeed를 보관한다. 모든 뷰 모드는 ViewLocation/ViewRotation을 단일 기준으로 사용하며, 직교 방향을 선택하면 `NotifyCameraStateChanged()`가 해당 방향의 위치와 회전을 ViewTransform에 기록한다. UI는 `GetCameraState()`로 상태를 직접 편집한 뒤 변경 통지를 호출한다. Viewport의 Camera popup은 ViewLocation을 XYZ cm, ViewRotation을 Pitch/Yaw/Roll degree 순서로 표시하고 편집 결과를 `NotifyViewTransformChanged()`로 통지한다. ViewTransform의 TranslateWorld/TranslateLocal은 cm, Rotate의 Yaw/Pitch는 degree를 사용한다. LookAt은 같은 위치를 무시하고, 수직 목표에서는 Yaw를 유지하며 Pitch는 정확한 목표 방향을 허용한다. 마우스 Rotate는 기존처럼 Pitch를 ±89도로 제한한다.
+`FEditorViewportCamera`는 `FEditorViewportCameraTransform ViewTransform`, 에디터 전용 ViewMode와 CameraSpeed를 보관한다. 모든 뷰 모드는 ViewLocation/ViewRotation을 단일 기준으로 사용하며, 직교 방향을 선택하면 `NotifyCameraStateChanged()`가 해당 방향의 위치와 회전을 ViewTransform에 기록한다. UI는 `GetCameraState()`로 상태를 직접 편집한 뒤 변경 통지를 호출한다. Viewport의 Camera popup은 ViewLocation을 XYZ cm, ViewRotation을 Pitch/Yaw/Roll degree 순서로 표시하고 편집 결과를 `NotifyViewTransformChanged()`로 통지한다. ViewTransform의 TranslateWorld/TranslateLocal은 cm, Rotate의 Yaw/Pitch는 degree를 사용한다. LookAt은 같은 위치를 무시하고, 수직 목표에서는 Yaw를 유지하며 Pitch는 정확한 목표 방향을 허용한다. 마우스 Rotate는 기존처럼 Pitch를 ±89도로 제한한다.
 
 Camera.FOV는 투영 행렬 API에 맞춘 수직 시야각 라디안 값이며 기본값은 π/3이다. OrthoZoom은 직교 화면 **폭**이고 기본값은 10cm이다. 이전 높이 10cm 기준과 달리 직교 높이는 OrthoZoom / AspectRatio로 계산한다. AspectRatio는 투영 행렬 계산 시 실제 viewport 크기로 갱신하며, NearClip/FarClip 기본값은 0.1/10000cm이다. 현재 UCameraComponent/FCameraState는 구현되어 있지 않으므로 해당 타입과의 필드 동등성은 아직 계약하지 않는다.
 

@@ -1,16 +1,16 @@
-#include "ViewportCameraTransform.h"
+#include "EditorViewportCameraTransform.h"
 
 #include "Core/Math/Matrix.h"
 
 #include <algorithm>
 #include <cmath>
 
-void FViewportCameraTransform::TranslateWorld(const FVector& WorldDelta)
+void FEditorViewportCameraTransform::TranslateWorld(const FVector& WorldDelta)
 {
 	ViewLocation += WorldDelta;
 }
 
-void FViewportCameraTransform::TranslateLocal(const FVector& LocalDelta)
+void FEditorViewportCameraTransform::TranslateLocal(const FVector& LocalDelta)
 {
 	// local Roll/Pitch 뒤 world Yaw를 적용한다. 양의 Pitch는 +Z를 바라본다.
 	const FMatrix RotationX = FMatrix::MakeRotationX(KMath::ToRadian(ViewRotation.Roll));
@@ -24,7 +24,7 @@ void FViewportCameraTransform::TranslateLocal(const FVector& LocalDelta)
 	TranslateWorld(Forward * LocalDelta.X + Right * LocalDelta.Y + Up * LocalDelta.Z);
 }
 
-void FViewportCameraTransform::Rotate(float DeltaYaw, float DeltaPitch)
+void FEditorViewportCameraTransform::Rotate(float DeltaYaw, float DeltaPitch)
 {
 	static constexpr float MaxPitch = 89.0f;
 	ViewRotation.Yaw = FRotator::NormalizeAxis(ViewRotation.Yaw + DeltaYaw);
@@ -33,7 +33,7 @@ void FViewportCameraTransform::Rotate(float DeltaYaw, float DeltaPitch)
 }
 
 // 같은 위치는 무시하고, 수직 방향은 기존 Yaw를 유지한다. 정확히 바라볼 수 있도록 pitch clamp를 적용하지 않는다.
-void FViewportCameraTransform::LookAt(const FVector& Target)
+void FEditorViewportCameraTransform::LookAt(const FVector& Target)
 {
 	FVector Direction = Target - ViewLocation;
 	if (!Direction.Normalize())

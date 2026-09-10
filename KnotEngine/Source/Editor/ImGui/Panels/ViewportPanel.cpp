@@ -69,8 +69,8 @@ void FViewportPanel::DrawToolbar()
 		ImGui::SetNextWindowPos(CameraPopupPosition, ImGuiCond_Appearing);
 		if (ImGui::BeginPopup("##CameraMenu"))
 		{
-			FEditorViewportCameraState& CameraState = ViewportClient.GetCameraState();
-			FViewportCameraTransform& ViewTransform = CameraState.ViewTransform;
+			FEditorViewportCamera& CameraState = ViewportClient.GetCameraState();
+			FEditorViewportCameraTransform& ViewTransform = CameraState.ViewTransform;
 			bool bViewTransformChanged = false;
 			ImGui::Dummy(ImVec2(0.0f, 1.0f));
 			ImGui::TextDisabled("Camera");
@@ -148,7 +148,7 @@ void FViewportPanel::DrawToolbar()
 		ImGui::SetNextWindowPos(ViewPopupPosition, ImGuiCond_Appearing);
 		if (ImGui::BeginPopup("##ViewMenu"))
 		{
-			FEditorViewportCameraState& CameraState = ViewportClient.GetCameraState();
+			FEditorViewportCamera& CameraState = ViewportClient.GetCameraState();
 			ImGui::Dummy(ImVec2(0.0f, 1.0f));
 			ImGui::TextDisabled("Perspective");
 			ImGui::Separator();

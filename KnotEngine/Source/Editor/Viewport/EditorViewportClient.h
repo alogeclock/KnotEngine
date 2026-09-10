@@ -4,7 +4,7 @@
 #include "Core/Math/Rotator.h"
 #include "Core/Math/Vector.h"
 #include "Input/InputRouter.h"
-#include "ViewportCameraTransform.h"
+#include "EditorViewportCameraTransform.h"
 
 struct FMatrix;
 class FViewport;
@@ -22,9 +22,9 @@ enum class EEditorViewportViewMode : uint8
 	Back,
 };
 
-struct FEditorViewportCameraState
+struct FEditorViewportCamera
 {
-	FViewportCameraTransform ViewTransform;
+	FEditorViewportCameraTransform ViewTransform;
 	EEditorViewportViewMode ViewMode = EEditorViewportViewMode::Perspective; // TO-DO: AssetEditor, LevelEditor 일반화
 	float CameraSpeed = 5.0f;
 };
@@ -47,8 +47,8 @@ public:
 	void OnKeyboardFocusLost() override;
 	void OnMouseCaptureLost() override;
 
-	FEditorViewportCameraState& GetCameraState() { return CameraState; }
-	const FEditorViewportCameraState& GetCameraState() const { return CameraState; }
+	FEditorViewportCamera& GetCameraState() { return CameraState; }
+	const FEditorViewportCamera& GetCameraState() const { return CameraState; }
 	void OnCameraStateChanged();
 	void OnViewTransformChanged();
 
@@ -63,7 +63,7 @@ private:
 
 	FViewport& Viewport;
 
-	FEditorViewportCameraState CameraState;
+	FEditorViewportCamera CameraState;
 	TBitset<static_cast<SIZE_T>(EKeyboardKey::Count)> KeysDown;
 	bool bRotatingCamera = false;
 };

@@ -4,7 +4,7 @@
 #include "Core/Math/Vector.h"
 
 // 부모가 없는 에디터 카메라의 변환과 투영 값이다. 위치는 cm, 회전은 degree를 사용한다.
-struct FViewportCameraTransform
+struct FEditorViewportCameraTransform
 {
 	FVector ViewLocation = FVector(-5.0f, 0.0f, 0.0f);
 	FRotator ViewRotation = FRotator::ZeroRotator;
