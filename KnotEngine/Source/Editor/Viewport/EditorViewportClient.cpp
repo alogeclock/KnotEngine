@@ -25,7 +25,7 @@ void FEditorViewportClient::Tick(float DeltaTime)
 	const FRotator& ViewRotation = CameraState.ViewTransform.ViewRotation;
 	const FMatrix RotationX = FMatrix::MakeRotationX(KMath::ToRadian(ViewRotation.Roll));
 	const FMatrix RotationY = FMatrix::MakeRotationY(KMath::ToRadian(-ViewRotation.Pitch));
-	const FMatrix RotationZ = FMatrix::MakeRotationY(KMath::ToRadian(ViewRotation.Yaw));
+	const FMatrix RotationZ = FMatrix::MakeRotationZ(KMath::ToRadian(ViewRotation.Yaw));
 	const FMatrix Rotation = RotationX * RotationY * RotationZ;
 	const FVector Forward = Rotation.GetScaledAxis(EAxis::X);
 	const FVector Right = Rotation.GetScaledAxis(EAxis::Y);
@@ -188,7 +188,7 @@ FMatrix FEditorViewportClient::GetViewProjectionMatrix()
 	const FRotator& ViewRotation = Camera.ViewRotation;
 	const FMatrix RotationX = FMatrix::MakeRotationX(KMath::ToRadian(ViewRotation.Roll));
 	const FMatrix RotationY = FMatrix::MakeRotationY(KMath::ToRadian(-ViewRotation.Pitch));
-	const FMatrix RotationZ = FMatrix::MakeRotationY(KMath::ToRadian(ViewRotation.Yaw));
+	const FMatrix RotationZ = FMatrix::MakeRotationZ(KMath::ToRadian(ViewRotation.Yaw));
 	const FMatrix Rotation = RotationX * RotationY * RotationZ;
 
 	const FVector Forward = Rotation.GetScaledAxis(EAxis::X);

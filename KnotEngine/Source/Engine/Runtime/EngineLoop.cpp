@@ -26,7 +26,7 @@ int32 FEngineLoop::Run(UEngine& Engine)
 			break;
 		}
 
-		if (const auto Resize = Application.ConsumePendingResize())
+		if (const std::optional<FWindowSize> Resize = Application.ConsumePendingResize())
 		{
 			Engine.OnWindowResized(*Resize);
 		}

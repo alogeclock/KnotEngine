@@ -15,7 +15,7 @@ void FViewportCameraTransform::TranslateLocal(const FVector& LocalDelta)
 	// local Roll/Pitch 뒤 world Yaw를 적용한다. 양의 Pitch는 +Z를 바라본다.
 	const FMatrix RotationX = FMatrix::MakeRotationX(KMath::ToRadian(ViewRotation.Roll));
 	const FMatrix RotationY = FMatrix::MakeRotationY(KMath::ToRadian(-ViewRotation.Pitch));
-	const FMatrix RotationZ = FMatrix::MakeRotationY(KMath::ToRadian(ViewRotation.Yaw));
+	const FMatrix RotationZ = FMatrix::MakeRotationZ(KMath::ToRadian(ViewRotation.Yaw));
 	const FMatrix Rotation = RotationX * RotationY * RotationZ;
 
 	const FVector Forward = Rotation.GetScaledAxis(EAxis::X);
