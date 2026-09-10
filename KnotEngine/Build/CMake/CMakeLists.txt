@@ -66,7 +66,7 @@ foreach(MODULE Engine Renderer Editor)
     file(GLOB_RECURSE ${MODULE}_SOURCES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Source/${MODULE}/*.cpp")
     file(GLOB_RECURSE ${MODULE}_HEADERS CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Source/${MODULE}/*.h" "${KNOTENGINE_ROOT}/Source/${MODULE}/*.inl")
     if(MODULE STREQUAL "Editor")
-        add_executable(${MODULE} WIN32 ${${MODULE}_SOURCES} ${${MODULE}_HEADERS} "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.rc" "${KNOTENGINE_ROOT}/Source/Resources/resource.h")
+        add_executable(${MODULE} WIN32 ${${MODULE}_SOURCES} ${${MODULE}_HEADERS} "${KNOTENGINE_ROOT}/Source/Resource/KnotEngine.rc" "${KNOTENGINE_ROOT}/Source/Resource/resource.h")
     else()
         add_library(${MODULE} SHARED ${${MODULE}_SOURCES} ${${MODULE}_HEADERS})
         string(TOUPPER "${MODULE}" MODULE_UPPER)
@@ -103,13 +103,13 @@ foreach(MODULE Engine Renderer Editor)
     source_group("Generated\\CMake" REGULAR_EXPRESSION ".*cmake_pch.*")
 endforeach()
 
-source_group("Source\\Resources" FILES
-    "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.rc"
-    "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.manifest"
-    "${KNOTENGINE_ROOT}/Source/Resources/resource.h"
+source_group("Source\\Resource" FILES
+    "${KNOTENGINE_ROOT}/Source/Resource/KnotEngine.rc"
+    "${KNOTENGINE_ROOT}/Source/Resource/KnotEngine.manifest"
+    "${KNOTENGINE_ROOT}/Source/Resource/resource.h"
 )
 
-target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Resources/KnotEngine.manifest")
+target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Resource/KnotEngine.manifest")
 
 target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)

@@ -6,7 +6,7 @@
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
 #include "Input/InputRouter.h"
-#include "UI/ImGuiSystem.h"
+#include "ImGui/ImGuiSystem.h"
 
 class FEditorViewportClient;
 
@@ -29,7 +29,7 @@ public:
 	void Tick(float DeltaTime) override;
 	void Shutdown() override;
 
-	UWorld* GetEditorWorld() const;
+	UWorld* GetWorld() const override;
 	void RegisterViewportClient(FEditorViewportClient& ViewportClient);
 	void UnregisterViewportClient(FEditorViewportClient& ViewportClient);
 

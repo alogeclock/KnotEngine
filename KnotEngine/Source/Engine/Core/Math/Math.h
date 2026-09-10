@@ -46,8 +46,7 @@ namespace KMath
 	template <typename T>
 	constexpr T Clamp(const T& Value, const T& Min, const T& Max)
 	{
-		return Value < Min ? Min : Max < Value ? Max
-		                                       : Value;
+		return Value < Min ? Min : Max < Value ? Max : Value;
 	}
 
 	template <typename T>

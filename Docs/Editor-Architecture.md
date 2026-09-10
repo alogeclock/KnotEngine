@@ -68,7 +68,7 @@ KnotEngine/Source/Editor/
 │  └─ Launch.h/.cpp
 ├─ Input/
 │  └─ InputRouter.h/.cpp
-├─ UI/
+├─ ImGui/
 │  ├─ ImGuiSystem.h/.cpp
 │  ├─ EditorSelection.h
 │  └─ Panels/
@@ -78,15 +78,17 @@ KnotEngine/Source/Editor/
 │     └─ ConsolePanel.h/.cpp
 └─ Viewport/
    ├─ Viewport.h/.cpp
-   ├─ ViewportClient.h/.cpp
    ├─ EditorViewportClient.h/.cpp
-   └─ LevelEditorViewportClient.h/.cpp
+   ├─ Asset/
+   │  └─ AssetEditorViewportClient.h/.cpp
+   └─ Level/
+      └─ LevelEditorViewportClient.h/.cpp
 ```
 
 Inspector 코드가 커지면 다음 파일을 추가한다.
 
 ```text
-Editor/UI/Property/
+Editor/ImGui/Property/
 ├─ PropertyWidgets.h/.cpp
 └─ PropertyValueBuffer.h/.cpp       문자열 편집 상태가 필요할 때
 ```
@@ -111,15 +113,15 @@ UEditorEngine
    └─ FConsolePanel
 ```
 
-`FImGuiSystem`은 Panel을 값 멤버로 소유한다. `FViewportPanel`은 자신의 출력 surface와 concrete ViewportClient를 함께 소유하고, 생성과 소멸 시 `UEditorEngine`의 non-owning 순회 목록에 client를 등록하고 해제한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
+`FImGuiSystem`은 Panel을 값 멤버로 소유한다. `FViewportPanel`은 자신의 출력 surface와 concrete ViewportClient를 함께 소유하지만 `UEditorEngine`을 참조하지 않는다. `FImGuiSystem`이 생성과 소멸 시 client를 `UEditorEngine`의 non-owning 순회 목록에 등록하고 해제한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
 
 ```text
-FViewportPanel 생성
+FImGuiSystem 생성
     └─ UEditorEngine::RegisterViewportClient
             ↓
 UEditorEngine::AllViewportClients       non-owning Tick/Draw 순회
             ↓
-FViewportPanel 소멸
+FImGuiSystem 소멸
     └─ UEditorEngine::UnregisterViewportClient
 ```
 
@@ -392,13 +394,22 @@ FViewportPanel
 │  ├─ Render Target
 │  ├─ Depth Target
 │  └─ pixel size
-└─ FLevelEditorViewportClient : FEditorViewportClient, IInputTarget
-   ├─ Camera state
-   ├─ Editor World 조회
-   └─ input interpretation
+└─ FLevelEditorViewportClient : FEditorViewportClient
+   ├─ FEditorViewportClient : IInputTarget
+   │  ├─ Camera state
+   │  └─ input interpretation
+   └─ Editor World 조회와 draw
 ```
 
-`FViewport`는 출력 surface와 크기를 관리한다. `FEditorViewportClient`는 연결된 Viewport가 출력 가능한지 판정하고, 파생 client는 카메라, 입력과 어떤 World를 그릴지 결정한다. `FLevelEditorViewportClient`는 `FEditorViewportClient`와 `IInputTarget`을 상속한다.
+`FViewport`는 출력 surface와 크기를 관리한다. `FEditorViewportClient`는 연결된 Viewport가 출력 가능한지 판정하고 공통 에디터 카메라와 입력을 관리한다. 파생 client는 어떤 World나 Asset을 그릴지 결정하며, `FLevelEditorViewportClient`는 Editor World의 draw만 담당한다.
+
+`FEditorViewportCameraState`는 `FViewportCameraTransform ViewTransform`, 에디터 전용 ViewMode와 CameraSpeed를 보관한다. 모든 뷰 모드는 ViewLocation/ViewRotation을 단일 기준으로 사용하며, 직교 방향을 선택하면 `NotifyCameraStateChanged()`가 해당 방향의 위치와 회전을 ViewTransform에 기록한다. UI는 `GetCameraState()`로 상태를 직접 편집한 뒤 변경 통지를 호출한다. Viewport의 Camera popup은 ViewLocation을 XYZ cm, ViewRotation을 Pitch/Yaw/Roll degree 순서로 표시하고 편집 결과를 `NotifyViewTransformChanged()`로 통지한다. ViewTransform의 TranslateWorld/TranslateLocal은 cm, Rotate의 Yaw/Pitch는 degree를 사용한다. LookAt은 같은 위치를 무시하고, 수직 목표에서는 Yaw를 유지하며 Pitch는 정확한 목표 방향을 허용한다. 마우스 Rotate는 기존처럼 Pitch를 ±89도로 제한한다.
+
+Camera.FOV는 투영 행렬 API에 맞춘 수직 시야각 라디안 값이며 기본값은 π/3이다. OrthoZoom은 직교 화면 **폭**이고 기본값은 10cm이다. 이전 높이 10cm 기준과 달리 직교 높이는 OrthoZoom / AspectRatio로 계산한다. AspectRatio는 투영 행렬 계산 시 실제 viewport 크기로 갱신하며, NearClip/FarClip 기본값은 0.1/10000cm이다. 현재 UCameraComponent/FCameraState는 구현되어 있지 않으므로 해당 타입과의 필드 동등성은 아직 계약하지 않는다.
+
+Viewport 상단 toolbar의 `Camera` 버튼은 popup에서 WASDQE 이동과 휠 전후 이동 감도를 조절한다. Perspective fly camera는 우클릭을 누른 동안에만 동작하며, W/S는 시선 방향, A/D는 카메라 좌우, Q/E는 월드 아래/위로 이동한다. 우클릭 drag의 raw mouse delta는 Yaw와 Pitch를 바꾸며 Pitch는 뒤집힘을 막기 위해 -89도에서 89도로 제한한다. 카메라 basis는 row-vector 규약에 맞춰 local Pitch 회전 뒤 world Yaw 회전을 적용한다.
+
+toolbar의 `View` 버튼은 원형 radio 항목으로 Perspective와 Top, Bottom, Left, Right, Front, Back 직교 뷰를 선택하는 popup을 연다. Perspective 카메라 위치와 회전은 직교 뷰를 선택해도 보존된다. 직교 뷰는 방향별 고정 Forward/Up 축과 별도 중심을 사용하며, WASD는 화면 평면을 이동하고 마우스 휠은 직교 표시 범위를 확대하거나 축소한다.
 
 ### Render Target
 
@@ -447,7 +458,7 @@ InputRouter.RegisterTarget(
 	ImGui::IsWindowFocused());
 ```
 
-Panel title bar, toolbar와 scrollbar hover는 Viewport image hover로 취급하지 않는다. 기즈모가 별도 `IInputTarget`이 되면 Viewport보다 뒤에 등록하여 겹친 영역에서 우선권을 얻는다.
+Panel title bar, Camera Speed toolbar와 scrollbar hover는 Viewport image hover로 취급하지 않는다. 기즈모가 별도 `IInputTarget`이 되면 Viewport보다 뒤에 등록하여 겹친 영역에서 우선권을 얻는다.
 
 오른쪽 마우스 카메라 회전은 `CaptureMouse()`, 버튼 해제는 `ReleaseMouse()`를 반환한다. 키보드 카메라 이동은 Viewport click에서 `SetKeyboardFocus()`를 요청한다.
 
@@ -688,15 +699,14 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 
 - [EditorEngine.h](../KnotEngine/Source/Editor/Runtime/EditorEngine.h)
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/Runtime/EditorEngine.cpp)
-- [ImGuiSystem.h](../KnotEngine/Source/Editor/UI/ImGuiSystem.h)
-- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/UI/ImGuiSystem.cpp)
+- [ImGuiSystem.h](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.h)
+- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.cpp)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [Viewport.cpp](../KnotEngine/Source/Editor/Viewport/Viewport.cpp)
-- [ViewportClient.h](../KnotEngine/Source/Editor/Viewport/ViewportClient.h)
 - [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
-- [LevelEditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/LevelEditorViewportClient.h)
+- [LevelEditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/Level/LevelEditorViewportClient.h)
 - [Object.h](../KnotEngine/Source/Engine/Object/Object.h)
 - [Class.h](../KnotEngine/Source/Engine/Object/Class.h)
 - [Property.h](../KnotEngine/Source/Engine/Object/Property.h)

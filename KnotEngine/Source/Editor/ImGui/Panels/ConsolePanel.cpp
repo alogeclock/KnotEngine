@@ -1,4 +1,4 @@
-#include "UI/Panels/ConsolePanel.h"
+#include "ImGui/Panels/ConsolePanel.h"
 
 #include <imgui.h>
 #include <cstring>

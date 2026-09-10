@@ -83,27 +83,19 @@ void FInputRouter::RegisterTarget(IInputTarget& Target, bool bHovered, bool bFoc
 
 void FInputRouter::UnregisterTarget(IInputTarget& Target)
 {
-	RegisteredTargets.erase(
-		std::remove_if(
-			RegisteredTargets.begin(),
-			RegisteredTargets.end(),
-			[&Target](const FRegisteredTarget& RegisteredTarget)
-			{
-				return RegisteredTarget.Target == &Target;
-			}),
-		RegisteredTargets.end());
-
 	if (HoveredTarget == &Target)
 	{
 		HoveredTarget = nullptr;
 	}
 	if (KeyboardFocusOwner == &Target)
 	{
-		SetKeyboardFocus(nullptr);
+		KeyboardFocusOwner = nullptr;
+		Target.OnKeyboardFocusLost();
 	}
 	if (MouseCaptureOwner == &Target)
 	{
-		SetMouseCapture(nullptr);
+		MouseCaptureOwner = nullptr;
+		Target.OnMouseCaptureLost();
 	}
 
 	for (FSequenceOwner& Owner : KeyOwners)
@@ -120,6 +112,10 @@ void FInputRouter::UnregisterTarget(IInputTarget& Target)
 			Owner = {};
 		}
 	}
+
+	RegisteredTargets.erase(
+		std::remove_if(RegisteredTargets.begin(), RegisteredTargets.end(), [&Target](const FRegisteredTarget& RegisteredTarget) { return RegisteredTarget.Target == &Target; }),
+		RegisteredTargets.end());
 }
 
 void FInputRouter::SetImGuiCaptureState(bool bWantsMouse, bool bWantsKeyboard, bool bWantsTextInput)

@@ -94,7 +94,7 @@ void UEditorEngine::Render()
 	Renderer.EndFrame();
 }
 
-UWorld* UEditorEngine::GetEditorWorld() const
+UWorld* UEditorEngine::GetWorld() const
 {
 	return FindWorld(EditorContextId);
 }
@@ -114,7 +114,7 @@ void UEditorEngine::UnregisterViewportClient(FEditorViewportClient& ViewportClie
 
 void UEditorEngine::Shutdown()
 {
-	if (UWorld* World = GetEditorWorld())
+	if (UWorld* World = GetWorld())
 	{
 		World->EndPlay();
 	}

@@ -1,6 +1,6 @@
-#include "UI/Panels/HierarchyPanel.h"
+#include "ImGui/Panels/HierarchyPanel.h"
 
-#include "UI/EditorSelection.h"
+#include "ImGui/EditorSelection.h"
 #include "World/Level.h"
 #include "World/Node.h"
 #include "World/World.h"

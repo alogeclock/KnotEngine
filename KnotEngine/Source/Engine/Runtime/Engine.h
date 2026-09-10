@@ -32,6 +32,8 @@ public:
 	UWorld* FindWorld(uint64 ContextId) const;
 	void DestroyWorldContext(uint64 ContextId);
 
+	virtual UWorld* GetWorld() const;
+
 protected:
 	TArray<FWorldContext> WorldContexts;
 

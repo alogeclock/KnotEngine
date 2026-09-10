@@ -1,4 +1,4 @@
-#include "UI/Panels/InspectorPanel.h"
+#include "ImGui/Panels/InspectorPanel.h"
 
 #include "Component/Component.h"
 #include "Core/Geometry/Transform.h"
@@ -9,7 +9,7 @@
 #include "Object/Property/ObjectProperty.h"
 #include "Object/Property/SoftObjectProperty.h"
 #include "Object/Property/StructProperty.h"
-#include "UI/EditorSelection.h"
+#include "ImGui/EditorSelection.h"
 #include "World/Node.h"
 
 #include <imgui.h>

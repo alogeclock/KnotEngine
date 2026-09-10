@@ -39,6 +39,7 @@ protected:
 	virtual void OnActivated() {}
 	virtual void OnDeactivated() {}
 
+	// TO-DO: 추후 활성화 여부는 Node 단위로 관리, 컴포넌트는 bCanEverTick에 따라 bTickEnable 에디터 노출
 	UPROPERTY(Category = "Component") bool bTickEnable = true;
 	UPROPERTY(Category = "Component") bool bAutoActivate = true;
 

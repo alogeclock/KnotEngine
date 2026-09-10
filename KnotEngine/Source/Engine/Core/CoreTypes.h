@@ -2,6 +2,7 @@
 
 #include <DirectXMath.h>
 #include <array>
+#include <bitset>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +43,9 @@ using TSet = std::unordered_set<T, Hasher, KeyEqual, Allocator>;
 
 template <typename T, std::size_t N>
 using TStaticArray = std::array<T, N>;
+
+template <std::size_t N>
+using TBitset = std::bitset<N>;
 
 using FString = std::string;
 using FWString = std::wstring;

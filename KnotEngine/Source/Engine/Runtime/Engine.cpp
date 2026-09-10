@@ -54,3 +54,8 @@ void UEngine::DestroyWorldContext(uint64 ContextId)
 		}
 	}
 }
+
+UWorld* UEngine::GetWorld() const
+{
+	return WorldContexts.empty() ? nullptr : WorldContexts.front().World.Get();
+}

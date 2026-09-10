@@ -1,4 +1,4 @@
-#include "UI/ImGuiSystem.h"
+#include "ImGui/ImGuiSystem.h"
 
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
@@ -20,8 +20,14 @@ FImGuiSystem::FImGuiSystem(
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
 	: EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  ViewportPanel(InEditorEngine, InRenderDevice, InRenderBackend, InInputRouter)
+	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter)
 {
+	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
+}
+
+FImGuiSystem::~FImGuiSystem()
+{
+	EditorEngine.UnregisterViewportClient(ViewportPanel.GetViewportClient());
 }
 
 void FImGuiSystem::Startup(HWND WindowHandle)
@@ -83,7 +89,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	}
 	if (bShowHierarchy)
 	{
-		if (UWorld* World = EditorEngine.GetEditorWorld())
+		if (UWorld* World = EditorEngine.GetWorld())
 		{
 			HierarchyPanel.Draw(*World, Selection);
 		}

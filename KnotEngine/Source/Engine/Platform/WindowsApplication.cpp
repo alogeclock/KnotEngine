@@ -1,5 +1,5 @@
 #include "Platform/WindowsApplication.h"
-#include "Source/Resources/resource.h"
+#include "Source/Resource/resource.h"
 
 #include "Core/Assert.h"
 

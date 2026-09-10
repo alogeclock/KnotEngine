@@ -100,7 +100,7 @@ KnotEngine/Source/
 │     ├─ D3D11/
 │     └─ D3D12/                              향후 구현
 └─ Editor/
-   └─ UI/ImGui/
+   └─ ImGui/
 ```
 
 초기에는 Pass마다 파일과 클래스를 만들지 않는다. `FSceneRenderer`의 `RenderShadowPass()`, `RenderOpaquePass()`, `RenderTranslucencyPass()` 같은 함수로 시작하고 구현이 커질 때만 `FRenderPass`로 분리한다.
@@ -117,7 +117,7 @@ KnotEngine/Source/
 | D3D11/D3D12 백엔드 | RHI 계약을 네이티브 API로 변환 | 엔진 장면과 Material 정책 |
 | ImGui Render Backend | Overlay Pass에서 ImGui draw data 기록 | 장면 Pass 실행 순서 결정 |
 
-`FSceneRenderer`는 Editor Panel이나 `FEditorViewportClient`를 열거하지 않는다. `FViewportPanel`은 `FViewport`와 concrete `FLevelEditorViewportClient`를 함께 소유하고, client를 `UEditorEngine`의 non-owning 순회 목록에 등록한다. 에디터 UI build 단계는 표시되지 않는 Viewport의 offscreen target을 해제하고, `UEditorEngine`은 등록된 `FEditorViewportClient`를 순회한다. 각 client는 자신의 Viewport가 유효할 때만 Scene draw를 수행한다. `FSceneRenderer`가 도입되면 client가 Viewport와 카메라로 `FViewInfo`를 구성해 전달한다. 유효한 Viewport가 없으면 Scene Pass를 실행하지 않지만 Back Buffer의 Editor Overlay와 Present는 계속 수행한다.
+`FSceneRenderer`는 Editor Panel이나 `FEditorViewportClient`를 열거하지 않는다. `FViewportPanel`은 `FViewport`와 concrete `FLevelEditorViewportClient`를 함께 소유하고, `FImGuiSystem`이 client를 `UEditorEngine`의 non-owning 순회 목록에 등록한다. 에디터 UI build 단계는 표시되지 않는 Viewport의 offscreen target을 해제하고, `UEditorEngine`은 등록된 `FEditorViewportClient`를 순회한다. 각 client는 자신의 Viewport가 유효할 때만 Scene draw를 수행한다. `FSceneRenderer`가 도입되면 client가 Viewport와 카메라로 `FViewInfo`를 구성해 전달한다. 유효한 Viewport가 없으면 Scene Pass를 실행하지 않지만 Back Buffer의 Editor Overlay와 Present는 계속 수행한다.
 
 ## 프레임 실행 순서
 
@@ -157,7 +157,7 @@ URenderer::EndFrame
 
 D3D11 백엔드에서는 논리 Command List가 열린 구간을 검증하며 실제 명령은 Immediate Context에 즉시 실행된다.
 
-Viewport Panel 종료 시 offscreen target은 ImGui backend와 `URenderer`가 사용하는 RenderDevice를 해제하기 전에 먼저 해제한다. 이후 Panel 소멸 시 client를 `UEditorEngine`의 순회 목록에서 제거한다.
+Viewport Panel 종료 시 offscreen target은 ImGui backend와 `URenderer`가 사용하는 RenderDevice를 해제하기 전에 먼저 해제한다. 이후 `FImGuiSystem` 소멸 시 client를 `UEditorEngine`의 순회 목록에서 제거한다.
 
 ### 목표 실행 순서
 
@@ -752,5 +752,5 @@ D3D12에서는 CPU 프레임 수명과 GPU 완료 시점이 다르므로 Frame R
 - [RendererComponent.h](../KnotEngine/Source/Engine/Component/RendererComponent.h)
 - [RendererComponent.cpp](../KnotEngine/Source/Engine/Component/RendererComponent.cpp)
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/EditorEngine.cpp)
-- [ImGuiRenderBackend.h](../KnotEngine/Source/Editor/UI/ImGui/ImGuiRenderBackend.h)
+- [ImGuiRenderBackend.h](../KnotEngine/Source/Renderer/Render/ImGui/ImGuiRenderBackend.h)
 - [Conventions.md](Conventions.md)

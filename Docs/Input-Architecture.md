@@ -85,7 +85,7 @@ KnotEngine/Source/
 └─ Editor/
    ├─ Input/
    │  └─ InputRouter.h/.cpp
-   ├─ UI/
+   ├─ ImGui/
    │  └─ ImGuiSystem.h/.cpp
    └─ Viewport/
 ```
@@ -98,7 +98,7 @@ KnotEngine/Source/
 | `FImGuiSystem` | ImGui 프레임 구성, 패널 그리기, ImGui capture 상태 전달 | 물리 키 변환, 입력 소유권 보관 |
 | `FInputRouter` | 대상 등록, 이벤트별 target 결정, 논리 포커스와 캡처 | Win32 처리, ImGui 위젯 렌더링 |
 | `IInputTarget` | 뷰포트·기즈모 등의 이벤트 소비 지점 | 전역 target 선택 |
-| `FViewportClient` | 향후 뷰포트 입력을 카메라 또는 게임으로 해석 | OS 메시지 직접 처리 |
+| `FEditorViewportClient` | 에디터 뷰포트 입력을 카메라 조작으로 해석 | OS 메시지 직접 처리 |
 
 ## 프레임 실행 순서
 
@@ -167,11 +167,17 @@ GEngine::Tick
 - 카메라 이동처럼 유지되는 입력은 `IsKeyDown()` 등의 상태 조회가 적합하다.
 - 텍스트, 더블 클릭, 한 프레임 안의 Down/Up은 이벤트 순서가 필요하다.
 
+에디터 뷰포트는 전역 스냅샷을 직접 조회하지 않는다. `FEditorViewportClient`는 자신에게 라우팅된 키의 Down/Up을 `KeysDown` 집합에 반영하고, `Tick()`에서 조회한다. 키보드 포커스를 잃으면 집합 전체를 초기화한다. Repeat 이벤트는 소비하지만 상태를 켜지 않으므로, 취소된 이동은 키를 떼고 다시 눌러야 시작된다. `FInputRouter::KeyOwners`는 대응 Up과 repeat의 전달 대상을 보존하며, 뷰포트 입력의 활성 상태와는 별개다.
+
 같은 프레임 안에 키를 눌렀다가 떼면 최종 `KeysDown`은 false지만 `KeysPressed`, `KeysReleased`, 이벤트 배열에는 두 전환이 모두 남는다.
 
 ## FInputSnapshot
 
 `FInputSnapshot`은 외부에 const 조회 함수만 제공한다. 값은 `FWindowsInput`만 생성하고 변경할 수 있다.
+
+`FWindowsInput::Startup()`은 창 생성 중 자신보다 먼저 전달된 `WM_SETFOCUS`를 놓칠 수 있으므로 현재 Win32 focus owner에서 초기 `HasFocus`를 복구한다. 이후 포커스 변화는 `WM_SETFOCUS`와 `WM_KILLFOCUS` 이벤트로 갱신한다.
+
+프레임 등록 대상이 숨김이나 collapse로 명시적으로 해제되면 `UnregisterTarget()`은 대상이 살아 있는 동안 키보드 포커스와 마우스 캡처 상실을 통지한다. 카메라는 이 통지에서 유지 입력과 우클릭 회전 상태를 초기화한다.
 
 ```cpp
 bool IsKeyDown(EKeyboardKey Key) const;
@@ -377,7 +383,7 @@ ImGui Viewport Panel
         ↓ RegisterTarget
 FInputRouter
         ↓ FInputEvent
-FSceneViewport 또는 FViewportClient
+FSceneViewport 또는 FEditorViewportClient
         ├─ Editor Camera
         ├─ Gizmo
         └─ PIE Game Viewport
@@ -439,9 +445,6 @@ ImGui DockSpace
 
 ### 미구현
 
-- 실제 Level Viewport 패널과 target 등록
-- `FViewportClient` 입력 인터페이스
-- 에디터 카메라 이동과 회전
 - 기즈모 입력 우선순위
 - 뷰포트 내부 splitter 입력
 - PIE Game Viewport 전달
@@ -467,6 +470,6 @@ ImGui DockSpace
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/Runtime/EditorEngine.cpp)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
-- [ImGuiSystem.h](../KnotEngine/Source/Editor/UI/ImGuiSystem.h)
-- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/UI/ImGuiSystem.cpp)
+- [ImGuiSystem.h](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.h)
+- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.cpp)
 - [Conventions.md](Conventions.md)

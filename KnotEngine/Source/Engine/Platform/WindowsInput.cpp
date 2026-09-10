@@ -13,6 +13,7 @@ void FWindowsInput::Startup(HWND InWindowHandle)
 	check(!WindowHandle);
 	checkf(InWindowHandle, "FWindowsInput::Startup에 전달된 HWND가 null이다.");
 	WindowHandle = InWindowHandle;
+	bHasFocus = GetFocus() == WindowHandle; // CreateWindowExW의 WS_VISIBLE 처리 중 WM_SETFOCUS가 Startup보다 먼저 전달될 수 있으므로 초기값을 복구한다.
 
 	RAWINPUTDEVICE RawMouse = {};
 	RawMouse.usUsagePage = HID_USAGE_PAGE_GENERIC;
