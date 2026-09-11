@@ -17,5 +17,5 @@ private:
 	bool DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject = true);
 	bool DrawVector(const char* Label, FVector& Vector);
 	bool DrawQuat(const char* Label, FQuat& Quat);
-	bool DrawTransform(const char* Label, FTransform& Transform);
+	bool DrawTransform(const char* Label, const char* Tooltip, FTransform& Transform);
 };

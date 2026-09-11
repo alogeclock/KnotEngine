@@ -148,9 +148,14 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 	return bChanged;
 }
 
-bool FInspectorPanel::DrawTransform(const char* Label, FTransform& Transform)
+bool FInspectorPanel::DrawTransform(const char* Label, const char* Tooltip, FTransform& Transform)
 {
-	if (!ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen))
+	const bool bOpen = ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen);
+	if (Tooltip[0] != '\0' && ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("%s", Tooltip);
+	}
+	if (!bOpen)
 	{
 		return false;
 	}
@@ -171,6 +176,7 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	const FString Label = Metadata.GetDisplayName().empty() ? Property.GetName() : Metadata.GetDisplayName();
 	ImGui::PushID(&Property);
 	bool bChanged = false;
+	bool bTooltipHandled = false;
 	switch (Property.GetKind())
 	{
 	case EPropertyKind::Int32:
@@ -290,21 +296,31 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		else if (Struct == FTransform::StaticStruct())
 		{
 			FTransform EditedValue = *static_cast<FTransform*>(Value);
-			bChanged = DrawTransform(Label.c_str(), EditedValue);
+			bChanged = DrawTransform(Label.c_str(), Metadata.GetTooltip().c_str(), EditedValue);
+			bTooltipHandled = true;
 			if (bChanged)
 			{
 				Property.CopyValue(Value, &EditedValue);
 			}
 		}
-		else if (ImGui::TreeNodeEx(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+		else
 		{
-			TArray<const FProperty*> Members;
-			Struct->GetEditorProperties(Members);
-			for (const FProperty* Member : Members)
+			const bool bOpen = ImGui::TreeNodeEx(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+			if (!Metadata.GetTooltip().empty() && ImGui::IsItemHovered())
 			{
-				bChanged |= Member && DrawProperty(Object, *Member, Value, false);
+				ImGui::SetTooltip("%s", Metadata.GetTooltip().c_str());
 			}
-			ImGui::TreePop();
+			bTooltipHandled = true;
+			if (bOpen)
+			{
+				TArray<const FProperty*> Members;
+				Struct->GetEditorProperties(Members);
+				for (const FProperty* Member : Members)
+				{
+					bChanged |= Member && DrawProperty(Object, *Member, Value, false);
+				}
+				ImGui::TreePop();
+			}
 		}
 		break;
 	}
@@ -323,7 +339,7 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	}
 	case EPropertyKind::Array: ImGui::LabelText(Label.c_str(), "%s", "Array"); break;
 	}
-	if (!Metadata.GetTooltip().empty() && ImGui::IsItemHovered())
+	if (!bTooltipHandled && !Metadata.GetTooltip().empty() && ImGui::IsItemHovered())
 	{
 		ImGui::SetTooltip("%s", Metadata.GetTooltip().c_str());
 	}

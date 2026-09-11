@@ -13,6 +13,7 @@
 class IImGuiRenderBackend;
 class IRenderDevice;
 class FInputRouter;
+struct ImFont;
 class UEditorEngine;
 class FWindowsApplication;
 
@@ -41,6 +42,8 @@ private:
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
 	FEditorSelection Selection;
+	ImFont* MediumFont = nullptr;
+	ImFont* SemiBoldFont = nullptr;
 
 	FHierarchyPanel HierarchyPanel;
 	FInspectorPanel InspectorPanel;

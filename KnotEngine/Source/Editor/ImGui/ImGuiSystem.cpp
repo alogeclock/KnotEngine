@@ -6,12 +6,15 @@
 #include "Input/InputRouter.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
 #include "Runtime/EditorEngine.h"
+#include "Source/Resource/resource.h"
 #include "World/World.h"
 
 #include <filesystem>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_impl_win32.h>
+#include <limits>
+#include <span>
 #include <string>
 #include <system_error>
 
@@ -51,6 +54,31 @@ void FImGuiSystem::Startup()
 	IO.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	IO.ConfigDpiScaleFonts = true;
 	IO.ConfigDpiScaleViewports = true;
+
+	static const auto LoadResourceBytes = [](uint32 ResourceId)
+	{
+		HMODULE Module = GetModuleHandleW(nullptr);
+		HRSRC ResourceInfo = FindResourceW(Module, MAKEINTRESOURCEW(ResourceId), RT_RCDATA);
+		panicf(ResourceInfo, "내장 리소스를 찾지 못했습니다. ResourceId={}", ResourceId);
+		HGLOBAL ResourceData = LoadResource(Module, ResourceInfo);
+		panicf(ResourceData, "내장 리소스를 불러오지 못했습니다. ResourceId={}", ResourceId);
+		const DWORD ResourceSize = SizeofResource(Module, ResourceInfo);
+		const auto* Bytes = static_cast<const uint8*>(LockResource(ResourceData));
+		panicf(Bytes && ResourceSize > 0, "내장 리소스 데이터가 비어 있습니다. ResourceId={}", ResourceId);
+		return std::span<const uint8>(Bytes, ResourceSize);
+	};
+	const std::span<const uint8> MediumFontBytes = LoadResourceBytes(IDR_PRETENDARD_MEDIUM);
+	const std::span<const uint8> SemiBoldFontBytes = LoadResourceBytes(IDR_PRETENDARD_SEMIBOLD);
+	panicf(MediumFontBytes.size() <= static_cast<size_t>((std::numeric_limits<int>::max)()) &&
+		SemiBoldFontBytes.size() <= static_cast<size_t>((std::numeric_limits<int>::max)()), "내장 폰트 데이터가 너무 큽니다.");
+
+	ImFontConfig FontConfig;
+	FontConfig.FontDataOwnedByAtlas = false;
+	const ImWchar* GlyphRanges = IO.Fonts->GetGlyphRangesKorean();
+	MediumFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<uint8*>(MediumFontBytes.data()), static_cast<int>(MediumFontBytes.size()), 16.0f, &FontConfig, GlyphRanges);
+	SemiBoldFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<uint8*>(SemiBoldFontBytes.data()), static_cast<int>(SemiBoldFontBytes.size()), 16.0f, &FontConfig, GlyphRanges);
+	panicf(MediumFont && SemiBoldFont, "Pretendard 폰트를 ImGui Font Atlas에 등록하지 못했습니다.");
+	IO.FontDefault = MediumFont;
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 
@@ -137,12 +165,17 @@ void FImGuiSystem::Shutdown()
 	RenderBackend.Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+	MediumFont = nullptr;
+	SemiBoldFont = nullptr;
 }
 
 void FImGuiSystem::DrawMenuBar()
 {
+	check(SemiBoldFont);
+	ImGui::PushFont(SemiBoldFont);
 	if (!ImGui::BeginMainMenuBar())
 	{
+		ImGui::PopFont();
 		return;
 	}
 	if (ImGui::BeginMenu("Window"))
@@ -156,6 +189,7 @@ void FImGuiSystem::DrawMenuBar()
 	ImGui::Separator();
 	ImGui::Text("FPS %.1f | %.3f ms", DisplayedFramesPerSecond, DisplayedFrameTimeMs);
 	ImGui::EndMainMenuBar();
+	ImGui::PopFont();
 }
 
 void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)
