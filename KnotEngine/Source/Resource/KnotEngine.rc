@@ -1,3 +1,8 @@
 #include "resource.h"
 
 IDI_KNOTENGINE ICON "Contents\\Branding\\EngineIcon.ico"
+IDR_ENGINE_ICON_PNG RCDATA "Contents\\Branding\\EngineIcon.png"
+IDR_PRETENDARD_REGULAR RCDATA "Contents\\Fonts\\Pretendard-Regular.otf"
+IDR_PRETENDARD_SEMIBOLD RCDATA "Contents\\Fonts\\Pretendard-SemiBold.otf"
+IDR_PRETENDARD_LICENSE RCDATA "Contents\\Fonts\\OFL-Pretendard.txt"
+IDR_COMMON_SHADER RCDATA "Shaders\\Common.hlsl"

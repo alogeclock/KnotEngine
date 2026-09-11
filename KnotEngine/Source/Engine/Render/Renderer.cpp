@@ -1,14 +1,15 @@
 #include "Render/Renderer.h"
 
 #include "Core/Assert.h"
-#include "Core/IO/Paths.h"
 #include "Core/Math/Matrix.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Resource/Buffer.h"
 #include "Render/Resource/MeshResources.h"
 #include "Render/Resource/VertexTypes.h"
+#include "Source/Resource/resource.h"
 
+#include <Windows.h>
 #include <limits>
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext)
@@ -42,9 +43,21 @@ void URenderer::Create(void* NativeWindowHandle)
 	RenderDevice.Create();
 	RenderContext.Create(NativeWindowHandle);
 
-	const FWString ShaderPath = FPaths::ShaderDir() + L"Common.hlsl";
-	VertexShader = RenderDevice.CreateShader({ ShaderPath, "VS", EShaderStage::Vertex });
-	PixelShader = RenderDevice.CreateShader({ ShaderPath, "PS", EShaderStage::Pixel });
+	static const auto LoadResourceBytes = [](uint32 ResourceId)
+	{
+		HMODULE Module = GetModuleHandleW(nullptr);
+		HRSRC ResourceInfo = FindResourceW(Module, MAKEINTRESOURCEW(ResourceId), RT_RCDATA);
+		panicf(ResourceInfo, "내장 리소스를 찾지 못했습니다. ResourceId={}", ResourceId);
+		HGLOBAL ResourceData = LoadResource(Module, ResourceInfo);
+		panicf(ResourceData, "내장 리소스를 불러오지 못했습니다. ResourceId={}", ResourceId);
+		const DWORD ResourceSize = SizeofResource(Module, ResourceInfo);
+		const auto* Bytes = static_cast<const uint8*>(LockResource(ResourceData));
+		panicf(Bytes && ResourceSize > 0, "내장 리소스 데이터가 비어 있습니다. ResourceId={}", ResourceId);
+		return std::span<const uint8>(Bytes, ResourceSize);
+	};
+	const std::span<const uint8> ShaderSource = LoadResourceBytes(IDR_COMMON_SHADER);
+	VertexShader = RenderDevice.CreateShader({ ShaderSource, "Common.hlsl", "VS", EShaderStage::Vertex });
+	PixelShader = RenderDevice.CreateShader({ ShaderSource, "Common.hlsl", "PS", EShaderStage::Pixel });
 	GraphicsPipeline = RenderDevice.CreateGraphicsPipeline({
 		VertexShader,
 		PixelShader,

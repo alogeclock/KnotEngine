@@ -42,7 +42,7 @@ void FImGuiSystem::Startup()
 	panicf(ImGui::CreateContext(), "ImGui Context 생성 실패.");
 
 	std::error_code FileSystemError;
-	std::filesystem::create_directories(FPaths::SettingDir(), FileSystemError);
+	std::filesystem::create_directories(FPaths::ConfigDir(), FileSystemError);
 	panicf(!FileSystemError, "ImGui 설정 디렉터리 생성 실패. Error={}", FileSystemError.message());
 
 	static const std::string ImGuiSettingsPath = FPaths::ToUtf8(FPaths::ImGuiSettingsPath());

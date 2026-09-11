@@ -10,7 +10,7 @@
 
 Renderer는 Engine에 정의된 RHI 계약을 구현한다. Editor는 Engine과 Renderer를 링크한다. Engine은 Renderer나 ImGui를 링크하지 않는다.
 
-`RUNTIME_FILES`, `ALL_BUILD`, `ZERO_CHECK`는 CMake 보조 프로젝트이며 엔진 모듈이 아니다. 기본 시작 프로젝트는 Editor다. Client와 Server 실행 파일은 아직 추가하지 않는다.
+`ALL_BUILD`, `ZERO_CHECK`는 CMake 보조 프로젝트이며 엔진 모듈이 아니다. 기본 시작 프로젝트는 Editor다. Client와 Server 실행 파일은 아직 추가하지 않는다.
 
 ## 초기화와 종료
 
@@ -33,7 +33,7 @@ Scene·SceneView·SceneRenderer는 `Engine/Render/Scene/`, PrimitiveSceneProxy�
 
 ## 데이터와 PCH
 
-Contents, Settings, Shaders는 `RUNTIME_FILES`가 `Bin/x64/<Configuration>`으로 복사한다. 기존 `FPaths`의 탐색과 저장 경로 동작은 유지한다.
+브랜딩 이미지, 폰트, 라이선스와 Shader는 Windows `RCDATA`로 Editor.exe에 포함한다. 실행 중 생성되는 로그와 ImGui 설정은 실행 파일 옆의 `Saved`에 저장한다.
 
 EnginePCH.h, RendererPCH.h, EditorPCH.h는 각 타깃의 PRIVATE PCH다. PCH 산출물은 타깃 사이에서 공유하지 않는다. DLL 경계를 통과하는 Engine과 Renderer 선언에 각각 `ENGINE_API`, `RENDERER_API`를 붙인다.
 

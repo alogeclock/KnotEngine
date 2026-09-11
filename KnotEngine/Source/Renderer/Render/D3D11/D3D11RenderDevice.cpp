@@ -152,7 +152,7 @@ void FD3D11RenderDevice::DestroyTexture(FTextureHandle& Handle)
 FShaderHandle FD3D11RenderDevice::CreateShader(const FShaderDesc& Desc)
 {
 	panic(NativeDevice.GetDevice());
-	panicf(!Desc.SourcePath.empty() && !Desc.EntryPoint.empty(), "Shader 생성 정보가 비어 있다.");
+	panicf(!Desc.Source.empty() && !Desc.EntryPoint.empty(), "Shader 생성 정보가 비어 있다.");
 
 	// RHI는 Shader Model을 노출하지 않고 각 백엔드가 지원하는 Target을 선택한다.
 	UINT CompileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -166,8 +166,9 @@ FShaderHandle FD3D11RenderDevice::CreateShader(const FShaderDesc& Desc)
 	Slot.Stage = Desc.Stage;
 	Microsoft::WRL::ComPtr<ID3DBlob> ErrorBlob;
 	const char* Target = Desc.Stage == EShaderStage::Vertex ? "vs_5_0" : "ps_5_0";
-	HRESULT Result = D3DCompileFromFile(
-		Desc.SourcePath.c_str(), nullptr, nullptr, Desc.EntryPoint.c_str(), Target, CompileFlags, 0,
+	HRESULT Result = D3DCompile(
+		Desc.Source.data(), Desc.Source.size(), Desc.SourceName.empty() ? nullptr : Desc.SourceName.c_str(), nullptr, nullptr,
+		Desc.EntryPoint.c_str(), Target, CompileFlags, 0,
 		Slot.Bytecode.GetAddressOf(), ErrorBlob.GetAddressOf());
 	panicf(SUCCEEDED(Result) && Slot.Bytecode, "Shader 컴파일 실패. HRESULT=0x{:08X}\n{}",
 		static_cast<uint32>(Result), GetShaderError(ErrorBlob.Get()));

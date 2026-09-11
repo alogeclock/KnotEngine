@@ -12,10 +12,11 @@ public:
 	static FWString RootDir();
 	static FWString ContentDir() { return RootDir() + L"Contents/"; }
 	static FWString ShaderDir() { return RootDir() + L"Shaders/"; }
-	static FWString SettingDir() { return RootDir() + L"Settings/"; }
 	static FWString SavedDir();
+	static FWString ConfigDir() { return SavedDir() + L"Config/"; }
 	static FWString LogDir() { return SavedDir() + L"Logs/"; }
-	static FWString ImGuiSettingsPath() { return SettingDir() + L"imgui.ini"; }
+
+	static FWString ImGuiSettingsPath() { return ConfigDir() + L"imgui.ini"; }
 
 	static FWString ToWide(const FString& Utf8String);
 	static FString ToUtf8(const FWString& WideString);

@@ -125,23 +125,14 @@ set_target_properties(Editor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_
 
 include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
 
-# 데이터만 수정해도 배치한다. 실행 중 변경되는 설정은 Saved에 저장한다.
-add_custom_target(RUNTIME_FILES
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${KNOTENGINE_ROOT}/Contents" "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Contents"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${KNOTENGINE_ROOT}/Settings" "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Settings"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${KNOTENGINE_ROOT}/Shaders" "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Shaders"
-    COMMENT "Staging runtime contents, settings and shaders"
-    VERBATIM
-)
-set_target_properties(RUNTIME_FILES PROPERTIES FOLDER "CMake")
-add_dependencies(Editor RUNTIME_FILES)
-foreach(DATA_DIR Contents Settings Shaders)
-    file(GLOB_RECURSE RUNTIME_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/${DATA_DIR}/*")
-    set_source_files_properties(${RUNTIME_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
+# 리소스는 Editor.exe에 포함하되 Visual Studio에서는 원래 폴더 구조로 표시한다.
+foreach(DATA_DIR Contents Shaders)
+    file(GLOB_RECURSE RUNTIME_RESOURCE_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/${DATA_DIR}/*")
+    set_source_files_properties(${RUNTIME_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
     if(DATA_DIR STREQUAL "Shaders")
-        target_sources(Renderer PRIVATE ${RUNTIME_FILES})
+        target_sources(Renderer PRIVATE ${RUNTIME_RESOURCE_FILES})
     else()
-        target_sources(Editor PRIVATE ${RUNTIME_FILES})
+        target_sources(Editor PRIVATE ${RUNTIME_RESOURCE_FILES})
     endif()
-    source_group(TREE "${KNOTENGINE_ROOT}/${DATA_DIR}" PREFIX "${DATA_DIR}" FILES ${RUNTIME_FILES})
+    source_group(TREE "${KNOTENGINE_ROOT}/${DATA_DIR}" PREFIX "${DATA_DIR}" FILES ${RUNTIME_RESOURCE_FILES})
 endforeach()

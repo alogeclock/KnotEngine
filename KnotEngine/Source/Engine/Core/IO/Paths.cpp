@@ -31,6 +31,9 @@ FWString FPaths::RootDir()
 		GetModuleFileNameW(nullptr, Buffer, MAX_PATH);
 		std::filesystem::path ExeDir = std::filesystem::path(Buffer).parent_path();
 
+#if defined(KNOT_BUILD_SHIPPING)
+		Cached = ExeDir.generic_wstring() + L"/";
+#else
 		if (std::filesystem::exists(ExeDir / L"Shaders"))
 		{
 			Cached = ExeDir.generic_wstring() + L"/";
@@ -62,6 +65,7 @@ FWString FPaths::RootDir()
 				Cached = std::filesystem::current_path().generic_wstring() + L"/";
 			}
 		}
+#endif
 	}
 	return Cached;
 }

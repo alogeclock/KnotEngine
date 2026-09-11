@@ -5,6 +5,8 @@
 #include "Core/CoreTypes.h"
 #include "Render/RHI/VertexLayout.h"
 
+#include <span>
+
 // 렌더링 백엔드가 공유하는 API 중립 타입.
 // - Handle: 네이티브 객체 대신 Index와 Generation으로 RHI 자원을 참조한다.
 // - Resource Descriptor: Buffer, Texture 및 Shader 생성에 필요한 속성을 전달한다.
@@ -94,10 +96,11 @@ struct ENGINE_API FTextureDesc
 // Shader가 실행되는 Graphics Pipeline Stage를 정의한다.
 enum class EShaderStage : uint8 { Vertex, Pixel };
 
-// Shader 생성에 필요한 소스 경로, 진입점 및 Stage를 정의한다.
+// Shader 생성에 필요한 메모리 소스, 진단용 이름, 진입점 및 Stage를 정의한다.
 struct ENGINE_API FShaderDesc
 {
-	FWString SourcePath;
+	std::span<const uint8> Source;
+	FString SourceName;
 	FString EntryPoint;
 	EShaderStage Stage = EShaderStage::Vertex;
 };
