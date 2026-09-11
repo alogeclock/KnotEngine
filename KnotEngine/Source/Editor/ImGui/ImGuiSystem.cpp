@@ -1,6 +1,7 @@
 #include "ImGui/ImGuiSystem.h"
 
 #include "Core/Assert.h"
+#include "Platform/WindowsApplication.h"
 #include "Core/IO/Paths.h"
 #include "Input/InputRouter.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
@@ -14,12 +15,15 @@
 #include <string>
 #include <system_error>
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
+
 FImGuiSystem::FImGuiSystem(
+	FWindowsApplication& InApplication,
 	UEditorEngine& InEditorEngine,
 	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
-	: EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
+	: Application(InApplication), EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
 	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
@@ -30,8 +34,10 @@ FImGuiSystem::~FImGuiSystem()
 	EditorEngine.UnregisterViewportClient(ViewportPanel.GetViewportClient());
 }
 
-void FImGuiSystem::Startup(HWND WindowHandle)
+void FImGuiSystem::Startup()
 {
+	check(!bStarted);
+	const HWND WindowHandle = Application.GetWindow().GetHwnd();
 	checkf(WindowHandle, "HWND 생성 실패.");
 	panicf(ImGui::CreateContext(), "ImGui Context 생성 실패.");
 
@@ -50,6 +56,8 @@ void FImGuiSystem::Startup(HWND WindowHandle)
 
 	RenderBackend.Startup(ImGui::GetCurrentContext());
 	ConsolePanel.Startup();
+	bStarted = true;
+	Application.SetMessageHandler(ImGui_ImplWin32_WndProcHandler);
 }
 
 void FImGuiSystem::BeginFrame()
@@ -121,6 +129,9 @@ void FImGuiSystem::Render(FCommandListHandle CommandList)
 
 void FImGuiSystem::Shutdown()
 {
+	check(bStarted);
+	Application.SetMessageHandler(nullptr);
+	bStarted = false;
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
 	RenderBackend.Shutdown();

@@ -1,7 +1,6 @@
 #include "World/Node.h"
 #include "World/Level.h"
 #include "World/World.h"
-#include "Component/RendererComponent.h"
 
 UNode::UNode(ULevel& Level, FName InName) : OwningLevel(&Level), Name(InName)
 {
@@ -63,18 +62,6 @@ void UNode::Tick(float DeltaTime)
 		if (Component->IsActive() && Component->IsTickEnabled())
 		{
 			Component->TickComponent(DeltaTime);
-		}
-	}
-}
-
-// 아직 RenderProxy 개념이 존재하지 않으므로, 개별 RendererComponent에 직접 렌더링을 수행한다.
-void UNode::Render(URenderer& Renderer, const FMatrix& ViewProjection) const
-{
-	for (const TObjectPtr<UComponent>& Component : Components)
-	{
-		if (Component->IsA(URendererComponent::StaticClass()))
-		{
-			static_cast<URendererComponent*>(Component.Get())->Render(Renderer, ViewProjection);
 		}
 	}
 }

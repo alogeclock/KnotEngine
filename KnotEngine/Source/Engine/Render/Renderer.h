@@ -36,7 +36,8 @@ public:
 	void BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport);
 	void EndRenderTarget();
 
-	FCommandListHandle GetCommandList() const { return CommandList; }
+	IRenderDevice& GetRenderDevice() const;
+	FCommandListHandle GetCommandList() const;
 	FRenderViewport GetViewport() const;
 
 private:

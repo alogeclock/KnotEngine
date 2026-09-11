@@ -32,7 +32,6 @@ public:
 	void BeginPlay();
 	void EndPlay();
 	void Tick(float DeltaTime);
-	void Render(URenderer& Renderer, const FMatrix& ViewProjection) const;
 
 	template <typename T, typename... Args>
 	T& AddComponent(Args&&... Arguments)

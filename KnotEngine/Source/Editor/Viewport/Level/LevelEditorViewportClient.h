@@ -9,6 +9,4 @@ class FLevelEditorViewportClient : public FEditorViewportClient
 public:
 	explicit FLevelEditorViewportClient(FViewport& InViewport);
 
-protected:
-	void DrawViewport(URenderer& Renderer) override;
 };

@@ -14,14 +14,20 @@ class IImGuiRenderBackend;
 class IRenderDevice;
 class FInputRouter;
 class UEditorEngine;
+class FWindowsApplication;
 
 class FImGuiSystem
 {
 public:
-	FImGuiSystem(UEditorEngine& InEditorEngine, IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter);
+	FImGuiSystem(
+		FWindowsApplication& InApplication,
+		UEditorEngine& InEditorEngine,
+		IRenderDevice& InRenderDevice,
+		IImGuiRenderBackend& InRenderBackend,
+		FInputRouter& InInputRouter);
 	~FImGuiSystem();
 
-	void Startup(HWND WindowHandle);
+	void Startup();
 	void BeginFrame();
 	void Draw(float DeltaTime);
 	void EndFrame();
@@ -29,6 +35,8 @@ public:
 	void Shutdown();
 
 private:
+	FWindowsApplication& Application;
+	bool bStarted = false;
 	UEditorEngine& EditorEngine;
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;

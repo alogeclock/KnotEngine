@@ -4,32 +4,16 @@
 #include "Core/Math/Rotator.h"
 #include "Core/Math/Vector.h"
 #include "Input/InputRouter.h"
-#include "EditorViewportCameraTransform.h"
+#include "EditorViewportCamera.h"
+#include "Render/Scene/SceneView.h"
+#include <optional>
 
 struct FMatrix;
 class FViewport;
 class URenderer;
 class UWorld;
 
-enum class EEditorViewportViewMode : uint8
-{
-	Perspective,
-	Top,
-	Bottom,
-	Left,
-	Right,
-	Front,
-	Back,
-};
-
-struct FEditorViewportCamera
-{
-	FEditorViewportCameraTransform ViewTransform;
-	EEditorViewportViewMode ViewMode = EEditorViewportViewMode::Perspective; // TO-DO: AssetEditor, LevelEditor 일반화
-	float CameraSpeed = 5.0f;
-};
-
-// EditorViewportClient는 공통 에디터 카메라와 입력을 관리하고 구체적인 Scene draw를 파생 클래스에 위임한다.
+// 메인 스레드에서 카메라와 입력을 관리하고 ViewFamily를 구성한다.
 class FEditorViewportClient : public IInputTarget
 {
 public:
@@ -41,29 +25,37 @@ public:
 	virtual ~FEditorViewportClient();
 
 	virtual void Tick(float DeltaTime);
-	void Draw(URenderer& Renderer);
-	UWorld* GetWorld() const;
+
+	virtual UWorld* GetWorld() const;
+	FScene* GetScene() const;
+
+	// Render State
+	virtual FSceneView BuildSceneView();
+	virtual std::optional<FSceneViewFamily> BuildSceneViewFamily();
+	FShowFlags& GetShowFlags() { return ShowFlags; }
+
+	// Input
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
 	void OnKeyboardFocusLost() override;
 	void OnMouseCaptureLost() override;
 
-	FEditorViewportCamera& GetCameraState() { return CameraState; }
-	const FEditorViewportCamera& GetCameraState() const { return CameraState; }
+	// Camera
+	FEditorViewportCamera& GetCamera() { return Camera; }
+	const FEditorViewportCamera& GetCamera() const { return Camera; }
 	void OnCameraStateChanged();
 	void OnViewTransformChanged();
 
 protected:
 	FViewport& GetViewport() const { return Viewport; }
-	FMatrix GetViewProjectionMatrix();
-	virtual void DrawViewport(URenderer& Renderer) = 0;
 
 private:
 	bool UpdateKeyState(const FKeyInputEvent& Event);
 	bool IsKeyDown(EKeyboardKey Key) const;
 
 	FViewport& Viewport;
+	FShowFlags ShowFlags;
 
-	FEditorViewportCamera CameraState;
+	FEditorViewportCamera Camera;
 	TBitset<static_cast<SIZE_T>(EKeyboardKey::Count)> KeysDown;
 	bool bRotatingCamera = false;
 };

@@ -7,6 +7,7 @@
 #include "World/WorldContext.h"
 
 class FInputSnapshot;
+class FWindowsApplication;
 enum class EWorldType : uint8;
 class UWorld;
 
@@ -21,7 +22,7 @@ public:
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	// Life Cycle & Input
-	virtual void Startup(FWindowsWindow InWindow) {}
+	virtual void Startup(FWindowsApplication& Application) {}
 	virtual void ProcessInput(const FInputSnapshot& InputSnapshot) {}
 	virtual void OnWindowResized(FWindowSize Size) {}
 	virtual void Tick(float DeltaTime) {}

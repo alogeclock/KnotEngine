@@ -15,9 +15,7 @@ public:
 
 	const FTransform& GetRelativeTransform() const { return RelativeTransform; }
 	void SetRelativeTransform(const FTransform& Transform);
-	void SetRelativeLocation(const FVector& Location) { RelativeTransform.Translation = Location; }
-	void SetRelativeRotation(const FRotator& Rotation) { RelativeTransform.Rotation = FQuat(Rotation); }
-	void SetRelativeScale(const FVector& Scale) { RelativeTransform.Scale = Scale; }
+	void PostEditProperty(const FProperty& Property) override;
 
 	FMatrix GetWorldMatrix() const;
 	FVector GetWorldLocation() const;
@@ -28,6 +26,7 @@ public:
 	bool SetParent(UTransformComponent* NewParent);
 
 private:
+	void OnTransformChanged();
 	UPROPERTY(Category = "Transform") FTransform RelativeTransform;
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UTransformComponent> Parent;
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<UTransformComponent>> Children;

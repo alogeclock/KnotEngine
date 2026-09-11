@@ -4,7 +4,7 @@
 
 | 타깃 | 산출물 | 책임 |
 |---|---|---|
-| Engine | Engine.dll | 기존 엔진 코드, RHI 계약, 렌더링 상위 코드, 객체와 리플렉션 |
+| Engine | Engine.dll | World·Component·Scene·Proxy·SceneRenderer, RHI 계약, 객체와 리플렉션 |
 | Renderer | Renderer.dll | D3D11 구현과 ImGui D3D11 백엔드 |
 | Editor | Editor.exe | 창과 편집 UI를 연결하고 `UEditorEngine`을 실행 |
 
@@ -16,14 +16,20 @@ Renderer는 Engine에 정의된 RHI 계약을 구현한다. Editor는 Engine과 
 
 DLL은 Windows 로더가 로드하며 `DllMain`에서는 엔진을 초기화하지 않는다. Editor의 `Launch()`가 기존 실행 순서를 연결한다.
 
-1. 로그와 `FEngineLoop`를 준비한다.
-2. EngineLoop가 Engine 타입을 등록하고 Editor의 Launch가 Editor 타입을 같은 Registry에 직접 등록한다.
-3. 창과 `UEditorEngine`을 생성한다.
-4. Renderer와 ImGui를 초기화하고 기존 Cube Component를 생성한다.
-5. 기존 입력과 Tick 루프를 실행한다.
-6. Editor 객체, UI, Renderer와 창을 역순으로 정리한다.
+1. 로그와 FEngineLoop를 초기화하고 Application의 창과 입력 수집기를 준비한다.
+2. EngineLoop가 Engine 타입을, Launch가 Editor 타입을 같은 Reflection Registry에 등록한다.
+3. Launch가 Application 참조를 전달해 UEditorEngine을 생성하고 Startup을 호출한다.
+4. EditorEngine이 Renderer와 직접 소유한 FImGuiSystem을 초기화하고 Editor WorldContext를 생성한다.
+5. EngineLoop가 메시지 수집 → ProcessInput → Tick을 반복한다.
+6. EditorEngine이 World·Proxy를 제거하고 UI와 Renderer를 종료한다. Editor 객체 파괴 뒤 Application과 EngineLoop를 종료한다.
 
-Actor Component, Scene Component, Primitive Component와 Mesh 렌더링 동작은 모듈 분리 전 구현을 유지한다.
+FImGuiSystem은 생성자에서 `FWindowsApplication&`를 비소유 참조로 받는다. Startup에서 일반 메시지 콜백을 ImGui Win32 handler에 연결하고 Shutdown에서 해제한다. Launch와 EditorEngine에는 ImGui 메시지를 중계하는 함수가 없다. Application은 Editor 객체보다 오래 살아야 한다.
+
+## 렌더링 실행 경계
+
+Scene·SceneView·SceneRenderer는 `Engine/Render/Scene/`, PrimitiveSceneProxy는 `Engine/Render/Proxy/`에 위치한다. 현재 World.Tick 끝에서 Scene을 갱신하고 EditorEngine이 Family마다 SceneRenderer를 생성하여 `Render(Renderer)`를 호출한다. URenderer는 SceneRenderer를 생성하지 않는다.
+
+모든 CPU 렌더 처리는 현재 메인 스레드에서 수행한다. 목표 스레드 소유권과 GPU 자원 수명은 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 
 ## 데이터와 PCH
 

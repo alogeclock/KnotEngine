@@ -1,31 +1,33 @@
 #include "EditorEngine.h"
+#include "Platform/WindowsApplication.h"
 
 #include "Component/CubeComponent.h"
 #include "Component/MovementComponent.h"
 #include "World/World.h"
 #include "Render/RHI/RenderTypes.h"
+#include "Render/Scene/SceneRenderer.h"
 #include "Viewport/EditorViewportClient.h"
 #include "Core/Assert.h"
 
 #include <algorithm>
 
-UEditorEngine::UEditorEngine()
+UEditorEngine::UEditorEngine(FWindowsApplication& Application)
 	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
-	  ImGuiRenderBackend(RenderDevice), ImGuiSystem(*this, RenderDevice, ImGuiRenderBackend, InputRouter)
+	  ImGuiRenderBackend(RenderDevice), ImGuiSystem(Application, *this, RenderDevice, ImGuiRenderBackend, InputRouter)
 {
 }
 
-void UEditorEngine::Startup(FWindowsWindow InWindow)
+void UEditorEngine::Startup(FWindowsApplication& Application)
 {
 	check(EditorContextId == 0);
-	checkf(InWindow.GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
+	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 
-	Renderer.Create(InWindow.GetHwnd());
-	ImGuiSystem.Startup(InWindow.GetHwnd());
+	Renderer.Create(Application.GetWindow().GetHwnd());
+	ImGuiSystem.Startup();
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
 	UWorld* EditorWorld = FindWorld(EditorContextId);
 
-	// 테스트용 Cube Node를 생성하고, RendererComponent와 MovementComponent를 추가한다.
+	// 테스트용 Cube Node를 생성하고, PrimitiveComponent와 MovementComponent를 추가한다.
 	// UI/PIE 분리 전에는 이 데모 World를 직접 실행한다.
 	check(EditorWorld);
 	UWorld& World = *EditorWorld;
@@ -79,18 +81,25 @@ void UEditorEngine::Render()
 		return;
 	}
 
-	Renderer.BeginFrame();
-
+	TArray<FSceneViewFamily> ViewFamilies;
 	for (FEditorViewportClient* ViewportClient : AllViewportClients)
 	{
 		if (ViewportClient)
 		{
-			ViewportClient->Draw(Renderer);
+			if (auto Family = ViewportClient->BuildSceneViewFamily())
+			{
+				ViewFamilies.push_back(std::move(*Family));
+			}
 		}
 	}
 
+	Renderer.BeginFrame();
+	for (const FSceneViewFamily& Family : ViewFamilies)
+	{
+		FSceneRenderer SceneRenderer(Family);
+		SceneRenderer.Render(Renderer);
+	}
 	ImGuiSystem.Render(Renderer.GetCommandList());
-
 	Renderer.EndFrame();
 }
 

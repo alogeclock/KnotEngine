@@ -19,7 +19,7 @@ FAABB::FAABB(const FVector& InMin, const FVector& InMax) noexcept
 
 void FAABB::Reset() noexcept
 {
-	const float MaxFloat = (std::numeric_limits<float>::max)();
+	constexpr float MaxFloat = (std::numeric_limits<float>::max)();
 	Min = FVector(MaxFloat, MaxFloat, MaxFloat);
 	Max = FVector(-MaxFloat, -MaxFloat, -MaxFloat);
 }

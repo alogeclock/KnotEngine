@@ -2,6 +2,7 @@
 
 #include "Core/Math/Matrix.h"
 #include "Runtime/Engine.h"
+#include "World/World.h"
 #include "Viewport/Viewport.h"
 
 #include <algorithm>
@@ -11,18 +12,19 @@
 FEditorViewportClient::FEditorViewportClient(FViewport& InViewport)
     : Viewport(InViewport)
 {
+	ShowFlags.bPrimitive = true;
 }
 
 FEditorViewportClient::~FEditorViewportClient() = default;
 
 void FEditorViewportClient::Tick(float DeltaTime)
 {
-	if (CameraState.ViewMode == EEditorViewportViewMode::Perspective && !bRotatingCamera)
+	if (Camera.ViewMode == EEditorViewportViewMode::Perspective && !bRotatingCamera)
 	{
 		return;
 	}
 
-	const FRotator& ViewRotation = CameraState.ViewTransform.ViewRotation;
+	const FRotator& ViewRotation = Camera.ViewTransform.ViewRotation;
 	const FMatrix RotationX = FMatrix::MakeRotationX(KMath::ToRadian(ViewRotation.Roll));
 	const FMatrix RotationY = FMatrix::MakeRotationY(KMath::ToRadian(-ViewRotation.Pitch));
 	const FMatrix RotationZ = FMatrix::MakeRotationZ(KMath::ToRadian(ViewRotation.Yaw));
@@ -32,10 +34,10 @@ void FEditorViewportClient::Tick(float DeltaTime)
 	const FVector Up = Rotation.GetScaledAxis(EAxis::Z);
 
 	FVector MoveDirection = FVector::ZeroVector;
-	const FVector ForwardAxis = CameraState.ViewMode == EEditorViewportViewMode::Perspective ? Forward : Up;
+	const FVector ForwardAxis = Camera.ViewMode == EEditorViewportViewMode::Perspective ? Forward : Up;
 	MoveDirection += ForwardAxis * static_cast<float>(IsKeyDown(EKeyboardKey::W) - IsKeyDown(EKeyboardKey::S));
 	MoveDirection += Right * static_cast<float>(IsKeyDown(EKeyboardKey::D) - IsKeyDown(EKeyboardKey::A));
-	if (CameraState.ViewMode == EEditorViewportViewMode::Perspective)
+	if (Camera.ViewMode == EEditorViewportViewMode::Perspective)
 	{
 		MoveDirection += FVector::UpVector * static_cast<float>(IsKeyDown(EKeyboardKey::E) - IsKeyDown(EKeyboardKey::Q));
 	}
@@ -44,21 +46,31 @@ void FEditorViewportClient::Tick(float DeltaTime)
 		return;
 	}
 
-	const FVector MoveDelta = MoveDirection * CameraState.CameraSpeed * DeltaTime;
-	CameraState.ViewTransform.TranslateWorld(MoveDelta);
+	const FVector MoveDelta = MoveDirection * Camera.CameraSpeed * DeltaTime;
+	Camera.ViewTransform.TranslateWorld(MoveDelta);
 }
 
-void FEditorViewportClient::Draw(URenderer& Renderer)
+FScene* FEditorViewportClient::GetScene() const
 {
-	if (!Viewport.IsValid())
-	{
-		return;
-	}
-
-	DrawViewport(Renderer);
+	UWorld* World = GetWorld();
+	return World ? &World->GetScene() : nullptr;
 }
 
-// Engine이 현재 참조하고 있는 World를 소유하지 않고, 매번 GEngine->GetWorld()로 상태를 참조한다.
+std::optional<FSceneViewFamily> FEditorViewportClient::BuildSceneViewFamily()
+{
+	FScene* Scene = GetScene();
+	if (!Viewport.IsValid() || !Scene)
+	{
+		return std::nullopt;
+	}
+	FSceneViewFamily Family;
+	Family.Scene = Scene;
+	Family.RenderTarget = { Viewport.GetColorTarget(), Viewport.GetDepthTarget(), Viewport.GetWidth(), Viewport.GetHeight() };
+	Family.ShowFlags = ShowFlags;
+	Family.Views.push_back(BuildSceneView());
+	return Family;
+}
+
 UWorld* FEditorViewportClient::GetWorld() const
 {
 	return GEngine ? GEngine->GetWorld() : nullptr;
@@ -80,7 +92,7 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	if (PointerEvent->Type == EPointerInputEventType::ButtonDown)
 	{
 		FInputReply Reply = FInputReply::Handled().SetKeyboardFocus();
-		if (PointerEvent->Button == EMouseButton::Right && CameraState.ViewMode == EEditorViewportViewMode::Perspective)
+		if (PointerEvent->Button == EMouseButton::Right && Camera.ViewMode == EEditorViewportViewMode::Perspective)
 		{
 			bRotatingCamera = true;
 			Reply.CaptureMouse();
@@ -95,23 +107,23 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	if (PointerEvent->Type == EPointerInputEventType::MouseMoved && bRotatingCamera)
 	{
 		static constexpr float LookSensitivity = 0.15f;
-		CameraState.ViewTransform.Rotate(PointerEvent->Delta.X * LookSensitivity, -PointerEvent->Delta.Y * LookSensitivity);
+		Camera.ViewTransform.Rotate(PointerEvent->Delta.X * LookSensitivity, -PointerEvent->Delta.Y * LookSensitivity);
 		return FInputReply::Handled();
 	}
 	if (PointerEvent->Type == EPointerInputEventType::Wheel)
 	{
 		const float WheelDelta = PointerEvent->WheelDelta.Y;
-		if (CameraState.ViewMode != EEditorViewportViewMode::Perspective)
+		if (Camera.ViewMode != EEditorViewportViewMode::Perspective)
 		{
 			static constexpr float Step = 0.85f;
 			static constexpr float MinOrthoZoom = 0.1f;
 			static constexpr float MaxOrthoZoom = 10000.0f;
-			CameraState.ViewTransform.OrthoZoom = std::clamp(CameraState.ViewTransform.OrthoZoom * std::pow(Step, WheelDelta), MinOrthoZoom, MaxOrthoZoom);
+			Camera.ViewTransform.OrthoZoom = std::clamp(Camera.ViewTransform.OrthoZoom * std::pow(Step, WheelDelta), MinOrthoZoom, MaxOrthoZoom);
 		}
 		else
 		{
 			static constexpr float WheelMoveMultiplier = 0.2f;
-			CameraState.ViewTransform.TranslateLocal(FVector(WheelDelta * CameraState.CameraSpeed * WheelMoveMultiplier, 0.0f, 0.0f));
+			Camera.ViewTransform.TranslateLocal(FVector(WheelDelta * Camera.CameraSpeed * WheelMoveMultiplier, 0.0f, 0.0f));
 		}
 		return FInputReply::Handled();
 	}
@@ -131,16 +143,16 @@ void FEditorViewportClient::OnMouseCaptureLost()
 
 void FEditorViewportClient::OnCameraStateChanged()
 {
-	FEditorViewportCameraTransform& ViewTransform = CameraState.ViewTransform;
-	CameraState.CameraSpeed = std::clamp(CameraState.CameraSpeed, MinCameraSpeed, MaxCameraSpeed);
-	ViewTransform.bIsOrtho = CameraState.ViewMode != EEditorViewportViewMode::Perspective;
+	FEditorViewportCameraTransform& ViewTransform = Camera.ViewTransform;
+	Camera.CameraSpeed = std::clamp(Camera.CameraSpeed, MinCameraSpeed, MaxCameraSpeed);
+	ViewTransform.bIsOrtho = Camera.ViewMode != EEditorViewportViewMode::Perspective;
 	if (!ViewTransform.bIsOrtho)
 	{
 		return;
 	}
 
 	static constexpr float ViewDistance = 500.0f;
-	switch (CameraState.ViewMode)
+	switch (Camera.ViewMode)
 	{
 	case EEditorViewportViewMode::Top:
 		ViewTransform.ViewLocation = FVector(0.0f, 0.0f, ViewDistance);
@@ -174,19 +186,19 @@ void FEditorViewportClient::OnCameraStateChanged()
 
 void FEditorViewportClient::OnViewTransformChanged()
 {
-	CameraState.ViewTransform.ViewRotation.Normalize();
+	Camera.ViewTransform.ViewRotation.Normalize();
 }
 
-FMatrix FEditorViewportClient::GetViewProjectionMatrix()
+FSceneView FEditorViewportClient::BuildSceneView()
 {
 	const FRenderViewport ViewportInfo = Viewport.GetRenderViewport();
 	check(ViewportInfo.Width > 0.0f && ViewportInfo.Height > 0.0f);
 
-	FEditorViewportCameraTransform& Camera = CameraState.ViewTransform;
-	Camera.AspectRatio = ViewportInfo.Width / ViewportInfo.Height;
-	check(Camera.NearClip > 0.0f && Camera.FarClip > Camera.NearClip);
+	FEditorViewportCameraTransform& Transform = Camera.ViewTransform;
+	Transform.AspectRatio = ViewportInfo.Width / ViewportInfo.Height;
+	check(Transform.NearClip > 0.0f && Transform.FarClip > Transform.NearClip);
 
-	const FRotator& ViewRotation = Camera.ViewRotation;
+	const FRotator& ViewRotation = Transform.ViewRotation;
 	const FMatrix RotationX = FMatrix::MakeRotationX(KMath::ToRadian(ViewRotation.Roll));
 	const FMatrix RotationY = FMatrix::MakeRotationY(KMath::ToRadian(-ViewRotation.Pitch));
 	const FMatrix RotationZ = FMatrix::MakeRotationZ(KMath::ToRadian(ViewRotation.Yaw));
@@ -194,16 +206,19 @@ FMatrix FEditorViewportClient::GetViewProjectionMatrix()
 
 	const FVector Forward = Rotation.GetScaledAxis(EAxis::X);
 	const FVector Up = Rotation.GetScaledAxis(EAxis::Z);
-	const FMatrix View = FMatrix::MakeLookAt(Camera.ViewLocation, Camera.ViewLocation + Forward, Up);
+	const FMatrix View = FMatrix::MakeLookAt(Transform.ViewLocation, Transform.ViewLocation + Forward, Up);
 
-	if (!Camera.bIsOrtho)
-	{
-		const FMatrix Projection = FMatrix::MakePerspectiveFov(Camera.FOV, Camera.AspectRatio, Camera.NearClip, Camera.FarClip);
-		return View * Projection;
-	}
-
-	const FMatrix Projection = FMatrix::MakeOrthographic(Camera.OrthoZoom, Camera.OrthoZoom / Camera.AspectRatio, Camera.NearClip, Camera.FarClip);
-	return View * Projection;
+	const FMatrix Projection = !Transform.bIsOrtho
+		? FMatrix::MakePerspectiveFov(Transform.FOV, Transform.AspectRatio, Transform.NearClip, Transform.FarClip)
+		: FMatrix::MakeOrthographic(Transform.OrthoZoom, Transform.OrthoZoom / Transform.AspectRatio, Transform.NearClip, Transform.FarClip);
+	FSceneView SceneView;
+	SceneView.ViewMatrix = View;
+	SceneView.ProjectionMatrix = Projection;
+	SceneView.ViewProjectionMatrix = View * Projection;
+	SceneView.ViewOrigin = Transform.ViewLocation;
+	SceneView.Viewport = ViewportInfo;
+	SceneView.Frustum.UpdateFromCamera(SceneView.ViewProjectionMatrix);
+	return SceneView;
 }
 
 bool FEditorViewportClient::UpdateKeyState(const FKeyInputEvent& Event)

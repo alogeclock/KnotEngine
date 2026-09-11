@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineAPI.h"
+#include "Core/Geometry/AABB.h"
 
 #include "Render/Resource/VertexTypes.h"
 
@@ -31,10 +32,12 @@ public:
 
 	const TArray<FGeometryVertex>& GetVertices() const { return Vertices; }
 	const TArray<uint32>& GetIndices() const { return Indices; }
+	const FAABB& GetLocalBounds() const { return LocalBounds; }
 
 private:
 	TArray<FGeometryVertex> Vertices;
 	TArray<uint32> Indices;
+	FAABB LocalBounds;
 
 	std::unique_ptr<FMeshBuffer> MeshBuffer;
 	bool bUploaded = false;

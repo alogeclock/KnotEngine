@@ -22,6 +22,11 @@ void FGeometryMesh::SetData(std::span<const FGeometryVertex> InVertices, std::sp
 
 	Vertices.assign(InVertices.begin(), InVertices.end());
 	Indices.assign(InIndices.begin(), InIndices.end());
+	LocalBounds.Reset();
+	for (const FGeometryVertex& Vertex : Vertices)
+	{
+		LocalBounds.Expand(Vertex.Position);
+	}
 	bUploaded = false;
 }
 

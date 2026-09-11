@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/CoreTypes.h"
 #include "Core/Math/Rotator.h"
 #include "Core/Math/Vector.h"
 
@@ -20,4 +21,22 @@ struct FEditorViewportCameraTransform
 	void TranslateLocal(const FVector& LocalDelta);
 	void Rotate(float DeltaYaw, float DeltaPitch);
 	void LookAt(const FVector& Target);
+};
+
+enum class EEditorViewportViewMode : uint8
+{
+	Perspective,
+	Top,
+	Bottom,
+	Left,
+	Right,
+	Front,
+	Back,
+};
+
+struct FEditorViewportCamera
+{
+	FEditorViewportCameraTransform ViewTransform;
+	EEditorViewportViewMode ViewMode = EEditorViewportViewMode::Perspective; // TO-DO: AssetEditor, LevelEditor 일반화
+	float CameraSpeed = 5.0f;
 };

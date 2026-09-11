@@ -21,6 +21,21 @@ URenderer::~URenderer()
 	Release();
 }
 
+IRenderDevice& URenderer::GetRenderDevice() const
+{
+	return RenderDevice;
+}
+
+FCommandListHandle URenderer::GetCommandList() const
+{
+	return CommandList;
+}
+
+FRenderViewport URenderer::GetViewport() const
+{
+	return RenderContext.GetViewport();
+}
+
 void URenderer::Create(void* NativeWindowHandle)
 {
 	Release();
@@ -118,11 +133,6 @@ void URenderer::EndRenderTarget()
 {
 	check(CommandList.IsValid());
 	RenderContext.BindBackBuffer(CommandList);
-}
-
-FRenderViewport URenderer::GetViewport() const
-{
-	return RenderContext.GetViewport();
 }
 
 bool URenderer::CreateVertexBuffer(

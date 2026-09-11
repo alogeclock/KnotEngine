@@ -69,8 +69,8 @@ void FViewportPanel::DrawToolbar()
 		ImGui::SetNextWindowPos(CameraPopupPosition, ImGuiCond_Appearing);
 		if (ImGui::BeginPopup("##CameraMenu"))
 		{
-			FEditorViewportCamera& CameraState = ViewportClient.GetCameraState();
-			FEditorViewportCameraTransform& ViewTransform = CameraState.ViewTransform;
+			FEditorViewportCamera& Camera = ViewportClient.GetCamera();
+			FEditorViewportCameraTransform& ViewTransform = Camera.ViewTransform;
 			bool bViewTransformChanged = false;
 			ImGui::Dummy(ImVec2(0.0f, 1.0f));
 			ImGui::TextDisabled("Camera");
@@ -117,14 +117,14 @@ void FViewportPanel::DrawToolbar()
 				ImGui::SetNextItemWidth(-ResetButtonWidth - Style.ItemSpacing.x);
 				ImGui::SliderFloat(
 					"##CameraSensitivity",
-					&CameraState.CameraSpeed,
+					&Camera.CameraSpeed,
 					FEditorViewportClient::MinCameraSpeed,
 					FEditorViewportClient::MaxCameraSpeed,
 					"%.1f");
 				ImGui::SameLine();
 				if (ImGui::Button("Reset"))
 				{
-					CameraState.CameraSpeed = FEditorViewportClient::DefaultCameraSpeed;
+					Camera.CameraSpeed = FEditorViewportClient::DefaultCameraSpeed;
 				}
 
 				ImGui::EndTable();
@@ -148,13 +148,13 @@ void FViewportPanel::DrawToolbar()
 		ImGui::SetNextWindowPos(ViewPopupPosition, ImGuiCond_Appearing);
 		if (ImGui::BeginPopup("##ViewMenu"))
 		{
-			FEditorViewportCamera& CameraState = ViewportClient.GetCameraState();
+			FEditorViewportCamera& Camera = ViewportClient.GetCamera();
 			ImGui::Dummy(ImVec2(0.0f, 1.0f));
 			ImGui::TextDisabled("Perspective");
 			ImGui::Separator();
-			if (ImGui::RadioButton("Perspective", CameraState.ViewMode == EEditorViewportViewMode::Perspective))
+			if (ImGui::RadioButton("Perspective", Camera.ViewMode == EEditorViewportViewMode::Perspective))
 			{
-				CameraState.ViewMode = EEditorViewportViewMode::Perspective;
+				Camera.ViewMode = EEditorViewportViewMode::Perspective;
 				ViewportClient.OnCameraStateChanged();
 				ImGui::CloseCurrentPopup();
 			}
@@ -174,9 +174,9 @@ void FViewportPanel::DrawToolbar()
 			static_assert(std::size(OrthographicViewModes) == std::size(OrthographicViewNames));
 			for (SIZE_T Index = 0; Index < std::size(OrthographicViewModes); ++Index)
 			{
-				if (ImGui::RadioButton(OrthographicViewNames[Index], CameraState.ViewMode == OrthographicViewModes[Index]))
+				if (ImGui::RadioButton(OrthographicViewNames[Index], Camera.ViewMode == OrthographicViewModes[Index]))
 				{
-					CameraState.ViewMode = OrthographicViewModes[Index];
+					Camera.ViewMode = OrthographicViewModes[Index];
 					ViewportClient.OnCameraStateChanged();
 					ImGui::CloseCurrentPopup();
 				}

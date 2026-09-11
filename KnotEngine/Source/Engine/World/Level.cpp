@@ -53,11 +53,3 @@ void ULevel::Tick(float DeltaTime)
 		Node->Tick(DeltaTime);
 	}
 }
-
-void ULevel::Render(URenderer& Renderer, const FMatrix& ViewProjection) const
-{
-	for (const TObjectPtr<UNode>& Node : Nodes)
-	{
-		Node->Render(Renderer, ViewProjection);
-	}
-}

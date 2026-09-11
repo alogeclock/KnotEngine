@@ -78,6 +78,7 @@ KnotEngine/Source/Editor/
 │     └─ ConsolePanel.h/.cpp
 └─ Viewport/
    ├─ Viewport.h/.cpp
+   ├─ EditorViewportCamera.h/.cpp
    ├─ EditorViewportClient.h/.cpp
    ├─ Asset/
    │  └─ AssetEditorViewportClient.h/.cpp
@@ -119,7 +120,7 @@ UEditorEngine
 FImGuiSystem 생성
     └─ UEditorEngine::RegisterViewportClient
             ↓
-UEditorEngine::AllViewportClients       non-owning Tick/Draw 순회
+UEditorEngine::AllViewportClients       non-owning Tick/ViewFamily 구성 순회
             ↓
 FImGuiSystem 소멸
     └─ UEditorEngine::UnregisterViewportClient
@@ -134,6 +135,14 @@ void FImGuiSystem::Draw(float DeltaTime);
 ```
 
 `FEditorContext`나 service locator 구조체는 만들지 않는다. 전달할 서비스가 실제로 늘어나 함수 계약이 불분명해질 때 작은 context 타입을 검토한다.
+
+## Application과 ImGui 수명
+
+Launch는 Application을 준비하고 그 참조로 EditorEngine을 생성한 뒤 Startup을 호출한다. EditorEngine은 FImGuiSystem을 직접 소유하며 UI 프레임 API를 호출한다. 별도 EditorUISystem이나 UI 추상 인터페이스는 없다.
+
+FImGuiSystem은 생성자에서 `FWindowsApplication&`를 받아 보관하고 `Startup()`에서 ImGui context·backend를 초기화한 뒤 메시지 콜백을 등록한다. `Shutdown()`은 먼저 콜백을 해제한 뒤 UI 자원을 정리한다. Application은 EditorEngine과 FImGuiSystem보다 오래 살아야 한다. 초기화 상태는 bStarted로 구분한다.
+
+Launch의 메시지 연결 코드와 EditorEngine의 ProcessWindowMessage는 없다. WindowsApplication은 일반 함수 포인터 콜백만 실행하며 ImGui 타입을 알지 않는다.
 
 ## DockSpace
 
@@ -368,10 +377,10 @@ Component override는 편집된 저장값에서 파생되는 상태만 갱신한
 
 | Component | 예시 처리 |
 |---|---|
-| `UTransformComponent` | local/world transform dirty 처리, 자식 전파 예약 |
-| `URendererComponent` | Render proxy 재생성 또는 변경 command 제출 |
-| `UMeshRendererComponent` | Mesh/Material 참조 변경 반영 |
-| `UMovementComponent` | 속도 제한과 내부 cache 갱신 |
+| `UTransformComponent` | 회전 정규화, 자신과 자손의 렌더 Proxy Dirty 표시 |
+| `UPrimitiveComponent` | MarkPrimitiveSceneProxy로 등록 Proxy 변경 표시 |
+| `UMeshComponent` | Mesh 변경 시 Proxy Dirty 표시. Material은 향후 구현 |
+| `UMovementComponent` | 현재 Tick에서 편집된 RotationRate를 읽음 |
 
 `PostEditProperty()`에서 UI를 열거나 Selection을 변경하지 않는다. 다른 객체를 파괴하거나 Component 등록 상태를 바꿔야 한다면 Editor command 또는 안전한 재등록 queue로 넘긴다.
 
@@ -398,27 +407,27 @@ FViewportPanel
    ├─ FEditorViewportClient : IInputTarget
    │  ├─ Camera state
    │  └─ input interpretation
-   └─ Editor World 조회와 draw
+   └─ Editor World 조회와 ViewFamily 구성
 ```
 
-`FViewport`는 출력 surface와 크기를 관리한다. `FEditorViewportClient`는 연결된 Viewport가 출력 가능한지 판정하고 공통 에디터 카메라와 입력을 관리한다. 파생 client는 어떤 World나 Asset을 그릴지 결정하며, `FLevelEditorViewportClient`는 Editor World의 draw만 담당한다.
+`FViewport`는 출력 surface와 크기를 관리한다. `FEditorViewportClient`는 연결된 Viewport가 출력 가능한지 판정하고 공통 에디터 카메라와 입력을 관리한다. 파생 client는 어떤 World나 Asset을 볼지 결정한다. 현재 `FLevelEditorViewportClient`는 기본 World 조회와 ViewFamily 구성을 그대로 사용한다.
 
-`FEditorViewportCamera`는 `FEditorViewportCameraTransform ViewTransform`, 에디터 전용 ViewMode와 CameraSpeed를 보관한다. 모든 뷰 모드는 ViewLocation/ViewRotation을 단일 기준으로 사용하며, 직교 방향을 선택하면 `NotifyCameraStateChanged()`가 해당 방향의 위치와 회전을 ViewTransform에 기록한다. UI는 `GetCameraState()`로 상태를 직접 편집한 뒤 변경 통지를 호출한다. Viewport의 Camera popup은 ViewLocation을 XYZ cm, ViewRotation을 Pitch/Yaw/Roll degree 순서로 표시하고 편집 결과를 `NotifyViewTransformChanged()`로 통지한다. ViewTransform의 TranslateWorld/TranslateLocal은 cm, Rotate의 Yaw/Pitch는 degree를 사용한다. LookAt은 같은 위치를 무시하고, 수직 목표에서는 Yaw를 유지하며 Pitch는 정확한 목표 방향을 허용한다. 마우스 Rotate는 기존처럼 Pitch를 ±89도로 제한한다.
+`EditorViewportCamera.h/.cpp`에 Transform·ViewMode·Camera 선언과 Transform 함수 구현을 모은다. `FEditorViewportCamera`는 `FEditorViewportCameraTransform ViewTransform`, 에디터 전용 ViewMode와 CameraSpeed를 보관한다. 모든 뷰 모드는 ViewLocation/ViewRotation을 단일 기준으로 사용하며, 직교 방향을 선택하면 `OnCameraStateChanged()`가 해당 방향의 위치와 회전을 ViewTransform에 기록한다. UI는 `GetCamera()`로 상태를 직접 편집한 뒤 변경 통지를 호출한다. Viewport의 Camera popup은 ViewLocation을 XYZ cm, ViewRotation을 Pitch/Yaw/Roll degree 순서로 표시하고 편집 결과를 `OnViewTransformChanged()`로 통지한다. ViewTransform의 TranslateWorld/TranslateLocal은 cm, Rotate의 Yaw/Pitch는 degree를 사용한다. LookAt은 같은 위치를 무시하고, 수직 목표에서는 Yaw를 유지하며 Pitch는 정확한 목표 방향을 허용한다. 마우스 Rotate는 기존처럼 Pitch를 ±89도로 제한한다.
 
 Camera.FOV는 투영 행렬 API에 맞춘 수직 시야각 라디안 값이며 기본값은 π/3이다. OrthoZoom은 직교 화면 **폭**이고 기본값은 10cm이다. 이전 높이 10cm 기준과 달리 직교 높이는 OrthoZoom / AspectRatio로 계산한다. AspectRatio는 투영 행렬 계산 시 실제 viewport 크기로 갱신하며, NearClip/FarClip 기본값은 0.1/10000cm이다. 현재 UCameraComponent/FCameraState는 구현되어 있지 않으므로 해당 타입과의 필드 동등성은 아직 계약하지 않는다.
 
 Viewport 상단 toolbar의 `Camera` 버튼은 popup에서 WASDQE 이동과 휠 전후 이동 감도를 조절한다. Perspective fly camera는 우클릭을 누른 동안에만 동작하며, W/S는 시선 방향, A/D는 카메라 좌우, Q/E는 월드 아래/위로 이동한다. 우클릭 drag의 raw mouse delta는 Yaw와 Pitch를 바꾸며 Pitch는 뒤집힘을 막기 위해 -89도에서 89도로 제한한다. 카메라 basis는 row-vector 규약에 맞춰 local Pitch 회전 뒤 world Yaw 회전을 적용한다.
 
-toolbar의 `View` 버튼은 원형 radio 항목으로 Perspective와 Top, Bottom, Left, Right, Front, Back 직교 뷰를 선택하는 popup을 연다. Perspective 카메라 위치와 회전은 직교 뷰를 선택해도 보존된다. 직교 뷰는 방향별 고정 Forward/Up 축과 별도 중심을 사용하며, WASD는 화면 평면을 이동하고 마우스 휠은 직교 표시 범위를 확대하거나 축소한다.
+toolbar의 `View` 버튼은 원형 radio 항목으로 Perspective와 Top, Bottom, Left, Right, Front, Back 직교 뷰를 선택하는 popup을 연다. 현재는 모드별 카메라 상태를 별도로 보존하지 않는다. 직교 뷰 선택 시 같은 ViewTransform에 해당 방향의 위치·회전을 기록하며, WASD는 화면 평면을 이동하고 마우스 휠은 직교 표시 범위를 확대하거나 축소한다.
 
 ### Render Target
 
 Panel content 영역의 framebuffer pixel 크기가 바뀌면 다음 렌더 전에 offscreen color/depth target을 재생성한다. 0 크기, collapse 상태와 최소화 상태에서는 렌더링하지 않는다.
 
-ImGui에는 RHI native D3D11 SRV를 직접 노출하지 않는다. ImGui render backend가 `FTextureViewHandle`을 `ImTextureID`로 변환하거나 등록하는 API를 제공한다.
+ImGui에는 RHI native D3D11 SRV를 직접 노출하지 않는다. ImGui render backend가 `FTextureHandle`을 `ImTextureID`로 변환하거나 등록하는 API를 제공한다.
 
 ```text
-World Render
+SceneRenderer Render
 	↓
 Viewport Offscreen Texture
 	↓ ImGui backend texture binding
@@ -431,21 +440,21 @@ World rendering은 ImGui draw data 제출 전에 수행한다. UI layout을 먼�
 
 ### 프레임 Viewport 렌더 여부
 
-별도의 렌더 요청 상태를 만들지 않는다. `FViewportPanel::Draw()`은 Panel이 숨겨졌거나 collapse되었거나 framebuffer pixel 크기가 0이면 offscreen target을 해제한다. 실제 Image 영역이 있으면 target을 유효한 크기로 유지한다. `UEditorEngine`은 등록된 `FEditorViewportClient`를 순회하고, 각 client의 `Draw()`가 `FViewport::IsValid()`인 경우에만 World를 해당 Viewport에 렌더링한다.
+`FViewportPanel::Draw()`는 숨김, collapse, 0 크기 상태에서 offscreen target을 해제한다. 유효한 Image 영역이면 target 크기를 맞춘 뒤 ImGui 이미지와 입력 영역을 등록한다.
+
+`UEditorEngine`은 등록된 Client에서 `BuildSceneViewFamily()`를 호출한다. 유효한 Viewport 또는 World가 없으면 결과를 반환하지 않는다. 유효하면 `BuildSceneView()`로 시점을 만들고 Scene 참조, View 배열, 출력 타깃과 ShowFlags를 Family에 담는다.
+
+`FEditorViewportClient::GetWorld()`는 기본적으로 `GEngine->GetWorld()`를 반환하고 `GetScene()`은 그 World의 Scene을 반환한다. 별도 프리뷰 월드를 사용하는 파생 Client는 GetWorld를 재정의한다. SceneRenderer는 World를 순회하지 않고 Scene의 Proxy만 읽는다.
 
 ```text
-FViewportPanel::Draw
-    ├─ 숨김, collapse, 0 크기 → offscreen target 해제
-    └─ 유효한 Image 영역 → offscreen target 생성 또는 크기 유지
-        ↓
-UEditorEngine의 FEditorViewportClient 순회
-        ↓
-FEditorViewportClient::Draw
-    ├─ FViewport가 유효하지 않음 → Viewport Scene 렌더링 생략
-    └─ FViewport가 유효함 → 파생 ViewportClient의 View로 offscreen 렌더링
+Panel UI 구성 → 타깃 크기와 입력 영역 확정
+  → Client 카메라 Tick
+  → BuildSceneViewFamily → BuildSceneView
+  → 메인 스레드에서 SceneRenderer 실행
+  → ImGui 합성
 ```
 
-`UEditorEngine`은 수명 동안 존재하는 EditorViewportClient의 non-owning 목록을 유지하여 모든 client에 Tick과 Draw 기회를 준다. 여러 Level, Asset 또는 PIE Viewport가 추가되고 숨겨진 Viewport의 target을 cache해야 할 필요가 생기면 이 순회에서 frame-local view 요청을 수집한다. 별도 Viewport manager는 실제 등록과 동적 수명 관리가 필요해질 때 도입한다.
+Client 목록은 메인 스레드에서 순회한다. SceneRenderer는 ViewFamily를 사용하며 Client나 Panel을 순회하지 않는다.
 
 ### Viewport 입력 등록
 
@@ -545,7 +554,7 @@ World / ViewportClient Tick
 FImGuiSystem::EndFrame
 	└─ ImGui::Render
 		↓
-Viewport offscreen render
+메인 스레드에서 ViewFamily offscreen render
 		↓
 ImGui Draw Data의 Back Buffer 합성과 제출
 ```
@@ -554,56 +563,15 @@ ImGui capture 상태는 `NewFrame()` 직후와 모든 Panel 구성 이후 두 �
 
 ## EditorEngine 프레임 조율
 
-목표 `UEditorEngine::Tick()`은 World 시뮬레이션, Viewport 렌더링과 UI 렌더링을 구분한다.
+메인 스레드에서 UI 구성 → 입력 라우팅 → World Tick → Client 카메라 Tick → ViewFamily 구성 → SceneRenderer 실행 → ImGui 합성 → Submit/Present 순서로 수행한다.
 
-```cpp
-void UEditorEngine::Tick(float DeltaTime)
-{
-	ImGuiSystem.BeginFrame();
-	ImGuiSystem.Draw(DeltaTime);
-	InputRouter.RouteInput();
+각 World는 Viewport 개수와 무관하게 한 번 Tick한다. Component의 변경은 Proxy 자체에 Dirty로 표시되고 World.Tick 마지막에 지속적인 Scene Proxy에 반영되며 전체 Snapshot은 만들지 않는다. EditorEngine이 Family마다 FSceneRenderer를 지역 객체로 생성하고 Render(Renderer)를 호출한다. FSceneRenderer는 View별 컬링과 불투명 패스 정렬을 수행한다.
 
-	for (FWorldContext& Context : WorldContexts)
-	{
-		if (UWorld* World = Context.World.Get())
-		{
-			World->Tick(DeltaTime);
-		}
-	}
+현재는 전용 Render Thread와 ImGui Context mutex가 없다. SceneRenderer는 Proxy 갱신을 수행하지 않고 GetProxies()로 확정된 상태를 읽는다. OpaqueCommands는 불투명 패스의 지역 배열이며 프레임 간 캐시는 없다.
 
-	for (FEditorViewportClient* ViewportClient : AllViewportClients)
-	{
-		ViewportClient->Tick(DeltaTime);
-	}
+Render Thread 분리와 Render Pass 객체화는 향후 목표다. UI 구성은 메인 스레드에 유지하고, 비동기 렌더링에는 ViewFamily·타깃·ImGui draw data의 수명 보장이 필요하다. 다중 렌더 worker는 현재 목표 범위에 포함하지 않는다. 구체 경계는 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 
-	ImGuiSystem.EndFrame();
-	Render();
-}
-
-void UEditorEngine::Render()
-{
-	const FRenderViewport OutputViewport = Renderer.GetViewport();
-	if (OutputViewport.Width <= 0.0f || OutputViewport.Height <= 0.0f)
-	{
-		return;
-	}
-
-	Renderer.BeginFrame();
-	for (FEditorViewportClient* ViewportClient : AllViewportClients)
-	{
-		if (ViewportClient)
-		{
-			ViewportClient->Draw(Renderer);
-		}
-	}
-	ImGuiSystem.Render(Renderer.GetCommandList());
-	Renderer.EndFrame();
-}
-```
-
-Native output extent 검사는 private `Render()` 진입부에 있으며 Tick과 World 처리에는 노출하지 않는다. `FEditorViewportClient::Draw()`는 연결된 Viewport가 유효하지 않으면 파생 client의 Scene draw를 호출하지 않는다.
-
-각 WorldContext의 World는 프레임당 한 번씩 Tick한다. Viewport 개수는 World Tick 횟수에 영향을 주지 않으며, 여러 Viewport는 같은 최종 World 상태를 서로 다른 camera와 Render Target으로 렌더링한다.
+Native 출력이 0 크기면 GPU 프레임을 생략한다. ViewFamily가 없어도 창 출력이 유효하면 UI 합성과 Present는 수행한다.
 
 ## Inspector 변경과 Runtime 반영
 
@@ -612,8 +580,8 @@ Native output extent 검사는 private `Render()` 진입부에 있으며 Tick과
 | 변경 | 처리 방식 |
 |---|---|
 | 단순 gameplay 수치 | 값 복사 후 다음 Tick에서 읽음 |
-| Transform | dirty 처리 후 transform flush |
-| Mesh와 Material | render proxy update 또는 재등록 예약 |
+| Transform | MarkPrimitiveSceneProxy로 표시한 World Transform과 Proxy 상태를 World.Tick 끝에서 반영 |
+| Mesh / Visibility | MarkPrimitiveSceneProxy로 표시하고 World.Tick 끝에서 반영. Material 갱신은 향후 구현 |
 | Physics shape | Physics state 재생성 예약 |
 | Component enable 설정 | 안전한 등록/활성 상태 전이 함수 호출 |
 
@@ -674,13 +642,15 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 - Reflection property kind와 Inspector scalar/struct 편집
 - `UObject::PostEditProperty(const FProperty&)`
 - Viewport offscreen color/depth target과 ImGui texture 표시
-- `FEditorViewportClient` 공통 Tick/Draw 순회
+- `FEditorViewportClient` Tick 및 BuildSceneView/BuildSceneViewFamily
+- 메인 스레드에서 SceneRenderer와 ImGui 합성 실행
 - `FLevelEditorViewportClient` 입력 등록
 - Editor log sink와 Console 출력
 
 ### 미구현
 
-- Editor camera와 기즈모
+- Render Thread 분리와 Render Pass 객체화
+- 기즈모
 - Content 탐색과 Asset Registry 연결
 - Component 단위 선택
 - Undo/Redo와 Editor command
@@ -705,6 +675,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [Viewport.cpp](../KnotEngine/Source/Editor/Viewport/Viewport.cpp)
+- [EditorViewportCamera.h](../KnotEngine/Source/Editor/Viewport/EditorViewportCamera.h)
 - [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
 - [LevelEditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/Level/LevelEditorViewportClient.h)
 - [Object.h](../KnotEngine/Source/Engine/Object/Object.h)

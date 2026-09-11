@@ -87,20 +87,14 @@ void UWorld::ResumePlay()
 
 void UWorld::Tick(float DeltaTime)
 {
-	if (PlayState != EPlayState::Playing)
+	if (PlayState == EPlayState::Playing)
 	{
-		return;
+		for (const TObjectPtr<ULevel>& Level : Levels)
+		{
+			Level->Tick(DeltaTime);
+		}
 	}
-	for (const TObjectPtr<ULevel>& Level : Levels)
-	{
-		Level->Tick(DeltaTime);
-	}
-}
 
-void UWorld::Render(URenderer& Renderer, const FMatrix& ViewProjection) const
-{
-	for (const TObjectPtr<ULevel>& Level : Levels)
-	{
-		Level->Render(Renderer, ViewProjection);
-	}
+	// Component 갱신이 끝난 뒤 렌더 상태를 반영한다. 정지와 일시정지 중의 편집도 처리한다.
+	Scene.Update();
 }

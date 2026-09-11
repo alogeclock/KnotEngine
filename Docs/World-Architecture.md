@@ -16,6 +16,8 @@
 - 게임별 Actor 파생 계층을 만들지 않고 `UNode`를 Component 조합으로 확장한다.
 - 플레이 생명주기와 Tick은 현재 소유 계층을 직접 순회하며 전달한다.
 - Editor는 WorldContext ID로 렌더링할 World를 선택한다.
+- World.Tick 끝에서 Scene을 갱신하며 이 단계는 Stopped·Paused 상태에서도 실행한다.
+- Dirty 상태는 Proxy가 보관한다. World는 Dirty Component 목록을 관리하지 않는다.
 
 ## 전체 구조
 
@@ -23,6 +25,7 @@
 UEngine
 └─ FWorldContext[]
    └─ UWorld
+      ├─ FScene → FPrimitiveSceneProxy[]
       ├─ PersistentLevel ─┐
       └─ ULevel[] <───────┘
          └─ UNode[]
@@ -40,7 +43,7 @@ UTransformComponent Parent → Child TransformComponents
 
 Node의 Transform 부모를 바꿔도 Level의 `Nodes` 배열 소속은 바뀌지 않는다. 같은 Node가 두 Component를 소유한다는 사실도 Component 사이의 실행 순서를 정의하지 않는다.
 
-## 현재 디렉터리
+## 디렉터리와 책임
 
 ```text
 KnotEngine/Source/Engine/
@@ -55,8 +58,8 @@ KnotEngine/Source/Engine/
 └─ Component/
    ├─ Component.h/.cpp
    ├─ TransformComponent.h/.cpp
-   ├─ RendererComponent.h/.cpp
-   ├─ MeshRendererComponent.h/.cpp
+   ├─ PrimitiveComponent.h/.cpp
+   ├─ MeshComponent.h/.cpp
    └─ MovementComponent.h/.cpp
 ```
 
@@ -64,7 +67,7 @@ KnotEngine/Source/Engine/
 |---|---|
 | `UEngine` | WorldContext 생성, 조회, 파괴와 World 참조 수집 |
 | `FWorldContext` | Context ID, World 종류와 World 참조 보관 |
-| `UWorld` | Level 수명, PersistentLevel과 플레이 상태 관리 |
+| `UWorld` | Level 수명, PersistentLevel·플레이 상태, Scene 소유와 갱신 시점 |
 | `ULevel` | Node의 평탄한 소유와 생명주기 전달 |
 | `UNode` | 필수 Transform과 나머지 Component 소유 |
 | `UComponent` | Owner를 통한 World 접근과 공통 플레이 상태 제공 |
@@ -99,7 +102,7 @@ UEditorEngine
 
 ## UWorld
 
-`UWorld`는 하나의 독립적인 시뮬레이션을 나타내는 최상위 객체다. 현재는 Level 수명과 플레이 상태를 관리하고 Tick 및 Render 요청을 모든 Level에 전달한다.
+`UWorld`는 하나의 독립적인 시뮬레이션을 나타내는 최상위 객체다. Level 수명과 플레이 상태를 관리하고 Tick을 모든 Level에 전달하며 FScene을 소유한다.
 
 World 생성 시 PersistentLevel을 함께 생성한다. PersistentLevel은 `Levels` 배열에도 포함되며 일반 `RemoveLevel()`로 제거할 수 없다.
 
@@ -141,7 +144,7 @@ ULevel::Nodes
 - `BeginPlay()`
 - `EndPlay()`
 - `Tick()`
-- `Render()`
+- `GetScene()`
 
 ## UNode와 Component 합성
 
@@ -152,7 +155,7 @@ ULevel::Nodes
 ```text
 Cube UNode
 ├─ UTransformComponent
-├─ UMeshRendererComponent
+├─ UMeshComponent
 └─ UMovementComponent
 ```
 
@@ -182,7 +185,7 @@ Node에 붙은 Component는 Owner가 설정된 뒤 즉시 등록된다. Componen
 | `bIsRegistered` | Component가 Owner의 World에 등록된 상태 |
 | `bHasBegunPlay` | 현재 World의 플레이 생명주기에 진입한 상태 |
 | `bIsActive` | 플레이 중 Component 기능이 활성화된 상태 |
-| `bTickEnabled` | 등록된 Component의 `TickComponent()` 실행 허용 상태 |
+| `bTickEnable` | 등록된 Component의 `TickComponent()` 실행 허용 상태 |
 
 ### 상태 변수
 
@@ -212,7 +215,7 @@ true  → UnregisterComponent() → false
 
 `UnregisterComponent()`는 BegunPlay 상태라면 먼저 `EndPlay()`를 호출한다. Active가 해제된 것을 확인하고 `OnUnregister()`를 호출한 뒤 `bIsRegistered`를 false로 바꾼다. 따라서 `OnUnregister()`가 실행되는 동안에도 Owner와 World에 접근할 수 있고 `IsRegistered()`는 true다.
 
-현재 이 상태는 생명주기 순서를 고정하지만 Render, Physics와 Tick Registry에는 아직 연결되지 않는다. 해당 subsystem 연결은 `OnRegister()`와 `OnUnregister()`에서 추가한다.
+PrimitiveComponent의 등록 훅은 World.Scene에 연결되어 있다. Physics와 Tick Registry 연결은 향후 추가한다.
 
 #### bHasBegunPlay
 
@@ -250,7 +253,7 @@ BegunPlay + Inactive
 
 #### bTickEnabled
 
-`bTickEnabled`는 Component가 Tick callback을 제공하는지 나타내는 capability가 아니라 현재 `TickComponent()` 호출을 허용하는 설정이다. 이 값을 변경해도 Registered, BegunPlay와 Active 상태는 바뀌지 않는다.
+`bTickEnable`는 Component가 Tick callback을 제공하는지 나타내는 capability가 아니라 현재 `TickComponent()` 호출을 허용하는 설정이다. 이 값을 변경해도 Registered, BegunPlay와 Active 상태는 바뀌지 않는다.
 
 현재 직접 순회 Tick의 실행 조건은 다음과 같다.
 
@@ -260,7 +263,7 @@ World.PlayState == Playing
 && Component.IsTickEnabled()
 ```
 
-향후 `FWorldExecutionManager`가 추가되면 Tick Registered는 별도 bool로 저장하지 않고 Manager 등록 상태에서 파생한다. 이때도 `bTickEnabled`는 등록 여부와 독립적인 실행 설정으로 유지한다.
+향후 `FWorldExecutionManager`가 추가되면 Tick Registered는 별도 bool로 저장하지 않고 Manager 등록 상태에서 파생한다. 이때도 `bTickEnable`는 등록 여부와 독립적인 실행 설정으로 유지한다.
 
 ### 상태 불변식
 
@@ -272,7 +275,7 @@ Active → BegunPlay
 !Registered → !BegunPlay && !Active
 ```
 
-`bTickEnabled`는 이 관계에 포함되지 않는다. Tick을 비활성화한 Component도 Registered, BegunPlay와 Active 상태를 유지할 수 있다.
+`bTickEnable`는 이 관계에 포함되지 않는다. Tick을 비활성화한 Component도 Registered, BegunPlay와 Active 상태를 유지할 수 있다.
 
 `RegisterComponent()`와 `UnregisterComponent()`는 공통 상태 전이를 고정하는 non-virtual 함수다. 파생 Component는 `OnRegister()`와 `OnUnregister()`에서 subsystem 연결과 정리를 구현한다.
 
@@ -294,7 +297,7 @@ Registered
 Owned
 ```
 
-현재 Register 훅은 마련되어 있지만 Render, Physics와 Tick Registry에는 아직 연결되지 않는다.
+현재 PrimitiveComponent의 Register 훅은 Proxy를 생성해 Scene에 소유권을 넘긴다. Physics와 Tick Registry는 아직 연결되지 않는다.
 
 ## 현재 플레이 생명주기
 
@@ -320,7 +323,7 @@ UNode::EndPlay
 UComponent::EndPlay
 ```
 
-World가 `Stopped`가 아닌 동안 생성한 Level, Node와 Component는 생성 또는 부착 시점에 BeginPlay를 받는다. Node 파괴 시 EndPlay를 먼저 전달한 뒤 Component를 역순으로 파괴한다.
+World가 `Stopped`가 아닌 동안 생성한 Node와 부착한 Component는 BeginPlay를 받는다. 현재 CreateLevel은 빈 Level을 소유 목록에 추가하며, 이후 Node 생성 시 플레이 상태가 반영된다. Node 파괴 시 EndPlay를 먼저 전달한 뒤 Component를 역순으로 파괴한다.
 
 Component 부착과 파괴의 전체 순서는 다음과 같다.
 
@@ -340,7 +343,7 @@ Node 파괴
 
 ## 현재 프레임 실행 순서
 
-`FEngineLoop`는 입력 상태를 갱신한 뒤 Engine Tick을 한 번 호출한다. EditorEngine은 Context ID로 Editor World를 찾고 World의 Tick과 Render를 호출한다.
+`FEngineLoop`는 입력 상태를 갱신한 뒤 Engine Tick을 한 번 호출한다. EditorEngine은 Context ID로 Editor World를 찾고 World Tick과 ViewFamily 구성을 수행하고 메인 스레드에서 동기 렌더링한다.
 
 ```text
 FEngineLoop::Run
@@ -348,11 +351,12 @@ FEngineLoop::Run
 UEditorEngine::ProcessInput
     ↓
 UEditorEngine::Tick
-    ├─ FindWorld(EditorContextId)
     ├─ ImGui Frame 구성과 입력 라우팅
-    ├─ UWorld::Tick
-    ├─ UWorld::Render
-    └─ ImGui Draw 및 Present
+    ├─ 각 WorldContext의 UWorld::Tick
+    │    └─ Level/Component 갱신 후 Scene 갱신
+    ├─ ViewportClient 카메라 Tick
+    ├─ Client의 ViewFamily 구성
+    └─ ViewFamily 렌더링, ImGui Draw 및 Present
 ```
 
 현재 World Tick은 소유 배열을 직접 순회한다.
@@ -367,40 +371,41 @@ UNode::Tick
 UComponent::TickComponent
 ```
 
-World가 `Playing`일 때만 Level 순회를 시작한다. Node는 Component가 Active이고 Tick Enabled일 때 `TickComponent(DeltaTime)`을 호출한다.
+World가 `Playing`일 때만 Level 순회를 시작한다. Node는 Component가 Active이고 Tick Enabled일 때 `TickComponent(DeltaTime)`을 호출한다. 그 후 World는 PlayState와 무관하게 `Scene.UpdatePrimitiveSceneProxies()`를 호출한다. 따라서 Stopped·Paused에서 생략되는 것은 게임플레이 Tick이며 Scene 갱신은 계속 수행한다.
 
 현재 실행 순서는 Level, Node와 Component 배열 순서의 결과다. 코드가 이 순서를 사용하고 있지만 명시적인 dependency 계약은 아니다.
 
 ## 현재 렌더 전달
 
-렌더링도 현재 소유 계층을 직접 순회한다.
+World/Level/Node/Component의 직접 Render 순회와 전체 Snapshot은 사용하지 않는다. FScene은 Component 포인터 대신 지속적인 Proxy를 소유한다.
 
 ```text
-UWorld::Render
-    ↓
-ULevel::Render
-    ↓
-UNode::Render
-    ↓ RendererComponent
-URendererComponent::Render
+PrimitiveComponent.OnRegister → Proxy 생성 → Scene.AddPrimitive
+Transform/Mesh/Visibility 변경 → MarkPrimitiveSceneProxy → Proxy.bDirty = true
+World.Tick 끝 → Scene.UpdatePrimitiveSceneProxies → Proxy.Update (Dirty일 때만 복사)
+PrimitiveComponent.OnUnregister → Scene.RemovePrimitive → Proxy 파괴
 ```
 
-향후 Scene proxy 기반 렌더 구조는 [Rendering-Architecture.md](Rendering-Architecture.md)에서 다룬다.
+메인 스레드에서 상태 변경과 렌더링을 순서대로 실행한다. 부모 Transform 변경·연결·해제·파괴는 자식의 World Transform과 Proxy에 전파된다. Stopped/Paused 상태의 Inspector 편집도 PostEditProperty에서 Dirty로 표시되어 다음 World.Tick 끝에서 반영된다.
+
+Component와 Proxy는 서로 friend로 연결된다. Proxy가 원본 MeshComponent 참조로 데이터를 읽으며 FScene은 Component를 알지 않는다. 별도 FPrimitiveSceneRegistration과 Component의 가상 Update는 없다. SceneRenderer는 GetProxies로 렌더 상태만 읽는다.
+
+World는 Level과 Component를 먼저 파괴하여 Proxy 등록을 해제하고 마지막에 Scene을 소멸시킨다. 상세 수명 계약은 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 
 ## 현재 구현의 경계
 
-현재 구조는 작은 장면과 단일 스레드 실행에는 충분하지만 다음 기능은 아직 제공하지 않는다.
+현재 World Tick과 렌더링은 메인 스레드에서 순서대로 실행하며 다음 기능은 아직 제공하지 않는다.
 
-- Register 훅과 Render, Physics 및 Tick Registry의 실제 연결
+- Register 훅과 Physics 및 Tick Registry의 실제 연결
 - Level visibility와 load 상태에 따른 Component 일괄 재등록
 - 실행 Phase와 명시적인 Tick dependency
 - 실행 중 등록 및 해제의 안전 지점
 - Level, Node와 Component 지연 파괴
 - Tick interval과 Paused Tick
 - Task Graph와 worker thread 실행
-- Scene proxy 기반 렌더 등록
+- Render Thread 분리, 비동기 Scene 변경 전달과 GPU Fence 기반 자원 지연 해제
 
-이 기능들의 목표와 구현 순서는 [World-Architecture-Roadmap.md](World-Architecture-Roadmap.md)에 정의한다.
+World 실행 목표는 [World-Architecture-Roadmap.md](World-Architecture-Roadmap.md)에, Render Thread와 Render Pass 목표는 [Rendering-Architecture.md](Rendering-Architecture.md)에 정의한다.
 
 ## 관련 파일
 

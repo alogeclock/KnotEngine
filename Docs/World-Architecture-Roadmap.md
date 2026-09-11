@@ -19,6 +19,14 @@ Knot Engine은 기존 Unreal Tick Scheduler와 호환할 필요가 없다. 전�
 
 첫 구현은 Game Thread에서 위상 정렬된 작업을 직렬 실행한다. signal propagation, interval, worker thread와 Task Graph는 등록·해제 수명과 Phase 내부 순서가 안정된 뒤 실제 요구에 따라 추가한다.
 
+## 현재 구현과 목표의 경계
+
+현재는 소유 배열 순서로 World → Level → Node → Component Tick을 전달한다. 여섯 Phase, Tick Registry와 dependency graph는 아직 없다. `UWorld::Tick()` 마지막에 Scene을 갱신하며, Stopped·Paused에서도 이 단계는 실행한다.
+
+Scene은 Proxy 배열만 소유하고 Proxy가 자신의 Dirty 플래그와 원본 Component 참조로 상태를 갱신한다. Component의 가상 Update나 World의 Dirty Component 대기 목록은 사용하지 않는다. 이 문서의 실행기 PendingAdds/PendingRemoves는 미래 Tick 등록 변경용이며 현재 Proxy 갱신 구조를 대체한 구현이 아니다.
+
+목표 EndFrame Phase는 현재 World.Tick 끝의 렌더 상태 확정 책임을 이어받는다. Render Thread가 도입되면 Game Thread에서 Dirty 데이터를 복사·제출하는 경계가 되며 Render Thread가 Component를 직접 읽지 않는다. Render Pass 객체화와 스레드 수명은 [Rendering-Architecture.md](Rendering-Architecture.md)의 목표를 따른다.
+
 ## 목표 설계 원칙
 
 - 각 `UWorld`가 독립적인 `FWorldExecutionManager`를 소유한다.
@@ -45,6 +53,7 @@ UEngine
       │  └─ UNode[]
       │     ├─ UTransformComponent
       │     └─ UComponent[]
+      ├─ FScene                        렌더 상태 확정/전달 경계
       └─ FWorldExecutionManager
          ├─ PrePhysics Phase
          ├─ StartPhysics Phase
@@ -87,7 +96,7 @@ Owned는 `Owner != nullptr`에서, Tick Registered는 향후 Tick Manager 연결
 
 현재 `RegisterComponent()`, `UnregisterComponent()`, `Activate()`, `Deactivate()`와 대응하는 네 개의 protected virtual 훅은 구현되어 있다. `bIsRegistered`, `bHasBegunPlay`, `bIsActive`도 분리되어 있으며 Node 부착과 파괴 경로에 연결되어 있다.
 
-향후 작업은 Register 훅을 Render, Physics와 Tick Registry에 연결하고 Level 재연결 시 일괄 등록 상태를 전환하는 것이다. `UnregisterComponent()`는 Component 파괴와 별개이며 Tick 비활성화도 Render 및 Physics 등록을 제거하지 않는다.
+Render 등록은 FScene에 연결되어 있다. 향후 작업은 Register 훅을 Physics와 Tick Registry에 연결하고 Level 재연결 시 일괄 등록 상태를 전환하는 것이다. `UnregisterComponent()`는 Component 파괴와 별개이며 Tick 비활성화도 Render 및 Physics 등록을 제거하지 않는다.
 
 ### 등록 순서
 
@@ -387,7 +396,7 @@ Transform 변경 ⇢ Render proxy 갱신 필요
 
 ordering edge는 연결된 node를 같은 실행 graph에 배치한다. signal edge는 graph를 합치지 않고 dirty 상태만 전달해야 한다.
 
-첫 구현에는 signal graph를 넣지 않는다. subsystem별 dirty queue와 Phase 경계의 batch flush로 시작한다.
+첫 구현에는 signal graph를 넣지 않는다. subsystem별 Dirty 상태와 Phase 경계의 batch flush로 시작한다. 현재 렌더 경로는 Proxy 자체의 Dirty 플래그를 순회하며 별도 queue는 없다. 아래 DirtyTransforms queue는 향후 Transform 계산을 일괄화할 때의 목표 예시다.
 
 ```text
 Transform 변경
@@ -460,6 +469,12 @@ Worker는 immutable snapshot을 읽거나 자신에게 할당된 데이터만 �
 `DuringPhysics`는 Physics를 비동기 실행할 때 의미가 생긴다. DuringPhysics 작업은 진행 중인 Physics state를 읽거나 쓰지 않는다. `EndPhysics` 진입 시 simulation completion을 기다리고 결과를 공개한다.
 
 작은 Component Tick을 각각 worker task로 만들면 scheduler 비용이 더 클 수 있다. 대량 동종 작업은 subsystem의 batch node로 처리한다. 이 사례가 생길 때 Component 전용 등록 API를 일반 function node API로 확장한다.
+
+## Render Thread와 World 실행기의 구분
+
+World worker 실행과 Render Thread 분리는 서로 다른 목표다. World 실행기는 gameplay와 Physics 순서를 관리하고, Render Thread는 제출된 렌더 데이터를 소비한다. Render Thread를 먼저 분리하더라도 World Tick을 worker에서 실행할 필요는 없다. 다중 렌더 worker는 현재 목표 범위에 포함하지 않는다.
+
+Stopped·Paused에서도 에디터 변경을 렌더링에 반영할 수 있도록 EndFrame의 상태 확정 또는 이에 해당하는 편집 갱신 경로를 유지한다. Component 직접 참조를 가진 현재 Proxy를 Render Thread에서 그대로 갱신하지 않는다.
 
 ## 완료 조건
 
