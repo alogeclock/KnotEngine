@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -27,3 +28,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include "Core/Assert.h"
+#include "Core/CoreTypes.h"
+#include "Core/Debug.h"
