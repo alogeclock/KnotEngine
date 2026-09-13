@@ -39,13 +39,13 @@ struct TRenderHandle
 struct FBufferHandleTag;
 struct FTextureHandleTag;
 struct FShaderHandleTag;
-struct FGraphicsPipelineHandleTag;
+struct FPipelineStateHandleTag;
 struct FCommandListHandleTag;
 
 using FBufferHandle = TRenderHandle<FBufferHandleTag>;
 using FTextureHandle = TRenderHandle<FTextureHandleTag>;
 using FShaderHandle = TRenderHandle<FShaderHandleTag>;
-using FGraphicsPipelineHandle = TRenderHandle<FGraphicsPipelineHandleTag>;
+using FPipelineStateHandle = TRenderHandle<FPipelineStateHandleTag>;
 using FCommandListHandle = TRenderHandle<FCommandListHandleTag>;
 
 // Buffer가 GPU Pipeline에서 사용되는 용도를 정의한다.
@@ -93,7 +93,7 @@ struct ENGINE_API FTextureDesc
 	ETextureUsage Usage = ETextureUsage::ShaderResource;
 };
 
-// Shader가 실행되는 Graphics Pipeline Stage를 정의한다.
+// Shader가 실행되는 Pipeline Stage를 정의한다.
 enum class EShaderStage : uint8 { Vertex, Pixel };
 
 // Shader 생성에 필요한 메모리 소스, 진단용 이름, 진입점 및 Stage를 정의한다.
@@ -154,13 +154,17 @@ struct ENGINE_API FRenderTargetBlendDesc
 	EBlendFactor DestinationAlphaBlend = EBlendFactor::Zero;
 	EBlendOperation AlphaBlendOperation = EBlendOperation::Add;
 	EColorWriteMask ColorWriteMask = EColorWriteMask::All;
+
+	bool operator==(const FRenderTargetBlendDesc&) const = default;
 };
 
-// Graphics Pipeline의 전체 Blend 상태를 정의한다.
+// Pipeline State의 전체 Blend 상태를 정의한다.
 struct ENGINE_API FBlendStateDesc
 {
 	bool bAlphaToCoverageEnabled = false;
 	FRenderTargetBlendDesc RenderTarget;
+
+	bool operator==(const FBlendStateDesc&) const = default;
 };
 
 // Rasterizer가 Triangle 내부를 채우는 방식을 정의한다.
@@ -181,10 +185,12 @@ struct ENGINE_API FRasterizerStateDesc
 	bool bDepthClipEnabled = true;
 	bool bMultisampleEnabled = false;
 	bool bAntialiasedLineEnabled = false;
+
+	bool operator==(const FRasterizerStateDesc&) const = default;
 };
 
-// Shader와 고정 기능 상태를 하나의 Graphics Pipeline으로 생성하기 위한 계약이다.
-struct ENGINE_API FGraphicsPipelineDesc
+// Shader와 고정 기능 상태를 하나의 Pipeline State로 생성하기 위한 계약이다.
+struct ENGINE_API FPipelineStateDesc
 {
 	FShaderHandle VertexShader;
 	FShaderHandle PixelShader;
@@ -197,6 +203,8 @@ struct ENGINE_API FGraphicsPipelineDesc
 	uint8 SampleCount = 1;	
 	FBlendStateDesc BlendState;
 	FRasterizerStateDesc RasterizerState;
+
+	bool operator==(const FPipelineStateDesc&) const = default;
 };
 
 // Index Buffer의 요소 하나가 사용하는 정수 저장 형식을 정의한다.

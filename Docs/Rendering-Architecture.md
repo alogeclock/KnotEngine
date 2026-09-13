@@ -4,7 +4,7 @@
 
 이 문서는 Knot Engine의 World 렌더 상태, ViewFamily 구성, 가시성 판정, Draw Command 생성과 GPU 실행의 책임을 정의한다. 현재 구현은 메인 스레드에서 동기 실행하는 D3D11 렌더링 경로다.
 
-Render Thread 분리와 Render Pass 객체화는 향후 목표다. 현재 코드의 실행 경로와 목표 구조를 구분하며, 목표 타입과 패스가 이미 존재하는 것으로 해석하지 않는다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
+현재 Opaque와 Grid는 매 프레임 생성되는 Render Graph Node로 구성하며 Shader와 Pipeline State는 공용 Cache가 장기 소유한다. Render Thread 분리와 Graph Resource 추적은 향후 목표다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
 
 ## 설계 원칙
 
@@ -37,7 +37,9 @@ UEditorEngine
            ├─ Family별 FSceneRenderer 생성
            │      └─ Render(Renderer)
            │             ├─ View별 CullView
-           │             └─ RenderOpaquePass → Sort → Draw
+           │             ├─ FOpaquePass::AddPass
+           │             ├─ FGridPass::AddPass
+           │             └─ URenderer::ExecuteRenderGraph
            ├─ FImGuiSystem::Render
            └─ URenderer::EndFrame → Submit → Present
 ```
@@ -64,6 +66,10 @@ KnotEngine/Source/
 │  ├─ World/World.h/.cpp
 │  └─ Render/
 │     ├─ Renderer.h/.cpp
+│     ├─ Graph/RenderGraph.h/.cpp
+│     ├─ Pass/
+│     │  ├─ OpaquePass.h/.cpp
+│     │  └─ GridPass.h/.cpp
 │     ├─ Scene/
 │     │  ├─ Scene.h/.cpp
 │     │  ├─ SceneView.h
@@ -73,6 +79,8 @@ KnotEngine/Source/
 │     │  ├─ Buffer.h/.cpp
 │     │  ├─ MeshTypes.h/.cpp
 │     │  ├─ MeshResources.h/.cpp
+│     │  ├─ ShaderRegistry.h/.cpp
+│     │  ├─ PipelineStateCache.h/.cpp
 │     │  └─ VertexTypes.h/.cpp
 │     └─ RHI/
 │        ├─ RenderDevice.h
@@ -98,8 +106,8 @@ KnotEngine/Source/
 | `FPrimitiveSceneProxy` | 원본 상태 복사, WorldMatrix·Bounds·Mesh 보관 | View별 컬링, 명령 정렬 |
 | `FScene` | Proxy 소유·순회·제거, `GetProxies()` 제공 | Component 데이터 접근 |
 | `FEditorViewportClient` | 카메라 입력, View·ViewFamily 구성 | SceneRenderer 생성, Draw 실행 |
-| `FSceneRenderer` | View별 가시성, 패스별 명령과 순서 | World Tick, Proxy 갱신, Present |
-| `URenderer` | 공용 GPU 자원, 프레임, 타깃·상수·Mesh 실행 | SceneRenderer 생성, 가시성 정책 |
+| `FSceneRenderer` | View별 가시성, 임시 Pass Node 구성과 실행 의존성 선언 | World Tick, Proxy 갱신, Present |
+| `URenderer` | 공용 Shader·Pipeline State 수명, 프레임·타깃·Graph 실행 | 구체 Pass, SceneRenderer 생성, 가시성 정책 |
 | `IRenderDevice` | GPU 자원과 Command List 연산 | World·Editor 정책 |
 | `IRenderContext` | 네이티브 창 출력, Swap Chain, Resize·Present | Scene 순회 |
 | `UEditorEngine` | 렌더 작업 생성과 UI 합성 순서 | 패스 내부 컬링·정렬 |
@@ -116,7 +124,7 @@ KnotEngine/Source/
 4. 각 Proxy는 Dirty 여부를 검사한다. Dirty가 아니면 반환하고, Dirty이면 원본 상태를 복사한 뒤 플래그를 해제한다.
 5. ViewportClient의 카메라를 Tick하고 ImGui draw data를 확정한다.
 6. 출력 가능한 Client에서 ViewFamily를 구성한다.
-7. Renderer 프레임을 시작하고 Family마다 지역 SceneRenderer를 생성하여 실행한다.
+7. Renderer 프레임을 시작하고 Family마다 지역 SceneRenderer가 Render Graph를 구성하며 Renderer가 Graph를 실행한다.
 8. 모든 offscreen 결과를 포함한 ImGui draw data를 Back Buffer에 합성한다.
 9. Command List를 종료·제출하고 Present한다.
 
@@ -148,7 +156,7 @@ Game Thread
 Render Thread
   Scene 등록·갱신·제거 요청 적용
     → 해당 프레임의 SceneRenderer 작업 생성·실행
-    → Render Pass 객체별 명령 구성·정렬·기록
+    → Render Graph Node별 명령 구성·정렬·기록
     → 준비된 UI 출력 합성 → Submit / Present
 ```
 
@@ -212,11 +220,11 @@ Mesh가 없거나 Mesh Buffer가 유효하지 않으면 렌더용 Mesh 참조와
 
 `FEditorViewportCameraTransform`, `EEditorViewportViewMode`, `FEditorViewportCamera`는 `EditorViewportCamera.h/.cpp`에 모여 있다. 카메라 입력 정책은 [Editor-Architecture.md](Editor-Architecture.md)에서 설명한다.
 
-현재 ShowFlags는 `bPrimitive`, `bAxis`, `bGrid`다. Primitive 표시와 절두체 컬링 경로만 구현되어 있고 Axis·Grid 패스는 아직 없다.
+현재 ShowFlags는 `bPrimitive`, `bAxis`, `bGrid`다. Primitive 표시와 절두체 컬링 경로 및 Pixel Shader 기반 Grid Pass가 구현되어 있고 Axis Pass는 아직 없다.
 
 ### 가시 Primitive 수집과 Draw Command 수집
 
-`CullView()`는 View마다 `VisiblePrimitives`를 비우고 Scene의 Proxy를 순회한다. Visible, Mesh Buffer 존재, 유효한 Bounds와 Frustum 교차를 검사한다. `bPrimitive`가 꺼져 있으면 결과가 비어 있다.
+`CullView()`는 Opaque Node를 추가할 View마다 `VisiblePrimitives`를 비우고 Scene의 Proxy를 순회한다. Visible, Mesh Buffer 존재, 유효한 Bounds와 Frustum 교차를 검사한다. `bPrimitive`가 꺼져 있으면 Opaque Node를 추가하지 않는다.
 
 가시성 결과는 패스의 입력이다. 향후 Shadow View나 다른 패스의 요구를 메인 View 가시성 하나로 대체하지 않는다.
 
@@ -224,27 +232,29 @@ Mesh가 없거나 Mesh Buffer가 유효하지 않으면 렌더용 Mesh 참조와
 
 현재 `FMeshDrawCommand`는 Proxy의 비소유 포인터와 uint32 SortKey만 담는다. GPU 명령 버퍼 자체가 아니라 불투명 패스 실행에 필요한 임시 선택 정보다.
 
-`VisiblePrimitives`는 SceneRenderer 멤버이며 View마다 다시 구성한다. `OpaqueCommands`는 `RenderOpaquePass()`의 지역 배열이며 가시 Primitive 수만큼 reserve한 뒤 명령을 추가·정렬·실행한다. View나 프레임 간 Draw Command 캐시는 없다.
+`VisiblePrimitives`는 SceneRenderer 멤버이며 View마다 다시 구성한다. `OpaqueCommands`는 `FOpaquePass::AddPass()`에서 생성되어 Opaque Node가 실행될 때까지 보관된다. 가시 Primitive 수만큼 reserve한 뒤 명령을 추가·정렬하며 View나 프레임 간 Draw Command 캐시는 없다.
 
 ```text
 GetProxies → CullView → VisiblePrimitives
-  → RenderOpaquePass의 OpaqueCommands
-  → stable_sort → UpdateConstant → DrawMeshBuffer
+  → FOpaquePass::AddPass의 OpaqueCommands와 View Constants
+  → Opaque Node 실행 → View/Draw 상수 바인딩 → Draw
 ```
 
 캐싱을 추가한다면 Mesh·Material·Pipeline 변경 시 무효화와 View 종속 데이터를 분리해야 한다. 배열을 멤버로 옮기는 것만으로 명령 캐시가 성립하지 않는다.
 
 ## Render Pass 관리
 
-### 현재 불투명 패스
+### 현재 Pass Node
 
-현재는 SceneRenderer의 `RenderOpaquePass()` 함수 하나가 명령 선택·정렬·실행을 담당한다. 별도 Render Pass 객체나 Pass registry는 없다. 모든 Geometry가 Common shader와 하나의 Graphics Pipeline을 사용한다.
+`FOpaquePass`와 `FGridPass`는 장기 수명 인스턴스를 만들지 않는 정적 Node Builder다. 각 `AddPass()` 호출은 현재 View의 상수와 Draw 데이터를 캡처한 임시 Node를 생성한다. Node 실행 함수는 공용 Registry와 Cache에서 얻은 Handle을 바인딩하고 Draw를 수행한다. 범용 Render Pass 기반 클래스나 Pass registry는 없다.
 
-Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. 이후 각 View 직전에 `RenderDevice.SetViewport(CommandList, View.Viewport)`를 실행한다. 각 View의 출력 영역은 Family 타깃 안에 있어야 한다. Family 종료 시 Back Buffer를 복구한다.
+`FShaderRegistry`는 Resource·EntryPoint·Stage Key별 Shader를, `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. 각 객체의 `Create()`는 `GShaderRegistry`, `GPipelineStateCache`에 현재 인스턴스를 연결하고 `Release()`는 이를 해제한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않는다. Primitive Geometry는 Common shader를 사용하고 Grid는 입력 레이아웃 없는 fullscreen triangle과 전용 Pixel Shader를 사용한다.
 
-### 목표: Render Pass 객체화와 고정 스케줄
+Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. 각 Pass Node는 실행 직전에 자신의 Viewport를 설정한다. 각 View의 출력 영역은 Family 타깃 안에 있어야 한다. Family 종료 시 Back Buffer를 복구한다.
 
-패스가 늘어나면 SceneRenderer가 구체적인 Pass 객체를 조율하도록 분리한다. Pass는 자신의 입력·출력, 명령 선택, Sort Key와 실행을 책임진다. 처음에는 구체 클래스와 고정 호출 순서로 구현하고 범용 기반 클래스나 동적 등록 체계는 실제 공통 계약이 확인될 때 도입한다.
+### 고정 Dependency Schedule
+
+SceneRenderer는 ViewFamily마다 지역 `FRenderGraph`를 만들고 구체 Pass Builder를 고정 순서로 호출한다. Pass Builder는 Node만 등록하고, SceneRenderer가 반환된 raw `uint32` Node Index를 사용해 `AddDependency()`로 고정 실행 순서를 연결한다. Pass Builder는 자신의 입력, 명령 선택, Sort Key, 상수와 실행 함수를 책임지며 선행 Pass를 알지 않는다. `URenderer`는 구체 Pass를 모르고 완성된 Graph만 실행한다.
 
 ```text
 목표 Forward 경로
@@ -288,7 +298,7 @@ Engine은 Renderer 모듈의 구체 D3D11 타입을 참조하지 않는다. Edit
 
 ### IRenderDevice
 
-Buffer·Texture·Shader·Graphics Pipeline 생성과 제거, Command List 시작·종료·Submit, 타깃·Viewport·버퍼·상수 바인딩과 Draw를 제공한다. GPU 자원은 엔진 Handle로 참조하며 Handle의 존재만으로 자원 수명이 연장되지는 않는다.
+Buffer·Texture·Shader·Pipeline State 생성과 제거, Command List 시작·종료·Submit, 타깃·Viewport·버퍼·상수 바인딩과 Draw를 제공한다. GPU 자원은 엔진 Handle로 참조하며 Handle의 존재만으로 자원 수명이 연장되지는 않는다.
 
 ### IRenderContext
 
@@ -306,7 +316,20 @@ Command allocator/list 재사용, descriptor 관리, resource state transition, 
 
 Viewport의 offscreen Color는 Render Target이면서 ImGui에서 읽는 Shader Resource이고 Depth는 DepthStencil 용도다. 현재 바인딩과 Clear는 Renderer가 수행하며 ImGui texture ID 변환은 GPU backend를 통해 처리한다.
 
-Graphics Pipeline은 Shader, Vertex Layout, Primitive Topology와 depth 설정을 묶는다. 현재 FGeometryVertex의 위치·색상 데이터와 Common shader를 사용하며 WorldViewProjection을 Vertex Shader 상수로 전달한다. Material별 texture·sampler·상수와 여러 Pipeline 조합은 후속 확장이다.
+Pipeline State는 Shader, Vertex Layout, Primitive Topology와 depth 설정을 묶는다. 현재 FGeometryVertex의 위치·색상 데이터와 Common shader를 사용하며 ViewProjection은 View 상수 `b0`, Model은 Draw 상수 `b3`으로 Vertex Shader에 전달한다. `FPipelineStateCache`가 동일한 Description의 생성을 중복하지 않으며 Material별 texture·sampler·상수와 여러 Pipeline State 조합은 후속 확장이다.
+
+### 상수 버퍼 슬롯 계약
+
+Shader Stage별 상수 버퍼 슬롯은 데이터의 의미와 갱신 빈도에 따라 다음과 같이 고정한다. Shader가 사용하지 않는 슬롯은 바인딩할 필요가 없지만, 사용하는 상수는 해당 의미의 슬롯에 선언하고 Pass 실행 시점에 바인딩한다.
+
+| 슬롯 | 의미 | 갱신 시점 |
+|---|---|---|
+| `b0` | View constants | View마다 한 번 |
+| `b1` | Pass constants | Pass마다 한 번 |
+| `b2` | Material constants | Material 변경 시 |
+| `b3` | Draw/Object constants | Draw마다 |
+
+현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용하고 Grid Pass는 Pixel Shader의 `b0`과 `b1`을 사용한다. 공용 `FViewConstants`는 ViewProjection, InverseViewProjection과 ViewOrigin을 보관한다. `b2`는 Material 시스템이 구현될 때 이 계약에 따라 사용한다.
 
 ## Material과 Pipeline 선택
 
@@ -314,9 +337,11 @@ Graphics Pipeline은 Shader, Vertex Layout, Primitive Topology와 depth 설정�
 
 Primitive 외의 Light나 다른 렌더 대상이 실제로 추가되면 해당 Proxy와 갱신 계약을 설계한다. 현재 `UMeshComponent&`를 받는 Proxy를 이미 범용 Proxy 계층인 것처럼 취급하지 않는다.
 
-## Render Graph 도입 기준
+## Render Graph
 
-Render Pass 객체화와 Render Graph 도입은 별개다. 우선 고정 스케줄에서 Pass의 책임을 분리한다. 임시 타깃 수명, 패스 간 읽기·쓰기 의존성, 상태 전이와 자원 재사용 관리가 복잡해질 때 Graph를 검토한다. 현재 Graph나 병렬 패스 스케줄러는 없다.
+현재 `FRenderGraph`는 한 ViewFamily 안에서만 존재하며 Pass Node, 실행 함수와 선행 Node Index 의존성을 보관한다. `URenderer::ExecuteRenderGraph()`가 의존성이 충족된 Node를 등록 순서에 안정적으로 실행하고 Graph는 실행 뒤 폐기된다. 별도 Render Graph Node Handle 타입은 두지 않는다.
+
+현재 Graph는 Texture read/write 선언, 자동 resource barrier, transient resource aliasing이나 병렬 스케줄링을 제공하지 않는다. 이러한 기능은 패스 간 임시 타깃과 상태 전이 관리가 실제로 필요해질 때 raw Node Index 의존성 위에 추가한다.
 
 ## 스레딩과 수명
 
@@ -358,20 +383,22 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 - Scene.GetProxies 기반 View별 Frustum Culling
 - ViewFamily와 offscreen Color·Depth 타깃
 - EditorEngine의 SceneRenderer 생성 및 Render(Renderer) 호출
-- 단일 불투명 함수 패스와 지역 OpaqueCommands 정렬·실행
+- ViewFamily마다 생성되고 실행 뒤 폐기되는 raw Node Index 기반 Dependency Render Graph
+- 임시 Opaque/Grid Node를 등록하는 상태 없는 Pass Builder
+- Render Device 수명 동안 Shader와 PSO를 소유하는 `FShaderRegistry`, `FPipelineStateCache`
 - D3D11 RHI, ImGui 출력 합성과 Submit·Present
 
 ### 미구현과 목표 순서
 
 | 단계 | 목표 | 완료 기준 |
 |---|---|---|
-| Pass 객체화 | 구체 Pass로 책임 분리, 고정 스케줄 | 현재 불투명 출력 유지, Pass별 입력·출력·정렬 명확화 |
+| Pass 확장 | Axis·Shadow 등 상태 없는 Node Builder와 Index 의존성 추가 | 현재 Opaque·Grid 출력 유지, Pass별 입력·출력·정렬 명확화 |
 | Material·Light 확장 | 패스 참여와 Pipeline 선택, Shadow·투명 등 추가 | View와 Pass별 명령 선택 및 정렬 검증 |
 | Render Thread | 전달 데이터와 렌더 상태 소유 분리 | Component 파괴·Resize·UI 수명과 프레임 순서 검증 |
 | D3D12 | backend 및 GPU 완료 기반 자원 관리 | 자원 전이·재사용·지연 해제 검증 |
-| 필요 시 Render Graph | 자원 의존성과 임시 타깃 관리 | 고정 스케줄보다 관리해야 할 복잡성을 실제로 줄임 |
+| Graph Resource 추적 | 자원 read/write, 상태 전이와 임시 타깃 관리 | 명시적 Node Index 의존성 위에서 자원 위험을 검증·해결 |
 
-Pass 객체화와 Render Thread 분리는 독립적인 변경으로 검증한다. Material과 모든 패스를 먼저 완성해야 Render Thread를 시작할 수 있다는 뜻은 아니다.
+Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. Material과 모든 패스를 먼저 완성해야 Render Thread를 시작할 수 있다는 뜻은 아니다.
 
 ## 검증 기준
 

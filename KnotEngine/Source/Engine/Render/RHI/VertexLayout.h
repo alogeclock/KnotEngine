@@ -35,7 +35,7 @@ struct ENGINE_API FVertexElement
 	bool operator==(const FVertexElement&) const = default;
 };
 
-// Graphics Pipeline과 Vertex Buffer가 공유하는 정점 입력 계약이다.
+// Pipeline State와 Vertex Buffer가 공유하는 정점 입력 계약이다.
 struct ENGINE_API FVertexLayout
 {
 	TArray<FVertexElement> Elements;

@@ -3,15 +3,16 @@
 #include "EngineAPI.h"
 
 #include "Render/RHI/RenderTypes.h"
+#include "Render/Resource/PipelineStateCache.h"
+#include "Render/Resource/ShaderRegistry.h"
 
 #include <span>
 
 class FIndexBuffer;
-class FMeshBuffer;
+class FRenderGraph;
 class FVertexBuffer;
 class IRenderContext;
 class IRenderDevice;
-struct FMatrix;
 
 class ENGINE_API URenderer
 {
@@ -30,13 +31,14 @@ public:
 
 	void BeginFrame();
 	void EndFrame();
+	void Execute(FRenderGraph& RenderGraph);
 
-	void UpdateConstant(const FMatrix& WorldViewProjection);
-	void DrawMeshBuffer(const FMeshBuffer& MeshBuffer);
 	void BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport);
 	void EndRenderTarget();
 
 	IRenderDevice& GetRenderDevice() const;
+	FShaderRegistry& GetShaderRegistry();
+	FPipelineStateCache& GetPipelineStateCache();
 	FCommandListHandle GetCommandList() const;
 	FRenderViewport GetViewport() const;
 
@@ -48,8 +50,7 @@ private:
 
 	IRenderDevice& RenderDevice;
 	IRenderContext& RenderContext;
-	FShaderHandle VertexShader;
-	FShaderHandle PixelShader;
-	FGraphicsPipelineHandle GraphicsPipeline;
+	FShaderRegistry ShaderRegistry;
+	FPipelineStateCache PipelineStateCache;
 	FCommandListHandle CommandList;
 };

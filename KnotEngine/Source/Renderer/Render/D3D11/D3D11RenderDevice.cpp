@@ -34,7 +34,7 @@ void FD3D11RenderDevice::Release()
 	bCommandListOpen = false;
 	AdvanceGeneration(CommandListGeneration);
 
-	PipelineSlots.clear();
+	PipelineStateSlots.clear();
 	ShaderSlots.clear();
 	TextureSlots.clear();
 	ConstantBufferBindings.clear();
@@ -204,22 +204,22 @@ void FD3D11RenderDevice::DestroyShader(FShaderHandle& Handle)
 	Handle.Reset();
 }
 
-// Shader, Vertex Layout, 출력 형식 및 고정 기능 상태를 하나의 Graphics Pipeline Handle로 묶는다.
-FGraphicsPipelineHandle FD3D11RenderDevice::CreateGraphicsPipeline(const FGraphicsPipelineDesc& Desc)
+// Shader, Vertex Layout, 출력 형식 및 고정 기능 상태를 하나의 Pipeline State Handle로 묶는다.
+FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStateDesc& Desc)
 {
 	FShaderSlot* VertexShader = ResolveShader(Desc.VertexShader);
 	FShaderSlot* PixelShader = ResolveShader(Desc.PixelShader);
-	panicf(VertexShader && VertexShader->Stage == EShaderStage::Vertex && VertexShader->VertexShader, "Graphics Pipeline에 유효한 Vertex Shader가 필요하다.");
-	panicf(PixelShader && PixelShader->Stage == EShaderStage::Pixel && PixelShader->PixelShader, "Graphics Pipeline에 유효한 Pixel Shader가 필요하다.");
-	panicf(!Desc.VertexLayout.Elements.empty() && Desc.VertexLayout.Stride > 0, "Graphics Pipeline에 유효한 Vertex Layout이 필요하다.");
+	panicf(VertexShader && VertexShader->Stage == EShaderStage::Vertex && VertexShader->VertexShader, "Pipeline State에 유효한 Vertex Shader가 필요하다.");
+	panicf(PixelShader && PixelShader->Stage == EShaderStage::Pixel && PixelShader->PixelShader, "Pipeline State에 유효한 Pixel Shader가 필요하다.");
+	panicf(Desc.VertexLayout.Elements.empty() == (Desc.VertexLayout.Stride == 0), "Pipeline State의 Vertex Layout 요소와 Stride가 일치하지 않는다.");
 	// TODO: Render Target 선택 API가 추가되면 현재 출력 대상의 Format과 Sample Count를 Pipeline 계약과 비교한다.
 	panicf(Desc.RenderTargetFormat == ETextureFormat::BGRA8UNorm,
-		"D3D11 Graphics Pipeline은 BGRA8UNorm Render Target만 지원한다. Value={}", static_cast<uint8>(Desc.RenderTargetFormat));
+		"D3D11 Pipeline State는 BGRA8UNorm Render Target만 지원한다. Value={}", static_cast<uint8>(Desc.RenderTargetFormat));
 	panicf(Desc.DepthStencilFormat == ETextureFormat::D24UNormS8UInt,
-		"지원하지 않는 Graphics Pipeline Depth Stencil Format. Value={}", static_cast<uint8>(Desc.DepthStencilFormat));
-	panicf(Desc.SampleCount == 1, "D3D11 Graphics Pipeline은 Sample Count 1만 지원한다. Value={}", Desc.SampleCount);
+		"지원하지 않는 Pipeline State Depth Stencil Format. Value={}", static_cast<uint8>(Desc.DepthStencilFormat));
+	panicf(Desc.SampleCount == 1, "D3D11 Pipeline State는 Sample Count 1만 지원한다. Value={}", Desc.SampleCount);
 
-	FPipelineSlot Slot;
+	FPipelineStateSlot Slot;
 	Slot.VertexShader = Desc.VertexShader;
 	Slot.PixelShader = Desc.PixelShader;
 	Slot.PrimitiveTopology = Desc.PrimitiveTopology;
@@ -242,10 +242,14 @@ FGraphicsPipelineHandle FD3D11RenderDevice::CreateGraphicsPipeline(const FGraphi
 		LayoutDescs.push_back(NativeElement);
 	}
 
-	HRESULT Result = NativeDevice.GetDevice()->CreateInputLayout(
-		LayoutDescs.data(), static_cast<UINT>(LayoutDescs.size()),
-		VertexShader->Bytecode->GetBufferPointer(), VertexShader->Bytecode->GetBufferSize(), Slot.InputLayout.GetAddressOf());
-	panicf(SUCCEEDED(Result) && Slot.InputLayout, "ID3D11Device::CreateInputLayout 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	HRESULT Result = S_OK;
+	if (!LayoutDescs.empty())
+	{
+		Result = NativeDevice.GetDevice()->CreateInputLayout(
+			LayoutDescs.data(), static_cast<UINT>(LayoutDescs.size()),
+			VertexShader->Bytecode->GetBufferPointer(), VertexShader->Bytecode->GetBufferSize(), Slot.InputLayout.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Slot.InputLayout, "ID3D11Device::CreateInputLayout 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	}
 
 	D3D11_DEPTH_STENCIL_DESC DepthDesc = {};
 	DepthDesc.DepthEnable = Desc.bDepthTestEnabled;
@@ -336,15 +340,15 @@ FGraphicsPipelineHandle FD3D11RenderDevice::CreateGraphicsPipeline(const FGraphi
 	panicf(SUCCEEDED(Result), "ID3D11Device::CreateRasterizerState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 
 	Slot.bValid = true;
-	panicf(PipelineSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Pipeline 슬롯 수가 uint32 범위를 초과했다.");
-	PipelineSlots.push_back(std::move(Slot));
-	return { static_cast<uint32>(PipelineSlots.size() - 1), PipelineSlots.back().Generation };
+	panicf(PipelineStateSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Pipeline State 슬롯 수가 uint32 범위를 초과했다.");
+	PipelineStateSlots.push_back(std::move(Slot));
+	return { static_cast<uint32>(PipelineStateSlots.size() - 1), PipelineStateSlots.back().Generation };
 }
 
-// Graphics Pipeline이 소유한 Input Layout과 고정 기능 상태 객체를 해제한다.
-void FD3D11RenderDevice::DestroyGraphicsPipeline(FGraphicsPipelineHandle& Handle)
+// Pipeline State가 소유한 Input Layout과 고정 기능 상태 객체를 해제한다.
+void FD3D11RenderDevice::DestroyPipelineState(FPipelineStateHandle& Handle)
 {
-	FPipelineSlot* Slot = ResolvePipeline(Handle);
+	FPipelineStateSlot* Slot = ResolvePipelineState(Handle);
 	if (Slot)
 	{
 		Slot->BlendState.Reset();
@@ -385,22 +389,22 @@ void FD3D11RenderDevice::Submit(FCommandListHandle& CommandList)
 }
 
 // Pipeline Handle에 묶인 Shader, Input Layout 및 고정 기능 상태를 Immediate Context에 설정한다.
-void FD3D11RenderDevice::SetGraphicsPipeline(FCommandListHandle CommandList, FGraphicsPipelineHandle Pipeline)
+void FD3D11RenderDevice::SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState)
 {
 	ValidateCommandList(CommandList);
-	FPipelineSlot* PipelineSlot = ResolvePipeline(Pipeline);
-	panic(PipelineSlot);
-	FShaderSlot* VertexShader = ResolveShader(PipelineSlot->VertexShader);
-	FShaderSlot* PixelShader = ResolveShader(PipelineSlot->PixelShader);
+	FPipelineStateSlot* PipelineStateSlot = ResolvePipelineState(PipelineState);
+	panic(PipelineStateSlot);
+	FShaderSlot* VertexShader = ResolveShader(PipelineStateSlot->VertexShader);
+	FShaderSlot* PixelShader = ResolveShader(PipelineStateSlot->PixelShader);
 	panic(VertexShader && PixelShader);
 
 	// ImGui 등 외부 렌더러가 Immediate Context 상태를 변경할 수 있으므로 프레임마다 전체 상태를 다시 설정한다.
 	ID3D11DeviceContext* Context = NativeDevice.GetContext();
-	Context->IASetInputLayout(PipelineSlot->InputLayout.Get());
+	Context->IASetInputLayout(PipelineStateSlot->InputLayout.Get());
 	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	Context->RSSetState(PipelineSlot->RasterizerState.Get());
-	Context->OMSetDepthStencilState(PipelineSlot->DepthStencilState.Get(), 0);
-	Context->OMSetBlendState(PipelineSlot->BlendState.Get(), nullptr, 0xffffffff);
+	Context->RSSetState(PipelineStateSlot->RasterizerState.Get());
+	Context->OMSetDepthStencilState(PipelineStateSlot->DepthStencilState.Get(), 0);
+	Context->OMSetBlendState(PipelineStateSlot->BlendState.Get(), nullptr, 0xffffffff);
 	Context->VSSetShader(VertexShader->VertexShader.Get(), nullptr, 0);
 	Context->PSSetShader(PixelShader->PixelShader.Get(), nullptr, 0);
 }
@@ -566,14 +570,14 @@ const FD3D11RenderDevice::FShaderSlot* FD3D11RenderDevice::ResolveShader(FShader
 	return Slot.Generation == Handle.Generation && Slot.Bytecode ? &Slot : nullptr;
 }
 
-// Index와 Generation이 일치하고 생성이 완료된 Pipeline 슬롯만 반환한다.
-FD3D11RenderDevice::FPipelineSlot* FD3D11RenderDevice::ResolvePipeline(FGraphicsPipelineHandle Handle)
+// Index와 Generation이 일치하고 생성이 완료된 Pipeline State 슬롯만 반환한다.
+FD3D11RenderDevice::FPipelineStateSlot* FD3D11RenderDevice::ResolvePipelineState(FPipelineStateHandle Handle)
 {
-	if (!Handle.IsValid() || Handle.Index >= PipelineSlots.size())
+	if (!Handle.IsValid() || Handle.Index >= PipelineStateSlots.size())
 	{
 		return nullptr;
 	}
-	FPipelineSlot& Slot = PipelineSlots[Handle.Index];
+	FPipelineStateSlot& Slot = PipelineStateSlots[Handle.Index];
 	return Slot.Generation == Handle.Generation && Slot.bValid ? &Slot : nullptr;
 }
 

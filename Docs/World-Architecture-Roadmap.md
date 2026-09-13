@@ -25,7 +25,7 @@ Knot Engine은 기존 Unreal Tick Scheduler와 호환할 필요가 없다. 전�
 
 Scene은 Proxy 배열만 소유하고 Proxy가 자신의 Dirty 플래그와 원본 Component 참조로 상태를 갱신한다. Component의 가상 Update나 World의 Dirty Component 대기 목록은 사용하지 않는다. 이 문서의 실행기 PendingAdds/PendingRemoves는 미래 Tick 등록 변경용이며 현재 Proxy 갱신 구조를 대체한 구현이 아니다.
 
-목표 EndFrame Phase는 현재 World.Tick 끝의 렌더 상태 확정 책임을 이어받는다. Render Thread가 도입되면 Game Thread에서 Dirty 데이터를 복사·제출하는 경계가 되며 Render Thread가 Component를 직접 읽지 않는다. Render Pass 객체화와 스레드 수명은 [Rendering-Architecture.md](Rendering-Architecture.md)의 목표를 따른다.
+목표 EndFrame Phase는 현재 World.Tick 끝의 렌더 상태 확정 책임을 이어받는다. Render Thread가 도입되면 Game Thread에서 Dirty 데이터를 복사·제출하는 경계가 되며 Render Thread가 Component를 직접 읽지 않는다. Render Graph와 스레드 수명은 [Rendering-Architecture.md](Rendering-Architecture.md)의 목표를 따른다.
 
 ## 목표 설계 원칙
 

@@ -13,6 +13,7 @@ FEditorViewportClient::FEditorViewportClient(FViewport& InViewport)
     : Viewport(InViewport)
 {
 	ShowFlags.bPrimitive = true;
+	ShowFlags.bGrid = true;
 }
 
 FEditorViewportClient::~FEditorViewportClient() = default;
@@ -209,7 +210,7 @@ FSceneView FEditorViewportClient::BuildSceneView()
 	const FMatrix View = FMatrix::MakeLookAt(Transform.ViewLocation, Transform.ViewLocation + Forward, Up);
 
 	const FMatrix Projection = !Transform.bIsOrtho
-		? FMatrix::MakePerspectiveFov(Transform.FOV, Transform.AspectRatio, Transform.NearClip, Transform.FarClip)
+		? FMatrix::MakePerspectiveFov(KMath::ToRadian(Transform.FOV), Transform.AspectRatio, Transform.NearClip, Transform.FarClip)
 		: FMatrix::MakeOrthographic(Transform.OrthoZoom, Transform.OrthoZoom / Transform.AspectRatio, Transform.NearClip, Transform.FarClip);
 	FSceneView SceneView;
 	SceneView.ViewMatrix = View;

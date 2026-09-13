@@ -1,14 +1,12 @@
 #include "Render/Scene/SceneRenderer.h"
 
 #include "Core/Assert.h"
+#include "Render/Graph/RenderGraph.h"
+#include "Render/Pass/GridPass.h"
+#include "Render/Pass/OpaquePass.h"
 #include "Render/Renderer.h"
-#include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/Scene.h"
 #include "Render/Resource/MeshTypes.h"
-
-#include <algorithm>
-#include <bit>
-#include <cmath>
 
 FSceneRenderer::FSceneRenderer(const FSceneViewFamily& InViewFamily)
 	: ViewFamily(InViewFamily)
@@ -18,7 +16,6 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily& InViewFamily)
 
 void FSceneRenderer::Render(URenderer& Renderer)
 {
-	IRenderDevice& RenderDevice = Renderer.GetRenderDevice();
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	const FSceneRenderTarget& Target = ViewFamily.RenderTarget;
 
@@ -27,6 +24,8 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	
 	// Family 전체를 한 번 Clear한다. 여러 View가 같은 타깃의 서로 다른 영역을 사용할 수 있다.
 	Renderer.BeginRenderTarget(Target.Color, Target.Depth, TargetViewport);
+	FRenderGraph RenderGraph;
+	uint32 PreviousNode = FRenderGraph::InvalidIndex;
 	for (const FSceneView& View : ViewFamily.Views)
 	{
 		check(View.Viewport.Width > 0.0f && View.Viewport.Height > 0.0f);
@@ -34,10 +33,28 @@ void FSceneRenderer::Render(URenderer& Renderer)
 		check(View.Viewport.TopLeftX + View.Viewport.Width <= Target.Width);
 		check(View.Viewport.TopLeftY + View.Viewport.Height <= Target.Height);
 
-		RenderDevice.SetViewport(CommandList, View.Viewport);
-		CullView(View);
-		RenderOpaquePass(Renderer, View);
+		VisiblePrimitives.clear();
+		if (ViewFamily.ShowFlags.bPrimitive)
+		{
+			CullView(View);
+			const uint32 OpaqueNode = FOpaquePass::AddPass(RenderGraph, Renderer, View, VisiblePrimitives);
+			if (PreviousNode != FRenderGraph::InvalidIndex)
+			{
+				RenderGraph.AddDependency(OpaqueNode, PreviousNode);
+			}
+			PreviousNode = OpaqueNode;
+		}
+		if (ViewFamily.ShowFlags.bGrid)
+		{
+			const uint32 GridNode = FGridPass::AddPass(RenderGraph, Renderer, View);
+			if (PreviousNode != FRenderGraph::InvalidIndex)
+			{
+				RenderGraph.AddDependency(GridNode, PreviousNode);
+			}
+			PreviousNode = GridNode;
+		}
 	}
+	Renderer.Execute(RenderGraph);
 
 	Renderer.EndRenderTarget();
 }
@@ -46,10 +63,6 @@ void FSceneRenderer::Render(URenderer& Renderer)
 void FSceneRenderer::CullView(const FSceneView& View)
 {
 	VisiblePrimitives.clear();
-	if (!ViewFamily.ShowFlags.bPrimitive)
-	{
-		return;
-	}
 	for (const auto& Entry : ViewFamily.Scene->GetProxies())
 	{
 		const FPrimitiveSceneProxy& Primitive = *Entry;
@@ -58,31 +71,5 @@ void FSceneRenderer::CullView(const FSceneView& View)
 		{
 			VisiblePrimitives.push_back(&Primitive);
 		}
-	}
-}
-
-// 현재는 단일 불투명 패스를 실행하므로, 렌더패스를 따로 객체화하지 않고 정렬 후 단순 Render까지 실행한다.
-void FSceneRenderer::RenderOpaquePass(URenderer& Renderer, const FSceneView& View)
-{
-	TArray<FMeshDrawCommand> OpaqueCommands;
-	OpaqueCommands.reserve(VisiblePrimitives.size());
-
-	// 양수 View depth의 비트 순서로 앞에서 뒤로 정렬한다.
-	for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
-	{
-		const float Depth = View.ViewMatrix.TransformPosition(Primitive->WorldBounds.GetCenter()).Z;
-		check(!std::isnan(Depth) && !std::isinf(Depth));
-		const uint32 SortKey = std::bit_cast<uint32>(std::max(0.0f, Depth));
-		OpaqueCommands.push_back({ Primitive, SortKey });
-	}
-
-	std::stable_sort(OpaqueCommands.begin(), OpaqueCommands.end(), [](const FMeshDrawCommand& Left, const FMeshDrawCommand& Right)
-	{
-		return Left.SortKey < Right.SortKey;
-	});
-	for (const FMeshDrawCommand& Command : OpaqueCommands)
-	{
-		Renderer.UpdateConstant(Command.Primitive->WorldMatrix * View.ViewProjectionMatrix);
-		Renderer.DrawMeshBuffer(*Command.Primitive->Mesh->GetMeshBuffer());
 	}
 }

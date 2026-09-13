@@ -1,8 +1,11 @@
 #include "resource.h"
 
+// ID, 리소스 타입과 실제 파일 경로를 연결하는 리소스 스크립트
+
 IDI_KNOTENGINE ICON "Contents\\Branding\\EngineIcon.ico"
 IDR_ENGINE_ICON_PNG RCDATA "Contents\\Branding\\EngineIcon.png"
 IDR_PRETENDARD_MEDIUM RCDATA "Contents\\Fonts\\Pretendard-Medium.otf"
 IDR_PRETENDARD_SEMIBOLD RCDATA "Contents\\Fonts\\Pretendard-SemiBold.otf"
 IDR_PRETENDARD_LICENSE RCDATA "Contents\\Fonts\\OFL-Pretendard.txt"
 IDR_COMMON_SHADER RCDATA "Shaders\\Common.hlsl"
+IDR_GRID_SHADER RCDATA "Shaders\\Grid.hlsl"

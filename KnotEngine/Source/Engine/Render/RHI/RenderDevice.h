@@ -33,8 +33,8 @@ public:
 	virtual FShaderHandle CreateShader(const FShaderDesc& Desc) = 0;
 	virtual void DestroyShader(FShaderHandle& Handle) = 0;
 
-	virtual FGraphicsPipelineHandle CreateGraphicsPipeline(const FGraphicsPipelineDesc& Desc) = 0;
-	virtual void DestroyGraphicsPipeline(FGraphicsPipelineHandle& Handle) = 0;
+	virtual FPipelineStateHandle CreatePipelineState(const FPipelineStateDesc& Desc) = 0;
+	virtual void DestroyPipelineState(FPipelineStateHandle& Handle) = 0;
 
 	// Command List는 한 번 Begin한 뒤 End와 Submit을 순서대로 호출해야 한다.
 	virtual FCommandListHandle BeginCommandList() = 0;
@@ -43,7 +43,7 @@ public:
 	virtual void Submit(FCommandListHandle& CommandList) = 0;
 
 	// 아래 함수는 열린 Command List에 Graphics 상태 및 Draw 명령을 기록한다.
-	virtual void SetGraphicsPipeline(FCommandListHandle CommandList, FGraphicsPipelineHandle Pipeline) = 0;
+	virtual void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) = 0;
 	virtual void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset = 0) = 0;
 	virtual void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset = 0) = 0;
 	virtual void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) = 0;

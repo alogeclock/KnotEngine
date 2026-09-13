@@ -1,19 +1,15 @@
 #include "Render/Renderer.h"
 
 #include "Core/Assert.h"
-#include "Core/Math/Matrix.h"
+#include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Resource/Buffer.h"
-#include "Render/Resource/MeshResources.h"
-#include "Render/Resource/VertexTypes.h"
-#include "Source/Resource/resource.h"
 
-#include <Windows.h>
 #include <limits>
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext)
-	: RenderDevice(InRenderDevice), RenderContext(InRenderContext)
+	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
 {
 }
 
@@ -25,6 +21,16 @@ URenderer::~URenderer()
 IRenderDevice& URenderer::GetRenderDevice() const
 {
 	return RenderDevice;
+}
+
+FShaderRegistry& URenderer::GetShaderRegistry()
+{
+	return ShaderRegistry;
+}
+
+FPipelineStateCache& URenderer::GetPipelineStateCache()
+{
+	return PipelineStateCache;
 }
 
 FCommandListHandle URenderer::GetCommandList() const
@@ -42,38 +48,15 @@ void URenderer::Create(void* NativeWindowHandle)
 	Release();
 	RenderDevice.Create();
 	RenderContext.Create(NativeWindowHandle);
-
-	static const auto LoadResourceBytes = [](uint32 ResourceId)
-	{
-		HMODULE Module = GetModuleHandleW(nullptr);
-		HRSRC ResourceInfo = FindResourceW(Module, MAKEINTRESOURCEW(ResourceId), RT_RCDATA);
-		panicf(ResourceInfo, "내장 리소스를 찾지 못했습니다. ResourceId={}", ResourceId);
-		HGLOBAL ResourceData = LoadResource(Module, ResourceInfo);
-		panicf(ResourceData, "내장 리소스를 불러오지 못했습니다. ResourceId={}", ResourceId);
-		const DWORD ResourceSize = SizeofResource(Module, ResourceInfo);
-		const auto* Bytes = static_cast<const uint8*>(LockResource(ResourceData));
-		panicf(Bytes && ResourceSize > 0, "내장 리소스 데이터가 비어 있습니다. ResourceId={}", ResourceId);
-		return std::span<const uint8>(Bytes, ResourceSize);
-	};
-	const std::span<const uint8> ShaderSource = LoadResourceBytes(IDR_COMMON_SHADER);
-	VertexShader = RenderDevice.CreateShader({ ShaderSource, "Common.hlsl", "VS", EShaderStage::Vertex });
-	PixelShader = RenderDevice.CreateShader({ ShaderSource, "Common.hlsl", "PS", EShaderStage::Pixel });
-	GraphicsPipeline = RenderDevice.CreateGraphicsPipeline({
-		VertexShader,
-		PixelShader,
-		FGeometryVertex::GetVertexLayout(),
-		EPrimitiveTopology::TriangleList,
-		true,
-		true,
-	});
+	ShaderRegistry.Create();
+	PipelineStateCache.Create();
 }
 
 void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
-	RenderDevice.DestroyGraphicsPipeline(GraphicsPipeline);
-	RenderDevice.DestroyShader(PixelShader);
-	RenderDevice.DestroyShader(VertexShader);
+	PipelineStateCache.Release();
+	ShaderRegistry.Release();
 	RenderContext.Release();
 	RenderDevice.Release();
 }
@@ -89,7 +72,6 @@ void URenderer::BeginFrame()
 	checkf(!CommandList.IsValid(), "Renderer Frame이 이미 시작되었다.");
 	CommandList = RenderDevice.BeginCommandList();
 	RenderContext.BeginFrame(CommandList);
-	RenderDevice.SetGraphicsPipeline(CommandList, GraphicsPipeline);
 }
 
 void URenderer::EndFrame()
@@ -101,32 +83,10 @@ void URenderer::EndFrame()
 	RenderContext.Present();
 }
 
-void URenderer::UpdateConstant(const FMatrix& WorldViewProjection)
+void URenderer::Execute(FRenderGraph& RenderGraph)
 {
 	check(CommandList.IsValid());
-	const auto* Bytes = reinterpret_cast<const uint8*>(&WorldViewProjection);
-	RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, 0, std::span<const uint8>(Bytes, sizeof(FMatrix)));
-}
-
-void URenderer::DrawMeshBuffer(const FMeshBuffer& MeshBuffer)
-{
-	check(CommandList.IsValid());
-	checkf(MeshBuffer.IsValid(), "유효하지 않은 FMeshBuffer가 DrawMeshBuffer로 전달되었다.");
-	checkf(MeshBuffer.GetLayout() == FGeometryVertex::GetVertexLayout(),
-		"현재 Geometry Pipeline과 호환되지 않는 Vertex Layout이다.");
-
-	RenderDevice.SetVertexBuffer(
-		CommandList, MeshBuffer.GetVertexBuffer().GetHandle(), MeshBuffer.GetStride());
-	if (MeshBuffer.GetIndexCount() > 0)
-	{
-		RenderDevice.SetIndexBuffer(
-			CommandList, MeshBuffer.GetIndexBuffer().GetHandle(), EIndexFormat::UInt32);
-		RenderDevice.DrawIndexed(CommandList, MeshBuffer.GetIndexCount());
-	}
-	else
-	{
-		RenderDevice.Draw(CommandList, MeshBuffer.GetVertexCount());
-	}
+	RenderGraph.Execute();
 }
 
 // World를 offscreen Color/Depth Target에 렌더링하도록 출력 대상과 Viewport를 설정하고 이전 프레임의 내용을 초기화한다.
@@ -138,7 +98,6 @@ void URenderer::BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle Dep
 	RenderDevice.SetViewport(CommandList, Viewport);
 	RenderDevice.ClearRenderTarget(CommandList, ColorTarget, ViewportClearColor);
 	RenderDevice.ClearDepthStencil(CommandList, DepthTarget, 1.0f, 0);
-	RenderDevice.SetGraphicsPipeline(CommandList, GraphicsPipeline);
 }
 
 // Offscreen RTV 바인딩을 끝내고 Back Buffer를 복구하여 이후 ImGui가 Color Target의 SRV를 화면에 렌더링할 수 있게 한다.

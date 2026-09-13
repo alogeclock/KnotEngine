@@ -567,9 +567,9 @@ ImGui capture 상태는 `NewFrame()` 직후와 모든 Panel 구성 이후 두 �
 
 각 World는 Viewport 개수와 무관하게 한 번 Tick한다. Component의 변경은 Proxy 자체에 Dirty로 표시되고 World.Tick 마지막에 지속적인 Scene Proxy에 반영되며 전체 Snapshot은 만들지 않는다. EditorEngine이 Family마다 FSceneRenderer를 지역 객체로 생성하고 Render(Renderer)를 호출한다. FSceneRenderer는 View별 컬링과 불투명 패스 정렬을 수행한다.
 
-현재는 전용 Render Thread와 ImGui Context mutex가 없다. SceneRenderer는 Proxy 갱신을 수행하지 않고 GetProxies()로 확정된 상태를 읽는다. OpaqueCommands는 불투명 패스의 지역 배열이며 프레임 간 캐시는 없다.
+현재는 전용 Render Thread와 ImGui Context mutex가 없다. SceneRenderer는 Proxy 갱신을 수행하지 않고 GetProxies()로 확정된 상태를 읽는다. OpaqueCommands는 `FOpaquePass::AddPass()`가 만드는 임시 Node 데이터이며 프레임 간 캐시는 없다.
 
-Render Thread 분리와 Render Pass 객체화는 향후 목표다. UI 구성은 메인 스레드에 유지하고, 비동기 렌더링에는 ViewFamily·타깃·ImGui draw data의 수명 보장이 필요하다. 다중 렌더 worker는 현재 목표 범위에 포함하지 않는다. 구체 경계는 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
+Render Thread 분리와 Render Graph의 자원 추적은 향후 목표다. UI 구성은 메인 스레드에 유지하고, 비동기 렌더링에는 ViewFamily·타깃·ImGui draw data의 수명 보장이 필요하다. 다중 렌더 worker는 현재 목표 범위에 포함하지 않는다. 구체 경계는 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 
 Native 출력이 0 크기면 GPU 프레임을 생략한다. ViewFamily가 없어도 창 출력이 유효하면 UI 합성과 Present는 수행한다.
 
@@ -649,7 +649,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 
 ### 미구현
 
-- Render Thread 분리와 Render Pass 객체화
+- Render Thread 분리와 Render Graph 자원 추적
 - 기즈모
 - Content 탐색과 Asset Registry 연결
 - Component 단위 선택

@@ -42,14 +42,14 @@ public:
 	FShaderHandle CreateShader(const FShaderDesc& Desc) override;
 	void DestroyShader(FShaderHandle& Handle) override;
 
-	FGraphicsPipelineHandle CreateGraphicsPipeline(const FGraphicsPipelineDesc& Desc) override;
-	void DestroyGraphicsPipeline(FGraphicsPipelineHandle& Handle) override;
+	FPipelineStateHandle CreatePipelineState(const FPipelineStateDesc& Desc) override;
+	void DestroyPipelineState(FPipelineStateHandle& Handle) override;
 
 	FCommandListHandle BeginCommandList() override;
 	void EndCommandList(FCommandListHandle CommandList) override;
 	void Submit(FCommandListHandle& CommandList) override;
 
-	void SetGraphicsPipeline(FCommandListHandle CommandList, FGraphicsPipelineHandle Pipeline) override;
+	void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) override;
 	void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset) override;
 	void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset) override;
 	void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) override;
@@ -87,7 +87,7 @@ private:
 		uint32 Generation = 1;
 	};
 
-	struct FPipelineSlot
+	struct FPipelineStateSlot
 	{
 		Microsoft::WRL::ComPtr<ID3D11BlendState> BlendState;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilState> DepthStencilState;
@@ -112,7 +112,7 @@ private:
 	void ValidateCommandList(FCommandListHandle CommandList) const;
 	FShaderSlot* ResolveShader(FShaderHandle Handle);
 	const FShaderSlot* ResolveShader(FShaderHandle Handle) const;
-	FPipelineSlot* ResolvePipeline(FGraphicsPipelineHandle Handle);
+	FPipelineStateSlot* ResolvePipelineState(FPipelineStateHandle Handle);
 	FTextureSlot* ResolveTexture(FTextureHandle Handle);
 	const FTextureSlot* ResolveTexture(FTextureHandle Handle) const;
 	static void AdvanceGeneration(uint32& Generation);
@@ -122,7 +122,7 @@ private:
 	FD3D11BufferPool BufferPool;
 	std::vector<FTextureSlot> TextureSlots;
 	std::vector<FShaderSlot> ShaderSlots;
-	std::vector<FPipelineSlot> PipelineSlots;
+	std::vector<FPipelineStateSlot> PipelineStateSlots;
 	std::vector<FConstantBufferBinding> ConstantBufferBindings;
 	uint32 CommandListGeneration = 1;
 	bool bCommandListOpen = false;

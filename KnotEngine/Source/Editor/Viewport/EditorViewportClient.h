@@ -19,7 +19,7 @@ class FEditorViewportClient : public IInputTarget
 public:
 	static constexpr float DefaultCameraSpeed = 5.0f;
 	static constexpr float MinCameraSpeed = 0.1f;
-	static constexpr float MaxCameraSpeed = 20.0f;
+	static constexpr float MaxCameraSpeed = 50.0f;
 
 	explicit FEditorViewportClient(FViewport& InViewport);
 	virtual ~FEditorViewportClient();

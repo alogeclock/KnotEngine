@@ -1,8 +1,11 @@
 #pragma once
 
+// 리소스의 숫자 ID에 심볼 이름을 부여
+
 #define IDI_KNOTENGINE 101
 #define IDR_ENGINE_ICON_PNG 201
 #define IDR_PRETENDARD_MEDIUM 202
 #define IDR_PRETENDARD_SEMIBOLD 203
 #define IDR_PRETENDARD_LICENSE 204
 #define IDR_COMMON_SHADER 205
+#define IDR_GRID_SHADER 206

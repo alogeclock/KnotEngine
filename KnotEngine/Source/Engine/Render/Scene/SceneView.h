@@ -16,6 +16,16 @@ struct FSceneView
 	FRenderViewport Viewport;
 };
 
+// Shader Stage의 b0에 바인딩하는 View 단위 공용 상수다.
+struct alignas(16) FViewConstants
+{
+	FMatrix ViewProjection;
+	FMatrix InverseViewProjection;
+	FVector ViewOrigin;
+	float Padding;
+};
+static_assert(sizeof(FViewConstants) == 144);
+
 struct FShowFlags
 {
 	bool bPrimitive = false;

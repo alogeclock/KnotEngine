@@ -110,6 +110,16 @@ void FViewportPanel::DrawToolbar()
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
 				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted("FOV");
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-1.0f);
+				ImGui::BeginDisabled(ViewTransform.bIsOrtho);
+				ImGui::DragFloat("##CameraFOV", &ViewTransform.FOV, 0.1f, 30.0f, 120.0f, "%.1f deg", ImGuiSliderFlags_AlwaysClamp);
+				ImGui::EndDisabled();
+
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				ImGui::AlignTextToFramePadding();
 				ImGui::TextUnformatted("Sensitivity");
 				ImGui::TableSetColumnIndex(1);
 				const ImGuiStyle& Style = ImGui::GetStyle();
