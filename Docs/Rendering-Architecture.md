@@ -39,7 +39,8 @@ UEditorEngine
            │             ├─ View별 CullView
            │             ├─ FOpaquePass::AddPass
            │             ├─ FGridPass::AddPass
-           │             └─ URenderer::ExecuteRenderGraph
+           │             ├─ FAxisPass::AddPass
+           │             └─ URenderer::Execute
            ├─ FImGuiSystem::Render
            └─ URenderer::EndFrame → Submit → Present
 ```
@@ -69,7 +70,8 @@ KnotEngine/Source/
 │     ├─ Graph/RenderGraph.h/.cpp
 │     ├─ Pass/
 │     │  ├─ OpaquePass.h/.cpp
-│     │  └─ GridPass.h/.cpp
+│     │  ├─ GridPass.h/.cpp
+│     │  └─ AxisPass.h/.cpp
 │     ├─ Scene/
 │     │  ├─ Scene.h/.cpp
 │     │  ├─ SceneView.h
@@ -220,7 +222,7 @@ Mesh가 없거나 Mesh Buffer가 유효하지 않으면 렌더용 Mesh 참조와
 
 `FEditorViewportCameraTransform`, `EEditorViewportViewMode`, `FEditorViewportCamera`는 `EditorViewportCamera.h/.cpp`에 모여 있다. 카메라 입력 정책은 [Editor-Architecture.md](Editor-Architecture.md)에서 설명한다.
 
-현재 ShowFlags는 `bPrimitive`, `bAxis`, `bGrid`다. Primitive 표시와 절두체 컬링 경로 및 Pixel Shader 기반 Grid Pass가 구현되어 있고 Axis Pass는 아직 없다.
+현재 ShowFlags는 `bPrimitive`, `bAxis`, `bGrid`다. Primitive 표시와 절두체 컬링 경로, Grid·Axis Pass가 구현되어 있다. Axis Pass는 World 원점부터 양의 X·Y·Z 방향으로 뻗는 무한 반직선을 각각 빨강·초록·파랑으로 표시한다.
 
 ### 가시 Primitive 수집과 Draw Command 수집
 
@@ -246,15 +248,17 @@ GetProxies → CullView → VisiblePrimitives
 
 ### 현재 Pass Node
 
-`FOpaquePass`와 `FGridPass`는 장기 수명 인스턴스를 만들지 않는 정적 Node Builder다. 각 `AddPass()` 호출은 현재 View의 상수와 Draw 데이터를 캡처한 임시 Node를 생성한다. Node 실행 함수는 공용 Registry와 Cache에서 얻은 Handle을 바인딩하고 Draw를 수행한다. 범용 Render Pass 기반 클래스나 Pass registry는 없다.
+`FOpaquePass`, `FGridPass`, `FAxisPass`는 장기 수명 인스턴스를 만들지 않는 정적 Node Builder다. 각 `AddPass()` 호출은 현재 View의 상수와 Draw 데이터를 캡처한 임시 Node를 생성한다. Node 실행 함수는 공용 Registry와 Cache에서 얻은 Handle을 바인딩하고 Draw를 수행한다. 범용 Render Pass 기반 클래스나 Pass registry는 없다.
 
-`FShaderRegistry`는 Resource·EntryPoint·Stage Key별 Shader를, `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. 각 객체의 `Create()`는 `GShaderRegistry`, `GPipelineStateCache`에 현재 인스턴스를 연결하고 `Release()`는 이를 해제한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않는다. Primitive Geometry는 Common shader를 사용하고 Grid는 입력 레이아웃 없는 fullscreen triangle과 전용 Pixel Shader를 사용한다.
+`FShaderRegistry`는 Resource·EntryPoint·Stage Key별 Shader를, `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. 각 객체의 `Create()`는 `GShaderRegistry`, `GPipelineStateCache`에 현재 인스턴스를 연결하고 `Release()`는 이를 해제한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않는다. Primitive Geometry는 Common shader를 사용한다. Grid는 입력 레이아웃 없는 fullscreen triangle을, Axis는 `SV_VertexID`로 만든 세 개의 절차적 LineList를 사용한다.
 
 Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. 각 Pass Node는 실행 직전에 자신의 Viewport를 설정한다. 각 View의 출력 영역은 Family 타깃 안에 있어야 한다. Family 종료 시 Back Buffer를 복구한다.
 
 ### 고정 Dependency Schedule
 
 SceneRenderer는 ViewFamily마다 지역 `FRenderGraph`를 만들고 구체 Pass Builder를 고정 순서로 호출한다. Pass Builder는 Node만 등록하고, SceneRenderer가 반환된 raw `uint32` Node Index를 사용해 `AddDependency()`로 고정 실행 순서를 연결한다. Pass Builder는 자신의 입력, 명령 선택, Sort Key, 상수와 실행 함수를 책임지며 선행 Pass를 알지 않는다. `URenderer`는 구체 Pass를 모르고 완성된 Graph만 실행한다.
+
+현재 구현된 View별 순서는 `Opaque → Grid → Axis`다. ShowFlag가 꺼진 Pass는 Node를 만들지 않고, 다음 Node는 실제로 추가된 마지막 Node에 의존한다.
 
 ```text
 목표 Forward 경로
@@ -329,7 +333,7 @@ Shader Stage별 상수 버퍼 슬롯은 데이터의 의미와 갱신 빈도에 
 | `b2` | Material constants | Material 변경 시 |
 | `b3` | Draw/Object constants | Draw마다 |
 
-현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용하고 Grid Pass는 Pixel Shader의 `b0`과 `b1`을 사용한다. 공용 `FViewConstants`는 ViewProjection, InverseViewProjection과 ViewOrigin을 보관한다. `b2`는 Material 시스템이 구현될 때 이 계약에 따라 사용한다.
+현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용하고 Grid Pass는 Pixel Shader의 `b0`과 `b1`, Axis Pass는 Vertex·Pixel Shader의 `b0`을 사용한다. 공용 `FViewConstants`는 ViewProjection, InverseViewProjection, ViewOrigin과 FarClip을 보관한다. Grid와 Axis는 FarClip 이전의 같은 구간에서 거리 페이드하며, 선 너비와 Axis 색상은 현재 셰이더 기본값으로 고정한다. `b2`는 Material 시스템이 구현될 때 이 계약에 따라 사용한다.
 
 ## Material과 Pipeline 선택
 
@@ -339,7 +343,7 @@ Primitive 외의 Light나 다른 렌더 대상이 실제로 추가되면 해당 
 
 ## Render Graph
 
-현재 `FRenderGraph`는 한 ViewFamily 안에서만 존재하며 Pass Node, 실행 함수와 선행 Node Index 의존성을 보관한다. `URenderer::ExecuteRenderGraph()`가 의존성이 충족된 Node를 등록 순서에 안정적으로 실행하고 Graph는 실행 뒤 폐기된다. 별도 Render Graph Node Handle 타입은 두지 않는다.
+현재 `FRenderGraph`는 한 ViewFamily 안에서만 존재하며 Pass Node, 실행 함수와 선행 Node Index 의존성을 보관한다. `URenderer::Execute()`가 의존성이 충족된 Node를 등록 순서에 안정적으로 실행하고 Graph는 실행 뒤 폐기된다. 별도 Render Graph Node Handle 타입은 두지 않는다.
 
 현재 Graph는 Texture read/write 선언, 자동 resource barrier, transient resource aliasing이나 병렬 스케줄링을 제공하지 않는다. 이러한 기능은 패스 간 임시 타깃과 상태 전이 관리가 실제로 필요해질 때 raw Node Index 의존성 위에 추가한다.
 
@@ -384,7 +388,7 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 - ViewFamily와 offscreen Color·Depth 타깃
 - EditorEngine의 SceneRenderer 생성 및 Render(Renderer) 호출
 - ViewFamily마다 생성되고 실행 뒤 폐기되는 raw Node Index 기반 Dependency Render Graph
-- 임시 Opaque/Grid Node를 등록하는 상태 없는 Pass Builder
+- 임시 Opaque/Grid/Axis Node를 등록하는 상태 없는 Pass Builder
 - Render Device 수명 동안 Shader와 PSO를 소유하는 `FShaderRegistry`, `FPipelineStateCache`
 - D3D11 RHI, ImGui 출력 합성과 Submit·Present
 
@@ -392,7 +396,7 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 
 | 단계 | 목표 | 완료 기준 |
 |---|---|---|
-| Pass 확장 | Axis·Shadow 등 상태 없는 Node Builder와 Index 의존성 추가 | 현재 Opaque·Grid 출력 유지, Pass별 입력·출력·정렬 명확화 |
+| Pass 확장 | Shadow 등 상태 없는 Node Builder와 Index 의존성 추가 | 현재 Opaque·Grid·Axis 출력 유지, Pass별 입력·출력·정렬 명확화 |
 | Material·Light 확장 | 패스 참여와 Pipeline 선택, Shadow·투명 등 추가 | View와 Pass별 명령 선택 및 정렬 검증 |
 | Render Thread | 전달 데이터와 렌더 상태 소유 분리 | Component 파괴·Resize·UI 수명과 프레임 순서 검증 |
 | D3D12 | backend 및 GPU 완료 기반 자원 관리 | 자원 전이·재사용·지연 해제 검증 |

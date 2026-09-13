@@ -17,20 +17,22 @@ cbuffer ViewConstants : register(b0)
     row_major float4x4 ViewProjection;
     row_major float4x4 InverseViewProjection;
     float3 ViewOrigin;
-    float ViewPadding;
+    float FarClip;
 };
 
 // b1은 Pass마다 한 번 갱신하는 상수 슬롯이다.
 cbuffer GridConstants : register(b1)
 {
-    float FadeDistance;
     float GridSpacing;
     float MajorGridInterval;
-    float LineWidth;
+    float2 Padding;
 
     float4 MinorColor;
     float4 MajorColor;
 };
+
+static const float GridLineWidth = 1.0f;
+static const float FadeDistance = 20000.0f;
 
 // 정점 버퍼 없이 현재 Viewport 전체를 덮는 삼각형을 만든다.
 VS_OUTPUT VS(uint VertexId : SV_VertexID)
@@ -70,17 +72,19 @@ PS_OUTPUT PS(VS_OUTPUT Input)
     float2 MinorCoordinates = WorldPosition.xy / GridSpacing;
     float2 MinorDerivatives = max(fwidth(MinorCoordinates), 0.00001f);
     float2 MinorDistance = abs(frac(MinorCoordinates - 0.5f) - 0.5f) / MinorDerivatives;
-    float MinorAlpha = saturate(LineWidth - min(MinorDistance.x, MinorDistance.y));
+    float MinorAlpha = saturate(GridLineWidth - min(MinorDistance.x, MinorDistance.y));
 
     // 일정 간격마다 더 밝은 Major Grid를 같은 방식으로 계산한다.
     float2 MajorCoordinates = WorldPosition.xy / MajorGridSpacing;
     float2 MajorDerivatives = max(fwidth(MajorCoordinates), 0.00001f);
     float2 MajorDistance = abs(frac(MajorCoordinates - 0.5f) - 0.5f) / MajorDerivatives;
-    float MajorAlpha = saturate(LineWidth - min(MajorDistance.x, MajorDistance.y));
+    float MajorAlpha = saturate(GridLineWidth - min(MajorDistance.x, MajorDistance.y));
 
-    // View에서 멀어질수록 Grid를 페이드하고 두 Grid 단계의 색상과 Alpha를 합성한다.
-    float DistanceFromView = length(WorldPosition.xy - ViewOrigin.xy);
-    float Fade = 1.0f - smoothstep(FadeDistance * 0.5f, FadeDistance, DistanceFromView);
+    // Far Plane에서 갑자기 잘리지 않도록 View와의 3차원 거리로 먼저 페이드한다.
+    float DistanceFromView = length(WorldPosition - ViewOrigin);
+    float FadeStart = min(FadeDistance * 0.5f, FarClip * 0.8f);
+    float FadeEnd = min(FadeDistance, FarClip * 0.95f);
+    float Fade = 1.0f - smoothstep(FadeStart, FadeEnd, DistanceFromView);
     float4 GridColor = lerp(MinorColor, MajorColor, MajorAlpha);
     GridColor.a *= max(MinorAlpha, MajorAlpha) * Fade;
     if (GridColor.a <= 0.0f)

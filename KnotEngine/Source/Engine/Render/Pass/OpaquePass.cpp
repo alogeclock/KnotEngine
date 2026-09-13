@@ -51,7 +51,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 		View.ViewProjectionMatrix,
 		View.ViewProjectionMatrix.GetInverse(),
 		View.ViewOrigin,
-		0.0f,
+		View.FarClip,
 	};
 	const FRenderViewport Viewport = View.Viewport;
 	return Graph.AddPass("Opaque", [RenderDevice, CommandList, PipelineState, Viewport, ViewConstants, OpaqueCommands = std::move(OpaqueCommands)]()

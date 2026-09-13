@@ -401,7 +401,10 @@ void FD3D11RenderDevice::SetPipelineState(FCommandListHandle CommandList, FPipel
 	// ImGui 등 외부 렌더러가 Immediate Context 상태를 변경할 수 있으므로 프레임마다 전체 상태를 다시 설정한다.
 	ID3D11DeviceContext* Context = NativeDevice.GetContext();
 	Context->IASetInputLayout(PipelineStateSlot->InputLayout.Get());
-	Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const D3D11_PRIMITIVE_TOPOLOGY PrimitiveTopology = PipelineStateSlot->PrimitiveTopology == EPrimitiveTopology::TriangleList
+		? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		: D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+	Context->IASetPrimitiveTopology(PrimitiveTopology);
 	Context->RSSetState(PipelineStateSlot->RasterizerState.Get());
 	Context->OMSetDepthStencilState(PipelineStateSlot->DepthStencilState.Get(), 0);
 	Context->OMSetBlendState(PipelineStateSlot->BlendState.Get(), nullptr, 0xffffffff);

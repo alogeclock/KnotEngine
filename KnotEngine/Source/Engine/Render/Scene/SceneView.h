@@ -12,6 +12,7 @@ struct FSceneView
 	FMatrix ProjectionMatrix;
 	FMatrix ViewProjectionMatrix;
 	FVector ViewOrigin;
+	float FarClip = 0.0f;
 	FFrustum Frustum;
 	FRenderViewport Viewport;
 };
@@ -22,7 +23,7 @@ struct alignas(16) FViewConstants
 	FMatrix ViewProjection;
 	FMatrix InverseViewProjection;
 	FVector ViewOrigin;
-	float Padding;
+	float FarClip;
 };
 static_assert(sizeof(FViewConstants) == 144);
 

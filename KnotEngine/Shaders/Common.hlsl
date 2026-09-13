@@ -17,7 +17,7 @@ cbuffer ViewConstants : register(b0)
 	row_major float4x4 ViewProjection;
 	row_major float4x4 InverseViewProjection;
 	float3 ViewOrigin;
-	float ViewPadding;
+	float FarClip;
 };
 
 // b3은 Object Draw마다 갱신하는 상수 슬롯이다.

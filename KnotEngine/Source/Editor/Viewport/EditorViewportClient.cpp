@@ -13,6 +13,7 @@ FEditorViewportClient::FEditorViewportClient(FViewport& InViewport)
     : Viewport(InViewport)
 {
 	ShowFlags.bPrimitive = true;
+	ShowFlags.bAxis = true;
 	ShowFlags.bGrid = true;
 }
 
@@ -47,7 +48,7 @@ void FEditorViewportClient::Tick(float DeltaTime)
 		return;
 	}
 
-	const FVector MoveDelta = MoveDirection * Camera.CameraSpeed * DeltaTime;
+	const FVector MoveDelta = MoveDirection * CameraMoveSpeed * Camera.Sensitivity * DeltaTime;
 	Camera.ViewTransform.TranslateWorld(MoveDelta);
 }
 
@@ -124,7 +125,7 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 		else
 		{
 			static constexpr float WheelMoveMultiplier = 0.2f;
-			Camera.ViewTransform.TranslateLocal(FVector(WheelDelta * Camera.CameraSpeed * WheelMoveMultiplier, 0.0f, 0.0f));
+			Camera.ViewTransform.TranslateLocal(FVector(WheelDelta * CameraMoveSpeed * Camera.Sensitivity * WheelMoveMultiplier, 0.0f, 0.0f));
 		}
 		return FInputReply::Handled();
 	}
@@ -145,7 +146,7 @@ void FEditorViewportClient::OnMouseCaptureLost()
 void FEditorViewportClient::OnCameraStateChanged()
 {
 	FEditorViewportCameraTransform& ViewTransform = Camera.ViewTransform;
-	Camera.CameraSpeed = std::clamp(Camera.CameraSpeed, MinCameraSpeed, MaxCameraSpeed);
+	Camera.Sensitivity = std::clamp(Camera.Sensitivity, MinCameraSensitivity, MaxCameraSensitivity);
 	ViewTransform.bIsOrtho = Camera.ViewMode != EEditorViewportViewMode::Perspective;
 	if (!ViewTransform.bIsOrtho)
 	{
@@ -217,6 +218,7 @@ FSceneView FEditorViewportClient::BuildSceneView()
 	SceneView.ProjectionMatrix = Projection;
 	SceneView.ViewProjectionMatrix = View * Projection;
 	SceneView.ViewOrigin = Transform.ViewLocation;
+	SceneView.FarClip = Transform.FarClip;
 	SceneView.Viewport = ViewportInfo;
 	SceneView.Frustum.UpdateFromCamera(SceneView.ViewProjectionMatrix);
 	return SceneView;

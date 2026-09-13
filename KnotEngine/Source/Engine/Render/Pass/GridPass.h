@@ -21,10 +21,10 @@ public:
 private:
 	struct alignas(16) FGridConstants
 	{
-		float FadeDistance;
 		float GridSpacing;
 		float MajorGridInterval;
-		float LineWidth;
+		float Padding0;
+		float Padding1;
 		FVector4 MinorColor;
 		FVector4 MajorColor;
 	};

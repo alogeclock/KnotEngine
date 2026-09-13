@@ -2,6 +2,7 @@
 
 #include "Core/Assert.h"
 #include "Render/Graph/RenderGraph.h"
+#include "Render/Pass/AxisPass.h"
 #include "Render/Pass/GridPass.h"
 #include "Render/Pass/OpaquePass.h"
 #include "Render/Renderer.h"
@@ -52,6 +53,15 @@ void FSceneRenderer::Render(URenderer& Renderer)
 				RenderGraph.AddDependency(GridNode, PreviousNode);
 			}
 			PreviousNode = GridNode;
+		}
+		if (ViewFamily.ShowFlags.bAxis)
+		{
+			const uint32 AxisNode = FAxisPass::AddPass(RenderGraph, Renderer, View);
+			if (PreviousNode != FRenderGraph::InvalidIndex)
+			{
+				RenderGraph.AddDependency(AxisNode, PreviousNode);
+			}
+			PreviousNode = AxisNode;
 		}
 	}
 	Renderer.Execute(RenderGraph);

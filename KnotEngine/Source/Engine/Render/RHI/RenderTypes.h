@@ -106,7 +106,7 @@ struct ENGINE_API FShaderDesc
 };
 
 // 입력 정점을 조립해 Primitive를 구성하는 방식을 정의한다.
-enum class EPrimitiveTopology : uint8 { TriangleList };
+enum class EPrimitiveTopology : uint8 { TriangleList, LineList };
 
 // Blend 연산에서 Source 및 Destination 색상에 곱할 계수를 정의한다.
 enum class EBlendFactor : uint8

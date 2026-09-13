@@ -38,5 +38,5 @@ struct FEditorViewportCamera
 {
 	FEditorViewportCameraTransform ViewTransform;
 	EEditorViewportViewMode ViewMode = EEditorViewportViewMode::Perspective; // TO-DO: AssetEditor, LevelEditor 일반화
-	float CameraSpeed = 5.0f;
+	float Sensitivity = 1.0f;
 };

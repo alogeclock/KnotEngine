@@ -127,14 +127,14 @@ void FViewportPanel::DrawToolbar()
 				ImGui::SetNextItemWidth(-ResetButtonWidth - Style.ItemSpacing.x);
 				ImGui::SliderFloat(
 					"##CameraSensitivity",
-					&Camera.CameraSpeed,
-					FEditorViewportClient::MinCameraSpeed,
-					FEditorViewportClient::MaxCameraSpeed,
+					&Camera.Sensitivity,
+					FEditorViewportClient::MinCameraSensitivity,
+					FEditorViewportClient::MaxCameraSensitivity,
 					"%.1f");
 				ImGui::SameLine();
 				if (ImGui::Button("Reset"))
 				{
-					Camera.CameraSpeed = FEditorViewportClient::DefaultCameraSpeed;
+					Camera.Sensitivity = FEditorViewportClient::DefaultCameraSensitivity;
 				}
 
 				ImGui::EndTable();
