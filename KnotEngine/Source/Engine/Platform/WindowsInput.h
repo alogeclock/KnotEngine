@@ -2,7 +2,7 @@
 
 #include "EngineAPI.h"
 
-#include "Input/InputSnapshot.h"
+#include "Core/Input/InputSnapshot.h"
 
 #include <Windows.h>
 

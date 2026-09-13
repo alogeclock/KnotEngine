@@ -3,7 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Core/CoreTypes.h"
-#include "Input/InputSnapshot.h"
+#include "Core/Input/InputSnapshot.h"
 #include "Platform/WindowsInput.h"
 #include "Platform/WindowsWindow.h"
 

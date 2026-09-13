@@ -166,12 +166,12 @@ void FInputRouter::Reset()
 	bHasPendingFrame = false;
 }
 
-bool FInputRouter::DoesTargetOwnMouseInput(const IInputTarget& Target) const
+bool FInputRouter::HasMouseInput(const IInputTarget& Target) const
 {
 	return MouseCaptureOwner == &Target || HoveredTarget == &Target;
 }
 
-bool FInputRouter::DoesTargetOwnKeyboardInput(const IInputTarget& Target) const
+bool FInputRouter::HasKeyboardInput(const IInputTarget& Target) const
 {
 	return KeyboardFocusOwner == &Target && !bImGuiWantsKeyboard && !bImGuiWantsTextInput;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Input/InputSnapshot.h"
+#include "Core/Input/InputSnapshot.h"
 
 // 에디터 입력 대상이 이벤트 처리 결과와 함께 포커스 및 캡처 변경을 요청한다.
 class FInputReply
@@ -54,8 +54,8 @@ public:
 	IInputTarget* GetKeyboardFocusOwner() const { return KeyboardFocusOwner; }
 	IInputTarget* GetMouseCaptureOwner() const { return MouseCaptureOwner; }
 
-	bool DoesTargetOwnMouseInput(const IInputTarget& Target) const;
-	bool DoesTargetOwnKeyboardInput(const IInputTarget& Target) const;
+	bool HasMouseInput(const IInputTarget& Target) const;
+	bool HasKeyboardInput(const IInputTarget& Target) const;
 
 	const TArray<bool>& GetHandledEvents() const { return HandledEvents; }
 
@@ -95,6 +95,7 @@ private:
 	void ApplyReply(IInputTarget& Target, const FInputReply& Reply);
 	void ResolveFrameTargets();
 	void ValidatePersistentOwners();
+
 	void SetKeyboardFocus(IInputTarget* Target);
 	void SetMouseCapture(IInputTarget* Target);
 	void ClearSequenceOwners();
