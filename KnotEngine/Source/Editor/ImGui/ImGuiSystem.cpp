@@ -28,7 +28,7 @@ FImGuiSystem::FImGuiSystem(
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
 	: Application(InApplication), EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter)
+	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
 }
@@ -122,7 +122,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	{
 		InspectorPanel.Draw(Selection);
 	}
-	ViewportPanel.Draw(bShowViewport);
+	ViewportPanel.Draw(bShowViewport, DeltaTime);
 	if (bShowConsole)
 	{
 		ConsolePanel.Draw();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ImGui/Overlays/ViewportStatOverlay.h"
 #include "Viewport/Level/LevelEditorViewportClient.h"
 #include "Viewport/Viewport.h"
 
@@ -11,10 +12,14 @@ class IRenderDevice;
 class FViewportPanel
 {
 public:
-	FViewportPanel(IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter);
+	FViewportPanel(
+		IRenderDevice& InRenderDevice,
+		IImGuiRenderBackend& InRenderBackend,
+		FInputRouter& InInputRouter,
+		const FViewportStatState& InStatState);
 	~FViewportPanel();
 
-	void Draw(bool bVisible);
+	void Draw(bool bVisible, float DeltaTime);
 	void Release();
 	FLevelEditorViewportClient& GetViewportClient() { return ViewportClient; }
 
@@ -24,6 +29,7 @@ private:
 
 	FViewport Viewport;
 	FLevelEditorViewportClient ViewportClient;
+	FViewportStatOverlay StatOverlay;
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
 };

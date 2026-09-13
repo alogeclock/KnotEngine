@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <limits>
 
-constinit std::atomic<uint64> TotalAllocationBytes = 0;
-constinit std::atomic<uint64> TotalAllocationCount = 0;
+constinit std::atomic<uint64> TotalAllocatedBytes = 0;
+constinit std::atomic<uint64> TotalAllocatedCount = 0;
 
 // 엔진 전용 메모리 헤더, 16-bytes alignment를 유지한다.
 struct FMemoryHeader
@@ -32,8 +32,8 @@ void* Allocate(size_t Size)
 	}
 	FMemoryHeader* Header = static_cast<FMemoryHeader*>(RawMemory);
 	Header->Size = Size;
-	TotalAllocationBytes.fetch_add(static_cast<uint64>(TotalSize), std::memory_order_relaxed);
-	TotalAllocationCount.fetch_add(1, std::memory_order_relaxed);
+	TotalAllocatedBytes.fetch_add(static_cast<uint64>(TotalSize), std::memory_order_relaxed);
+	TotalAllocatedCount.fetch_add(1, std::memory_order_relaxed);
 	return static_cast<void*>(Header + 1);
 }
 
@@ -46,7 +46,7 @@ void Free(void* Memory) noexcept
 	}
 	FMemoryHeader* Header = static_cast<FMemoryHeader*>(Memory) - 1;
 	const size_t TotalSize = Header->Size + sizeof(FMemoryHeader);
-	TotalAllocationBytes.fetch_sub(static_cast<uint64>(TotalSize), std::memory_order_relaxed);
-	TotalAllocationCount.fetch_sub(1, std::memory_order_relaxed);
+	TotalAllocatedBytes.fetch_sub(static_cast<uint64>(TotalSize), std::memory_order_relaxed);
+	TotalAllocatedCount.fetch_sub(1, std::memory_order_relaxed);
 	std::free(Header);
 }

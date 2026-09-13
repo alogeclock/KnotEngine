@@ -33,8 +33,6 @@ private:
 
 	float RefreshTimer = 0.0f;
 
-	uint64 AccumulatedFrameCount = 0;
-	double AccumulatedFrameTimeMs = 0.0;
 	uint64 LastSampledFrameNumber = 0;
 	bool bPaused = false;
 

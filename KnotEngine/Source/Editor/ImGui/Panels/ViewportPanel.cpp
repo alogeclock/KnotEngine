@@ -12,8 +12,9 @@
 FViewportPanel::FViewportPanel(
 	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
-	FInputRouter& InInputRouter)
-	: Viewport(InRenderDevice), ViewportClient(Viewport), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
+	FInputRouter& InInputRouter,
+	const FViewportStatState& InStatState)
+	: Viewport(InRenderDevice), ViewportClient(Viewport), StatOverlay(InStatState), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
 {
 }
 
@@ -27,8 +28,9 @@ void FViewportPanel::Release()
 	Viewport.Release();
 }
 
-void FViewportPanel::Draw(bool bVisible)
+void FViewportPanel::Draw(bool bVisible, float DeltaTime)
 {
+	StatOverlay.Tick(DeltaTime);
 	if (!bVisible)
 	{
 		InputRouter.UnregisterTarget(ViewportClient);
@@ -226,7 +228,10 @@ void FViewportPanel::DrawViewport()
 	{
 		const ImTextureID TextureId = RenderBackend.GetImGuiTextureID(Viewport.GetColorTarget());
 		ImGui::Image(ImTextureRef(TextureId), ImageSize);
+		const bool bImageHovered = ImGui::IsItemHovered();
+		const bool bViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+		StatOverlay.Draw();
 		// 매 프레임 InputRouter에 ViewportClient를 등록하여 ImGui의 Hovered/Focused 상태를 전달한다.
-		InputRouter.RegisterTarget(ViewportClient, ImGui::IsItemHovered(), ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows));
+		InputRouter.RegisterTarget(ViewportClient, bImageHovered, bViewportFocused);
 	}
 }

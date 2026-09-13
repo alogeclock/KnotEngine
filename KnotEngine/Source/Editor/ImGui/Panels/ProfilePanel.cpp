@@ -40,10 +40,6 @@ void FProfilePanel::Draw(float DeltaTime)
 		return;
 	}
 
-	const float FramesPerSecond = DisplayedFrame.FrameTimeMs > 0.0f ? 1000.0f / DisplayedFrame.FrameTimeMs : 0.0f;
-	ImGui::Text("FPS | %.1f (%.3f ms)", FramesPerSecond, DisplayedFrame.FrameTimeMs);
-	ImGui::Text("Profiled CPU | %.3f ms", DisplayedFrame.CPUTimeMs);
-
 	DrawCPUStats();
 	ImGui::End();
 }
@@ -51,12 +47,6 @@ void FProfilePanel::Draw(float DeltaTime)
 // Profile ID를 배열 인덱스로 사용하여 완료 프레임 값을 누적 통계에 반영한다.
 void FProfilePanel::Sample(const FCPUProfileFrame& Frame)
 {
-	if (Frame.FrameTimeMs > 0.0f)
-	{
-		AccumulatedFrameTimeMs += Frame.FrameTimeMs;
-		++AccumulatedFrameCount;
-	}
-
 	for (const FCPUProfile& FrameProfile : Frame.Profiles)
 	{
 		if (HistoryStats.size() <= FrameProfile.ProfileId)
@@ -81,16 +71,10 @@ void FProfilePanel::Sample(const FCPUProfileFrame& Frame)
 	}
 }
 
-// 누적 프레임 시간과 관측된 Scope 통계를 표시용 Snapshot으로 갱신하고 정렬한다.
+// 관측된 Scope 통계를 표시용 Snapshot으로 갱신하고 정렬한다.
 void FProfilePanel::Refresh(const FCPUProfileFrame& Frame)
 {
 	DisplayedFrame = Frame;
-	if (AccumulatedFrameCount > 0)
-	{
-		DisplayedFrame.FrameTimeMs = static_cast<float>(AccumulatedFrameTimeMs / static_cast<double>(AccumulatedFrameCount));
-	}
-	AccumulatedFrameTimeMs = 0.0;
-	AccumulatedFrameCount = 0;
 
 	DisplayedStats.clear();
 	for (const FCPUHistoryStat& HistoryStat : HistoryStats)

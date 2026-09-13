@@ -7,18 +7,31 @@
 #include <array>
 
 struct ImGuiInputTextCallbackData;
+struct FViewportStatState;
 
 class FConsolePanel
 {
 public:
+	explicit FConsolePanel(FViewportStatState& InViewportStatState);
+
 	void Startup();
 	void Shutdown();
 	void Draw();
 
 private:
+	FViewportStatState& ViewportStatState;
+
+	// 자동 완성과 도움말에 사용하는 Console 명령 이름, 설명 및 도움말 그룹이다.
+	struct FCommand
+	{
+		std::string_view Name;
+		std::string_view Description;
+		std::string_view Group;
+	};
+
 	struct FMessage
 	{
-		ELogVerbosity Verbosity = ELogVerbosity::Log;
+		ELogVerbosity Verbosity = ELogVerbosity::Display;
 		FString File;
 		int Line = 0;
 		FString Text;
@@ -42,7 +55,7 @@ private:
 	};
 
 	static void ReceiveLog(ELogVerbosity Verbosity, std::string_view Category, std::string_view Message, std::string_view File, int Line, void* UserData);
-	static int HandleCommandHistoryCallback(ImGuiInputTextCallbackData* Data);
+	static int HandleCommandInputCallback(ImGuiInputTextCallbackData* Data);
 
 	static uint32 FindByteOffsetAtMouse(std::string_view Text, float LocalMouseX);
 	static uint32 FindWrapByteOffset(std::string_view Text, float WrapWidth);
@@ -55,6 +68,8 @@ private:
 	void DrawCommandInput();
 
 	void SubmitCommand(std::string_view Command);
+	void SuggestCommand(std::string_view Input);
+	void SetCommandInput(std::string_view Command);
 	void AddMessage(ELogVerbosity Verbosity, FString Text, FString File = {}, int Line = 0);
 	void CopySelection(const TArray<FVisibleLine>& VisibleLines) const;
 	void ClearTextSelection();
@@ -62,19 +77,27 @@ private:
 	// Log sink와 UI가 공유하는 메시지 목록 및 메시지 추가 상태를 보호한다.
 	std::mutex MessageMutex;
 
-	TArray<FMessage> Messages; // Console에 보관 중인 원본 로그 메시지 목록이다.
-	TArray<FString> CommandHistory; // 입력된 명령을 제출 순서대로 보관한다.
+	TArray<FMessage> Messages; // Console에 보관 중인 원본 로그 메시지 목록
+	TArray<FString> CommandHistory;
+	TArray<std::string_view> CommandSuggestions;
 
-	TStaticArray<char, 128> Filter = {}; // 메시지 표시 대상을 제한한다.
-	TStaticArray<char, 128> CommandInput = {}; // 실행할 Console 명령을 최대 128자로 입력받는다.
+	inline static constexpr FCommand Commands[] = {
+		{ "clear", "Clear console output", "manage console output:" },
+		{ "help", "Show available commands", "manage console output:" },
+		{ "stat all", "Toggle all viewport statistics", "display viewport statistics:" },
+		{ "stat fps", "Toggle viewport FPS statistics", "display viewport statistics:" },
+		{ "stat memory", "Toggle viewport memory statistics", "display viewport statistics:" },
+	};
+
+	TStaticArray<char, 128> Filter = {};
+	TStaticArray<char, 128> CommandInput = {};
 
 	FTextPosition SelectionAnchor;
 	FTextPosition SelectionEnd;
 	int32 HistoryPosition = -1;
-	// 새 메시지에 부여할 ID이며 0은 선택 위치가 없음을 나타내기 위해 예약한다.
 	uint32 NextMessageId = 1;
-	// 마우스 왼쪽 버튼을 누른 채 텍스트 선택 범위를 갱신하고 있는지 나타낸다.
+
 	bool bSelectingText = false;
-	// 새 메시지를 표시한 뒤 다음 Draw에서 출력 하단으로 이동해야 하는지 나타낸다.
 	bool bScrollToBottom = false;
+	bool bFocusCommandInput = false;
 };

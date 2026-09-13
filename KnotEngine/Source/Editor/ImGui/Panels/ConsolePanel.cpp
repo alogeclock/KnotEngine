@@ -1,5 +1,7 @@
 #include "ImGui/Panels/ConsolePanel.h"
 
+#include "ImGui/Overlays/ViewportStatOverlay.h"
+
 #include <algorithm>
 #include <cctype>
 #include <imgui.h>
@@ -8,6 +10,12 @@
 #include <utility>
 
 #include "Core/Log.h"
+
+// Viewport 통계 표시 상태를 변경할 수 있도록 Console Panel을 구성한다.
+FConsolePanel::FConsolePanel(FViewportStatState& InViewportStatState)
+	: ViewportStatState(InViewportStatState)
+{
+}
 
 // Console 로그 수신기를 등록하고 기존 로그를 받을 준비를 한다.
 void FConsolePanel::Startup()
@@ -22,8 +30,12 @@ void FConsolePanel::Shutdown()
 	std::scoped_lock Lock(MessageMutex);
 	Messages.clear();
 	CommandHistory.clear();
+	CommandSuggestions.clear();
 	CommandInput.fill('\0');
 	HistoryPosition = -1;
+	bFocusCommandInput = false;
+	ViewportStatState.bShowFPS = false;
+	ViewportStatState.bShowMemory = false;
 	ClearTextSelection();
 }
 
@@ -149,8 +161,12 @@ void FConsolePanel::DrawVisibleLines(const TArray<FVisibleLine>& VisibleLines, f
 		const FMessage& Message = *VisibleLine.Message;
 		const char* const TextBegin = Message.Text.data() + VisibleLine.FirstByte;
 		const char* const TextEnd = Message.Text.data() + VisibleLine.LastByte;
-		ImVec4 Color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-		if (Message.Verbosity == ELogVerbosity::Warning)
+		ImVec4 Color(1.0f, 1.0f, 1.0f, 1.0f);
+		if (Message.Verbosity == ELogVerbosity::Log)
+		{
+			Color = ImVec4(0.35f, 0.75f, 1.0f, 1.0f); // Sky Blue
+		}
+		else if (Message.Verbosity == ELogVerbosity::Warning)
 		{
 			Color = ImVec4(1.0f, 0.75f, 0.2f, 1.0f); // Orange
 		}
@@ -283,15 +299,64 @@ void FConsolePanel::DrawVisibleLines(const TArray<FVisibleLine>& VisibleLines, f
 	}
 }
 
-// 명령 기록 탐색을 지원하는 Console 입력창을 그리고 제출된 명령을 처리한다.
+// 자동 완성과 명령 기록 탐색을 지원하는 Console 입력창을 그리고 제출된 명령을 처리한다.
 void FConsolePanel::DrawCommandInput()
 {
+	if (bFocusCommandInput)
+	{
+		ImGui::SetKeyboardFocusHere();
+		bFocusCommandInput = false;
+	}
+
 	ImGui::SetNextItemWidth(-1.0f);
-	const ImGuiInputTextFlags InputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory;
-	if (ImGui::InputTextWithHint("##ConsoleCommand", "Enter command", CommandInput.data(), CommandInput.size(), InputFlags, &FConsolePanel::HandleCommandHistoryCallback, this))
+	const ImGuiInputTextFlags InputFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory | ImGuiInputTextFlags_CallbackEdit;
+	const bool bSubmitted = ImGui::InputTextWithHint(
+		"##ConsoleCommand",
+		"Enter command",
+		CommandInput.data(),
+		CommandInput.size(),
+		InputFlags,
+		&FConsolePanel::HandleCommandInputCallback,
+		this);
+	const bool bInputActive = ImGui::IsItemActive();
+	const ImVec2 InputMin = ImGui::GetItemRectMin();
+	const ImVec2 InputMax = ImGui::GetItemRectMax();
+	if (bInputActive && !CommandSuggestions.empty())
+	{
+		ImGui::OpenPopup("##ConsoleCommandSuggestions");
+	}
+
+	ImGui::SetNextWindowPos(InputMin, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(InputMax.x - InputMin.x, 0.0f), ImVec2(InputMax.x - InputMin.x, 180.0f));
+	constexpr ImGuiWindowFlags SuggestionFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+		| ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+	if (ImGui::BeginPopup("##ConsoleCommandSuggestions", SuggestionFlags))
+	{
+		if (!bInputActive || CommandSuggestions.empty())
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		else
+		{
+			for (const std::string_view Suggestion : CommandSuggestions)
+			{
+				if (ImGui::Selectable(Suggestion.data()))
+				{
+					SetCommandInput(Suggestion);
+					CommandSuggestions.clear();
+					bFocusCommandInput = true;
+					ImGui::CloseCurrentPopup();
+				}
+			}
+		}
+		ImGui::EndPopup();
+	}
+
+	if (bSubmitted)
 	{
 		SubmitCommand(CommandInput.data());
 		CommandInput.fill('\0');
+		CommandSuggestions.clear();
 		ImGui::SetKeyboardFocusHere(-1);
 	}
 }
@@ -435,10 +500,15 @@ void FConsolePanel::ClearTextSelection()
 	bSelectingText = false;
 }
 
-// 위·아래 방향키 입력을 처리하여 Console 명령 기록을 탐색한다.
-int FConsolePanel::HandleCommandHistoryCallback(ImGuiInputTextCallbackData* Data)
+// 문자 편집 시 자동 완성을 갱신하고 위·아래 방향키로 Console 명령 기록을 탐색한다.
+int FConsolePanel::HandleCommandInputCallback(ImGuiInputTextCallbackData* Data)
 {
 	FConsolePanel& Panel = *static_cast<FConsolePanel*>(Data->UserData);
+	if (Data->EventFlag == ImGuiInputTextFlags_CallbackEdit)
+	{
+		Panel.SuggestCommand(std::string_view(Data->Buf, static_cast<size_t>(Data->BufTextLen)));
+		return 0;
+	}
 	if (Data->EventFlag != ImGuiInputTextFlags_CallbackHistory)
 	{
 		return 0;
@@ -469,6 +539,7 @@ int FConsolePanel::HandleCommandHistoryCallback(ImGuiInputTextCallbackData* Data
 		const char* HistoryText = Panel.HistoryPosition >= 0 ? Panel.CommandHistory[Panel.HistoryPosition].c_str() : "";
 		Data->DeleteChars(0, Data->BufTextLen);
 		Data->InsertChars(0, HistoryText);
+		Panel.SuggestCommand(std::string_view(Data->Buf, static_cast<size_t>(Data->BufTextLen)));
 	}
 	return 0;
 }
@@ -517,24 +588,78 @@ void FConsolePanel::SubmitCommand(std::string_view Command)
 		return;
 	}
 
-	AddMessage(ELogVerbosity::Log, "> " + TrimmedCommand);
+	AddMessage(ELogVerbosity::Display, "> " + TrimmedCommand);
 	if (NormalizedCommand == "help")
 	{
-		AddMessage(ELogVerbosity::Log, "Commands:\n  clear    Clear console output\n  help     Show available commands\n  history  Show command history");
-	}
-	else if (NormalizedCommand == "history")
-	{
-		FString HistoryText = "Command history:";
-		for (size_t HistoryIndex = 0; HistoryIndex < CommandHistory.size(); ++HistoryIndex)
+		FString HelpText;
+		std::string_view PreviousGroup;
+		for (const FCommand& CommandInfo : Commands)
 		{
-			HistoryText += std::format("\n  {}: {}", HistoryIndex + 1, CommandHistory[HistoryIndex]);
+			if (CommandInfo.Group != PreviousGroup)
+			{
+				if (!HelpText.empty())
+				{
+					HelpText += "\n\n";
+				}
+				HelpText += CommandInfo.Group;
+				PreviousGroup = CommandInfo.Group;
+			}
+			HelpText += std::format("\n      {:<13} {}", CommandInfo.Name, CommandInfo.Description);
 		}
-		AddMessage(ELogVerbosity::Log, std::move(HistoryText));
+		AddMessage(ELogVerbosity::Display, std::move(HelpText));
+	}
+	else if (NormalizedCommand == "stat all")
+	{
+		const bool bEnableAllStats = !ViewportStatState.bShowFPS || !ViewportStatState.bShowMemory;
+		ViewportStatState.bShowFPS = bEnableAllStats;
+		ViewportStatState.bShowMemory = bEnableAllStats;
+		AddMessage(ELogVerbosity::Display, bEnableAllStats ? "All viewport statistics enabled" : "All viewport statistics disabled");
+	}
+	else if (NormalizedCommand == "stat fps")
+	{
+		ViewportStatState.bShowFPS = !ViewportStatState.bShowFPS;
+		AddMessage(ELogVerbosity::Display, ViewportStatState.bShowFPS ? "Viewport FPS statistics enabled" : "Viewport FPS statistics disabled");
+	}
+	else if (NormalizedCommand == "stat memory")
+	{
+		ViewportStatState.bShowMemory = !ViewportStatState.bShowMemory;
+		AddMessage(ELogVerbosity::Display, ViewportStatState.bShowMemory ? "Viewport memory statistics enabled" : "Viewport memory statistics disabled");
 	}
 	else
 	{
-		AddMessage(ELogVerbosity::Warning, "Unknown command: " + TrimmedCommand);
+		AddMessage(ELogVerbosity::Display, "Unknown command: " + TrimmedCommand);
 	}
+}
+
+// 입력 문자열을 prefix로 갖는 명령만 사전식 명령 목록에서 찾아 캐시한다.
+void FConsolePanel::SuggestCommand(std::string_view Input)
+{
+	CommandSuggestions.clear();
+	if (Input.empty())
+	{
+		return;
+	}
+
+	FString NormalizedInput(Input);
+	std::transform(NormalizedInput.begin(), NormalizedInput.end(), NormalizedInput.begin(), [](unsigned char Character)
+	{
+		return static_cast<char>(std::tolower(Character));
+	});
+	for (const FCommand& CommandInfo : Commands)
+	{
+		if (CommandInfo.Name.starts_with(NormalizedInput))
+		{
+			CommandSuggestions.push_back(CommandInfo.Name);
+		}
+	}
+}
+
+// 선택한 자동 완성 명령을 입력 버퍼 크기에 맞춰 복사한다.
+void FConsolePanel::SetCommandInput(std::string_view Command)
+{
+	CommandInput.fill('\0');
+	const size_t CommandLength = std::min(Command.size(), CommandInput.size() - 1);
+	std::memcpy(CommandInput.data(), Command.data(), CommandLength);
 }
 
 // 원본 로그 문자열을 MessageMutex로 보호되는 제한된 메시지 목록에 추가한다.
@@ -561,8 +686,12 @@ void FConsolePanel::AddMessage(ELogVerbosity Verbosity, FString Text, FString Fi
 void FConsolePanel::ReceiveLog(ELogVerbosity Verbosity, std::string_view Category, std::string_view Message, std::string_view File, int Line, void* UserData)
 {
 	FConsolePanel& Panel = *static_cast<FConsolePanel*>(UserData);
-	const char* VerbosityText = "Log";
-	if (Verbosity == ELogVerbosity::Warning)
+	const char* VerbosityText = "Display";
+	if (Verbosity == ELogVerbosity::Log)
+	{
+		VerbosityText = "Log";
+	}
+	else if (Verbosity == ELogVerbosity::Warning)
 	{
 		VerbosityText = "Warning";
 	}

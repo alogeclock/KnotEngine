@@ -11,6 +11,7 @@
 // 로그 상세도. Fatal은 두지 않는다. 치명적 실패는 Assert.h의 panic/check 계열이 담당한다.
 enum class ELogVerbosity : uint8_t
 {
+	Display,
 	Log,
 	Warning,
 	Error,

@@ -38,13 +38,14 @@ public:
 
 private:
 	FWindowsApplication& Application;
-	bool bStarted = false;
 	UEditorEngine& EditorEngine;
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
 	FEditorSelection Selection;
 	ImFont* MediumFont = nullptr;
 	ImFont* SemiBoldFont = nullptr;
+
+	FViewportStatState ViewportStatState;
 
 	FHierarchyPanel HierarchyPanel;
 	FInspectorPanel InspectorPanel;
@@ -53,6 +54,8 @@ private:
 #if KNOT_CPU_PROFILER_ENABLED
 	FProfilePanel ProfilePanel;
 #endif
+
+	bool bStarted = false;
 
 	bool bShowHierarchy = true;
 	bool bShowInspector = true;

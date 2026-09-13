@@ -73,6 +73,8 @@ KnotEngine/Source/Editor/
 ├─ ImGui/
 │  ├─ ImGuiSystem.h/.cpp
 │  ├─ EditorSelection.h
+│  ├─ Overlays/
+│  │  └─ ViewportStatOverlay.h/.cpp
 │  └─ Panels/
 │     ├─ HierarchyPanel.h/.cpp
 │     ├─ InspectorPanel.h/.cpp
@@ -203,7 +205,6 @@ Window
 ```
 
 - `Window`: 다섯 Panel의 표시 bool을 토글한다.
-- FPS와 frame time은 Main MenuBar가 아니라 Profile Panel에서 표시한다.
 
 첫 구현에서 command framework를 만들지 않는다. Menu item이 `FImGuiSystem`의 명시적인 함수 또는 Panel visibility bool을 변경한다. 동일 command를 MenuBar, 단축키와 Context Menu에서 함께 사용해야 할 때 `FEditorCommand`를 추출한다.
 
@@ -407,6 +408,7 @@ FViewportPanel
 │  ├─ Render Target
 │  ├─ Depth Target
 │  └─ pixel size
+├─ FViewportStatOverlay
 └─ FLevelEditorViewportClient : FEditorViewportClient
    ├─ FEditorViewportClient : IInputTarget
    │  ├─ Camera state
@@ -477,7 +479,7 @@ Panel title bar, Camera Speed toolbar와 scrollbar hover는 Viewport image hover
 
 ## FProfilePanel
 
-Profile Panel은 기본 레이아웃의 오른쪽 열에서 Inspector와 50:50으로 나누어 두 번째 영역에 배치하며 Engine의 `FCPUProfiler`가 완료한 직전 프레임 Snapshot을 표시한다. 수집 중인 프레임 데이터는 읽지 않으며, UI 표시는 0.25초마다 갱신한다. 상단 FPS와 Frame Time은 이 표시 주기 동안 수집한 프레임 시간의 평균으로 계산한다. CPU 표는 Scope를 Tick과 Render 카테고리로 묶고 최신 프레임 호출 횟수와 Total Time, 관측 프레임의 Average/Max/Min Time을 제공한다. Pause는 CPU 샘플과 표시값을 고정한다. Profile은 다른 Panel과 동일하게 최초 기본 레이아웃을 구성할 때만 배치하며 기존 레이아웃을 별도로 마이그레이션하지 않는다. Profile Panel과 CPU 계측은 Debug, Development, Shipping에서 모두 활성화한다.
+Profile Panel은 기본 레이아웃의 오른쪽 열에서 Inspector와 50:50으로 나누어 두 번째 영역에 배치하며 Engine의 `FCPUProfiler`가 완료한 직전 프레임 Snapshot을 표시한다. 수집 중인 프레임 데이터는 읽지 않으며, UI 표시는 0.25초마다 갱신한다. CPU 표는 Scope를 Tick과 Render 카테고리로 묶고 최신 프레임 호출 횟수와 Total Time, 관측 프레임의 Average/Max/Min Time을 제공한다. Pause는 CPU 샘플과 표시값을 고정한다. Profile은 다른 Panel과 동일하게 최초 기본 레이아웃을 구성할 때만 배치하며 기존 레이아웃을 별도로 마이그레이션하지 않는다. Profile Panel과 CPU 계측은 Debug, Development, Shipping에서 모두 활성화한다.
 
 CPU Profiler는 메인 스레드 전용이며 `FEngineLoop`가 `Engine.ProcessInput()`과 `Engine.Tick()`을 둘러싼 프레임 경계를 연다. RAII Scope와 프레임 수집은 모든 빌드 구성에서 활성화한다.
 
@@ -517,12 +519,13 @@ FConsolePanel
 - Panel 폭에 맞춘 로그 행 자동 줄바꿈
 - 필터 적용 후 최신 시각 행 최대 1,000개 렌더링
 - Console 하단 명령 입력과 `Enter` 실행
-- `Up`/`Down` 입력 이력과 `clear`, `help`, `history` 명령
+- `Up`/`Down` 입력 이력과 `clear`, `help`, `stat fps`, `stat memory`, `stat all` 명령
+- 문자 입력이 변경될 때만 갱신되는 prefix 기반 명령 자동 완성
 - 최대 메시지 수 제한
 
 Panel을 닫아도 sink는 로그를 계속 수집한다. Worker thread 로그가 들어오면 sink가 메시지를 추가하는 동안 짧게 lock한다. UI는 원본 메시지를 가리키는 시각 행을 구성하므로 해당 행을 그리고 선택을 처리하는 동안 동일한 lock을 유지한다. Console Panel이 logger 내부 container를 순회하지 않는다.
 
-명령 입력 필드는 Console 하단에 배치한다. 현재 필요한 `clear`, `help`, `history`는 `FConsolePanel`이 직접 처리한다. 엔진 명령 계약이 확인될 때 command registry를 추가하며, 현재 단계에서는 별도 command framework를 만들지 않는다.
+명령 입력 필드는 Console 하단에 배치한다. 지원 명령은 이름순의 고정 테이블에 보관하며 입력 문자가 추가되거나 삭제되는 callback에서만 자동 완성 결과를 검색한다. `FImGuiSystem`이 `FViewportStatState`를 소유하고 `FConsolePanel`은 `stat fps`, `stat memory`, `stat all` 명령으로 이 상태를 변경한다. `FViewportPanel`이 소유한 `FViewportStatOverlay`는 상태를 읽어 Viewport 이미지 왼쪽 위의 반투명 통계 창을 그린다. FPS는 0.25초 동안의 평균 FPS와 frame time을 표시하며 Memory는 공통 allocator의 `Total Allocated Count`와 `Total Allocated Bytes`를 표시한다. 엔진 명령 계약이 확인될 때 command registry를 추가하며, 현재 단계에서는 `FConsolePanel`이 명령을 직접 처리한다.
 
 ## 보류: FContentPanel
 

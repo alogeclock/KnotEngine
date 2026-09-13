@@ -129,6 +129,7 @@ const char* FDebug::ToString(ELogVerbosity Verbosity)
 {
 	switch (Verbosity)
 	{
+	case ELogVerbosity::Display: return "Display";
 	case ELogVerbosity::Log: return "Log";
 	case ELogVerbosity::Warning: return "Warning";
 	case ELogVerbosity::Error: return "Error";
