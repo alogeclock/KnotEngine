@@ -8,6 +8,7 @@
 #include "Render/Scene/SceneRenderer.h"
 #include "Viewport/EditorViewportClient.h"
 #include "Core/Assert.h"
+#include "Core/Profiling/CPUProfiler.h"
 
 #include <algorithm>
 
@@ -49,6 +50,8 @@ void UEditorEngine::OnWindowResized(FWindowSize Size)
 
 void UEditorEngine::Tick(float DeltaTime)
 {
+	KNOT_PROFILE_SCOPE("Tick", "UEditorEngine::Tick");
+
 	ImGuiSystem.BeginFrame();
 	ImGuiSystem.Draw(DeltaTime);
 	InputRouter.RouteInput();
@@ -75,6 +78,8 @@ void UEditorEngine::Tick(float DeltaTime)
 
 void UEditorEngine::Render()
 {
+	KNOT_PROFILE_SCOPE("Render", "UEditorEngine::Render");
+
 	const FRenderViewport OutputViewport = Renderer.GetViewport();
 	if (OutputViewport.Width <= 0.0f || OutputViewport.Height <= 0.0f)
 	{

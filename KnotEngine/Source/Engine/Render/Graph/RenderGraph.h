@@ -3,6 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Core/CoreTypes.h"
+#include "Core/Profiling/CPUProfiler.h"
 
 #include <functional>
 
@@ -21,6 +22,7 @@ private:
 	struct FNode
 	{
 		FString Name;
+		FCPUProfileId ProfileId = 0;
 		TArray<uint32> Dependencies;
 		FExecuteFunction ExecuteFunction;
 	};

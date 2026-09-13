@@ -1,5 +1,7 @@
 #include "World/World.h"
 
+#include "Core/Profiling/CPUProfiler.h"
+
 UWorld::UWorld()
 {
 	PersistentLevel = &CreateLevel();
@@ -87,6 +89,8 @@ void UWorld::ResumePlay()
 
 void UWorld::Tick(float DeltaTime)
 {
+	KNOT_PROFILE_SCOPE("Tick", "UWorld::Tick");
+
 	if (PlayState == EPlayState::Playing)
 	{
 		for (const TObjectPtr<ULevel>& Level : Levels)

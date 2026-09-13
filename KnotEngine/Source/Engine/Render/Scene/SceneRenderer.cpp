@@ -1,6 +1,7 @@
 #include "Render/Scene/SceneRenderer.h"
 
 #include "Core/Assert.h"
+#include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/Pass/AxisPass.h"
 #include "Render/Pass/GridPass.h"
@@ -17,6 +18,8 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily& InViewFamily)
 
 void FSceneRenderer::Render(URenderer& Renderer)
 {
+	KNOT_PROFILE_SCOPE("Render", "FSceneRenderer::Render");
+
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	const FSceneRenderTarget& Target = ViewFamily.RenderTarget;
 

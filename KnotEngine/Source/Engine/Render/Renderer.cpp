@@ -1,6 +1,7 @@
 #include "Render/Renderer.h"
 
 #include "Core/Assert.h"
+#include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
@@ -69,6 +70,8 @@ void URenderer::Resize(uint32 Width, uint32 Height)
 
 void URenderer::BeginFrame()
 {
+	KNOT_PROFILE_SCOPE("Render", "URenderer::BeginFrame");
+
 	checkf(!CommandList.IsValid(), "Renderer Frame이 이미 시작되었다.");
 	CommandList = RenderDevice.BeginCommandList();
 	RenderContext.BeginFrame(CommandList);
@@ -76,6 +79,8 @@ void URenderer::BeginFrame()
 
 void URenderer::EndFrame()
 {
+	KNOT_PROFILE_SCOPE("Render", "URenderer::EndFrame");
+
 	checkf(CommandList.IsValid(), "Renderer Frame이 시작되지 않았다.");
 	RenderContext.EndFrame(CommandList);
 	RenderDevice.EndCommandList(CommandList);

@@ -2,6 +2,7 @@
 
 #include "Core/Assert.h"
 #include "Core/Name.h"
+#include "Core/Profiling/CPUProfiler.h"
 #include "Runtime/Engine.h"
 
 void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
@@ -31,8 +32,14 @@ int32 FEngineLoop::Run(UEngine& Engine)
 			Engine.OnWindowResized(*Resize);
 		}
 
+#if KNOT_CPU_PROFILER_ENABLED
+		FCPUProfiler::BeginFrame(FrameTimer.GetDeltaTime());
+#endif
 		Engine.ProcessInput(Application.GetInputSnapshot());
 		Engine.Tick(FrameTimer.GetDeltaTime());
+#if KNOT_CPU_PROFILER_ENABLED
+		FCPUProfiler::EndFrame();
+#endif
 	}
 
 	return 0;

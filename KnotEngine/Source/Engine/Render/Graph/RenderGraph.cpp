@@ -1,7 +1,9 @@
 #include "Render/Graph/RenderGraph.h"
 
 #include "Core/Assert.h"
+#include "Core/Profiling/CPUProfiler.h"
 
+// 실행 함수와 Profile ID를 가진 Render Graph Pass를 추가하고 노드 인덱스를 반환한다.
 uint32 FRenderGraph::AddPass(FString Name, FExecuteFunction ExecuteFunction)
 {
 	checkf(!bExecuted, "이미 실행된 Render Graph에는 Pass를 추가할 수 없다.");
@@ -10,10 +12,12 @@ uint32 FRenderGraph::AddPass(FString Name, FExecuteFunction ExecuteFunction)
 
 	FNode& Node = Nodes.emplace_back();
 	Node.Name = std::move(Name);
+	Node.ProfileId = FCPUProfiler::RegisterProfile("Render", "F" + Node.Name + "Pass::ExecutePass");
 	Node.ExecuteFunction = std::move(ExecuteFunction);
 	return static_cast<uint32>(Nodes.size() - 1);
 }
 
+// 지정한 Render Graph 노드가 먼저 실행되어야 할 의존 노드를 기록한다.
 void FRenderGraph::AddDependency(uint32 NodeIndex, uint32 DependencyIndex)
 {
 	checkf(!bExecuted, "이미 실행된 Render Graph에는 의존성을 추가할 수 없다.");
@@ -22,8 +26,11 @@ void FRenderGraph::AddDependency(uint32 NodeIndex, uint32 DependencyIndex)
 	Nodes[NodeIndex].Dependencies.push_back(DependencyIndex);
 }
 
+// 의존성이 충족된 Render Graph Pass를 한 번씩 실행하고 각 Pass의 CPU 시간을 측정한다.
 void FRenderGraph::Execute()
 {
+	KNOT_PROFILE_SCOPE("Render", "FRenderGraph::Execute");
+
 	checkf(!bExecuted, "Render Graph는 한 번만 실행할 수 있다.");
 	bExecuted = true;
 
@@ -56,6 +63,7 @@ void FRenderGraph::Execute()
 				continue;
 			}
 
+			FCPUProfilerScope ProfileScope(Node.ProfileId);
 			Node.ExecuteFunction();
 			ExecutedNodes[NodeIndex] = true;
 			++ExecutedCount;

@@ -4,6 +4,7 @@
 #include "Platform/WindowsApplication.h"
 #include "Core/IO/Paths.h"
 #include "Input/InputRouter.h"
+#include "Core/Profiling/CPUProfiler.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
 #include "Runtime/EditorEngine.h"
 #include "Source/Resource/resource.h"
@@ -100,20 +101,7 @@ void FImGuiSystem::BeginFrame()
 
 void FImGuiSystem::Draw(float DeltaTime)
 {
-	// TO-DO: 프레임 통계는 별도 Overlay Panel로 분리하여 콘솔을 통해 출력할 수 있도록 한다.
-	if (DeltaTime > 0.0f)
-	{
-		ElapsedTime += DeltaTime;
-		++FrameCount;
-	}
-
-	if (ElapsedTime >= 0.5f)
-	{
-		DisplayedFramesPerSecond = static_cast<float>(FrameCount) / ElapsedTime;
-		DisplayedFrameTimeMs = ElapsedTime / static_cast<float>(FrameCount) * 1000.0f;
-		ElapsedTime = 0.0f;
-		FrameCount = 0;
-	}
+	KNOT_PROFILE_SCOPE("Tick", "FImGuiSystem::Draw");
 
 	DrawMenuBar();
 	const ImGuiID DockspaceId = ImGui::GetID("KnotEditorDockspace");
@@ -139,6 +127,12 @@ void FImGuiSystem::Draw(float DeltaTime)
 	{
 		ConsolePanel.Draw();
 	}
+#if KNOT_CPU_PROFILER_ENABLED
+	if (bShowProfile)
+	{
+		ProfilePanel.Draw(DeltaTime);
+	}
+#endif
 
 	const ImGuiIO& IO = ImGui::GetIO();
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
@@ -184,10 +178,11 @@ void FImGuiSystem::DrawMenuBar()
 		ImGui::MenuItem("Inspector", nullptr, &bShowInspector);
 		ImGui::MenuItem("Viewport", nullptr, &bShowViewport);
 		ImGui::MenuItem("Console", nullptr, &bShowConsole);
+#if KNOT_CPU_PROFILER_ENABLED
+		ImGui::MenuItem("Profile", nullptr, &bShowProfile);
+#endif
 		ImGui::EndMenu();
 	}
-	ImGui::Separator();
-	ImGui::Text("FPS %.1f | %.3f ms", DisplayedFramesPerSecond, DisplayedFrameTimeMs);
 	ImGui::EndMainMenuBar();
 	ImGui::PopFont();
 }
@@ -203,13 +198,22 @@ void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)
 	ImGuiID CenterId = DockspaceId;
 	ImGuiID LeftId = 0;
 	ImGuiID RightId = 0;
+#if KNOT_CPU_PROFILER_ENABLED
+	ImGuiID RightBottomId = 0;
+#endif
 	ImGuiID BottomId = 0;
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Left, 0.20f, &LeftId, &CenterId);
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Right, 0.25f, &RightId, &CenterId);
+#if KNOT_CPU_PROFILER_ENABLED
+	ImGui::DockBuilderSplitNode(RightId, ImGuiDir_Down, 0.50f, &RightBottomId, &RightId);
+#endif
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Down, 0.25f, &BottomId, &CenterId);
 	ImGui::DockBuilderDockWindow("Hierarchy", LeftId);
 	ImGui::DockBuilderDockWindow("Inspector", RightId);
 	ImGui::DockBuilderDockWindow("Console", BottomId);
+#if KNOT_CPU_PROFILER_ENABLED
+	ImGui::DockBuilderDockWindow("Profile", RightBottomId);
+#endif
 	ImGui::DockBuilderDockWindow("Viewport", CenterId);
 	ImGui::DockBuilderFinish(DockspaceId);
 }
