@@ -9,7 +9,7 @@ Knot Engine은 에디터 UI를 자체 retained-mode 위젯 시스템으로 구�
 ## 설계 원칙
 
 - Win32 메시지와 타입은 `FWindowsApplication`과 `FWindowsInput` 안에 가둔다.
-- `Input` 폴더의 타입은 `HWND`, `WPARAM`, `VK_*`에 의존하지 않는다.
+- `Core/Input` 폴더의 타입은 `HWND`, `WPARAM`, `VK_*`에 의존하지 않는다.
 - 입력 수집기는 UI, 에디터 뷰포트, 게임플레이 정책을 알지 않는다.
 - ImGui가 메시지를 처리했는지와 관계없이 저수준 입력은 항상 수집한다.
 - 한 프레임 동안 수집한 상태와 이벤트를 불변 `FInputSnapshot`으로 전달한다.
@@ -70,11 +70,12 @@ LocalPlayer / PlayerController / PlayerInput
 ```text
 KnotEngine/Source/
 ├─ Engine/
-│  ├─ Input/
-│  │  ├─ InputKeys.h
-│  │  ├─ InputEvents.h
-│  │  ├─ InputSnapshot.h
-│  │  └─ InputSnapshot.cpp
+│  ├─ Core/
+│  │  └─ Input/
+│  │     ├─ InputKeys.h
+│  │     ├─ InputEvents.h
+│  │     ├─ InputSnapshot.h
+│  │     └─ InputSnapshot.cpp
 │  ├─ Platform/
 │  │  ├─ WindowsApplication.h/.cpp
 │  │  ├─ WindowsWindow.h/.cpp
@@ -454,10 +455,10 @@ ImGui DockSpace
 
 ## 관련 파일
 
-- [InputKeys.h](../KnotEngine/Source/Engine/Input/InputKeys.h)
-- [InputEvents.h](../KnotEngine/Source/Engine/Input/InputEvents.h)
-- [InputSnapshot.h](../KnotEngine/Source/Engine/Input/InputSnapshot.h)
-- [InputSnapshot.cpp](../KnotEngine/Source/Engine/Input/InputSnapshot.cpp)
+- [InputKeys.h](../KnotEngine/Source/Engine/Core/Input/InputKeys.h)
+- [InputEvents.h](../KnotEngine/Source/Engine/Core/Input/InputEvents.h)
+- [InputSnapshot.h](../KnotEngine/Source/Engine/Core/Input/InputSnapshot.h)
+- [InputSnapshot.cpp](../KnotEngine/Source/Engine/Core/Input/InputSnapshot.cpp)
 - [WindowsInput.h](../KnotEngine/Source/Engine/Platform/WindowsInput.h)
 - [WindowsInput.cpp](../KnotEngine/Source/Engine/Platform/WindowsInput.cpp)
 - [WindowsApplication.h](../KnotEngine/Source/Engine/Platform/WindowsApplication.h)

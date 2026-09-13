@@ -4,14 +4,15 @@
 
 이 문서는 Knot Engine Editor의 ImGui Docking 화면, Panel 책임, 선택 상태, Inspector 프로퍼티 편집, Viewport 렌더링과 입력 라우팅 구조를 정의한다.
 
-현재 구현 범위는 다음 네 dockable Panel과 하나의 전역 MenuBar다. Content Panel, Component 선택, Undo/Redo는 구현하지 않는다.
+현재 구현 범위는 다음 다섯 dockable Panel과 하나의 전역 MenuBar다. Content Panel, Component 선택, Undo/Redo는 구현하지 않는다.
 
 ```text
 Dockable Panel
 ├─ Hierarchy
 ├─ Inspector
 ├─ Viewport
-└─ Console
+├─ Console
+└─ Profile
 
 Main MenuBar
 └─ Navigation
@@ -26,7 +27,7 @@ Inspector는 [Reflection-Architecture.md](Reflection-Architecture.md)의 스키�
 ## 설계 원칙
 
 - `FImGuiSystem`은 DockSpace와 Panel의 생성, 수명 및 프레임 Draw를 조율한다.
-- 네 창은 이름에 `Panel`을 사용하고 Main MenuBar는 `FImGuiSystem`이 직접 구성한다.
+- 다섯 창은 이름에 `Panel`을 사용하고 Main MenuBar는 `FImGuiSystem`이 직접 구성한다.
 - `Widget`은 프로퍼티 행, Asset tile처럼 Panel 안에서 재사용되는 작은 UI 단위에만 사용한다.
 - 첫 구현에서 `IEditorPanel`, Panel registry와 범용 Widget framework를 만들지 않는다.
 - Panel은 서로를 직접 참조하지 않고 `FEditorSelection`과 명시적으로 전달받은 Editor 상태를 사용한다.
@@ -47,6 +48,7 @@ Inspector는 [Reflection-Architecture.md](Reflection-Architecture.md)의 스키�
 | Dockable 창 | `FInspectorPanel` | 선택 객체의 상세 정보를 표시함 |
 | Dockable 창 | `FViewportPanel` | 엔진 Viewport를 ImGui 창에 배치함 |
 | Dockable 창 | `FConsolePanel` | 로그 목록과 필터를 소유함 |
+| Dockable 창 | `FProfilePanel` | 완료된 CPU Profile Frame의 실행 시간 통계를 표시함 |
 | Main MenuBar | `FImGuiSystem::DrawMenuBar()` | 창이 아니라 DockSpace 상단 navigation임 |
 | 재사용 UI 조각 | `DrawFloatProperty()` 등 | 첫 구현은 함수로 충분함 |
 
@@ -75,7 +77,8 @@ KnotEngine/Source/Editor/
 │     ├─ HierarchyPanel.h/.cpp
 │     ├─ InspectorPanel.h/.cpp
 │     ├─ ViewportPanel.h/.cpp
-│     └─ ConsolePanel.h/.cpp
+│     ├─ ConsolePanel.h/.cpp
+│     └─ ProfilePanel.h/.cpp
 └─ Viewport/
    ├─ Viewport.h/.cpp
    ├─ EditorViewportCamera.h/.cpp
@@ -111,7 +114,8 @@ UEditorEngine
    ├─ FViewportPanel
    │  ├─ FViewport
    │  └─ FLevelEditorViewportClient
-   └─ FConsolePanel
+   ├─ FConsolePanel
+   └─ FProfilePanel
 ```
 
 `FImGuiSystem`은 Panel을 값 멤버로 소유한다. `FViewportPanel`은 자신의 출력 surface와 concrete ViewportClient를 함께 소유하지만 `UEditorEngine`을 참조하지 않는다. `FImGuiSystem`이 생성과 소멸 시 client를 `UEditorEngine`의 non-owning 순회 목록에 등록하고 해제한다. Panel 객체는 Editor 종료까지 주소가 안정적이므로 ViewportClient 같은 `IInputTarget`도 해당 프레임의 `RouteInput()`까지 안전하게 살아 있다.
@@ -198,8 +202,8 @@ Panel 창 제목은 ImGui ini의 식별자로 사용되므로 안정적으로 �
 Window
 ```
 
-- `Window`: 네 Panel의 표시 bool을 토글한다.
-- 메뉴 오른쪽 영역: FPS와 frame time을 표시한다.
+- `Window`: 다섯 Panel의 표시 bool을 토글한다.
+- FPS와 frame time은 Main MenuBar가 아니라 Profile Panel에서 표시한다.
 
 첫 구현에서 command framework를 만들지 않는다. Menu item이 `FImGuiSystem`의 명시적인 함수 또는 Panel visibility bool을 변경한다. 동일 command를 MenuBar, 단축키와 Context Menu에서 함께 사용해야 할 때 `FEditorCommand`를 추출한다.
 
@@ -471,6 +475,25 @@ Panel title bar, Camera Speed toolbar와 scrollbar hover는 Viewport image hover
 
 오른쪽 마우스 카메라 회전은 `CaptureMouse()`, 버튼 해제는 `ReleaseMouse()`를 반환한다. 키보드 카메라 이동은 Viewport click에서 `SetKeyboardFocus()`를 요청한다.
 
+## FProfilePanel
+
+Profile Panel은 기본 레이아웃의 오른쪽 열에서 Inspector와 50:50으로 나누어 두 번째 영역에 배치하며 Engine의 `FCPUProfiler`가 완료한 직전 프레임 Snapshot을 표시한다. 수집 중인 프레임 데이터는 읽지 않으며, UI 표시는 0.25초마다 갱신한다. 상단 FPS와 Frame Time은 이 표시 주기 동안 수집한 프레임 시간의 평균으로 계산한다. CPU 표는 Scope를 Tick과 Render 카테고리로 묶고 최신 프레임 호출 횟수와 Total Time, 관측 프레임의 Average/Max/Min Time을 제공한다. Pause는 CPU 샘플과 표시값을 고정한다. Profile은 다른 Panel과 동일하게 최초 기본 레이아웃을 구성할 때만 배치하며 기존 레이아웃을 별도로 마이그레이션하지 않는다. Profile Panel과 CPU 계측은 Debug, Development, Shipping에서 모두 활성화한다.
+
+CPU Profiler는 메인 스레드 전용이며 `FEngineLoop`가 `Engine.ProcessInput()`과 `Engine.Tick()`을 둘러싼 프레임 경계를 연다. RAII Scope와 프레임 수집은 모든 빌드 구성에서 활성화한다.
+
+현재 계측 범위는 다음으로 제한한다.
+
+- `UEditorEngine::Tick`
+- `UWorld::Tick`
+- `FImGuiSystem::Draw`
+- `UEditorEngine::Render`
+- `FSceneRenderer::Render`
+- `FRenderGraph::Execute`
+- Render Graph의 Opaque, Grid, Axis Node 실행
+- `URenderer::BeginFrame`, `URenderer::EndFrame`
+
+이 수치는 CPU 실행 시간이다. GPU Pass 실행 시간은 D3D11 timestamp query가 추가되기 전까지 포함하지 않는다.
+
 ## FConsolePanel
 
 Console Panel은 Editor 로그 sink의 ring buffer를 표시한다.
@@ -489,11 +512,17 @@ FConsolePanel
 - 문자열 필터
 - Clear
 - Auto-scroll
+- 메시지 내부 개행을 포함한 모든 물리 행의 동일한 줄 간격
+- 로그 문서의 문자·여러 줄 드래그 선택과 `Ctrl+C` 또는 우클릭 `Copy`
+- Panel 폭에 맞춘 로그 행 자동 줄바꿈
+- 필터 적용 후 최신 시각 행 최대 1,000개 렌더링
+- Console 하단 명령 입력과 `Enter` 실행
+- `Up`/`Down` 입력 이력과 `clear`, `help`, `history` 명령
 - 최대 메시지 수 제한
 
-Panel을 닫아도 sink는 로그를 계속 수집한다. Worker thread 로그가 들어오면 sink가 짧게 lock하고 UI 프레임 시작에 표시용 snapshot을 만든다. Console Panel이 logger 내부 container를 순회하지 않는다.
+Panel을 닫아도 sink는 로그를 계속 수집한다. Worker thread 로그가 들어오면 sink가 메시지를 추가하는 동안 짧게 lock한다. UI는 원본 메시지를 가리키는 시각 행을 구성하므로 해당 행을 그리고 선택을 처리하는 동안 동일한 lock을 유지한다. Console Panel이 logger 내부 container를 순회하지 않는다.
 
-명령 입력은 command registry가 생긴 뒤 추가한다. 로그 출력과 command console을 처음부터 하나의 추상 시스템으로 묶지 않는다.
+명령 입력 필드는 Console 하단에 배치한다. 현재 필요한 `clear`, `help`, `history`는 `FConsolePanel`이 직접 처리한다. 엔진 명령 계약이 확인될 때 command registry를 추가하며, 현재 단계에서는 별도 command framework를 만들지 않는다.
 
 ## 보류: FContentPanel
 
@@ -637,7 +666,7 @@ World, Node와 Component 프로퍼티 저장은 ImGui ini와 분리한다. Inspe
 - 기본 Reflection 프로퍼티 열거와 metadata
 - Numeric, String, Name, Enum, Struct, Object, SoftObject와 Array Property
 - ImGui Docking 활성화와 root DockSpace
-- Hierarchy, Inspector, Viewport, Console Panel과 Main MenuBar
+- Hierarchy, Inspector, Viewport, Console, Profile Panel과 Main MenuBar
 - Node 단위 Editor Selection과 World/Level/Node tree
 - Reflection property kind와 Inspector scalar/struct 편집
 - `UObject::PostEditProperty(const FProperty&)`
