@@ -1,6 +1,5 @@
 #include "Render/Pass/OpaquePass.h"
 
-#include "Asset/ResourceManager.h"
 #include "Core/Assert.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
@@ -22,7 +21,6 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	check(CommandList.IsValid());
 
-	FResourceManager& ResourceManager = Renderer.GetResourceManager();
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
 	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_COMMON_SHADER, "Common.hlsl", "VS", EShaderStage::Vertex });
@@ -39,7 +37,8 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 
 	for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
 	{
-		FMeshBuffer* MeshBuffer = ResourceManager.GetOrCreateMeshBuffer(*Primitive->Mesh);
+		panicf(Primitive->Mesh->InitResources(*RenderDevice), "Geometry Mesh의 GPU Buffer 생성에 실패했다.");
+		const FMeshBuffer* MeshBuffer = &Primitive->Mesh->GetMeshBuffer();
 		const float Depth = View.ViewMatrix.TransformPosition(Primitive->WorldBounds.GetCenter()).Z;
 		check(!std::isnan(Depth) && !std::isinf(Depth));
 		const uint32 SortKey = std::bit_cast<uint32>(std::max(0.0f, Depth));

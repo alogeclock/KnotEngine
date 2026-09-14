@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Asset/GeometryMesh.h"
 #include "Component/Mesh/MeshComponent.h"
-#include "Render/Resource/MeshTypes.h"
 
 // Engine 기본 도형의 CPU Geometry를 생성하는 MeshComponent 기반 클래스.
 UCLASS()

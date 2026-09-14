@@ -3,7 +3,6 @@
 #include "EngineAPI.h"
 #include "Core/Geometry/AABB.h"
 #include "Core/Math/Matrix.h"
-#include <memory>
 
 class FGeometryMesh;
 class FScene;
@@ -19,7 +18,7 @@ struct ENGINE_API FPrimitiveSceneProxy
 
 	void Update();
 
-	std::shared_ptr<FGeometryMesh> Mesh;
+	FGeometryMesh* Mesh = nullptr;
 
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;

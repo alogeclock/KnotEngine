@@ -6,20 +6,11 @@
 #include "Render/Resource/MeshResources.h"
 #include "Render/Resource/VertexTypes.h"
 
-#include <memory>
 #include <span>
 
-class FResourceManager;
+class IRenderDevice;
 
-enum class EGeometryMeshType : uint8
-{
-	Quad,
-	Sphere,
-	Cube,
-};
-
-// 단일 LOD 디버그 Geometry의 CPU 원본 데이터와 GPU Mesh Buffer 슬롯을 소유한다.
-// GPU Buffer 생성은 FResourceManager가 담당하고, 활성 상태와 해제는 Geometry Mesh가 관리한다.
+// 단일 LOD Geometry의 CPU 원본 데이터와 GPU Mesh Buffer를 소유한다.
 class ENGINE_API FGeometryMesh
 {
 public:
@@ -31,9 +22,8 @@ public:
 	FGeometryMesh(FGeometryMesh&&) = delete;
 	FGeometryMesh& operator=(FGeometryMesh&&) = delete;
 
-	static std::shared_ptr<FGeometryMesh> Create(EGeometryMeshType MeshType);
-
 	void Initialize(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices);
+	bool InitResources(IRenderDevice& RenderDevice);
 	void Release();
 
 	const TArray<FGeometryVertex>& GetVertices() const { return Vertices; }
@@ -42,8 +32,6 @@ public:
 	const FMeshBuffer& GetMeshBuffer() const { return MeshBuffer; }
 
 private:
-	friend class FResourceManager;
-
 	TArray<FGeometryVertex> Vertices;
 	TArray<uint32> Indices;
 	FAABB LocalBounds;

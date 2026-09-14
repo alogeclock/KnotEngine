@@ -21,13 +21,13 @@ void FPrimitiveSceneProxy::Update()
 	// Component와의 friend 관계로 현재 상태를 읽는다. 갱신 중 임시 Proxy를 생성하지 않는다.
 	WorldMatrix = Component.GetTransform().GetWorldMatrix();
 	bVisible = Component.bVisible;
-	Mesh = Component.Mesh;
+	Mesh = Component.Mesh ? &Component.Mesh->GetGeometryMesh() : nullptr;
 	if (!Mesh || !Mesh->GetLocalBounds().IsValid())
 	{
-		Mesh.reset();
+		Mesh = nullptr;
 	}
 
-	// CPU Mesh가 없으면 이전 Bounds도 함께 비운다. GPU 업로드는 Renderer가 사용 직전에 수행한다.
+	// CPU Mesh가 없으면 이전 Bounds도 함께 비운다. GPU 업로드는 Render Pass가 사용 직전에 수행한다.
 	LocalBounds = Mesh ? Mesh->GetLocalBounds() : FAABB();
 	WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
 	bDirty = false;

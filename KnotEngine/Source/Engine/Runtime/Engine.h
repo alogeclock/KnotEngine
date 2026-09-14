@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/AssetManager.h"
 #include "Object/Object.h"
 #include "Platform/WindowsWindow.h"
 #include "World/WorldContext.h"
@@ -17,6 +18,7 @@ class ENGINE_API UEngine : public UObject
 	GENERATED_CLASS(UEngine, UObject)
 
 public:
+	UEngine();
 	~UEngine() override;
 
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -26,7 +28,10 @@ public:
 	virtual void ProcessInput(const FInputSnapshot& InputSnapshot) {}
 	virtual void OnWindowResized(FWindowSize Size) {}
 	virtual void Tick(float DeltaTime) {}
-	virtual void Shutdown() {}
+	virtual void Shutdown();
+
+	FAssetManager& GetAssetManager() { return AssetManager; }
+	const FAssetManager& GetAssetManager() const { return AssetManager; }
 
 	// Context와 해당 World를 함께 생성하고 파괴한다.
 	uint64 CreateWorldContext(EWorldType WorldType);
@@ -39,6 +44,7 @@ protected:
 	TArray<FWorldContext> WorldContexts;
 
 private:
+	FAssetManager AssetManager;
 	uint64 NextContextId = 1;
 };
 

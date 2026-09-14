@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Asset/ResourceManager.h"
 #include "Render/D3D11/D3D11RenderContext.h"
 #include "Render/D3D11/D3D11RenderDevice.h"
 #include "Render/ImGui/D3D11ImGuiBackend.h"
@@ -41,7 +40,6 @@ private:
 	FD3D11RenderDevice RenderDevice;
 	FD3D11RenderContext RenderContext;
 	URenderer Renderer;
-	FResourceManager ResourceManager;
 	FD3D11ImGuiBackend ImGuiRenderBackend;
 
 	TArray<FEditorViewportClient*> AllViewportClients;

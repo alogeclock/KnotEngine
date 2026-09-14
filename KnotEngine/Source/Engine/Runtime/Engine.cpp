@@ -4,12 +4,18 @@
 
 UEngine* GEngine = nullptr;
 
+UEngine::UEngine()
+{
+	AssetManager.Create();
+}
+
 UEngine::~UEngine()
 {
 	while (!WorldContexts.empty())
 	{
 		DestroyWorldContext(WorldContexts.back().ContextId);
 	}
+	AssetManager.Release();
 }
 
 void UEngine::AddReferencedObjects(FReferenceCollector& Collector)
@@ -19,6 +25,12 @@ void UEngine::AddReferencedObjects(FReferenceCollector& Collector)
 	{
 		Collector.AddReferencedObject(Context.World);
 	}
+	AssetManager.AddReferencedObjects(Collector); // FAssetManager는 UObject가 아니라 일반 C++ 객체이므로, 자동으로 수집되지 않는다.
+}
+
+void UEngine::Shutdown()
+{
+	AssetManager.Release();
 }
 
 uint64 UEngine::CreateWorldContext(EWorldType WorldType)

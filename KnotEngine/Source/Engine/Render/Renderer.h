@@ -2,7 +2,6 @@
 
 #include "EngineAPI.h"
 
-#include "Asset/ResourceManager.h"
 #include "Render/RHI/RenderTypes.h"
 #include "Render/Resource/PipelineStateCache.h"
 #include "Render/Resource/ShaderRegistry.h"
@@ -33,7 +32,6 @@ public:
 	void BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport);
 	void EndRenderTarget();
 
-	FResourceManager& GetResourceManager();
 	FShaderRegistry& GetShaderRegistry();
 	FPipelineStateCache& GetPipelineStateCache();
 
@@ -45,7 +43,6 @@ private:
 	IRenderDevice& RenderDevice;
 	IRenderContext& RenderContext;
 
-	FResourceManager ResourceManager;
 	FShaderRegistry ShaderRegistry;
 	FPipelineStateCache PipelineStateCache;
 

@@ -7,7 +7,7 @@
 #include "Render/RHI/RenderDevice.h"
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext)
-	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ResourceManager(InRenderDevice), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
+	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
 {
 }
 
@@ -19,11 +19,6 @@ URenderer::~URenderer()
 IRenderDevice& URenderer::GetRenderDevice() const
 {
 	return RenderDevice;
-}
-
-FResourceManager& URenderer::GetResourceManager()
-{
-	return ResourceManager;
 }
 
 FShaderRegistry& URenderer::GetShaderRegistry()
@@ -51,7 +46,6 @@ void URenderer::Create(void* NativeWindowHandle)
 	Release();
 	RenderDevice.Create();
 	RenderContext.Create(NativeWindowHandle);
-	ResourceManager.Create();
 	ShaderRegistry.Create();
 	PipelineStateCache.Create();
 }
@@ -60,7 +54,6 @@ void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
 	PipelineStateCache.Release();
-	ResourceManager.Release();
 	ShaderRegistry.Release();
 	RenderContext.Release();
 	RenderDevice.Release();

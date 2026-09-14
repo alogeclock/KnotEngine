@@ -2,11 +2,9 @@
 
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 
-#include <utility>
-
-void UMeshComponent::SetMesh(std::shared_ptr<FGeometryMesh> InMesh)
+void UMeshComponent::SetMesh(UGeometryMesh* InMesh)
 {
-	Mesh = std::move(InMesh);
+	Mesh = InMesh;
 	MarkPrimitiveSceneProxy();
 }
 

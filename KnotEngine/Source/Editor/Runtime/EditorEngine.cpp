@@ -12,8 +12,7 @@
 
 UEditorEngine::UEditorEngine(FWindowsApplication& Application)
 	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
-	  ResourceManager(RenderDevice), ImGuiRenderBackend(RenderDevice),
-	  ImGuiSystem(Application, *this, RenderDevice, ImGuiRenderBackend, InputRouter)
+	  ImGuiRenderBackend(RenderDevice), ImGuiSystem(Application, *this, RenderDevice, ImGuiRenderBackend, InputRouter)
 {
 }
 
@@ -23,7 +22,6 @@ void UEditorEngine::Startup(FWindowsApplication& Application)
 	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 
 	Renderer.Create(Application.GetWindow().GetHwnd());
-	ResourceManager.Create();
 	ImGuiSystem.Startup();
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
 	UWorld* EditorWorld = FindWorld(EditorContextId);
@@ -130,6 +128,6 @@ void UEditorEngine::Shutdown()
 
 	InputRouter.Reset();
 	ImGuiSystem.Shutdown();
-	ResourceManager.Release();
+	Super::Shutdown();
 	Renderer.Release();
 }
