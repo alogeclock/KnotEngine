@@ -23,6 +23,7 @@ public:
 	void Initialize(EGeometryMeshType InMeshType);
 
 	EGeometryMeshType GetMeshType() const { return MeshType; }
+	const char* GetDisplayName() const;
 	FGeometryMesh& GetGeometryMesh() { return GeometryMesh; }
 	const FGeometryMesh& GetGeometryMesh() const { return GeometryMesh; }
 

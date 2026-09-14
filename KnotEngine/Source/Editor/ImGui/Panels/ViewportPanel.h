@@ -12,11 +12,7 @@ class IRenderDevice;
 class FViewportPanel
 {
 public:
-	FViewportPanel(
-		IRenderDevice& InRenderDevice,
-		IImGuiRenderBackend& InRenderBackend,
-		FInputRouter& InInputRouter,
-		const FViewportStatState& InStatState);
+	FViewportPanel(IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter, const FViewportStatState& InStatState);
 	~FViewportPanel();
 
 	void Draw(bool bVisible, float DeltaTime);

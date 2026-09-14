@@ -18,7 +18,7 @@ struct ENGINE_API FPrimitiveSceneProxy
 
 	void Update();
 
-	FGeometryMesh* Mesh = nullptr;
+	FGeometryMesh* Mesh = nullptr; // 향후 Asset unload나 Render Thread를 도입한 뒤 raw pointer 안정성을 검토한다.
 
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;

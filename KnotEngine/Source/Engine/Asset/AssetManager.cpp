@@ -15,6 +15,9 @@ void FAssetManager::Create()
 	checkf(!GAssetManager, "Asset Manager가 이미 생성되어 있다.");
 	check(GeometryMeshes.empty());
 	GAssetManager = this;
+	GetOrCreateGeometryMesh(EGeometryMeshType::Cube);
+	GetOrCreateGeometryMesh(EGeometryMeshType::Sphere);
+	GetOrCreateGeometryMesh(EGeometryMeshType::Quad);
 }
 
 void FAssetManager::Release()

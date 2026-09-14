@@ -23,6 +23,7 @@ public:
 	void Release();
 
 	UGeometryMesh* GetOrCreateGeometryMesh(EGeometryMeshType MeshType);
+	const TMap<EGeometryMeshType, TObjectPtr<UGeometryMesh>>& GetGeometryMeshCache() const { return GeometryMeshes; }
 	void AddReferencedObjects(FReferenceCollector& Collector) const;
 
 private:

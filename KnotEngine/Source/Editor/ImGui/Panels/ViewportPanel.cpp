@@ -9,12 +9,8 @@
 #include <imgui.h>
 #include <iterator>
 
-FViewportPanel::FViewportPanel(
-	IRenderDevice& InRenderDevice,
-	IImGuiRenderBackend& InRenderBackend,
-	FInputRouter& InInputRouter,
-	const FViewportStatState& InStatState)
-	: Viewport(InRenderDevice), ViewportClient(Viewport), StatOverlay(InStatState), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
+FViewportPanel::FViewportPanel(IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter, const FViewportStatState& InStatState)
+    : Viewport(InRenderDevice), ViewportClient(Viewport), StatOverlay(InStatState), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
 {
 }
 
@@ -101,7 +97,8 @@ void FViewportPanel::DrawToolbar()
 				ImGui::AlignTextToFramePadding();
 				ImGui::TextUnformatted("Rotation");
 				ImGui::TableSetColumnIndex(1);
-				float ViewRotation[3] = { ViewTransform.ViewRotation.Pitch, ViewTransform.ViewRotation.Yaw, ViewTransform.ViewRotation.Roll, };
+
+				float ViewRotation[3] = { ViewTransform.ViewRotation.Pitch, ViewTransform.ViewRotation.Yaw, ViewTransform.ViewRotation.Roll };
 				ImGui::SetNextItemWidth(-1.0f);
 				if (ImGui::DragFloat3("##ViewRotation", ViewRotation, 0.1f, 0.0f, 0.0f, "%.2f"))
 				{
@@ -128,11 +125,11 @@ void FViewportPanel::DrawToolbar()
 				const float ResetButtonWidth = ImGui::CalcTextSize("Reset").x + Style.FramePadding.x * 2.0f;
 				ImGui::SetNextItemWidth(-ResetButtonWidth - Style.ItemSpacing.x);
 				ImGui::SliderFloat(
-					"##CameraSensitivity",
-					&Camera.Sensitivity,
-					FEditorViewportClient::MinCameraSensitivity,
-					FEditorViewportClient::MaxCameraSensitivity,
-					"%.1f");
+				    "##CameraSensitivity",
+				    &Camera.Sensitivity,
+				    FEditorViewportClient::MinCameraSensitivity,
+				    FEditorViewportClient::MaxCameraSensitivity,
+				    "%.1f");
 				ImGui::SameLine();
 				if (ImGui::Button("Reset"))
 				{

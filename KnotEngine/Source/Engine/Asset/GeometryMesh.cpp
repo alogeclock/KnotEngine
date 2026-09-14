@@ -4,6 +4,19 @@
 
 #include <cmath>
 
+const char* UGeometryMesh::GetDisplayName() const
+{
+	switch (MeshType)
+	{
+	case EGeometryMeshType::Cube: return "Cube";
+	case EGeometryMeshType::Sphere: return "Sphere";
+	case EGeometryMeshType::Quad: return "Quad";
+	}
+
+	panicf(false, "알 수 없는 Geometry Mesh 종류. MeshType={}", static_cast<uint8>(MeshType));
+	return "Unknown";
+}
+
 void UGeometryMesh::Initialize(EGeometryMeshType InMeshType)
 {
 	TArray<FGeometryVertex> Vertices;

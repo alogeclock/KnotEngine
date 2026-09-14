@@ -1,5 +1,7 @@
 #include "ImGui/Panels/InspectorPanel.h"
 
+#include "Asset/AssetManager.h"
+#include "Asset/GeometryMesh.h"
 #include "Component/Component.h"
 #include "Core/Geometry/Transform.h"
 #include "Core/Math/Rotator.h"
@@ -487,7 +489,56 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	{
 		const FObjectProperty& ObjectProperty = static_cast<const FObjectProperty&>(Property);
 		UObject* ReferencedObject = ObjectProperty.GetObjectPtrOps()->GetObject(Value);
-		ImGui::LabelText(Label.c_str(), "%s", ReferencedObject ? ReferencedObject->GetClass()->GetName().c_str() : "None");
+		if (ObjectProperty.GetPropertyClass() == UGeometryMesh::StaticClass())
+		{
+			check(GAssetManager);
+			const UGeometryMesh* CurrentMesh = static_cast<const UGeometryMesh*>(ReferencedObject);
+			const char* Preview = CurrentMesh ? CurrentMesh->GetDisplayName() : "None";
+			TArray<UGeometryMesh*> GeometryMeshes;
+			GeometryMeshes.reserve(GAssetManager->GetGeometryMeshCache().size());
+			for (const auto& Entry : GAssetManager->GetGeometryMeshCache())
+			{
+				if (UGeometryMesh* GeometryMesh = Entry.second.Get())
+				{
+					GeometryMeshes.push_back(GeometryMesh);
+				}
+			}
+			std::sort(GeometryMeshes.begin(), GeometryMeshes.end(), [](const UGeometryMesh* Left, const UGeometryMesh* Right)
+			{
+				return std::strcmp(Left->GetDisplayName(), Right->GetDisplayName()) < 0;
+			});
+
+			const bool bVisible = ImGui::BeginTable("##GeometryMesh", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
+			if (bVisible)
+			{
+				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.25f);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.75f);
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted(Label.c_str());
+				ImGui::TableNextColumn();
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				if (ImGui::BeginCombo("##Value", Preview))
+				{
+					for (UGeometryMesh* GeometryMesh : GeometryMeshes)
+					{
+						const bool bSelected = CurrentMesh == GeometryMesh;
+						if (ImGui::Selectable(GeometryMesh->GetDisplayName(), bSelected))
+						{
+							ObjectProperty.GetObjectPtrOps()->SetObject(Value, GeometryMesh);
+							bChanged = true;
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::EndTable();
+			}
+		}
+		else
+		{
+			ImGui::LabelText(Label.c_str(), "%s", ReferencedObject ? ReferencedObject->GetClass()->GetName().c_str() : "None");
+		}
 		break;
 	}
 	case EPropertyKind::SoftObject:
