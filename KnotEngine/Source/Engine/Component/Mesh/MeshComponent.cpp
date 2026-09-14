@@ -1,4 +1,4 @@
-#include "Component/MeshComponent.h"
+#include "Component/Mesh/MeshComponent.h"
 
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 

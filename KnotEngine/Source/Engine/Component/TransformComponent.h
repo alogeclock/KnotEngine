@@ -5,7 +5,7 @@
 #include "Core/Math/Matrix.h"
 #include "Core/Math/Rotator.h"
 
-UCLASS()
+UCLASS(DisplayName = "Transform")
 class ENGINE_API UTransformComponent final : public UComponent
 {
 	GENERATED_CLASS(UTransformComponent, UComponent)

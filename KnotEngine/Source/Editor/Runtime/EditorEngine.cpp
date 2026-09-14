@@ -1,8 +1,6 @@
 #include "EditorEngine.h"
 #include "Platform/WindowsApplication.h"
 
-#include "Component/CubeComponent.h"
-#include "Component/MovementComponent.h"
 #include "World/World.h"
 #include "Render/RHI/RenderTypes.h"
 #include "Render/Scene/SceneRenderer.h"
@@ -27,15 +25,8 @@ void UEditorEngine::Startup(FWindowsApplication& Application)
 	ImGuiSystem.Startup();
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
 	UWorld* EditorWorld = FindWorld(EditorContextId);
-
-	// 테스트용 Cube Node를 생성하고, PrimitiveComponent와 MovementComponent를 추가한다.
-	// UI/PIE 분리 전에는 이 데모 World를 직접 실행한다.
 	check(EditorWorld);
-	UWorld& World = *EditorWorld;
-	UNode& Cube = World.GetPersistentLevel().CreateNode(FName("Cube"));
-	Cube.AddComponent<UCubeComponent>(Renderer);
-	Cube.AddComponent<UMovementComponent>();
-	World.BeginPlay();
+	EditorWorld->BeginPlay();
 }
 
 void UEditorEngine::ProcessInput(const FInputSnapshot& InputSnapshot)

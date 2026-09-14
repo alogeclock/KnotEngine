@@ -33,6 +33,8 @@ public:
 	UClass* FindClass(const FName& Name) const;
 	UScriptStruct* FindScriptStruct(const FName& Name) const;
 	UEnum* FindEnum(const FName& Name) const;
+	void GetClasses(TArray<const UClass*>& OutClasses) const;
+	const TArray<const UClass*>& GetEditorSpawnableClasses() const { return EditorSpawnableClasses; }
 
 private:
 	struct FNameHash
@@ -40,10 +42,13 @@ private:
 		SIZE_T operator()(const FName& Name) const { return GetTypeHash(Name); }
 	};
 
+	static bool CompareClass(const UClass* Left, const UClass* Right);
+
 	UField* RegisterField(std::unique_ptr<UField> Field);
 
 	TArray<std::unique_ptr<UField>> Fields;
 	TMap<FName, UField*, FNameHash> FieldsByName;
+	TArray<const UClass*> EditorSpawnableClasses;
 };
 
 extern ENGINE_API FReflectionRegistry* GReflectionRegistry;

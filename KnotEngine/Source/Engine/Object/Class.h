@@ -18,6 +18,7 @@ enum class EClassFlags : uint32
 	None = 0,
 	Abstract = 1 << 0,
 	Transient = 1 << 1,
+	EditorSpawnable = 1 << 2,
 };
 
 constexpr EClassFlags operator|(EClassFlags Lhs, EClassFlags Rhs)
@@ -117,6 +118,7 @@ public:
 
 	bool IsChildOf(const UClass* Other) const;
 	bool HasAnyClassFlags(EClassFlags Flags) const { return (ClassFlags & Flags) != EClassFlags::None; }
+	bool CanCreateObject() const { return CreateFunc && !HasAnyClassFlags(EClassFlags::Abstract); }
 	UObject* CreateObject() const;
 
 	UFunction* AddFunction(std::unique_ptr<UFunction> Function);

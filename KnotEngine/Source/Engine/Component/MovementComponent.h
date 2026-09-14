@@ -3,7 +3,7 @@
 #include "Component/Component.h"
 #include "Core/Math/Rotator.h"
 
-UCLASS()
+UCLASS(EditorSpawnable, Category = "Movement", DisplayName = "Movement")
 class ENGINE_API UMovementComponent : public UComponent
 {
 	GENERATED_CLASS(UMovementComponent, UComponent)

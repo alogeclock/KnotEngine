@@ -36,7 +36,7 @@ public:
 private:
 	void Render();
 
-	// TO-DO: EditorEngine는 Editor 전용이므로 추상화된 IRenderDevice와 IRenderContext를 사용하도록 한다.
+	// TODO: EditorEngine는 Editor 전용이므로 추상화된 IRenderDevice와 IRenderContext를 사용하도록 한다.
 	FD3D11RenderDevice RenderDevice;
 	FD3D11RenderContext RenderContext;
 	URenderer Renderer;

@@ -63,7 +63,7 @@ KnotEngine/Source/
 ├─ Engine/
 │  ├─ Component/
 │  │  ├─ PrimitiveComponent.h/.cpp
-│  │  └─ MeshComponent.h/.cpp
+│  │  └─ Mesh/MeshComponent.h/.cpp
 │  ├─ World/World.h/.cpp
 │  └─ Render/
 │     ├─ Renderer.h/.cpp
@@ -208,7 +208,7 @@ OnUnregister
 | `bDirty` | 원본 Component에서 다시 복사할 필요 여부 |
 | `Component` | 등록 수명 안에서 유효한 비소유 원본 참조 |
 
-Mesh가 없거나 Mesh Buffer가 유효하지 않으면 렌더용 Mesh 참조와 Bounds를 비운다. Mesh가 없는 Component도 Proxy 등록은 유지한다. 공유 Mesh 데이터를 직접 수정한 경우 업로드 후 관련 Component를 명시적으로 Mark해야 하며 Asset 변경 구독은 아직 없다.
+Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mesh 참조와 Bounds를 비운다. Mesh가 없는 Component도 Proxy 등록은 유지한다. 기본 Geometry Component는 기본 생성 중 CPU Geometry를 만들며 SceneRenderer가 처음 사용하기 전에 GPU Mesh Buffer를 업로드한다. 공유 Mesh 데이터를 직접 수정한 경우 관련 Component를 명시적으로 Mark해야 하며 Asset 변경 구독은 아직 없다.
 
 부모 Transform 변경은 자손까지 Dirty를 전파한다. Stopped·Paused에서도 Scene 갱신을 실행하므로 Inspector 편집 결과가 반영된다. World Tick 이후 변경한 값은 다음 Scene 갱신에서 반영된다.
 
@@ -226,7 +226,7 @@ Mesh가 없거나 Mesh Buffer가 유효하지 않으면 렌더용 Mesh 참조와
 
 ### 가시 Primitive 수집과 Draw Command 수집
 
-`CullView()`는 Opaque Node를 추가할 View마다 `VisiblePrimitives`를 비우고 Scene의 Proxy를 순회한다. Visible, Mesh Buffer 존재, 유효한 Bounds와 Frustum 교차를 검사한다. `bPrimitive`가 꺼져 있으면 Opaque Node를 추가하지 않는다.
+`CullView()`는 Opaque Node를 추가할 View마다 `VisiblePrimitives`를 비우고 Scene의 Proxy를 순회한다. SceneRenderer는 아직 업로드되지 않은 CPU Geometry를 먼저 업로드하고, Visible, 업로드 상태, 유효한 Bounds와 Frustum 교차를 검사한다. `bPrimitive`가 꺼져 있으면 Opaque Node를 추가하지 않는다.
 
 가시성 결과는 패스의 입력이다. 향후 Shadow View나 다른 패스의 요구를 메인 View 가시성 하나로 대체하지 않는다.
 
@@ -421,7 +421,9 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 
 - [World.cpp](../KnotEngine/Source/Engine/World/World.cpp)
 - [PrimitiveComponent.h](../KnotEngine/Source/Engine/Component/PrimitiveComponent.h)
-- [MeshComponent.cpp](../KnotEngine/Source/Engine/Component/MeshComponent.cpp)
+- [MeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/MeshComponent.cpp)
+- [GeometryMeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/GeometryMeshComponent.cpp)
+- [MeshTypes.cpp](../KnotEngine/Source/Engine/Render/Resource/MeshTypes.cpp)
 - [PrimitiveSceneProxy.h](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.h)
 - [PrimitiveSceneProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.cpp)
 - [Scene.h](../KnotEngine/Source/Engine/Render/Scene/Scene.h)

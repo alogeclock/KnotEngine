@@ -162,6 +162,8 @@ class HeaderTool:
                 self.error(cursor, f"Duplicate option: {key}")
             if len(part) == 1 and key in {"NoEdit", "Transient"} and cursor.spelling == "UPROPERTY":
                 options[key] = True
+            elif len(part) == 1 and key == "EditorSpawnable" and cursor.spelling == "UCLASS":
+                options[key] = True
             elif len(part) == 3 and part[1] == "=" and key in {"Category", "DisplayName"}:
                 try:
                     value = json.loads(part[2])
@@ -387,7 +389,14 @@ class HeaderTool:
             populate.extend(registration)
         lines += ["\tstatic void Register(FReflectionRegistry& Registry)", "\t{"]
         if item.kind == "class":
-            flags = "EClassFlags::Abstract" if item.cursor.is_abstract_record() else "EClassFlags::None"
+            class_flags = []
+            if item.cursor.is_abstract_record():
+                class_flags.append("EClassFlags::Abstract")
+            if item.marker and item.marker.options.get("EditorSpawnable"):
+                if not self.constructible.get(name):
+                    self.error(item.cursor, "EditorSpawnable classes must be public default constructible and non-abstract.")
+                class_flags.append("EClassFlags::EditorSpawnable")
+            flags = " | ".join(class_flags) or "EClassFlags::None"
             parent = f"{item.parent}::StaticClass()" if item.parent else "nullptr"
             factory = "&CreateObject" if self.constructible.get(name) else "nullptr"
             construction = f"std::make_unique<UClass>(FName({cpp_string(name)}), {parent}, sizeof({name}), alignof({name}), {flags}, {factory})"

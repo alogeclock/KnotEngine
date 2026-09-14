@@ -126,7 +126,9 @@ Panel visibility와 Dock layout은 UI 상태다. World와 객체 데이터의 �
 
 ## Selection과 Inspector
 
-Hierarchy가 선택 상태를 변경하면 Inspector는 같은 `FEditorSelection`을 읽는다. Panel끼리 직접 호출하거나 서로를 소유하지 않는다.
+Hierarchy가 선택 상태를 변경하면 Inspector는 같은 `FEditorSelection`을 읽는다. Hierarchy의 Add Node 메뉴는 `Empty`와 `EditorSpawnable` Component를 카테고리별로 표시한다. 생성한 Node는 Persistent Level에 추가되고 선택되며, Component 항목을 선택한 경우 기본 Transform과 해당 Component를 함께 가진다. Panel끼리 직접 호출하거나 서로를 소유하지 않는다.
+
+Inspector의 Add Component 메뉴는 `FReflectionRegistry`가 등록 시점에 정렬한 `EditorSpawnable` 클래스 목록을 참조하고 `UComponent` 상속 관계를 검사한다. 메뉴 그룹과 이름은 `UCLASS`의 `Category`, `DisplayName` 메타데이터를 사용한다. Panel은 구체 Component 클래스를 직접 생성하지 않고 선택한 `UClass`를 `UNode::AddComponent()`에 전달한다.
 
 Inspector의 값 변경은 다음 경로를 따른다.
 
@@ -207,6 +209,7 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - Editor WorldContext와 기본 World 실행
 - ImGui context, DockSpace, Main MenuBar와 Panel 수명 관리
 - Hierarchy 선택과 Reflection 기반 Inspector 편집
+- Hierarchy와 Inspector의 Reflection 기반 Node·Component 생성 메뉴
 - Viewport offscreen rendering과 Editor Camera
 - Viewport 입력 라우팅
 - Console log sink와 명령 입력

@@ -10,6 +10,13 @@
 class FMeshBuffer;
 class URenderer;
 
+enum class EGeometryMeshType : uint8
+{
+	Quad,
+	Sphere,
+	Cube,
+};
+
 // 단순 Geometry Mesh의 CPU 원본 데이터와 GPU Mesh Buffer를 소유한다.
 class ENGINE_API FGeometryMesh
 {
@@ -21,6 +28,7 @@ public:
 	FGeometryMesh& operator=(const FGeometryMesh&) = delete;
 	FGeometryMesh(FGeometryMesh&&) noexcept;
 	FGeometryMesh& operator=(FGeometryMesh&&) noexcept;
+	static std::shared_ptr<FGeometryMesh> Create(EGeometryMeshType MeshType);
 
 	void SetData(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices);
 	bool Upload(URenderer& Renderer);

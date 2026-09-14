@@ -59,7 +59,12 @@ KnotEngine/Source/Engine/
    ├─ Component.h/.cpp
    ├─ TransformComponent.h/.cpp
    ├─ PrimitiveComponent.h/.cpp
-   ├─ MeshComponent.h/.cpp
+   ├─ Mesh/
+   │  ├─ MeshComponent.h/.cpp
+   │  ├─ GeometryMeshComponent.h/.cpp
+   │  ├─ QuadMeshComponent.h/.cpp
+   │  ├─ SphereMeshComponent.h/.cpp
+   │  └─ CubeMeshComponent.h/.cpp
    └─ MovementComponent.h/.cpp
 ```
 
@@ -155,7 +160,7 @@ ULevel::Nodes
 ```text
 Cube UNode
 ├─ UTransformComponent
-├─ UMeshComponent
+├─ UCubeMeshComponent
 └─ UMovementComponent
 ```
 

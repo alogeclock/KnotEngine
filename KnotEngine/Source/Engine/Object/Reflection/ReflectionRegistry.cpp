@@ -4,6 +4,8 @@
 #include "Object/Class.h"
 #include "Object/Function.h"
 
+#include <algorithm>
+
 FReflectionRegistry* GReflectionRegistry = nullptr;
 
 UClass* UObject::StaticClassPrivate = nullptr;
@@ -13,6 +15,20 @@ UClass* UClass::StaticClassPrivate = nullptr;
 UClass* UScriptStruct::StaticClassPrivate = nullptr;
 UClass* UFunction::StaticClassPrivate = nullptr;
 UClass* UEnum::StaticClassPrivate = nullptr;
+
+bool FReflectionRegistry::CompareClass(const UClass* Left, const UClass* Right)
+{
+	check(Left);
+	check(Right);
+
+	const FReflectionMetadata& LeftMetadata = Left->GetMetadata();
+	const FReflectionMetadata& RightMetadata = Right->GetMetadata();
+	if (LeftMetadata.GetCategory() != RightMetadata.GetCategory())
+	{
+		return LeftMetadata.GetCategory() < RightMetadata.GetCategory();
+	}
+	return LeftMetadata.GetDisplayName() < RightMetadata.GetDisplayName();
+}
 
 // 엔진 루프가 소유할 비활성 레지스트리 객체를 생성한다.
 FReflectionRegistry::FReflectionRegistry() = default;
@@ -74,6 +90,7 @@ void FReflectionRegistry::Shutdown()
 	UScriptStruct::StaticClassPrivate = nullptr;
 	UFunction::StaticClassPrivate = nullptr;
 	UEnum::StaticClassPrivate = nullptr;
+	EditorSpawnableClasses.clear();
 	FieldsByName.clear();
 	Fields.clear();
 	GReflectionRegistry = nullptr;
@@ -84,7 +101,14 @@ UClass* FReflectionRegistry::RegisterClass(std::unique_ptr<UClass> Class)
 {
 	panic(Class);
 	Class->SetClass(UClass::StaticClass());
-	return static_cast<UClass*>(RegisterField(std::move(Class)));
+	UClass* RegisteredClass = static_cast<UClass*>(RegisterField(std::move(Class)));
+	if (RegisteredClass->HasAnyClassFlags(EClassFlags::EditorSpawnable))
+	{
+		panic(RegisteredClass->CanCreateObject());
+		const auto InsertPosition = std::lower_bound(EditorSpawnableClasses.begin(), EditorSpawnableClasses.end(), RegisteredClass, CompareClass);
+		EditorSpawnableClasses.insert(InsertPosition, RegisteredClass);
+	}
+	return RegisteredClass;
 }
 
 // 값 타입 구조체 스키마의 소유권을 공통 필드 저장소에 등록한다.
@@ -115,6 +139,18 @@ UField* FReflectionRegistry::FindField(const FName& Name) const
 UClass* FReflectionRegistry::FindClass(const FName& Name) const
 {
 	return dynamic_cast<UClass*>(FindField(Name));
+}
+
+// 등록된 클래스 스키마를 등록 순서대로 출력 배열 뒤에 추가한다.
+void FReflectionRegistry::GetClasses(TArray<const UClass*>& OutClasses) const
+{
+	for (const std::unique_ptr<UField>& Field : Fields)
+	{
+		if (Field->GetClass() == UClass::StaticClass())
+		{
+			OutClasses.push_back(static_cast<const UClass*>(Field.get()));
+		}
+	}
 }
 
 // 이름이 일치하는 필드가 값 타입 구조체 스키마인지 확인해 반환한다.

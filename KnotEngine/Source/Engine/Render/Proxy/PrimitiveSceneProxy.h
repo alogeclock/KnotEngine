@@ -18,7 +18,7 @@ struct ENGINE_API FPrimitiveSceneProxy
 
 	void Update();
 
-	std::shared_ptr<const FGeometryMesh> Mesh;
+	std::shared_ptr<FGeometryMesh> Mesh;
 
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;

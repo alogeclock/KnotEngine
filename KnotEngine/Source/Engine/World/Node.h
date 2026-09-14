@@ -8,6 +8,7 @@ class ULevel;
 class UWorld;
 class UTransformComponent;
 class UComponent;
+class UClass;
 class URenderer;
 
 // Level에 배치되는 최소 단위 객체로, Component의 합성을 통해 기능을 구현한다.
@@ -42,6 +43,8 @@ public:
 		AttachComponent(*Component);
 		return *Component;
 	}
+
+	UComponent& AddComponent(const UClass& ComponentClass);
 
 private:
 	void AttachComponent(UComponent& Component);

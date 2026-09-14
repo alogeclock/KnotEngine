@@ -9,14 +9,28 @@
 #include "Object/Property/ObjectProperty.h"
 #include "Object/Property/SoftObjectProperty.h"
 #include "Object/Property/StructProperty.h"
+#include "Object/Reflection/ReflectionRegistry.h"
 #include "ImGui/EditorSelection.h"
 #include "World/Node.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <algorithm>
+#include <cctype>
 #include <cfloat>
 #include <cstring>
+
+bool FInspectorPanel::DrawComponent(UNode& Node, const UClass& Class)
+{
+	const FString& DisplayName = Class.GetMetadata().GetDisplayName();
+	if (!ImGui::Selectable(DisplayName.c_str()))
+	{
+		return false;
+	}
+	Node.AddComponent(Class);
+	ImGui::CloseCurrentPopup();
+	return true;
+}
 
 // Editor에서 선택된 객체의 프로퍼티를 그리는 패널을 구현한다.
 void FInspectorPanel::Draw(const FEditorSelection& Selection)
@@ -45,10 +59,14 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 			continue;
 		}
 		const FString ClassName = Component->GetClass()->GetName();
-		FString HeaderName = ClassName;
-		if (ClassName.size() > 10 && ClassName.starts_with('U') && ClassName.ends_with("Component"))
+		FString HeaderName = Component->GetClass()->GetMetadata().GetDisplayName();
+		if (HeaderName.empty())
 		{
-			HeaderName = ClassName.substr(1, ClassName.size() - 10);
+			HeaderName = ClassName;
+			if (ClassName.size() > 10 && ClassName.starts_with('U') && ClassName.ends_with("Component"))
+			{
+				HeaderName = ClassName.substr(1, ClassName.size() - 10);
+			}
 		}
 		ImGui::PushID(Component);
 		if (ImGui::CollapsingHeader(HeaderName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -57,7 +75,148 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 		}
 		ImGui::PopID();
 	}
+	DrawAddComponent(Node);
 	ImGui::End();
+}
+
+// UCLASS 메타데이터로 노출된 Component를 검색하고 선택한 클래스를 현재 Node에 생성한다.
+void FInspectorPanel::DrawAddComponent(UNode& Node)
+{
+	static constexpr float ControlWidth = 260.0f;
+	static constexpr float PopupHeight = 360.0f;
+	static constexpr float SectionSpacing = 10.0f;
+
+	// Inspector 너비와 버튼 크기를 맞추고 가운데에 배치한다.
+	ImGui::Dummy(ImVec2(0.0f, SectionSpacing));
+	const float AvailableWidth = ImGui::GetContentRegionAvail().x;
+	const float ActualButtonWidth = std::min(ControlWidth, AvailableWidth);
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, (AvailableWidth - ActualButtonWidth) * 0.5f));
+	if (ImGui::Button("Add Component", ImVec2(ActualButtonWidth, 0.0f)))
+	{
+		ImGui::OpenPopup("##AddComponentPopup");
+	}
+
+	// 화면 경계 안에서 공간이 더 넓은 방향으로 팝업을 연다.
+	const ImVec2 ButtonMin = ImGui::GetItemRectMin();
+	const ImVec2 ButtonMax = ImGui::GetItemRectMax();
+	const ImGuiViewport* Viewport = ImGui::GetWindowViewport();
+	const ImVec2 PopupSize(ActualButtonWidth, std::min(PopupHeight, Viewport->WorkSize.y));
+	const float SpaceAbove = ButtonMin.y - Viewport->WorkPos.y;
+	const float SpaceBelow = Viewport->WorkPos.y + Viewport->WorkSize.y - ButtonMax.y;
+	const bool bOpenBelow = SpaceBelow >= PopupSize.y || SpaceBelow >= SpaceAbove;
+	const ImVec2 PopupPosition(ButtonMin.x, bOpenBelow ? ButtonMax.y : ButtonMin.y);
+	const ImVec2 PopupPivot(0.0f, bOpenBelow ? 0.0f : 1.0f);
+	ImGui::SetNextWindowPos(PopupPosition, ImGuiCond_Appearing, PopupPivot);
+	ImGui::SetNextWindowSize(PopupSize, ImGuiCond_Appearing);
+	if (!ImGui::BeginPopup("##AddComponentPopup"))
+	{
+		return;
+	}
+
+	// 팝업을 처음 열었을 때 바로 Component 이름을 입력할 수 있도록 한다.
+	if (ImGui::IsWindowAppearing())
+	{
+		ImGui::SetKeyboardFocusHere();
+	}
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	ImGui::InputTextWithHint("##ComponentFilter", "Search Component", ComponentFilter.data(), ComponentFilter.size());
+	ImGui::Spacing();
+
+	// Registry가 등록 시점에 정렬한 EditorSpawnable Class 목록을 참조한다.
+	check(GReflectionRegistry);
+	const TArray<const UClass*>& ComponentClasses = GReflectionRegistry->GetEditorSpawnableClasses();
+
+	const FString FilterText(ComponentFilter.data());
+	// Component 이름과 Category를 대소문자 구분 없이 검색한다.
+	const auto ContainsFilter = [&FilterText](const FString& Text)
+	{
+		return std::search(Text.begin(), Text.end(), FilterText.begin(), FilterText.end(), [](char Left, char Right)
+		{
+			return std::tolower(static_cast<unsigned char>(Left)) == std::tolower(static_cast<unsigned char>(Right));
+		}) != Text.end();
+	};
+
+	bool bHasMatch = false;
+	bool bComponentAdded = false;
+	if (!FilterText.empty())
+	{
+		// 검색 중에는 Category 메뉴를 생략하고 일치한 Component를 바로 표시한다.
+		for (const UClass* Class : ComponentClasses)
+		{
+			if (!Class->IsChildOf(UComponent::StaticClass()))
+			{
+				continue;
+			}
+
+			const FString& DisplayName = Class->GetMetadata().GetDisplayName();
+			const FString& Category = Class->GetMetadata().GetCategory();
+			if (ContainsFilter(DisplayName) || ContainsFilter(Category))
+			{
+				bHasMatch = true;
+				if (DrawComponent(Node, *Class))
+				{
+					bComponentAdded = true;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		// 검색어가 없으면 정렬된 Component를 같은 Category 단위로 묶는다.
+		for (SIZE_T FirstClass = 0; FirstClass < ComponentClasses.size();)
+		{
+			while (FirstClass < ComponentClasses.size() && !ComponentClasses[FirstClass]->IsChildOf(UComponent::StaticClass()))
+			{
+				++FirstClass;
+			}
+			if (FirstClass == ComponentClasses.size())
+			{
+				break;
+			}
+
+			const FString& Category = ComponentClasses[FirstClass]->GetMetadata().GetCategory();
+			SIZE_T LastClass = FirstClass + 1;
+			while (LastClass < ComponentClasses.size() && ComponentClasses[LastClass]->GetMetadata().GetCategory() == Category)
+			{
+				++LastClass;
+			}
+
+			bHasMatch = true;
+			const FString MenuName = Category.empty() ? "Other" : Category;
+			if (ImGui::BeginMenu(MenuName.c_str()))
+			{
+				for (SIZE_T ClassIndex = FirstClass; ClassIndex < LastClass; ++ClassIndex)
+				{
+					if (!ComponentClasses[ClassIndex]->IsChildOf(UComponent::StaticClass()))
+					{
+						continue;
+					}
+					if (DrawComponent(Node, *ComponentClasses[ClassIndex]))
+					{
+						bComponentAdded = true;
+						break;
+					}
+				}
+				ImGui::EndMenu();
+			}
+			if (bComponentAdded)
+			{
+				break;
+			}
+			FirstClass = LastClass;
+		}
+	}
+
+	if (!bHasMatch)
+	{
+		ImGui::TextDisabled("No components found.");
+	}
+	if (bComponentAdded)
+	{
+		ComponentFilter.fill('\0'); // 컴포넌트 필터를 초기화한다.
+	}
+	ImGui::EndPopup();
 }
 
 // Editor에서 선택된 객체의 프로퍼티를 리플렉션 기반으로 그린다.

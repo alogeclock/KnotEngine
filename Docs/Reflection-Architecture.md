@@ -111,7 +111,7 @@ KnotEngine/Build/CMake/
 | `UScriptStruct` | 값 타입의 생성, 소멸과 복사 |
 | `UFunction` | 매개변수 스키마와 native 호출 |
 | `FProperty` | 오프셋, 크기, 플래그와 타입별 값 연산 |
-| `FReflectionRegistry` | 최상위 스키마 소유, `FName` 기반 조회와 코어 타입 등록 |
+| `FReflectionRegistry` | 최상위 스키마 소유, `FName` 기반 조회, 코어 타입 등록과 `EditorSpawnable` 클래스 캐시 |
 | `FReferenceCollector` | 강한 객체 참조의 도달 가능 집합 계산 |
 | `KnotHeaderTool.py` | 마커가 붙은 C++ 선언 검증과 코드 생성 |
 | `Reflection.cmake` | 생성기를 빌드의 `PRE_BUILD` 단계에 연결 |
@@ -176,6 +176,16 @@ public:
 `NoEdit`은 C++ 접근 제어가 아니라 `GetEditorProperties()`의 필터다. `Transient`도 참조 수집에는 영향을 주지 않는다.
 
 `Category = "Movement"`, `DisplayName = "Speed"`는 모든 등록 마커에서 사용할 수 있다. 기본 카테고리는 선언 타입 이름이다. 표시 이름을 생략하면 `MaxSpeed`는 `Max Speed`로, bool의 `bVisible`은 `Visible`로 변환한다. `Edit`, `Editable`, `EditorOnly`, `Tooltip`, `SaveGame` 등 현재 계약에 없는 옵션은 파서가 거부한다.
+
+`UCLASS(EditorSpawnable)`은 public 기본 생성이 가능한 non-abstract 클래스를 Editor의 생성 목록에 노출한다. 생성기는 이 조건을 만족하지 않는 선언을 거부한다. Registry는 해당 클래스를 등록할 때 `Category`와 `DisplayName` 순서로 캐시에 삽입한다. Hierarchy와 Inspector는 이 캐시를 참조하고 `UComponent` 상속 관계만 검사하므로 메뉴가 열린 프레임마다 전체 클래스를 복사하고 정렬하지 않는다. `Category`는 메뉴 그룹, `DisplayName`은 항목 이름으로 사용한다.
+
+```cpp
+UCLASS(EditorSpawnable, Category = "Geometry", DisplayName = "Cube")
+class UCubeMeshComponent final : public UGeometryMeshComponent
+{
+    // ...
+};
+```
 
 툴팁은 마커에 인접한 `///` 또는 `/** */` 문서 주석의 첫 문단에서 가져온다.
 

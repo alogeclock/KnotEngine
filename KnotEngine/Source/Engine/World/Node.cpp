@@ -1,4 +1,6 @@
 #include "World/Node.h"
+#include "Component/Component.h"
+#include "Object/Class.h"
 #include "World/Level.h"
 #include "World/World.h"
 
@@ -64,6 +66,19 @@ void UNode::Tick(float DeltaTime)
 			Component->TickComponent(DeltaTime);
 		}
 	}
+}
+
+// 기본 생성 가능한 리플렉션 클래스로 Component를 생성하여 이 Node의 수명 주기에 연결한다.
+UComponent& UNode::AddComponent(const UClass& ComponentClass)
+{
+	panic(ComponentClass.IsChildOf(UComponent::StaticClass()));
+	panic(&ComponentClass != UTransformComponent::StaticClass());
+	panic(ComponentClass.CanCreateObject());
+
+	UObject* Object = ComponentClass.CreateObject();
+	UComponent* Component = static_cast<UComponent*>(Object);
+	AttachComponent(*Component);
+	return *Component;
 }
 
 // Node에 이미 생성된 컴포넌트를 추가한다. 컴포넌트는 반드시 Node에 속하지 않은 상태여야 한다.
