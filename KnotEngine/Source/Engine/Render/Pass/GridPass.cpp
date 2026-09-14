@@ -12,9 +12,10 @@ uint32 FGridPass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FScene
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	check(CommandList.IsValid());
 
-	check(GShaderRegistry && GPipelineStateCache);
-	const FShaderHandle VertexShader = GShaderRegistry->GetOrCreate({ IDR_GRID_SHADER, "Grid.hlsl", "VS", EShaderStage::Vertex });
-	const FShaderHandle PixelShader = GShaderRegistry->GetOrCreate({ IDR_GRID_SHADER, "Grid.hlsl", "PS", EShaderStage::Pixel });
+	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
+	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
+	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_GRID_SHADER, "Grid.hlsl", "VS", EShaderStage::Vertex });
+	const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_GRID_SHADER, "Grid.hlsl", "PS", EShaderStage::Pixel });
 	FPipelineStateDesc PipelineStateDesc;
 	PipelineStateDesc.VertexShader = VertexShader;
 	PipelineStateDesc.PixelShader = PixelShader;
@@ -26,7 +27,7 @@ uint32 FGridPass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FScene
 	PipelineStateDesc.BlendState.RenderTarget.SourceAlphaBlend = EBlendFactor::One;
 	PipelineStateDesc.BlendState.RenderTarget.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 	PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
-	const FPipelineStateHandle PipelineState = GPipelineStateCache->GetOrCreate(PipelineStateDesc);
+	const FPipelineStateHandle PipelineState = PipelineStateCache.GetOrCreate(PipelineStateDesc);
 
 	static constexpr float GridSpacing = 5.0f;
 	static constexpr float MajorGridInterval = 10.0f;

@@ -17,6 +17,7 @@ struct ENGINE_API FShaderKey
 };
 
 // 내장 Shader를 Key별로 한 번 생성하고 Render Device 수명 동안 Handle을 소유한다.
+// 필요 시 Global Shader Registry와 Material Shader Registry를 구분하도록 수정한다.
 class ENGINE_API FShaderRegistry
 {
 public:
@@ -42,5 +43,3 @@ private:
 	IRenderDevice& RenderDevice;
 	TArray<FEntry> Entries;
 };
-
-extern ENGINE_API FShaderRegistry* GShaderRegistry;

@@ -12,9 +12,10 @@ uint32 FAxisPass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FScene
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	check(CommandList.IsValid());
 
-	check(GShaderRegistry && GPipelineStateCache);
-	const FShaderHandle VertexShader = GShaderRegistry->GetOrCreate({ IDR_AXIS_SHADER, "Axis.hlsl", "VS", EShaderStage::Vertex });
-	const FShaderHandle PixelShader = GShaderRegistry->GetOrCreate({ IDR_AXIS_SHADER, "Axis.hlsl", "PS", EShaderStage::Pixel });
+	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
+	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
+	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_AXIS_SHADER, "Axis.hlsl", "VS", EShaderStage::Vertex });
+	const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_AXIS_SHADER, "Axis.hlsl", "PS", EShaderStage::Pixel });
 	FPipelineStateDesc PipelineStateDesc;
 	PipelineStateDesc.VertexShader = VertexShader;
 	PipelineStateDesc.PixelShader = PixelShader;
@@ -28,7 +29,7 @@ uint32 FAxisPass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FScene
 	PipelineStateDesc.BlendState.RenderTarget.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 	PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 	PipelineStateDesc.RasterizerState.bAntialiasedLineEnabled = true;
-	const FPipelineStateHandle PipelineState = GPipelineStateCache->GetOrCreate(PipelineStateDesc);
+	const FPipelineStateHandle PipelineState = PipelineStateCache.GetOrCreate(PipelineStateDesc);
 
 	const FViewConstants ViewConstants = {
 		View.ViewProjectionMatrix,

@@ -30,7 +30,6 @@ public:
 	ULevel& CreateLevel();
 	ULevel& GetPersistentLevel() const;
 	void RemoveLevel(ULevel& Level);
-	FName CreateName(const FString& BaseName);
 
 	void BeginPlay();
 	void PausePlay();
@@ -40,6 +39,8 @@ public:
 	void Tick(float DeltaTime);
 	FScene& GetScene() { return Scene; }
 	const FScene& GetScene() const { return Scene; }
+
+	FName GetNodeName(const FString& BaseName);
 
 	EPlayState GetPlayState() const { return PlayState; }
 	const TArray<TObjectPtr<ULevel>>& GetLevels() const { return Levels; }

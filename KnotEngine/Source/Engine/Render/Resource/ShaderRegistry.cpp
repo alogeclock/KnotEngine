@@ -5,10 +5,8 @@
 
 #include <Windows.h>
 
-FShaderRegistry* GShaderRegistry = nullptr;
-
 FShaderRegistry::FShaderRegistry(IRenderDevice& InRenderDevice)
-    : RenderDevice(InRenderDevice)
+	: RenderDevice(InRenderDevice)
 {
 }
 
@@ -20,14 +18,12 @@ FShaderRegistry::~FShaderRegistry()
 void FShaderRegistry::Create()
 {
 	Release();
-	checkf(!GShaderRegistry, "Shader Registry가 이미 생성되어 있다.");
-	GShaderRegistry = this;
 }
 
 FShaderHandle FShaderRegistry::GetOrCreate(const FShaderKey& Key)
 {
-	checkf(GShaderRegistry == this && Key.ResourceId != 0 && !Key.EntryPoint.empty(), "Registry가 생성되지 않았고, Shader Registry Key가 비어 있다.");
-	for (const FEntry& Entry : Entries) // 교체해야 할 셰이더 수가 늘 경우 해시 맵으로 변경
+	checkf(Key.ResourceId != 0 && !Key.EntryPoint.empty(), "Shader Registry Key가 비어 있다.");
+	for (const FEntry& Entry : Entries) // 교체해야 할 셰이더 수가 늘 경우 해시 맵으로 변경한다.
 	{
 		if (Entry.Key == Key)
 		{
@@ -53,14 +49,9 @@ FShaderHandle FShaderRegistry::GetOrCreate(const FShaderKey& Key)
 
 void FShaderRegistry::Release()
 {
-	if (GShaderRegistry != this)
-	{
-		return;
-	}
 	for (FEntry& Entry : Entries)
 	{
 		RenderDevice.DestroyShader(Entry.Handle);
 	}
 	Entries.clear();
-	GShaderRegistry = nullptr;
 }

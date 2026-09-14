@@ -2,15 +2,12 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/ResourceManager.h"
 #include "Render/RHI/RenderTypes.h"
 #include "Render/Resource/PipelineStateCache.h"
 #include "Render/Resource/ShaderRegistry.h"
 
-#include <span>
-
-class FIndexBuffer;
 class FRenderGraph;
-class FVertexBuffer;
 class IRenderContext;
 class IRenderDevice;
 
@@ -36,21 +33,21 @@ public:
 	void BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport);
 	void EndRenderTarget();
 
-	IRenderDevice& GetRenderDevice() const;
+	FResourceManager& GetResourceManager();
 	FShaderRegistry& GetShaderRegistry();
 	FPipelineStateCache& GetPipelineStateCache();
+
+	IRenderDevice& GetRenderDevice() const;
 	FCommandListHandle GetCommandList() const;
 	FRenderViewport GetViewport() const;
 
 private:
-	friend class FMeshBuffer;
-
-	bool CreateVertexBuffer(FVertexBuffer& OutVertexBuffer, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride);
-	bool CreateIndexBuffer(FIndexBuffer& OutIndexBuffer, std::span<const uint32> Indices);
-
 	IRenderDevice& RenderDevice;
 	IRenderContext& RenderContext;
+
+	FResourceManager ResourceManager;
 	FShaderRegistry ShaderRegistry;
 	FPipelineStateCache PipelineStateCache;
+
 	FCommandListHandle CommandList;
 };

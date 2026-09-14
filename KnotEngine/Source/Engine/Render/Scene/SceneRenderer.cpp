@@ -8,7 +8,6 @@
 #include "Render/Pass/OpaquePass.h"
 #include "Render/Renderer.h"
 #include "Render/Scene/Scene.h"
-#include "Render/Resource/MeshTypes.h"
 
 FSceneRenderer::FSceneRenderer(const FSceneViewFamily& InViewFamily)
 	: ViewFamily(InViewFamily)
@@ -24,14 +23,6 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	const FSceneRenderTarget& Target = ViewFamily.RenderTarget;
 
 	check(CommandList.IsValid() && Target.Color.IsValid() && Target.Depth.IsValid() && Target.Width > 0 && Target.Height > 0);
-	// TODO: FStaticMesh 도입과 함께 GPU 데이터 업로드 과정을 정리
-	for (const std::unique_ptr<FPrimitiveSceneProxy>& Primitive : ViewFamily.Scene->GetProxies())
-	{
-		if (Primitive->Mesh && !Primitive->Mesh->IsUploaded())
-		{
-			panicf(Primitive->Mesh->Upload(Renderer), "Geometry Mesh의 GPU 업로드 실패.");
-		}
-	}
 	const FRenderViewport TargetViewport = { 0.0f, 0.0f, static_cast<float>(Target.Width), static_cast<float>(Target.Height), 0.0f, 1.0f };
 
 	// Family 전체를 한 번 Clear한다. 여러 View가 같은 타깃의 서로 다른 영역을 사용할 수 있다.
@@ -87,7 +78,7 @@ void FSceneRenderer::CullView(const FSceneView& View)
 	for (const auto& Entry : ViewFamily.Scene->GetProxies())
 	{
 		const FPrimitiveSceneProxy& Primitive = *Entry;
-		if (Primitive.bVisible && Primitive.Mesh && Primitive.Mesh->IsUploaded() && Primitive.WorldBounds.IsValid()
+		if (Primitive.bVisible && Primitive.Mesh && Primitive.WorldBounds.IsValid()
 			&& View.Frustum.Intersects(Primitive.WorldBounds) != FFrustum::EFrustumIntersectResult::Outside)
 		{
 			VisiblePrimitives.push_back(&Primitive);

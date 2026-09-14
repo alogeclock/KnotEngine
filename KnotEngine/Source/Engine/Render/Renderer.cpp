@@ -5,12 +5,9 @@
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
-#include "Render/Resource/Buffer.h"
-
-#include <limits>
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext)
-	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
+	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ResourceManager(InRenderDevice), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
 {
 }
 
@@ -22,6 +19,11 @@ URenderer::~URenderer()
 IRenderDevice& URenderer::GetRenderDevice() const
 {
 	return RenderDevice;
+}
+
+FResourceManager& URenderer::GetResourceManager()
+{
+	return ResourceManager;
 }
 
 FShaderRegistry& URenderer::GetShaderRegistry()
@@ -49,6 +51,7 @@ void URenderer::Create(void* NativeWindowHandle)
 	Release();
 	RenderDevice.Create();
 	RenderContext.Create(NativeWindowHandle);
+	ResourceManager.Create();
 	ShaderRegistry.Create();
 	PipelineStateCache.Create();
 }
@@ -57,6 +60,7 @@ void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
 	PipelineStateCache.Release();
+	ResourceManager.Release();
 	ShaderRegistry.Release();
 	RenderContext.Release();
 	RenderDevice.Release();
@@ -110,38 +114,4 @@ void URenderer::EndRenderTarget()
 {
 	check(CommandList.IsValid());
 	RenderContext.BindBackBuffer(CommandList);
-}
-
-bool URenderer::CreateVertexBuffer(
-	FVertexBuffer& OutVertexBuffer, std::span<const uint8> Data, uint32 VertexCount, uint32 Stride)
-{
-	checkf(VertexCount > 0 && Stride > 0 && Data.size() == static_cast<size_t>(VertexCount) * Stride,
-		"잘못된 Vertex Buffer 데이터. Bytes={}, VertexCount={}, Stride={}", Data.size(), VertexCount, Stride);
-	checkf(Data.size() <= (std::numeric_limits<uint32>::max)(), "Vertex Buffer 크기가 uint32 범위를 초과했다. Bytes={}", Data.size());
-	const FBufferDesc Desc = { static_cast<uint32>(Data.size()), EBufferUsage::Vertex, EResourceAccess::GPUOnly };
-	FBufferHandle Handle = RenderDevice.CreateBuffer(Desc, Data);
-	if (!Handle.IsValid())
-	{
-		return false;
-	}
-
-	OutVertexBuffer.Adopt(RenderDevice, Handle, VertexCount, Stride);
-	return true;
-}
-
-bool URenderer::CreateIndexBuffer(FIndexBuffer& OutIndexBuffer, std::span<const uint32> Indices)
-{
-	checkf(!Indices.empty() && Indices.size_bytes() <= (std::numeric_limits<uint32>::max)(),
-		"잘못된 Index Buffer 데이터. Count={}, Bytes={}", Indices.size(), Indices.size_bytes());
-	const auto* Bytes = reinterpret_cast<const uint8*>(Indices.data());
-	const std::span<const uint8> Data(Bytes, Indices.size_bytes());
-	const FBufferDesc Desc = { static_cast<uint32>(Data.size()), EBufferUsage::Index, EResourceAccess::GPUOnly };
-	FBufferHandle Handle = RenderDevice.CreateBuffer(Desc, Data);
-	if (!Handle.IsValid())
-	{
-		return false;
-	}
-
-	OutIndexBuffer.Adopt(RenderDevice, Handle, static_cast<uint32>(Indices.size()));
-	return true;
 }

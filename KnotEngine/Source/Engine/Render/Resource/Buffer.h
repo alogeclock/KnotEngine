@@ -6,7 +6,7 @@
 #include "Render/RHI/RenderTypes.h"
 
 class IRenderDevice;
-class URenderer;
+class FMeshBuffer;
 
 class ENGINE_API FVertexBuffer
 {
@@ -27,7 +27,7 @@ public:
 	uint32 GetStride() const { return Stride; }
 
 private:
-	friend class URenderer;
+	friend class FMeshBuffer;
 
 	void Adopt(IRenderDevice& InOwner, FBufferHandle InHandle, uint32 InVertexCount, uint32 InStride);
 
@@ -55,7 +55,7 @@ public:
 	uint32 GetIndexCount() const { return IndexCount; }
 
 private:
-	friend class URenderer;
+	friend class FMeshBuffer;
 
 	void Adopt(IRenderDevice& InOwner, FBufferHandle InHandle, uint32 InIndexCount);
 

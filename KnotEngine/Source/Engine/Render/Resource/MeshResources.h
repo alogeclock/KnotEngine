@@ -8,7 +8,7 @@
 
 #include <span>
 
-class URenderer;
+class IRenderDevice;
 
 // GPU 생성 호출 동안만 유효한 비소유 업로드 뷰.
 struct ENGINE_API FMeshDataView
@@ -20,14 +20,14 @@ struct ENGINE_API FMeshDataView
 };
 
 // 하나의 Draw/DrawIndexed 호출에 필요한 GPU Mesh Buffer 묶음.
-// FStaticMesh, FSkeletalMesh 등 상위 계층에서 FMeshBuffer를 소유한다.
+// CPU Mesh 또는 LOD가 값으로 소유하며, 빈 상태와 GPU resident 상태를 구분한다.
 class ENGINE_API FMeshBuffer final : public FRenderResource
 {
 public:
 	FMeshBuffer() = default;
 	~FMeshBuffer() override;
 
-	bool Initialize(URenderer& Renderer, const FMeshDataView& InDataView);
+	bool Initialize(IRenderDevice& RenderDevice, const FMeshDataView& InDataView);
 	bool IsValid() const;
 
 	const FVertexBuffer& GetVertexBuffer() const { return VertexBuffer; }

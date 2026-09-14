@@ -1,7 +1,7 @@
 #include "Render/Resource/MeshResources.h"
 
 #include "Core/Assert.h"
-#include "Render/Renderer.h"
+#include "Render/RHI/RenderDevice.h"
 
 #include <limits>
 
@@ -10,7 +10,7 @@ FMeshBuffer::~FMeshBuffer()
 	Release();
 }
 
-bool FMeshBuffer::Initialize(URenderer& Renderer, const FMeshDataView& InDataView)
+bool FMeshBuffer::Initialize(IRenderDevice& RenderDevice, const FMeshDataView& InDataView)
 {
 	Release();
 
@@ -25,17 +25,28 @@ bool FMeshBuffer::Initialize(URenderer& Renderer, const FMeshDataView& InDataVie
 	}
 
 	const FVertexLayout& UploadLayout = *InDataView.Layout;
-
-	if (!Renderer.CreateVertexBuffer(VertexBuffer, InDataView.VertexBytes, InDataView.VertexCount, UploadLayout.Stride))
+	checkf(InDataView.VertexBytes.size() <= (std::numeric_limits<uint32>::max)(), "Vertex Buffer 크기가 uint32 범위를 초과했다. Bytes={}", InDataView.VertexBytes.size());
+	const FBufferDesc VertexBufferDesc = { static_cast<uint32>(InDataView.VertexBytes.size()), EBufferUsage::Vertex, EResourceAccess::GPUOnly };
+	FBufferHandle VertexBufferHandle = RenderDevice.CreateBuffer(VertexBufferDesc, InDataView.VertexBytes);
+	if (!VertexBufferHandle.IsValid())
 	{
 		return false;
 	}
+	VertexBuffer.Adopt(RenderDevice, VertexBufferHandle, InDataView.VertexCount, UploadLayout.Stride);
 
-	if (!InDataView.Indices.empty() &&
-	    !Renderer.CreateIndexBuffer(IndexBuffer, InDataView.Indices))
+	if (!InDataView.Indices.empty())
 	{
-		VertexBuffer.Release();
-		return false;
+		checkf(InDataView.Indices.size_bytes() <= (std::numeric_limits<uint32>::max)(), "Index Buffer 크기가 uint32 범위를 초과했다. Bytes={}", InDataView.Indices.size_bytes());
+		const auto* IndexBytes = reinterpret_cast<const uint8*>(InDataView.Indices.data());
+		const std::span<const uint8> IndexData(IndexBytes, InDataView.Indices.size_bytes());
+		const FBufferDesc IndexBufferDesc = { static_cast<uint32>(IndexData.size()), EBufferUsage::Index, EResourceAccess::GPUOnly };
+		FBufferHandle IndexBufferHandle = RenderDevice.CreateBuffer(IndexBufferDesc, IndexData);
+		if (!IndexBufferHandle.IsValid())
+		{
+			VertexBuffer.Release();
+			return false;
+		}
+		IndexBuffer.Adopt(RenderDevice, IndexBufferHandle, static_cast<uint32>(InDataView.Indices.size()));
 	}
 
 	VertexLayout = UploadLayout;

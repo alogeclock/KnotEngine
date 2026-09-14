@@ -1,21 +1,8 @@
 #include "Render/Resource/MeshTypes.h"
 
-#include "Render/Resource/MeshResources.h"
-
 #include <cmath>
-#include <limits>
 
-FGeometryMesh::FGeometryMesh() = default;
-
-FGeometryMesh::~FGeometryMesh()
-{
-	Release();
-}
-
-FGeometryMesh::FGeometryMesh(FGeometryMesh&&) noexcept = default;
-FGeometryMesh& FGeometryMesh::operator=(FGeometryMesh&&) noexcept = default;
-
-// Engine 기본 도형의 CPU 정점과 인덱스를 생성한다. GPU 업로드는 Renderer가 처음 사용할 때 수행한다.
+// Engine 기본 도형의 CPU 정점과 인덱스를 생성한다. GPU 업로드는 Resource Manager가 처음 요청받을 때 수행한다.
 std::shared_ptr<FGeometryMesh> FGeometryMesh::Create(EGeometryMeshType MeshType)
 {
 	TArray<FGeometryVertex> Vertices;
@@ -106,13 +93,13 @@ std::shared_ptr<FGeometryMesh> FGeometryMesh::Create(EGeometryMeshType MeshType)
 
 	panic(!Vertices.empty() && !Indices.empty());
 	auto Mesh = std::make_shared<FGeometryMesh>();
-	Mesh->SetData(Vertices, Indices);
+	Mesh->Initialize(Vertices, Indices);
 	return Mesh;
 }
 
 // C 배열과 TArray 등 연속 메모리를 소유권 이전 없이 크기와 함께 받기 위해 span을 사용한다.
 // 입력 데이터는 함수 안에서 CPU Mesh 배열로 복사하므로 span은 호출 중에만 유효하면 된다.
-void FGeometryMesh::SetData(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices)
+void FGeometryMesh::Initialize(std::span<const FGeometryVertex> InVertices, std::span<const uint32> InIndices)
 {
 	Release();
 
@@ -123,47 +110,10 @@ void FGeometryMesh::SetData(std::span<const FGeometryVertex> InVertices, std::sp
 	{
 		LocalBounds.Expand(Vertex.Position);
 	}
-	bUploaded = false;
 }
 
-bool FGeometryMesh::Upload(URenderer& Renderer)
-{
-	Release();
-
-	const FVertexLayout& VertexLayout = FGeometryVertex::GetVertexLayout();
-	if (Vertices.empty() ||
-	    Vertices.size() > (std::numeric_limits<uint32>::max)() ||
-	    VertexLayout.Stride != sizeof(FGeometryVertex))
-	{
-		return false;
-	}
-
-	const auto* VertexBytes = reinterpret_cast<const uint8*>(Vertices.data());
-	const FMeshDataView UploadData = {
-		std::span<const uint8>(VertexBytes, Vertices.size() * sizeof(FGeometryVertex)),
-		std::span<const uint32>(Indices.data(), Indices.size()),
-		&VertexLayout,
-		static_cast<uint32>(Vertices.size())
-	};
-
-	MeshBuffer = std::make_unique<FMeshBuffer>();
-	if (!MeshBuffer->Initialize(Renderer, UploadData))
-	{
-		MeshBuffer.reset();
-		return false;
-	}
-
-	bUploaded = true;
-	return true;
-}
-
+// FGeometryMesh는 남긴 채, GPU에 업로드된 데이터를 해제한다.
 void FGeometryMesh::Release()
 {
-	if (MeshBuffer)
-	{
-		MeshBuffer->Release();
-		MeshBuffer.reset();
-	}
-
-	bUploaded = false;
+	MeshBuffer.Release();
 }

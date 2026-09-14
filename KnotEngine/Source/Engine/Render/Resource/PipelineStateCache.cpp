@@ -3,8 +3,6 @@
 #include "Core/Assert.h"
 #include "Render/RHI/RenderDevice.h"
 
-FPipelineStateCache* GPipelineStateCache = nullptr;
-
 FPipelineStateCache::FPipelineStateCache(IRenderDevice& InRenderDevice)
 	: RenderDevice(InRenderDevice)
 {
@@ -18,13 +16,10 @@ FPipelineStateCache::~FPipelineStateCache()
 void FPipelineStateCache::Create()
 {
 	Release();
-	checkf(!GPipelineStateCache, "Pipeline State Cache가 이미 생성되어 있다.");
-	GPipelineStateCache = this;
 }
 
 FPipelineStateHandle FPipelineStateCache::GetOrCreate(const FPipelineStateDesc& Desc)
 {
-	check(GPipelineStateCache == this);
 	for (const FEntry& Entry : Entries) // 교체해야 할 PSO 수가 늘 경우 해시 맵으로 변경
 	{
 		if (Entry.Desc == Desc)
@@ -41,14 +36,9 @@ FPipelineStateHandle FPipelineStateCache::GetOrCreate(const FPipelineStateDesc& 
 
 void FPipelineStateCache::Release()
 {
-	if (GPipelineStateCache != this)
-	{
-		return;
-	}
 	for (FEntry& Entry : Entries)
 	{
 		RenderDevice.DestroyPipelineState(Entry.Handle);
 	}
 	Entries.clear();
-	GPipelineStateCache = nullptr;
 }

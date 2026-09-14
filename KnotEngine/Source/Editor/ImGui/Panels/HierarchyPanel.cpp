@@ -12,7 +12,7 @@
 
 UNode& FHierarchyPanel::CreateNode(UWorld& World, const FString& BaseName)
 {
-	return World.GetPersistentLevel().CreateNode(World.MakeNodeName(BaseName));
+	return World.GetPersistentLevel().CreateNode(World.GetNodeName(BaseName));
 }
 
 bool FHierarchyPanel::DrawNode(UWorld& World, FEditorSelection& Selection, const UClass& ComponentClass)

@@ -32,5 +32,3 @@ private:
 	IRenderDevice& RenderDevice;
 	TArray<FEntry> Entries;
 };
-
-extern ENGINE_API FPipelineStateCache* GPipelineStateCache;

@@ -10,6 +10,7 @@
 
 class URenderer;
 class IRenderDevice;
+class FMeshBuffer;
 struct FPrimitiveSceneProxy;
 struct FSceneView;
 struct FViewConstants;
@@ -24,6 +25,7 @@ private:
 	struct FMeshDrawCommand
 	{
 		const FPrimitiveSceneProxy* Primitive = nullptr;
+		const FMeshBuffer* MeshBuffer = nullptr;
 		uint32 SortKey = 0;
 	};
 
