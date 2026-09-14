@@ -45,6 +45,15 @@ void UWorld::RemoveLevel(ULevel& Level)
 	checkf(&Level.GetWorld() == this, "이 World에 속하지 않은 Level을 제거할 수 없다.");
 }
 
+// BaseName별로 증가하는 숫자 접미사를 붙여 새 Node 이름을 생성한다.
+FName UWorld::CreateName(const FString& BaseName)
+{
+	uint64& Suffix = NameCounters[BaseName];
+	const FString Name = Suffix == 0 ? BaseName : BaseName + " " + std::to_string(Suffix);
+	++Suffix;
+	return FName(Name);
+}
+
 void UWorld::BeginPlay()
 {
 	if (PlayState != EPlayState::Stopped)

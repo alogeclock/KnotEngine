@@ -30,6 +30,7 @@ public:
 	ULevel& CreateLevel();
 	ULevel& GetPersistentLevel() const;
 	void RemoveLevel(ULevel& Level);
+	FName CreateName(const FString& BaseName);
 
 	void BeginPlay();
 	void PausePlay();
@@ -45,6 +46,7 @@ public:
 
 private:
 	FScene Scene;
+	TMap<FString, uint64> NameCounters;
 
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<ULevel>> Levels;
 	UPROPERTY(NoEdit, Transient) TObjectPtr<ULevel> PersistentLevel;

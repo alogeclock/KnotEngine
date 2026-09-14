@@ -18,5 +18,5 @@ private:
 	static bool DrawNode(UWorld& World, FEditorSelection& Selection, const UClass& ComponentClass);
 
 	void DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex, FEditorSelection& Selection);
-	void DrawAddNode(UWorld& World, FEditorSelection& Selection);
+	bool DrawContextMenu(UWorld& World, FEditorSelection& Selection);
 };

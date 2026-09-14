@@ -17,6 +17,7 @@ public:
 	UWorld& GetWorld() const;
 
 	UNode& CreateNode(FName Name);
+	void RemoveNode(UNode& Node);
 	const TArray<TObjectPtr<UNode>>& GetNodes() const { return Nodes; }
 
 	void BeginPlay();

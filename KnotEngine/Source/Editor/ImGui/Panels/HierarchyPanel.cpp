@@ -12,38 +12,7 @@
 
 UNode& FHierarchyPanel::CreateNode(UWorld& World, const FString& BaseName)
 {
-	// 모든 Level에서 이름이 겹치지 않을 때까지 숫자 접미사를 증가시킨다.
-	uint32 NameIndex = 0;
-	while (true)
-	{
-		const FString Candidate = NameIndex == 0 ? BaseName : BaseName + " " + std::to_string(NameIndex);
-		bool bNameExists = false;
-		for (const TObjectPtr<ULevel>& LevelPointer : World.GetLevels())
-		{
-			const ULevel* Level = LevelPointer.Get();
-			if (!Level)
-			{
-				continue;
-			}
-			for (const TObjectPtr<UNode>& NodePointer : Level->GetNodes())
-			{
-				if (NodePointer && NodePointer->GetName() == FName(Candidate))
-				{
-					bNameExists = true;
-					break;
-				}
-			}
-			if (bNameExists)
-			{
-				break;
-			}
-		}
-		if (!bNameExists)
-		{
-			return World.GetPersistentLevel().CreateNode(FName(Candidate));
-		}
-		++NameIndex;
-	}
+	return World.GetPersistentLevel().CreateNode(World.MakeNodeName(BaseName));
 }
 
 bool FHierarchyPanel::DrawNode(UWorld& World, FEditorSelection& Selection, const UClass& ComponentClass)
@@ -74,24 +43,30 @@ void FHierarchyPanel::DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex,
 				continue;
 			}
 
+			ImGui::PushID(Node);
 			const FString NodeName = Node->GetName().ToString();
 			const bool bSelected = Selection.SelectedNode == Node;
 			if (ImGui::Selectable(NodeName.c_str(), bSelected))
 			{
 				Selection.SelectedNode = Node;
 			}
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+			{
+				Selection.SelectedNode = Node;
+			}
+			ImGui::PopID();
 		}
 		ImGui::TreePop();
 	}
 	ImGui::PopID();
 }
 
-// UCLASS 메타데이터로 노출된 Component를 선택하고 해당 Component를 가진 Node를 생성한다.
-void FHierarchyPanel::DrawAddNode(UWorld& World, FEditorSelection& Selection)
+// Hierarchy 어디에서나 Node 생성과 현재 선택 Node 제거 메뉴를 표시한다.
+bool FHierarchyPanel::DrawContextMenu(UWorld& World, FEditorSelection& Selection)
 {
 	if (!ImGui::BeginPopupContextWindow("##HierarchyContextMenu", ImGuiPopupFlags_MouseButtonRight))
 	{
-		return;
+		return false;
 	}
 
 	if (ImGui::BeginMenu("Add Node"))
@@ -147,7 +122,10 @@ void FHierarchyPanel::DrawAddNode(UWorld& World, FEditorSelection& Selection)
 		}
 		ImGui::EndMenu();
 	}
+
+	const bool bRemoveNode = ImGui::MenuItem("Remove Node", nullptr, false, Selection.SelectedNode != nullptr);
 	ImGui::EndPopup();
+	return bRemoveNode;
 }
 
 void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection)
@@ -168,7 +146,11 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection)
 		}
 		DrawLevel(World, *Level, LevelIndex, Selection);
 	}
-
-	DrawAddNode(World, Selection);
+	if (DrawContextMenu(World, Selection))
+	{
+		UNode* NodeToRemove = Selection.SelectedNode;
+		Selection.SelectedNode = nullptr;
+		NodeToRemove->GetLevel().RemoveNode(*NodeToRemove);
+	}
 	ImGui::End();
 }

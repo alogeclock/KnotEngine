@@ -6,6 +6,7 @@
 #include <memory>
 
 class FGeometryMesh;
+class FScene;
 class UPrimitiveComponent;
 class UMeshComponent;
 
@@ -27,8 +28,11 @@ struct ENGINE_API FPrimitiveSceneProxy
 	bool bDirty = true;
 
 private:
+	friend class FScene;
 	friend class UPrimitiveComponent;
 	friend class UMeshComponent;
 
+	static constexpr SIZE_T InvalidSceneIndex = static_cast<SIZE_T>(-1);
+	SIZE_T SceneIndex = InvalidSceneIndex; // Scene의 밀집 Proxy 배열에서 현재 위치. 외부 식별자로 사용하지 않는다.
 	const UMeshComponent& Component; // 비소유. Component 등록 해제 시 이 Proxy를 먼저 제거한다.
 };

@@ -168,7 +168,7 @@ Render Thread
 
 ### FScene
 
-`FScene`은 `TArray<std::unique_ptr<FPrimitiveSceneProxy>>`를 소유한다. `AddPrimitive()`는 소유권을 받고 안정적인 Proxy 참조를 반환한다. `RemovePrimitive()`는 해당 Proxy를 찾아 즉시 파괴한다. 배열 재할당은 unique_ptr을 이동하며 Proxy의 힙 주소는 유지한다.
+`FScene`은 `TArray<std::unique_ptr<FPrimitiveSceneProxy>>`를 소유한다. `AddPrimitive()`는 소유권을 받고 안정적인 Proxy 참조를 반환한다. Proxy는 비공개 배열 인덱스를 보관하며 `RemovePrimitive()`는 swap-pop으로 즉시 파괴한다. 배열 순서는 안정적이지 않지만 unique_ptr 이동 후에도 Proxy의 힙 주소는 유지된다.
 
 `UpdatePrimitiveSceneProxies()`는 각 Proxy의 `Update()`를 호출한다. Component를 조회하거나 원본 데이터를 읽는 코드는 Scene에 없다. SceneRenderer도 `GetProxies()`로 갱신된 렌더 상태만 조회한다.
 

@@ -142,7 +142,7 @@ ULevel::Nodes
 └─ Node C  Transform parent: B
 ```
 
-`CreateNode()`로 만든 Node는 즉시 배열에 들어간다. World가 `Stopped` 상태가 아니면 새 Node도 곧바로 BeginPlay를 받는다.
+`CreateNode()`로 만든 Node는 즉시 배열에 들어간다. World가 `Stopped` 상태가 아니면 새 Node도 곧바로 BeginPlay를 받는다. Level의 Node 배열은 밀집 저장소이며 제거 시 내부 인덱스로 swap-pop한다. 따라서 UUID와 객체 주소는 식별에 사용할 수 있지만 배열 순서는 안정적이지 않다. World는 BaseName별 접미사 카운터로 새 Node의 표시 이름을 만든다.
 
 현재 Level은 다음 요청을 모든 Node에 전달한다.
 
