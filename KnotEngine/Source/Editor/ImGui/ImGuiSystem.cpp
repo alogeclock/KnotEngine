@@ -198,21 +198,15 @@ void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)
 	ImGuiID CenterId = DockspaceId;
 	ImGuiID LeftId = 0;
 	ImGuiID RightId = 0;
-#if KNOT_CPU_PROFILER_ENABLED
-	ImGuiID RightBottomId = 0;
-#endif
 	ImGuiID BottomId = 0;
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Left, 0.20f, &LeftId, &CenterId);
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Right, 0.25f, &RightId, &CenterId);
-#if KNOT_CPU_PROFILER_ENABLED
-	ImGui::DockBuilderSplitNode(RightId, ImGuiDir_Down, 0.50f, &RightBottomId, &RightId);
-#endif
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Down, 0.25f, &BottomId, &CenterId);
 	ImGui::DockBuilderDockWindow("Hierarchy", LeftId);
 	ImGui::DockBuilderDockWindow("Inspector", RightId);
 	ImGui::DockBuilderDockWindow("Console", BottomId);
 #if KNOT_CPU_PROFILER_ENABLED
-	ImGui::DockBuilderDockWindow("Profile", RightBottomId);
+	ImGui::DockBuilderDockWindow("Profile", RightId);
 #endif
 	ImGui::DockBuilderDockWindow("Viewport", CenterId);
 	ImGui::DockBuilderFinish(DockspaceId);
