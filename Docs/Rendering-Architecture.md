@@ -96,7 +96,7 @@ KnotEngine/Source/
    │  ├─ Viewport.h/.cpp
    │  ├─ EditorViewportCamera.h/.cpp
    │  └─ EditorViewportClient.h/.cpp
-   └─ ImGui/ImGuiSystem.h/.cpp
+   └─ Editor/ImGuiSystem.h/.cpp
 ```
 
 | 계층 | 책임 | 포함하지 않는 것 |
@@ -432,5 +432,5 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 - [EditorViewportCamera.h](../KnotEngine/Source/Editor/Viewport/EditorViewportCamera.h)
 - [EditorViewportClient.cpp](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.cpp)
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/Runtime/EditorEngine.cpp)
-- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.cpp)
+- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/Editor/ImGuiSystem.cpp)
 - [Conventions.md](Conventions.md)

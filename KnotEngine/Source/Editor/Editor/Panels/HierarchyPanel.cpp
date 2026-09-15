@@ -1,7 +1,7 @@
-#include "ImGui/Panels/HierarchyPanel.h"
+#include "Editor/Panels/HierarchyPanel.h"
 
 #include "Component/Component.h"
-#include "ImGui/EditorSelection.h"
+#include "Editor/EditorSelection.h"
 #include "Object/Class.h"
 #include "Object/Reflection/ReflectionRegistry.h"
 #include "World/Level.h"

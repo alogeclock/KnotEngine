@@ -27,13 +27,14 @@ FWindowsApplication
 UEditorEngine
 ├─ Editor WorldContext
 ├─ URenderer
+├─ FAssetRegistry
 ├─ FInputRouter
 ├─ FEditorViewportClient 목록
 └─ FImGuiSystem
    ├─ FEditorSelection
    ├─ Hierarchy / Inspector
    ├─ Viewport
-   ├─ Console / Profile
+   ├─ Console / Profile / Content
    └─ Viewport Overlay
 ```
 
@@ -58,6 +59,7 @@ ImGui 합성 및 Present
 ```text
 KnotEngine/Source/Editor/
 ├─ Runtime/       Editor 시작, 종료와 프레임 조율
+├─ Asset/         Content 스캔과 Editor Asset 메타데이터
 ├─ Input/         Editor 입력 대상과 소유권 라우팅
 ├─ ImGui/         DockSpace, Panel, Selection과 Overlay
 └─ Viewport/      Viewport surface, Camera와 ViewportClient
@@ -119,10 +121,13 @@ UI 구성을 먼저 수행해야 현재 Viewport의 크기와 hover 상태를 �
 | Viewport | Scene 출력 표시, Camera 제어와 Engine 입력 대상 등록 |
 | Console | Engine 로그 표시와 Console 명령 입력 |
 | Profile | 완료된 CPU Profile 결과 표시 |
+| Content | Content 폴더와 Asset 메타데이터 탐색 |
 
-기본 Dock layout에서 오른쪽 영역은 Inspector와 Profile이 같은 Dock node를 공유한다. Inspector를 첫 번째 탭으로 표시하고 Profile은 두 번째 탭을 클릭할 때 표시한다.
+기본 Dock layout에서 오른쪽 영역은 Inspector가 사용하고, 아래쪽 영역은 Content, Console과 Profile이 같은 Dock node를 공유한다. Content를 첫 탭이자 기본 활성 탭으로 사용한다.
 
 Panel visibility와 Dock layout은 UI 상태다. World와 객체 데이터의 저장 형식과 섞지 않는다.
+
+`FAssetRegistry`는 Content 파일의 경로와 종류를 인덱싱하며 UObject나 GPU 리소스를 생성하지 않는다. `FAssetManager`는 요청된 Asset의 로드와 UObject 수명을 담당하고, Content Panel은 Registry의 스냅샷을 표시한다.
 
 ## Selection과 Inspector
 
@@ -214,11 +219,12 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - Viewport 입력 라우팅
 - Console log sink와 명령 입력
 - CPU Profile 표시와 Viewport 통계 Overlay
+- Content 스캔과 Asset Registry 기반 Content Panel
 - 메인 스레드의 ViewFamily별 Scene 렌더링과 ImGui 합성
 
 ### 미구현
 
-- Content 탐색과 Asset Registry 연결
+- Source Asset Import와 Reimport
 - Component 단위 선택과 기즈모
 - Undo/Redo와 범용 Editor command
 - PIE Game Viewport
@@ -235,8 +241,8 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 ## 관련 파일
 
 - [EditorEngine.h](../KnotEngine/Source/Editor/Runtime/EditorEngine.h)
-- [ImGuiSystem.h](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.h)
-- [EditorSelection.h](../KnotEngine/Source/Editor/ImGui/EditorSelection.h)
+- [ImGuiSystem.h](../KnotEngine/Source/Editor/Editor/ImGuiSystem.h)
+- [EditorSelection.h](../KnotEngine/Source/Editor/Editor/EditorSelection.h)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)

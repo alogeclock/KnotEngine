@@ -471,6 +471,6 @@ ImGui DockSpace
 - [EditorEngine.cpp](../KnotEngine/Source/Editor/Runtime/EditorEngine.cpp)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
-- [ImGuiSystem.h](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.h)
-- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/ImGui/ImGuiSystem.cpp)
+- [ImGuiSystem.h](../KnotEngine/Source/Editor/Editor/ImGuiSystem.h)
+- [ImGuiSystem.cpp](../KnotEngine/Source/Editor/Editor/ImGuiSystem.cpp)
 - [Conventions.md](Conventions.md)

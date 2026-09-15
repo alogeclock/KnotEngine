@@ -5,7 +5,7 @@
 #include "Object/Object.h"
 #include "Render/Resource/MeshTypes.h"
 
-class FAssetManager;
+class FAssetBinaryLoader;
 
 // 경로로 식별되는 Static Mesh UObject Asset. 실제 LOD와 GPU 리소스는 FStaticMesh가 소유한다.
 UCLASS()
@@ -19,7 +19,7 @@ public:
 	const FStaticMesh& GetRenderData() const { return RenderData; }
 
 private:
-	friend class FAssetManager;
+	friend class FAssetBinaryLoader;
 	bool Initialize(FString InAssetPath, FStaticMesh&& InRenderData);
 
 	UPROPERTY(NoEdit) FString AssetPath;

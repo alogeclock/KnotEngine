@@ -5,8 +5,9 @@
 #include "Render/ImGui/D3D11ImGuiBackend.h"
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
+#include "Asset/AssetRegistry.h"
 #include "Input/InputRouter.h"
-#include "ImGui/ImGuiSystem.h"
+#include "Editor/ImGuiSystem.h"
 
 class FEditorViewportClient;
 
@@ -44,6 +45,7 @@ private:
 
 	TArray<FEditorViewportClient*> AllViewportClients;
 
+	FAssetRegistry AssetRegistry;
 	FInputRouter InputRouter;
 	FImGuiSystem ImGuiSystem;
 

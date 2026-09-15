@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ImGui/Overlays/ViewportStatOverlay.h"
+#include "Editor/Overlays/ViewportStatOverlay.h"
 #include "Viewport/Level/LevelEditorViewportClient.h"
 #include "Viewport/Viewport.h"
 

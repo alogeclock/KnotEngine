@@ -2,7 +2,8 @@
 
 #include "EngineAPI.h"
 
-#include "Asset/StaticMesh.h"
+#include "Asset/AssetBinaryLoader.h"
+#include "Asset/Mesh/StaticMesh.h"
 #include "Object/ObjectPtr.h"
 
 class FReferenceCollector;
@@ -29,8 +30,7 @@ public:
 	const TMap<FString, TObjectPtr<UStaticMesh>>& GetStaticMeshes() const { return StaticMeshes; }
 
 private:
-	UStaticMesh* RegisterStaticMesh(const FString& AssetPath, FStaticMesh&& RenderData);
-
+	FAssetBinaryLoader BinaryLoader;
 	TMap<FString, TObjectPtr<UStaticMesh>> StaticMeshes;
 };
 

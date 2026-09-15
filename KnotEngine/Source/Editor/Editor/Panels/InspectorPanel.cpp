@@ -1,7 +1,7 @@
-#include "ImGui/Panels/InspectorPanel.h"
+#include "Editor/Panels/InspectorPanel.h"
 
 #include "Asset/AssetManager.h"
-#include "Asset/StaticMesh.h"
+#include "Asset/Mesh/StaticMesh.h"
 #include "Component/Component.h"
 #include "Core/Geometry/Transform.h"
 #include "Core/Math/Rotator.h"
@@ -12,7 +12,7 @@
 #include "Object/Property/SoftObjectProperty.h"
 #include "Object/Property/StructProperty.h"
 #include "Object/Reflection/ReflectionRegistry.h"
-#include "ImGui/EditorSelection.h"
+#include "Editor/EditorSelection.h"
 #include "World/Node.h"
 
 #include <imgui.h>
@@ -162,7 +162,10 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	}
 	if (!Selection.SelectedNode)
 	{
+		const float ContentPadding = GetContentPadding();
+		ImGui::Indent(ContentPadding);
 		ImGui::TextDisabled("Select a node in Hierarchy.");
+		ImGui::Unindent(ContentPadding);
 		ImGui::End();
 		return;
 	}

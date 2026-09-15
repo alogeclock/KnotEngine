@@ -1,4 +1,4 @@
-#include "Asset/StaticMesh.h"
+#include "Asset/Mesh/StaticMesh.h"
 
 bool UStaticMesh::Initialize(FString InAssetPath, FStaticMesh&& InRenderData)
 {

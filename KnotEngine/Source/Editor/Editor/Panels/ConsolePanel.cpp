@@ -1,6 +1,6 @@
-#include "ImGui/Panels/ConsolePanel.h"
+#include "Editor/Panels/ConsolePanel.h"
 
-#include "ImGui/Overlays/ViewportStatOverlay.h"
+#include "Editor/Overlays/ViewportStatOverlay.h"
 
 #include <algorithm>
 #include <cctype>

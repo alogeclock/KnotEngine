@@ -1,4 +1,4 @@
-#include "ImGui/Panels/ProfilePanel.h"
+#include "Editor/Panels/ProfilePanel.h"
 
 #include <algorithm>
 #include <imgui.h>
@@ -101,7 +101,7 @@ void FProfilePanel::DrawCPUStats() const
 
 	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable
 		| ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
-	const float TableHeight = std::max(120.0f, ImGui::GetContentRegionAvail().y - 100.0f);
+	const float TableHeight = std::max(1.0f, ImGui::GetContentRegionAvail().y);
 	if (ImGui::BeginTable("CPUProfileStats", 7, TableFlags, ImVec2(0.0f, TableHeight)))
 	{
 		ImGui::TableSetupScrollFreeze(0, 1);

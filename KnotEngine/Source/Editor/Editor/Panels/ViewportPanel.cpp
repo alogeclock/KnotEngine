@@ -1,4 +1,4 @@
-#include "ImGui/Panels/ViewportPanel.h"
+#include "Editor/Panels/ViewportPanel.h"
 
 #include "Input/InputRouter.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"

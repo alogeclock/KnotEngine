@@ -1,18 +1,20 @@
 #pragma once
 
 #include "Render/RHI/RenderTypes.h"
-#include "ImGui/EditorSelection.h"
-#include "ImGui/Panels/ConsolePanel.h"
-#include "ImGui/Panels/HierarchyPanel.h"
-#include "ImGui/Panels/InspectorPanel.h"
-#include "ImGui/Panels/ProfilePanel.h"
-#include "ImGui/Panels/ViewportPanel.h"
+#include "Editor/EditorSelection.h"
+#include "Editor/Panels/ConsolePanel.h"
+#include "Editor/Panels/ContentPanel.h"
+#include "Editor/Panels/HierarchyPanel.h"
+#include "Editor/Panels/InspectorPanel.h"
+#include "Editor/Panels/ProfilePanel.h"
+#include "Editor/Panels/ViewportPanel.h"
 
 #include <Windows.h>
 #include <cstdint>
 
 class IImGuiRenderBackend;
 class IRenderDevice;
+class FAssetRegistry;
 class FInputRouter;
 struct ImFont;
 class UEditorEngine;
@@ -24,6 +26,7 @@ public:
 	FImGuiSystem(
 		FWindowsApplication& InApplication,
 		UEditorEngine& InEditorEngine,
+		FAssetRegistry& InAssetRegistry,
 		IRenderDevice& InRenderDevice,
 		IImGuiRenderBackend& InRenderBackend,
 		FInputRouter& InInputRouter);
@@ -51,6 +54,7 @@ private:
 	FInspectorPanel InspectorPanel;
 	FViewportPanel ViewportPanel;
 	FConsolePanel ConsolePanel;
+	FContentPanel ContentPanel;
 #if KNOT_CPU_PROFILER_ENABLED
 	FProfilePanel ProfilePanel;
 #endif
@@ -61,6 +65,7 @@ private:
 	bool bShowInspector = true;
 	bool bShowViewport = true;
 	bool bShowConsole = true;
+	bool bShowContent = true;
 #if KNOT_CPU_PROFILER_ENABLED
 	bool bShowProfile = true;
 #endif

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Asset/StaticMesh.h"
+#include "Asset/Mesh/StaticMesh.h"
 #include "Component/PrimitiveComponent.h"
 
 #include <memory>

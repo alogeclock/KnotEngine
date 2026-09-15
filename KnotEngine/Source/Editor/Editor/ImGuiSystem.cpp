@@ -1,4 +1,4 @@
-#include "ImGui/ImGuiSystem.h"
+#include "Editor/ImGuiSystem.h"
 
 #include "Core/Assert.h"
 #include "Platform/WindowsApplication.h"
@@ -7,7 +7,7 @@
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
 #include "Runtime/EditorEngine.h"
-#include "Source/Resource/resource.h"
+#include "Asset/Resource/resource.h"
 #include "World/World.h"
 
 #include <filesystem>
@@ -24,11 +24,12 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, 
 FImGuiSystem::FImGuiSystem(
 	FWindowsApplication& InApplication,
 	UEditorEngine& InEditorEngine,
+	FAssetRegistry& InAssetRegistry,
 	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
 	: Application(InApplication), EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState)
+	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState), ContentPanel(InAssetRegistry)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
 }
@@ -124,6 +125,10 @@ void FImGuiSystem::Draw(float DeltaTime)
 		InspectorPanel.Draw(Selection);
 	}
 	ViewportPanel.Draw(bShowViewport, DeltaTime);
+	if (bShowContent)
+	{
+		ContentPanel.Draw();
+	}
 	if (bShowConsole)
 	{
 		ConsolePanel.Draw();
@@ -134,6 +139,10 @@ void FImGuiSystem::Draw(float DeltaTime)
 		ProfilePanel.Draw(DeltaTime);
 	}
 #endif
+	if (bNeedsDefaultLayout && bShowContent)
+	{
+		ImGui::SetWindowFocus("Content");
+	}
 
 	const ImGuiIO& IO = ImGui::GetIO();
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
@@ -179,6 +188,7 @@ void FImGuiSystem::DrawMenuBar()
 		ImGui::MenuItem("Inspector", nullptr, &bShowInspector);
 		ImGui::MenuItem("Viewport", nullptr, &bShowViewport);
 		ImGui::MenuItem("Console", nullptr, &bShowConsole);
+		ImGui::MenuItem("Content", nullptr, &bShowContent);
 #if KNOT_CPU_PROFILER_ENABLED
 		ImGui::MenuItem("Profile", nullptr, &bShowProfile);
 #endif
@@ -205,9 +215,10 @@ void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Down, 0.25f, &BottomId, &CenterId);
 	ImGui::DockBuilderDockWindow("Hierarchy", LeftId);
 	ImGui::DockBuilderDockWindow("Inspector", RightId);
+	ImGui::DockBuilderDockWindow("Content", BottomId);
 	ImGui::DockBuilderDockWindow("Console", BottomId);
 #if KNOT_CPU_PROFILER_ENABLED
-	ImGui::DockBuilderDockWindow("Profile", RightId);
+	ImGui::DockBuilderDockWindow("Profile", BottomId);
 #endif
 	ImGui::DockBuilderDockWindow("Viewport", CenterId);
 	ImGui::DockBuilderFinish(DockspaceId);

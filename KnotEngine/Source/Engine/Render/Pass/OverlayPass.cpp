@@ -8,7 +8,7 @@
 #include "Render/Resource/VertexTypes.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
-#include "Source/Resource/resource.h"
+#include "Asset/Resource/resource.h"
 
 uint32 FOverlayPass::AddPass(
 	FRenderGraph& Graph,
