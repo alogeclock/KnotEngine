@@ -5,6 +5,7 @@
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
+#include "Render/Resource/VertexTypes.h"
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext)
 	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
@@ -48,11 +49,30 @@ void URenderer::Create(void* NativeWindowHandle)
 	RenderContext.Create(NativeWindowHandle);
 	ShaderRegistry.Create();
 	PipelineStateCache.Create();
+
+	static constexpr uint32 BoundsColor = PackRGBA(255, 196, 64);
+	const FGeometryVertex BoundsVertices[] = {
+		{ FVector(-1.0f, -1.0f, -1.0f), BoundsColor },
+		{ FVector(1.0f, -1.0f, -1.0f), BoundsColor },
+		{ FVector(1.0f, 1.0f, -1.0f), BoundsColor },
+		{ FVector(-1.0f, 1.0f, -1.0f), BoundsColor },
+		{ FVector(-1.0f, -1.0f, 1.0f), BoundsColor },
+		{ FVector(1.0f, -1.0f, 1.0f), BoundsColor },
+		{ FVector(1.0f, 1.0f, 1.0f), BoundsColor },
+		{ FVector(-1.0f, 1.0f, 1.0f), BoundsColor },
+	};
+	const uint32 BoundsIndices[] = {
+		0, 1, 1, 2, 2, 3, 3, 0,
+		4, 5, 5, 6, 6, 7, 7, 4,
+		0, 4, 1, 5, 2, 6, 3, 7,
+	};
+	DebugBoundsMesh.Initialize(BoundsVertices, BoundsIndices);
 }
 
 void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
+	DebugBoundsMesh.Release();
 	PipelineStateCache.Release();
 	ShaderRegistry.Release();
 	RenderContext.Release();

@@ -1,34 +1,41 @@
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 
-#include "Component/Mesh/MeshComponent.h"
+#include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
-#include "Render/Resource/MeshResources.h"
 #include "Render/Resource/MeshTypes.h"
 
-FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UMeshComponent& InComponent)
+FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent)
 	: Component(InComponent)
+{
+}
+
+void FPrimitiveSceneProxy::UpdateBounds(const FAABB& InLocalBounds)
+{
+	// Component와의 friend 관계로 현재 상태를 읽는다. 갱신 중 임시 Proxy를 생성하지 않는다.
+	WorldMatrix = Component.GetTransform().GetWorldMatrix();
+	bVisible = Component.bVisible;
+	LocalBounds = InLocalBounds;
+	WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
+	bDirty = false;
+}
+
+FStaticMeshSceneProxy::FStaticMeshSceneProxy(const UStaticMeshComponent& InComponent)
+	: FPrimitiveSceneProxy(InComponent), MeshComponent(InComponent)
 {
 	Update();
 }
 
-void FPrimitiveSceneProxy::Update()
+void FStaticMeshSceneProxy::Update()
 {
 	if (!bDirty)
 	{
 		return;
 	}
 
-	// Component와의 friend 관계로 현재 상태를 읽는다. 갱신 중 임시 Proxy를 생성하지 않는다.
-	WorldMatrix = Component.GetTransform().GetWorldMatrix();
-	bVisible = Component.bVisible;
-	Mesh = Component.Mesh ? &Component.Mesh->GetGeometryMesh() : nullptr;
-	if (!Mesh || !Mesh->GetLocalBounds().IsValid())
+	Mesh = MeshComponent.GetStaticMesh() ? &MeshComponent.GetStaticMesh()->GetRenderData() : nullptr;
+	if (Mesh && !Mesh->IsValid())
 	{
 		Mesh = nullptr;
 	}
-
-	// CPU Mesh가 없으면 이전 Bounds도 함께 비운다. GPU 업로드는 Render Pass가 사용 직전에 수행한다.
-	LocalBounds = Mesh ? Mesh->GetLocalBounds() : FAABB();
-	WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
-	bDirty = false;
+	UpdateBounds(Mesh ? Mesh->GetLocalBounds() : FAABB());
 }

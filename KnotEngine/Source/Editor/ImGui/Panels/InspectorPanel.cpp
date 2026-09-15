@@ -1,7 +1,7 @@
 #include "ImGui/Panels/InspectorPanel.h"
 
 #include "Asset/AssetManager.h"
-#include "Asset/GeometryMesh.h"
+#include "Asset/StaticMesh.h"
 #include "Component/Component.h"
 #include "Core/Geometry/Transform.h"
 #include "Core/Math/Rotator.h"
@@ -21,6 +21,7 @@
 #include <cctype>
 #include <cfloat>
 #include <cstring>
+#include <iterator>
 
 FInspectorPanel::~FInspectorPanel()
 {
@@ -206,6 +207,80 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	ImGui::End();
 }
 
+// 문자열이 대소문자 구분 없이 검색어를 포함하는지 확인한다.
+bool FInspectorPanel::ContainsText(const FString& Text, const FString& FilterText)
+{
+	return std::search(Text.begin(), Text.end(), FilterText.begin(), FilterText.end(), [](char Left, char Right)
+	                   { return std::tolower(static_cast<unsigned char>(Left)) == std::tolower(static_cast<unsigned char>(Right)); }) != Text.end();
+}
+
+// 검색어와 일치하는 Component를 평면 목록으로 그린다.
+bool FInspectorPanel::DrawFilteredAddComponents(UNode& Node, const TArray<const UClass*>& ComponentClasses, const FString& FilterText, bool& bHasMatch)
+{
+	bHasMatch = false;
+	for (const UClass* Class : ComponentClasses)
+	{
+		if (!Class->IsChildOf(UComponent::StaticClass()))
+		{
+			continue;
+		}
+
+		const FString& DisplayName = Class->GetMetadata().GetDisplayName();
+		const FString& Category = Class->GetMetadata().GetCategory();
+		if (!ContainsText(DisplayName, FilterText) && !ContainsText(Category, FilterText))
+		{
+			continue;
+		}
+
+		bHasMatch = true;
+		if (DrawComponent(Node, *Class))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// Component Class를 Category 메뉴로 묶어 그린다.
+bool FInspectorPanel::DrawAddComponentMenus(UNode& Node, const TArray<const UClass*>& ComponentClasses)
+{
+	bool bComponentAdded = false;
+	for (SIZE_T FirstClass = 0; FirstClass < ComponentClasses.size() && !bComponentAdded;)
+	{
+		while (FirstClass < ComponentClasses.size() && !ComponentClasses[FirstClass]->IsChildOf(UComponent::StaticClass()))
+		{
+			++FirstClass;
+		}
+		if (FirstClass == ComponentClasses.size())
+		{
+			break;
+		}
+
+		const FString& Category = ComponentClasses[FirstClass]->GetMetadata().GetCategory();
+		SIZE_T LastClass = FirstClass + 1;
+		while (LastClass < ComponentClasses.size() && ComponentClasses[LastClass]->GetMetadata().GetCategory() == Category)
+		{
+			++LastClass;
+		}
+
+		const FString MenuName = Category.empty() ? "Other" : Category;
+		if (ImGui::BeginMenu(MenuName.c_str()))
+		{
+			for (SIZE_T ClassIndex = FirstClass; ClassIndex < LastClass; ++ClassIndex)
+			{
+				if (ComponentClasses[ClassIndex]->IsChildOf(UComponent::StaticClass()) && DrawComponent(Node, *ComponentClasses[ClassIndex]))
+				{
+					bComponentAdded = true;
+					break;
+				}
+			}
+			ImGui::EndMenu();
+		}
+		FirstClass = LastClass;
+	}
+	return bComponentAdded;
+}
+
 // UCLASS 메타데이터로 노출된 Component를 검색하고 선택한 클래스를 현재 Node에 생성한다.
 void FInspectorPanel::DrawAddComponent(UNode& Node)
 {
@@ -254,86 +329,11 @@ void FInspectorPanel::DrawAddComponent(UNode& Node)
 	const TArray<const UClass*>& ComponentClasses = GReflectionRegistry->GetEditorSpawnableClasses();
 
 	const FString FilterText(ComponentFilter.data());
-	// Component 이름과 Category를 대소문자 구분 없이 검색한다.
-	const auto ContainsFilter = [&FilterText](const FString& Text)
-	{
-		return std::search(Text.begin(), Text.end(), FilterText.begin(), FilterText.end(), [](char Left, char Right)
-		{
-			return std::tolower(static_cast<unsigned char>(Left)) == std::tolower(static_cast<unsigned char>(Right));
-		}) != Text.end();
-	};
 
-	bool bHasMatch = false;
-	bool bComponentAdded = false;
-	if (!FilterText.empty())
-	{
-		// 검색 중에는 Category 메뉴를 생략하고 일치한 Component를 바로 표시한다.
-		for (const UClass* Class : ComponentClasses)
-		{
-			if (!Class->IsChildOf(UComponent::StaticClass()))
-			{
-				continue;
-			}
-
-			const FString& DisplayName = Class->GetMetadata().GetDisplayName();
-			const FString& Category = Class->GetMetadata().GetCategory();
-			if (ContainsFilter(DisplayName) || ContainsFilter(Category))
-			{
-				bHasMatch = true;
-				if (DrawComponent(Node, *Class))
-				{
-					bComponentAdded = true;
-					break;
-				}
-			}
-		}
-	}
-	else
-	{
-		// 검색어가 없으면 정렬된 Component를 같은 Category 단위로 묶는다.
-		for (SIZE_T FirstClass = 0; FirstClass < ComponentClasses.size();)
-		{
-			while (FirstClass < ComponentClasses.size() && !ComponentClasses[FirstClass]->IsChildOf(UComponent::StaticClass()))
-			{
-				++FirstClass;
-			}
-			if (FirstClass == ComponentClasses.size())
-			{
-				break;
-			}
-
-			const FString& Category = ComponentClasses[FirstClass]->GetMetadata().GetCategory();
-			SIZE_T LastClass = FirstClass + 1;
-			while (LastClass < ComponentClasses.size() && ComponentClasses[LastClass]->GetMetadata().GetCategory() == Category)
-			{
-				++LastClass;
-			}
-
-			bHasMatch = true;
-			const FString MenuName = Category.empty() ? "Other" : Category;
-			if (ImGui::BeginMenu(MenuName.c_str()))
-			{
-				for (SIZE_T ClassIndex = FirstClass; ClassIndex < LastClass; ++ClassIndex)
-				{
-					if (!ComponentClasses[ClassIndex]->IsChildOf(UComponent::StaticClass()))
-					{
-						continue;
-					}
-					if (DrawComponent(Node, *ComponentClasses[ClassIndex]))
-					{
-						bComponentAdded = true;
-						break;
-					}
-				}
-				ImGui::EndMenu();
-			}
-			if (bComponentAdded)
-			{
-				break;
-			}
-			FirstClass = LastClass;
-		}
-	}
+	bool bHasMatch = true;
+	const bool bComponentAdded = FilterText.empty()
+	                                 ? DrawAddComponentMenus(Node, ComponentClasses)
+	                                 : DrawFilteredAddComponents(Node, ComponentClasses, FilterText, bHasMatch);
 
 	if (!bHasMatch)
 	{
@@ -524,10 +524,10 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 	const bool bInitialized = Storage->GetBool(InitializedId);
 	const bool bWasEditing = Storage->GetBool(EditingId);
 	const FQuat CachedQuat(
-		Storage->GetFloat(QuatXId),
-		Storage->GetFloat(QuatYId),
-		Storage->GetFloat(QuatZId),
-		Storage->GetFloat(QuatWId, 1.0f));
+	    Storage->GetFloat(QuatXId),
+	    Storage->GetFloat(QuatYId),
+	    Storage->GetFloat(QuatZId),
+	    Storage->GetFloat(QuatWId, 1.0f));
 	FVector Euler;
 	if (bInitialized && (bWasEditing || Quat.Equals(CachedQuat)))
 	{
@@ -816,35 +816,38 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	{
 		const FObjectProperty& ObjectProperty = static_cast<const FObjectProperty&>(Property);
 		UObject* ReferencedObject = ObjectProperty.GetObjectPtrOps()->GetObject(Value);
-		if (ObjectProperty.GetPropertyClass() == UGeometryMesh::StaticClass())
+		if (ObjectProperty.GetPropertyClass() == UStaticMesh::StaticClass())
 		{
 			check(GAssetManager);
-			const UGeometryMesh* CurrentMesh = static_cast<const UGeometryMesh*>(ReferencedObject);
-			const char* Preview = CurrentMesh ? CurrentMesh->GetDisplayName() : "None";
-			TArray<UGeometryMesh*> GeometryMeshes;
-			GeometryMeshes.reserve(GAssetManager->GetGeometryMeshCache().size());
-			for (const auto& Entry : GAssetManager->GetGeometryMeshCache())
+			const UStaticMesh* CurrentMesh = static_cast<const UStaticMesh*>(ReferencedObject);
+			const char* Preview = CurrentMesh ? CurrentMesh->GetAssetPath().c_str() : "None";
+			TArray<UStaticMesh*> StaticMeshes;
+			StaticMeshes.reserve(GAssetManager->GetStaticMeshes().size());
+			for (const auto& Entry : GAssetManager->GetStaticMeshes())
 			{
-				if (UGeometryMesh* GeometryMesh = Entry.second.Get())
+				if (UStaticMesh* StaticMesh = Entry.second.Get())
 				{
-					GeometryMeshes.push_back(GeometryMesh);
+					StaticMeshes.push_back(StaticMesh);
 				}
 			}
-			std::sort(GeometryMeshes.begin(), GeometryMeshes.end(), [](const UGeometryMesh* Left, const UGeometryMesh* Right)
-			{
-				return std::strcmp(Left->GetDisplayName(), Right->GetDisplayName()) < 0;
-			});
+			std::sort(StaticMeshes.begin(), StaticMeshes.end(), [](const UStaticMesh* Left, const UStaticMesh* Right)
+			          { return Left->GetAssetPath() < Right->GetAssetPath(); });
 
 			if (BeginPropertyRow(Label.c_str()))
 			{
 				if (ImGui::BeginCombo("##Value", Preview))
 				{
-					for (UGeometryMesh* GeometryMesh : GeometryMeshes)
+					if (ImGui::Selectable("None", CurrentMesh == nullptr))
 					{
-						const bool bSelected = CurrentMesh == GeometryMesh;
-						if (ImGui::Selectable(GeometryMesh->GetDisplayName(), bSelected))
+						ObjectProperty.GetObjectPtrOps()->SetObject(Value, nullptr);
+						bChanged = true;
+					}
+					for (UStaticMesh* StaticMesh : StaticMeshes)
+					{
+						const bool bSelected = CurrentMesh == StaticMesh;
+						if (ImGui::Selectable(StaticMesh->GetAssetPath().c_str(), bSelected))
 						{
-							ObjectProperty.GetObjectPtrOps()->SetObject(Value, GeometryMesh);
+							ObjectProperty.GetObjectPtrOps()->SetObject(Value, StaticMesh);
 							bChanged = true;
 						}
 					}

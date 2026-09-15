@@ -36,11 +36,10 @@ UEditorEngine
            ├─ URenderer::BeginFrame
            ├─ Family별 FSceneRenderer 생성
            │      └─ Render(Renderer)
-           │             ├─ View별 CullView
-           │             ├─ FOpaquePass::AddPass
-           │             ├─ FGridPass::AddPass
-           │             ├─ FAxisPass::AddPass
-           │             └─ URenderer::Execute
+		   │             ├─ View별 CullView
+		   │             ├─ FOpaquePass::AddPass
+		   │             ├─ FOverlayPass::AddPass
+		   │             └─ URenderer::Execute
            ├─ FImGuiSystem::Render
            └─ URenderer::EndFrame → Submit → Present
 ```
@@ -48,7 +47,7 @@ UEditorEngine
 ```text
 UWorld ──소유──> FScene ──소유──> FPrimitiveSceneProxy[]
                                    ↕ 비소유 참조
-                           UMeshComponent
+			       UPrimitiveComponent
 
 FSceneViewFamily ──참조──> FScene
                 ├─ FSceneView[]
@@ -63,15 +62,14 @@ KnotEngine/Source/
 ├─ Engine/
 │  ├─ Component/
 │  │  ├─ PrimitiveComponent.h/.cpp
-│  │  └─ Mesh/MeshComponent.h/.cpp
+│  │  └─ Mesh/StaticMeshComponent.h/.cpp
 │  ├─ World/World.h/.cpp
 │  └─ Render/
 │     ├─ Renderer.h/.cpp
 │     ├─ Graph/RenderGraph.h/.cpp
 │     ├─ Pass/
 │     │  ├─ OpaquePass.h/.cpp
-│     │  ├─ GridPass.h/.cpp
-│     │  └─ AxisPass.h/.cpp
+│     │  └─ OverlayPass.h/.cpp
 │     ├─ Scene/
 │     │  ├─ Scene.h/.cpp
 │     │  ├─ SceneView.h
@@ -177,7 +175,7 @@ Render Thread
 ```text
 OnRegister
   → 가상 CreatePrimitiveSceneProxy()
-  → MeshComponent가 Proxy 생성 및 초기 상태 구성
+  → StaticMeshComponent가 Proxy 생성 및 초기 상태 구성
   → FScene.AddPrimitive
 
 Transform / Mesh / Visibility / Inspector 변경
@@ -194,13 +192,13 @@ OnUnregister
   → Component의 SceneProxy = nullptr
 ```
 
-`UComponent`에는 가상 `Update()`가 없다. `CreatePrimitiveSceneProxy()`는 PrimitiveComponent의 순수 가상 함수이고 현재 MeshComponent에서 구현한다. 매 갱신마다 Proxy를 새로 만들지 않는다.
+`UComponent`에는 가상 `Update()`가 없다. `CreatePrimitiveSceneProxy()`는 PrimitiveComponent의 순수 가상 함수이고 현재 StaticMeshComponent에서 구현한다. 매 갱신마다 Proxy를 새로 만들지 않는다.
 
-`FPrimitiveSceneProxy`는 현재 `const UMeshComponent&`를 보관한다. 범용 Primitive나 Light Proxy 계층으로 일반화된 상태는 아니다. PrimitiveComponent·MeshComponent와 Proxy는 서로 friend로 선언된다. Proxy는 Mesh와 Visibility를 직접 읽고 Transform의 World Matrix를 조회한다.
+`FPrimitiveSceneProxy`는 공통 Primitive 상태를, `FStaticMeshSceneProxy`는 Static Mesh 참조를 보관한다. Proxy는 Dirty일 때 Component의 Mesh와 Visibility를 읽고 Transform의 World Matrix를 조회한다.
 
 | Proxy 데이터 | 의미 |
 |---|---|
-| `Mesh` | 렌더링에 사용할 Geometry Mesh 공유 참조 |
+| `Mesh` | 렌더링에 사용할 Static Mesh 공유 참조 |
 | `WorldMatrix` | 로컬 공간에서 월드 공간으로 변환 |
 | `LocalBounds` | Mesh의 로컬 AABB |
 | `WorldBounds` | WorldMatrix를 적용한 AABB |
@@ -208,7 +206,7 @@ OnUnregister
 | `bDirty` | 원본 Component에서 다시 복사할 필요 여부 |
 | `Component` | 등록 수명 안에서 유효한 비소유 원본 참조 |
 
-Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mesh 참조와 Bounds를 비운다. Mesh가 없는 Component도 Proxy 등록은 유지한다. 기본 Geometry Component는 기본 생성 중 CPU Geometry를 만들며 SceneRenderer가 처음 사용하기 전에 GPU Mesh Buffer를 업로드한다. 공유 Mesh 데이터를 직접 수정한 경우 관련 Component를 명시적으로 Mark해야 하며 Asset 변경 구독은 아직 없다.
+Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mesh 참조와 Bounds를 비운다. Mesh가 없는 Component도 Proxy 등록은 유지한다. 기본 Geometry Component는 생성자에서 미리 로드된 Static Mesh Asset을 선택하며 SceneRenderer가 처음 사용하기 전에 GPU Mesh Buffer를 업로드한다. 공유 Mesh 데이터를 직접 수정한 경우 관련 Component를 명시적으로 Mark해야 하며 Asset 변경 구독은 아직 없다.
 
 부모 Transform 변경은 자손까지 Dirty를 전파한다. Stopped·Paused에서도 Scene 갱신을 실행하므로 Inspector 편집 결과가 반영된다. World Tick 이후 변경한 값은 다음 Scene 갱신에서 반영된다.
 
@@ -248,9 +246,9 @@ GetProxies → CullView → VisiblePrimitives
 
 ### 현재 Pass Node
 
-`FOpaquePass`, `FGridPass`, `FAxisPass`는 장기 수명 인스턴스를 만들지 않는 정적 Node Builder다. 각 `AddPass()` 호출은 현재 View의 상수와 Draw 데이터를 캡처한 임시 Node를 생성한다. Node 실행 함수는 공용 Registry와 Cache에서 얻은 Handle을 바인딩하고 Draw를 수행한다. 범용 Render Pass 기반 클래스나 Pass registry는 없다.
+`FOpaquePass`와 `FOverlayPass`는 장기 수명 인스턴스를 만들지 않는 정적 Node Builder다. 각 `AddPass()` 호출은 현재 View의 상수와 Draw 데이터를 캡처한 임시 Node를 생성한다. Node 실행 함수는 공용 Registry와 Cache에서 얻은 Handle을 바인딩하고 Draw를 수행한다. 범용 Render Pass 기반 클래스나 Pass registry는 없다.
 
-`FShaderRegistry`는 Resource·EntryPoint·Stage Key별 Shader를, `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. 각 객체의 `Create()`는 `GShaderRegistry`, `GPipelineStateCache`에 현재 인스턴스를 연결하고 `Release()`는 이를 해제한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않는다. Primitive Geometry는 Common shader를 사용한다. Grid는 입력 레이아웃 없는 fullscreen triangle을, Axis는 `SV_VertexID`로 만든 세 개의 절차적 LineList를 사용한다.
+`FShaderRegistry`는 Resource·EntryPoint·Stage Key별 Shader를, `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. 각 객체의 `Create()`는 `GShaderRegistry`, `GPipelineStateCache`에 현재 인스턴스를 연결하고 `Release()`는 이를 해제한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않는다. Primitive Geometry는 Common shader를 사용한다. Overlay Node 내부에서는 Grid, Axis, Bounds를 고정 순서로 그리며 각각의 Shader와 PSO는 독립적으로 유지한다.
 
 Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. 각 Pass Node는 실행 직전에 자신의 Viewport를 설정한다. 각 View의 출력 영역은 Family 타깃 안에 있어야 한다. Family 종료 시 Back Buffer를 복구한다.
 
@@ -258,7 +256,7 @@ Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. �
 
 SceneRenderer는 ViewFamily마다 지역 `FRenderGraph`를 만들고 구체 Pass Builder를 고정 순서로 호출한다. Pass Builder는 Node만 등록하고, SceneRenderer가 반환된 raw `uint32` Node Index를 사용해 `AddDependency()`로 고정 실행 순서를 연결한다. Pass Builder는 자신의 입력, 명령 선택, Sort Key, 상수와 실행 함수를 책임지며 선행 Pass를 알지 않는다. `URenderer`는 구체 Pass를 모르고 완성된 Graph만 실행한다.
 
-현재 구현된 View별 순서는 `Opaque → Grid → Axis`다. ShowFlag가 꺼진 Pass는 Node를 만들지 않고, 다음 Node는 실제로 추가된 마지막 Node에 의존한다.
+현재 구현된 View별 순서는 `Opaque → Overlay`다. Grid, Axis, Bounds Show Flag가 모두 꺼지면 Overlay Node를 만들지 않으며, 활성화된 기능만 Node 내부에서 실행한다.
 
 ```text
 목표 Forward 경로
@@ -333,13 +331,13 @@ Shader Stage별 상수 버퍼 슬롯은 데이터의 의미와 갱신 빈도에 
 | `b2` | Material constants | Material 변경 시 |
 | `b3` | Draw/Object constants | Draw마다 |
 
-현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용하고 Grid Pass는 Pixel Shader의 `b0`과 `b1`, Axis Pass는 Vertex·Pixel Shader의 `b0`을 사용한다. 공용 `FViewConstants`는 ViewProjection, InverseViewProjection, ViewOrigin과 FarClip을 보관한다. Grid와 Axis는 FarClip 이전의 같은 구간에서 거리 페이드하며, 선 너비와 Axis 색상은 현재 셰이더 기본값으로 고정한다. `b2`는 Material 시스템이 구현될 때 이 계약에 따라 사용한다.
+현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용한다. Overlay Pass의 Grid는 Pixel Shader의 `b0`과 `b1`, Axis는 Vertex·Pixel Shader의 `b0`을 사용한다. `b2`는 Material 시스템이 구현될 때 사용한다.
 
 ## Material과 Pipeline 선택
 
-현재 Proxy는 Geometry Mesh를 보관하며 Material 시스템은 연결되지 않았다. 향후 Material의 Blend Mode와 패스 참여 조건으로 Shader·Pipeline·리소스 바인딩을 선택한다. Component가 GPU 상태를 직접 설정하거나 Scene이 모든 패스의 명령을 미리 하나로 정렬하지 않는다.
+현재 Proxy는 Static Mesh를 보관하며 Material 시스템은 연결되지 않았다. 향후 Material의 Blend Mode와 패스 참여 조건으로 Shader·Pipeline·리소스 바인딩을 선택한다.
 
-Primitive 외의 Light나 다른 렌더 대상이 실제로 추가되면 해당 Proxy와 갱신 계약을 설계한다. 현재 `UMeshComponent&`를 받는 Proxy를 이미 범용 Proxy 계층인 것처럼 취급하지 않는다.
+Primitive 외의 Light나 다른 렌더 대상이 실제로 추가되면 해당 Proxy와 갱신 계약을 설계한다.
 
 ## Render Graph
 
@@ -421,8 +419,7 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 
 - [World.cpp](../KnotEngine/Source/Engine/World/World.cpp)
 - [PrimitiveComponent.h](../KnotEngine/Source/Engine/Component/PrimitiveComponent.h)
-- [MeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/MeshComponent.cpp)
-- [GeometryMeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/GeometryMeshComponent.cpp)
+- [StaticMeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/StaticMeshComponent.cpp)
 - [MeshTypes.cpp](../KnotEngine/Source/Engine/Render/Resource/MeshTypes.cpp)
 - [PrimitiveSceneProxy.h](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.h)
 - [PrimitiveSceneProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.cpp)

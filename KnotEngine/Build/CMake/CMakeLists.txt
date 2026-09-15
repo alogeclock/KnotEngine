@@ -123,6 +123,8 @@ target_compile_definitions(Editor PRIVATE WITH_EDITOR=1)
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT Editor)
 set_target_properties(Editor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Editor>")
 
+add_custom_command(TARGET Editor POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${KNOTENGINE_ROOT}/Contents/" "$<TARGET_FILE_DIR:Editor>/Contents/")
+
 include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
 
 # 리소스는 Editor.exe에 포함하되 Visual Studio에서는 원래 폴더 구조로 표시한다.

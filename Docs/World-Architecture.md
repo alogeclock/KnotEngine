@@ -60,11 +60,7 @@ KnotEngine/Source/Engine/
    ├─ TransformComponent.h/.cpp
    ├─ PrimitiveComponent.h/.cpp
    ├─ Mesh/
-   │  ├─ MeshComponent.h/.cpp
-   │  ├─ GeometryMeshComponent.h/.cpp
-   │  ├─ QuadMeshComponent.h/.cpp
-   │  ├─ SphereMeshComponent.h/.cpp
-   │  └─ CubeMeshComponent.h/.cpp
+   │  └─ StaticMeshComponent.h/.cpp
    └─ MovementComponent.h/.cpp
 ```
 
@@ -160,9 +156,11 @@ ULevel::Nodes
 ```text
 Cube UNode
 ├─ UTransformComponent
-├─ UCubeMeshComponent
+├─ UCubeComponent → /Engine/Geometry/Cube
 └─ UMovementComponent
 ```
+
+Cube, Sphere, Quad, Cylinder, Capsule Component는 `UStaticMeshComponent`를 상속하고 생성할 때 `Contents/Engine/Geometry`의 기본 `.kasset`을 선택한다. `FAssetManager`는 `LoadStaticMesh()`로 파일을 로드하고 `FindStaticMesh()`로 이미 등록된 Asset만 조회한다.
 
 `AddComponent<UTransformComponent>()`는 컴파일 시 금지된다. `RemoveComponent()`도 Transform 제거를 거부하므로 공개된 Node에는 항상 하나의 Transform이 존재한다.
 
@@ -393,7 +391,7 @@ PrimitiveComponent.OnUnregister → Scene.RemovePrimitive → Proxy 파괴
 
 메인 스레드에서 상태 변경과 렌더링을 순서대로 실행한다. 부모 Transform 변경·연결·해제·파괴는 자식의 World Transform과 Proxy에 전파된다. Stopped/Paused 상태의 Inspector 편집도 PostEditProperty에서 Dirty로 표시되어 다음 World.Tick 끝에서 반영된다.
 
-Component와 Proxy는 서로 friend로 연결된다. Proxy가 원본 MeshComponent 참조로 데이터를 읽으며 FScene은 Component를 알지 않는다. 별도 FPrimitiveSceneRegistration과 Component의 가상 Update는 없다. SceneRenderer는 GetProxies로 렌더 상태만 읽는다.
+Proxy가 원본 StaticMeshComponent 참조로 데이터를 읽으며 FScene은 Component를 알지 않는다. 별도 FPrimitiveSceneRegistration과 Component의 가상 Update는 없다. SceneRenderer는 GetProxies로 렌더 상태만 읽는다.
 
 World는 Level과 Component를 먼저 파괴하여 Proxy 등록을 해제하고 마지막에 Scene을 소멸시킨다. 상세 수명 계약은 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 

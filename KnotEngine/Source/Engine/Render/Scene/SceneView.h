@@ -32,6 +32,7 @@ struct FShowFlags
 	bool bPrimitive = false;
 	bool bAxis = false;
 	bool bGrid = false;
+	bool bBounds = false;
 };
 
 struct FSceneRenderTarget

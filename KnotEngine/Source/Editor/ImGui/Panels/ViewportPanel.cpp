@@ -193,6 +193,23 @@ void FViewportPanel::DrawToolbar()
 			ImGui::Dummy(ImVec2(0.0f, 2.0f));
 			ImGui::EndPopup();
 		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Show"))
+		{
+			ImGui::OpenPopup("##ShowMenu");
+		}
+		const ImVec2 ShowPopupPosition(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
+		ImGui::SetNextWindowPos(ShowPopupPosition, ImGuiCond_Appearing);
+		if (ImGui::BeginPopup("##ShowMenu"))
+		{
+			FShowFlags& ShowFlags = ViewportClient.GetShowFlags();
+			ImGui::MenuItem("Primitives", nullptr, &ShowFlags.bPrimitive);
+			ImGui::MenuItem("Grid", nullptr, &ShowFlags.bGrid);
+			ImGui::MenuItem("Axis", nullptr, &ShowFlags.bAxis);
+			ImGui::MenuItem("Bounds", nullptr, &ShowFlags.bBounds);
+			ImGui::EndPopup();
+		}
 	}
 	ImGui::EndChild();
 	ImGui::PopStyleVar();

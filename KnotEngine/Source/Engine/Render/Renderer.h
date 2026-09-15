@@ -3,6 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Render/RHI/RenderTypes.h"
+#include "Render/Resource/MeshTypes.h"
 #include "Render/Resource/PipelineStateCache.h"
 #include "Render/Resource/ShaderRegistry.h"
 
@@ -25,15 +26,17 @@ public:
 	void Release();
 	void Resize(uint32 Width, uint32 Height);
 
+	void Execute(FRenderGraph& RenderGraph);
+
 	void BeginFrame();
 	void EndFrame();
-	void Execute(FRenderGraph& RenderGraph);
 
 	void BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport);
 	void EndRenderTarget();
 
 	FShaderRegistry& GetShaderRegistry();
 	FPipelineStateCache& GetPipelineStateCache();
+	FGeometryMesh& GetDebugBoundsMesh() { return DebugBoundsMesh; }
 
 	IRenderDevice& GetRenderDevice() const;
 	FCommandListHandle GetCommandList() const;
@@ -45,6 +48,7 @@ private:
 
 	FShaderRegistry ShaderRegistry;
 	FPipelineStateCache PipelineStateCache;
+	FGeometryMesh DebugBoundsMesh;
 
 	FCommandListHandle CommandList;
 };

@@ -179,13 +179,7 @@ public:
 
 `UCLASS(EditorSpawnable)`은 public 기본 생성이 가능한 non-abstract 클래스를 Editor의 생성 목록에 노출한다. 생성기는 이 조건을 만족하지 않는 선언을 거부한다. Registry는 해당 클래스를 등록할 때 `Category`와 `DisplayName` 순서로 캐시에 삽입한다. Hierarchy와 Inspector는 이 캐시를 참조하고 `UComponent` 상속 관계만 검사하므로 메뉴가 열린 프레임마다 전체 클래스를 복사하고 정렬하지 않는다. `Category`는 메뉴 그룹, `DisplayName`은 항목 이름으로 사용한다.
 
-```cpp
-UCLASS(EditorSpawnable, Category = "Geometry", DisplayName = "Cube")
-class UCubeMeshComponent final : public UGeometryMeshComponent
-{
-    // ...
-};
-```
+Cube, Sphere, Quad, Cylinder, Capsule은 `UStaticMeshComponent`를 상속한 `EditorSpawnable` Component다. Inspector와 Hierarchy는 별도 프리셋 분기 없이 일반 Component 생성 목록에서 이 타입들을 사용한다.
 
 툴팁은 마커에 인접한 `///` 또는 `/** */` 문서 주석의 첫 문단에서 가져온다.
 

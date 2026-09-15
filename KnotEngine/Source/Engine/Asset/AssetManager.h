@@ -2,7 +2,6 @@
 
 #include "EngineAPI.h"
 
-#include "Asset/GeometryMesh.h"
 #include "Asset/StaticMesh.h"
 #include "Object/ObjectPtr.h"
 
@@ -23,16 +22,15 @@ public:
 	void Create();
 	void Release();
 
-	UGeometryMesh* GetOrCreateGeometryMesh(EGeometryMeshType MeshType);
-	const TMap<EGeometryMeshType, TObjectPtr<UGeometryMesh>>& GetGeometryMeshCache() const { return GeometryMeshes; }
-
-	UStaticMesh* LoadStaticMesh(const FString& AssetPath, FStaticMesh&& RenderData);
-	UStaticMesh* FindStaticMesh(const FString& AssetPath) const;
-
 	void AddReferencedObjects(FReferenceCollector& Collector) const;
 
+	UStaticMesh* LoadStaticMesh(const FString& AssetPath);
+	UStaticMesh* FindStaticMesh(const FString& AssetPath) const;
+	const TMap<FString, TObjectPtr<UStaticMesh>>& GetStaticMeshes() const { return StaticMeshes; }
+
 private:
-	TMap<EGeometryMeshType, TObjectPtr<UGeometryMesh>> GeometryMeshes;
+	UStaticMesh* RegisterStaticMesh(const FString& AssetPath, FStaticMesh&& RenderData);
+
 	TMap<FString, TObjectPtr<UStaticMesh>> StaticMeshes;
 };
 

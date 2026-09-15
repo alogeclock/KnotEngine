@@ -3,8 +3,7 @@
 #include "Core/Assert.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
-#include "Render/Pass/AxisPass.h"
-#include "Render/Pass/GridPass.h"
+#include "Render/Pass/OverlayPass.h"
 #include "Render/Pass/OpaquePass.h"
 #include "Render/Renderer.h"
 #include "Render/Scene/Scene.h"
@@ -37,9 +36,12 @@ void FSceneRenderer::Render(URenderer& Renderer)
 		check(View.Viewport.TopLeftY + View.Viewport.Height <= Target.Height);
 
 		VisiblePrimitives.clear();
-		if (ViewFamily.ShowFlags.bPrimitive)
+		if (ViewFamily.ShowFlags.bPrimitive || ViewFamily.ShowFlags.bBounds)
 		{
 			CullView(View);
+		}
+		if (ViewFamily.ShowFlags.bPrimitive)
+		{
 			const uint32 OpaqueNode = FOpaquePass::AddPass(RenderGraph, Renderer, View, VisiblePrimitives);
 			if (PreviousNode != FRenderGraph::InvalidIndex)
 			{
@@ -47,23 +49,14 @@ void FSceneRenderer::Render(URenderer& Renderer)
 			}
 			PreviousNode = OpaqueNode;
 		}
-		if (ViewFamily.ShowFlags.bGrid)
+		if (ViewFamily.ShowFlags.bGrid || ViewFamily.ShowFlags.bAxis || ViewFamily.ShowFlags.bBounds)
 		{
-			const uint32 GridNode = FGridPass::AddPass(RenderGraph, Renderer, View);
+			const uint32 OverlayNode = FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, VisiblePrimitives);
 			if (PreviousNode != FRenderGraph::InvalidIndex)
 			{
-				RenderGraph.AddDependency(GridNode, PreviousNode);
+				RenderGraph.AddDependency(OverlayNode, PreviousNode);
 			}
-			PreviousNode = GridNode;
-		}
-		if (ViewFamily.ShowFlags.bAxis)
-		{
-			const uint32 AxisNode = FAxisPass::AddPass(RenderGraph, Renderer, View);
-			if (PreviousNode != FRenderGraph::InvalidIndex)
-			{
-				RenderGraph.AddDependency(AxisNode, PreviousNode);
-			}
-			PreviousNode = AxisNode;
+			PreviousNode = OverlayNode;
 		}
 	}
 	Renderer.Execute(RenderGraph);
@@ -78,7 +71,7 @@ void FSceneRenderer::CullView(const FSceneView& View)
 	for (const auto& Entry : ViewFamily.Scene->GetProxies())
 	{
 		const FPrimitiveSceneProxy& Primitive = *Entry;
-		if (Primitive.bVisible && Primitive.Mesh && Primitive.WorldBounds.IsValid()
+		if (Primitive.bVisible && Primitive.WorldBounds.IsValid()
 			&& View.Frustum.Intersects(Primitive.WorldBounds) != FFrustum::EFrustumIntersectResult::Outside)
 		{
 			VisiblePrimitives.push_back(&Primitive);

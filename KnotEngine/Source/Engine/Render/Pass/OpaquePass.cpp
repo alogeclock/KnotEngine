@@ -23,13 +23,12 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
-	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_COMMON_SHADER, "Common.hlsl", "VS", EShaderStage::Vertex });
-	const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_COMMON_SHADER, "Common.hlsl", "PS", EShaderStage::Pixel });
-
+	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_STATIC_MESH_SHADER, "StaticMesh.hlsl", "VS", EShaderStage::Vertex });
+	const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_STATIC_MESH_SHADER, "StaticMesh.hlsl", "PS", EShaderStage::Pixel });
 	FPipelineStateDesc PipelineStateDesc;
 	PipelineStateDesc.VertexShader = VertexShader;
 	PipelineStateDesc.PixelShader = PixelShader;
-	PipelineStateDesc.VertexLayout = FGeometryVertex::GetVertexLayout();
+	PipelineStateDesc.VertexLayout = FStaticMeshVertex::GetVertexLayout();
 	const FPipelineStateHandle PipelineState = PipelineStateCache.GetOrCreate(PipelineStateDesc);
 
 	TArray<FMeshDrawCommand> OpaqueCommands;
@@ -37,8 +36,11 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 
 	for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
 	{
-		panicf(Primitive->Mesh->InitResources(*RenderDevice), "Geometry Mesh의 GPU Buffer 생성에 실패했다.");
-		const FMeshBuffer* MeshBuffer = &Primitive->Mesh->GetMeshBuffer();
+		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
+		check(StaticMeshProxy.Mesh);
+		panicf(StaticMeshProxy.Mesh->InitResources(*RenderDevice), "Static Mesh의 GPU Buffer 생성에 실패했다.");
+		const FMeshBuffer* MeshBuffer = &StaticMeshProxy.Mesh->GetLOD(0).GetMeshBuffer();
+
 		const float Depth = View.ViewMatrix.TransformPosition(Primitive->WorldBounds.GetCenter()).Z;
 		check(!std::isnan(Depth) && !std::isinf(Depth));
 		const uint32 SortKey = std::bit_cast<uint32>(std::max(0.0f, Depth));
@@ -80,7 +82,7 @@ void FOpaquePass::ExecutePass(
 	{
 		const FMeshBuffer& MeshBuffer = *Command.MeshBuffer;
 		checkf(MeshBuffer.IsValid(), "유효하지 않은 FMeshBuffer가 Opaque Pass에 전달되었다.");
-		checkf(MeshBuffer.GetLayout() == FGeometryVertex::GetVertexLayout(), "Opaque Pipeline State와 호환되지 않는 Vertex Layout이다.");
+		checkf(MeshBuffer.GetLayout() == FStaticMeshVertex::GetVertexLayout(), "Opaque Pipeline State와 호환되지 않는 Vertex Layout이다.");
 
 		const FDrawConstants DrawConstants = { Command.Primitive->WorldMatrix };
 		const auto* DrawBytes = reinterpret_cast<const uint8*>(&DrawConstants);

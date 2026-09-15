@@ -30,6 +30,9 @@ private:
 	void PasteComponent(UComponent& Component) const;
 	void DrawObject(UObject& Object);
 	void DrawAddComponent(UNode& Node);
+	static bool ContainsText(const FString& Text, const FString& FilterText);
+	static bool DrawFilteredAddComponents(UNode& Node, const TArray<const UClass*>& ComponentClasses, const FString& FilterText, bool& bHasMatch);
+	static bool DrawAddComponentMenus(UNode& Node, const TArray<const UClass*>& ComponentClasses);
 
 	void BeginCategory(const FString& CategoryName) const;
 	static void EndCategory();

@@ -15,6 +15,7 @@ FEditorViewportClient::FEditorViewportClient(FViewport& InViewport)
 	ShowFlags.bPrimitive = true;
 	ShowFlags.bAxis = true;
 	ShowFlags.bGrid = true;
+	ShowFlags.bBounds = false;
 }
 
 FEditorViewportClient::~FEditorViewportClient() = default;

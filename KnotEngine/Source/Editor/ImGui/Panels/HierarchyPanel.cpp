@@ -76,7 +76,6 @@ bool FHierarchyPanel::DrawContextMenu(UWorld& World, FEditorSelection& Selection
 		{
 			Selection.SelectedNode = &CreateNode(World, "Node");
 		}
-
 		// Registry가 등록 시점에 정렬한 EditorSpawnable Class 목록을 참조한다.
 		check(GReflectionRegistry);
 		const TArray<const UClass*>& ComponentClasses = GReflectionRegistry->GetEditorSpawnableClasses();
