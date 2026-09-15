@@ -3,6 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Asset/GeometryMesh.h"
+#include "Asset/StaticMesh.h"
 #include "Object/ObjectPtr.h"
 
 class FReferenceCollector;
@@ -24,10 +25,15 @@ public:
 
 	UGeometryMesh* GetOrCreateGeometryMesh(EGeometryMeshType MeshType);
 	const TMap<EGeometryMeshType, TObjectPtr<UGeometryMesh>>& GetGeometryMeshCache() const { return GeometryMeshes; }
+
+	UStaticMesh* LoadStaticMesh(const FString& AssetPath, FStaticMesh&& RenderData);
+	UStaticMesh* FindStaticMesh(const FString& AssetPath) const;
+
 	void AddReferencedObjects(FReferenceCollector& Collector) const;
 
 private:
 	TMap<EGeometryMeshType, TObjectPtr<UGeometryMesh>> GeometryMeshes;
+	TMap<FString, TObjectPtr<UStaticMesh>> StaticMeshes;
 };
 
 extern ENGINE_API FAssetManager* GAssetManager;

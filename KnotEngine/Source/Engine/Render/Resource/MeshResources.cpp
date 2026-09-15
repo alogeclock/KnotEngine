@@ -4,10 +4,32 @@
 #include "Render/RHI/RenderDevice.h"
 
 #include <limits>
+#include <utility>
 
 FMeshBuffer::~FMeshBuffer()
 {
 	Release();
+}
+
+FMeshBuffer::FMeshBuffer(FMeshBuffer&& Other) noexcept
+	: VertexBuffer(std::move(Other.VertexBuffer)),
+	  IndexBuffer(std::move(Other.IndexBuffer)),
+	  VertexLayout(std::move(Other.VertexLayout))
+{
+	bInitialized = std::exchange(Other.bInitialized, false);
+}
+
+FMeshBuffer& FMeshBuffer::operator=(FMeshBuffer&& Other) noexcept
+{
+	if (this != &Other)
+	{
+		Release();
+		VertexBuffer = std::move(Other.VertexBuffer);
+		IndexBuffer = std::move(Other.IndexBuffer);
+		VertexLayout = std::move(Other.VertexLayout);
+		bInitialized = std::exchange(Other.bInitialized, false);
+	}
+	return *this;
 }
 
 bool FMeshBuffer::Initialize(IRenderDevice& RenderDevice, const FMeshDataView& InDataView)

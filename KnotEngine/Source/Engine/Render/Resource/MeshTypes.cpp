@@ -43,3 +43,106 @@ void FGeometryMesh::Release()
 {
 	MeshBuffer.Release();
 }
+
+bool FStaticMeshLOD::Initialize(std::span<const FStaticMeshVertex> InVertices, std::span<const uint32> InIndices)
+{
+	if (InVertices.empty() || InVertices.size() > (std::numeric_limits<uint32>::max)() ||
+		InIndices.size() > (std::numeric_limits<uint32>::max)())
+	{
+		return false;
+	}
+	for (uint32 Index : InIndices)
+	{
+		if (Index >= InVertices.size())
+		{
+			return false;
+		}
+	}
+
+	Release();
+	Vertices.assign(InVertices.begin(), InVertices.end());
+	Indices.assign(InIndices.begin(), InIndices.end());
+	LocalBounds.Reset();
+	for (const FStaticMeshVertex& Vertex : Vertices)
+	{
+		LocalBounds.Expand(Vertex.Position);
+	}
+	return true;
+}
+
+bool FStaticMeshLOD::InitResources(IRenderDevice& RenderDevice)
+{
+	if (MeshBuffer.IsValid())
+	{
+		return true;
+	}
+	if (!IsValid())
+	{
+		return false;
+	}
+
+	const auto* VertexBytes = reinterpret_cast<const uint8*>(Vertices.data());
+	const FMeshDataView DataView = {
+		std::span<const uint8>(VertexBytes, Vertices.size() * sizeof(FStaticMeshVertex)),
+		std::span<const uint32>(Indices.data(), Indices.size()),
+		&FStaticMeshVertex::GetVertexLayout(),
+		static_cast<uint32>(Vertices.size())
+	};
+	return MeshBuffer.Initialize(RenderDevice, DataView);
+}
+
+void FStaticMeshLOD::Release()
+{
+	MeshBuffer.Release();
+}
+
+bool FStaticMesh::AddLOD(std::span<const FStaticMeshVertex> Vertices, std::span<const uint32> Indices)
+{
+	FStaticMeshLOD LOD;
+	if (!LOD.Initialize(Vertices, Indices))
+	{
+		return false;
+	}
+
+	LocalBounds.Merge(LOD.GetLocalBounds());
+	LODs.push_back(std::move(LOD));
+	return true;
+}
+
+bool FStaticMesh::InitResources(IRenderDevice& RenderDevice)
+{
+	if (!IsValid())
+	{
+		return false;
+	}
+
+	for (FStaticMeshLOD& LOD : LODs)
+	{
+		if (!LOD.InitResources(RenderDevice))
+		{
+			Release();
+			return false;
+		}
+	}
+	return true;
+}
+
+void FStaticMesh::Release()
+{
+	for (FStaticMeshLOD& LOD : LODs)
+	{
+		LOD.Release();
+	}
+}
+
+FStaticMeshLOD& FStaticMesh::GetLOD(SIZE_T LODIndex)
+{
+	check(LODIndex < LODs.size());
+	return LODs[LODIndex];
+}
+
+const FStaticMeshLOD& FStaticMesh::GetLOD(SIZE_T LODIndex) const
+{
+	check(LODIndex < LODs.size());
+	return LODs[LODIndex];
+}

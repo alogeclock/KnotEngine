@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Core/Math/Vector2.h"
 #include "Core/Math/Vector.h"
 #include "Render/RHI/VertexLayout.h"
 
@@ -23,3 +24,20 @@ struct ENGINE_API FGeometryVertex
 static_assert(std::is_standard_layout_v<FGeometryVertex>, "FGeometryVertex must have a standard layout.");
 static_assert(std::is_trivially_copyable_v<FGeometryVertex>, "FGeometryVertex must be trivially copyable.");
 static_assert(sizeof(FGeometryVertex) == 16, "FGeometryVertex size must be 16 bytes.");
+
+// Static Mesh의 기본 Vertex 입력. Tangent.xyz와 Handedness를 TANGENT.xyzw로 전달한다.
+// Bitangent = (Normal × Tangent) * Handedness로 복원한다. 
+// +1은 Normal × Tangent 방향, -1은 그 반대 방향이며 Mirrored UV의 Tangent Space를 표현한다.
+struct ENGINE_API FStaticMeshVertex
+{
+	FVector Position;
+	FVector Normal;
+	FVector Tangent;
+	float Handedness = 1.0f;
+	FVector2 TexCoord;
+
+	static const FVertexLayout& GetVertexLayout();
+};
+static_assert(std::is_standard_layout_v<FStaticMeshVertex>, "FStaticMeshVertex must have a standard layout.");
+static_assert(std::is_trivially_copyable_v<FStaticMeshVertex>, "FStaticMeshVertex must be trivially copyable.");
+static_assert(sizeof(FStaticMeshVertex) == 48, "FStaticMeshVertex size must be 48 bytes.");

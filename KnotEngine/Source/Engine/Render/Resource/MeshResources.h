@@ -26,6 +26,8 @@ class ENGINE_API FMeshBuffer final : public FRenderResource
 public:
 	FMeshBuffer() = default;
 	~FMeshBuffer() override;
+	FMeshBuffer(FMeshBuffer&& Other) noexcept;
+	FMeshBuffer& operator=(FMeshBuffer&& Other) noexcept;
 
 	bool Initialize(IRenderDevice& RenderDevice, const FMeshDataView& InDataView);
 	bool IsValid() const;
