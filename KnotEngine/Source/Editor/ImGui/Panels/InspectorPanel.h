@@ -4,6 +4,7 @@
 
 struct FEditorSelection;
 struct FQuat;
+struct FRotator;
 struct FTransform;
 struct FVector;
 class FProperty;
@@ -23,6 +24,7 @@ private:
 	void DrawAddComponent(UNode& Node);
 	bool DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject = true);
 	bool DrawVector(const char* Label, FVector& Vector);
+	bool DrawRotator(const char* Label, FRotator& Rotator);
 	bool DrawQuat(const char* Label, FQuat& Quat);
 	bool DrawTransform(const char* Label, const char* Tooltip, FTransform& Transform);
 

@@ -273,6 +273,38 @@ bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 	return bChanged;
 }
 
+// Rotator의 Pitch, Yaw, Roll 값을 한 행에 나란히 그린다.
+bool FInspectorPanel::DrawRotator(const char* Label, FRotator& Rotator)
+{
+	ImGui::PushID(Label);
+	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
+	const bool bVisible = ImGui::BeginTable("##Rotator", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
+	bool bChanged = false;
+	if (bVisible)
+	{
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
+		ImGui::TableSetupColumn("Pitch", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Yaw", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Roll", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableNextRow();
+		ImGui::TableNextColumn();
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted(Label);
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
+		ImGui::TableNextColumn();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bChanged |= ImGui::DragFloat("##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
+		ImGui::EndTable();
+	}
+	ImGui::PopID();
+	return bChanged;
+}
+
 bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 {
 	ImGui::PushID(Label);
@@ -505,6 +537,15 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		{
 			FVector EditedValue = *static_cast<FVector*>(Value);
 			bChanged = DrawVector(Label.c_str(), EditedValue);
+			if (bChanged)
+			{
+				Property.CopyValue(Value, &EditedValue);
+			}
+		}
+		else if (Struct == FRotator::StaticStruct())
+		{
+			FRotator EditedValue = *static_cast<FRotator*>(Value);
+			bChanged = DrawRotator(Label.c_str(), EditedValue);
 			if (bChanged)
 			{
 				Property.CopyValue(Value, &EditedValue);
