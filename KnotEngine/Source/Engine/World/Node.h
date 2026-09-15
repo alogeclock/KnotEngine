@@ -45,6 +45,7 @@ public:
 	}
 
 	UComponent& AddComponent(const UClass& ComponentClass);
+	void RemoveComponent(UComponent& Component);
 
 private:
 	friend class ULevel;
@@ -54,7 +55,7 @@ private:
 	void AttachComponent(UComponent& Component);
 
 	SIZE_T LevelIndex = InvalidLevelIndex; // Level의 밀집 Node 배열에서 현재 위치. 외부 식별자로 사용하지 않는다.
-	UPROPERTY() FName Name;
+	UPROPERTY(Category = "Node") FName Name;
 
 	UPROPERTY(NoEdit, Transient) TObjectPtr<ULevel> OwningLevel;
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UTransformComponent> Transform;

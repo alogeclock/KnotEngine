@@ -81,6 +81,29 @@ UComponent& UNode::AddComponent(const UClass& ComponentClass)
 	return *Component;
 }
 
+// Transform을 제외한 소유 Component를 등록 해제하고 파괴한다.
+void UNode::RemoveComponent(UComponent& Component)
+{
+	panic(&Component != Transform.Get());
+	check(Component.Owner.Get() == this);
+
+	for (auto Iterator = Components.begin(); Iterator != Components.end(); ++Iterator)
+	{
+		if (Iterator->Get() != &Component)
+		{
+			continue;
+		}
+
+		Component.UnregisterComponent();
+		Component.Owner = nullptr;
+		Components.erase(Iterator);
+		GUObjectManager.Destroy(&Component);
+		return;
+	}
+
+	panicf(false, "이 Node가 소유하지 않은 Component를 제거할 수 없다.");
+}
+
 // Node에 이미 생성된 컴포넌트를 추가한다. 컴포넌트는 반드시 Node에 속하지 않은 상태여야 한다.
 void UNode::AttachComponent(UComponent& Component)
 {

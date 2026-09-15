@@ -24,5 +24,5 @@ protected:
 private:
 	friend struct FPrimitiveSceneProxy;
 	FPrimitiveSceneProxy* SceneProxy = nullptr; // FScene 소유, 등록 동안 주소가 유지된다.
-	UPROPERTY(Category = "Rendering") bool bVisible = true;
+	UPROPERTY(Category = "Primitive") bool bVisible = true;
 };

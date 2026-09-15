@@ -17,5 +17,5 @@ public:
 protected:
 	friend struct FPrimitiveSceneProxy;
 	std::unique_ptr<FPrimitiveSceneProxy> CreatePrimitiveSceneProxy() const override;
-	UPROPERTY(Category = "Mesh") TObjectPtr<UGeometryMesh> Mesh;
+	UPROPERTY(Category = "Primitive") TObjectPtr<UGeometryMesh> Mesh;
 };

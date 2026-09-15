@@ -22,6 +22,11 @@
 #include <cfloat>
 #include <cstring>
 
+FInspectorPanel::~FInspectorPanel()
+{
+	GUObjectManager.Destroy(CopiedComponent);
+}
+
 bool FInspectorPanel::DrawComponent(UNode& Node, const UClass& Class)
 {
 	const FString& DisplayName = Class.GetMetadata().GetDisplayName();
@@ -34,10 +39,122 @@ bool FInspectorPanel::DrawComponent(UNode& Node, const UClass& Class)
 	return true;
 }
 
+// Component 이름과 옵션 버튼을 포함한 접이식 헤더를 그린다.
+bool FInspectorPanel::DrawComponentHeader(UComponent& Component, const FString& HeaderName, bool& bRemoveComponent)
+{
+	static constexpr float HeaderSpacing = 1.0f;
+	static constexpr float PopupWidth = 180.0f;
+	static constexpr float OptionButtonWidth = 18.0f;
+	static constexpr float OptionDotRadius = 1.25f;
+	static constexpr float OptionDotSpacing = 4.0f;
+	check(BoldFont);
+
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + HeaderSpacing);
+	ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered));
+	ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgActive));
+	ImGui::PushFont(BoldFont);
+	const bool bOpen = ImGui::CollapsingHeader(HeaderName.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowOverlap);
+	ImGui::PopFont();
+	ImGui::PopStyleColor(3);
+
+	const ImVec2 HeaderMin = ImGui::GetItemRectMin();
+	const ImVec2 HeaderMax = ImGui::GetItemRectMax();
+	const ImVec2 CursorAfterHeader = ImGui::GetCursorScreenPos();
+	ImGui::SetCursorScreenPos(ImVec2(HeaderMax.x - OptionButtonWidth, HeaderMin.y));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+	if (ImGui::Button("##ComponentOptions", ImVec2(OptionButtonWidth, HeaderMax.y - HeaderMin.y)))
+	{
+		ImGui::OpenPopup("##ComponentContextMenu");
+	}
+	ImGui::PopStyleColor(3);
+	const ImVec2 ButtonMin = ImGui::GetItemRectMin();
+	const ImVec2 ButtonMax = ImGui::GetItemRectMax();
+	const ImVec2 IconCenter((ButtonMin.x + ButtonMax.x) * 0.5f, (ButtonMin.y + ButtonMax.y) * 0.5f);
+	const ImU32 IconColor = ImGui::GetColorU32(ImGuiCol_Text);
+	ImDrawList* DrawList = ImGui::GetWindowDrawList();
+	DrawList->AddCircleFilled(ImVec2(IconCenter.x, IconCenter.y - OptionDotSpacing), OptionDotRadius, IconColor);
+	DrawList->AddCircleFilled(IconCenter, OptionDotRadius, IconColor);
+	DrawList->AddCircleFilled(ImVec2(IconCenter.x, IconCenter.y + OptionDotSpacing), OptionDotRadius, IconColor);
+	ImGui::SetCursorScreenPos(CursorAfterHeader);
+
+	const ImGuiViewport* Viewport = ImGui::GetWindowViewport();
+	const float PopupHeight = ImGui::GetFrameHeight() * 3.0f + ImGui::GetStyle().WindowPadding.y * 2.0f + ImGui::GetStyle().ItemSpacing.y * 2.0f;
+	const float SpaceLeft = ButtonMin.x - Viewport->WorkPos.x;
+	const float SpaceRight = Viewport->WorkPos.x + Viewport->WorkSize.x - ButtonMax.x;
+	const float SpaceAbove = ButtonMin.y - Viewport->WorkPos.y;
+	const float SpaceBelow = Viewport->WorkPos.y + Viewport->WorkSize.y - ButtonMax.y;
+	const bool bOpenToRight = SpaceRight >= PopupWidth || SpaceRight >= SpaceLeft;
+	const bool bOpenBelow = SpaceBelow >= PopupHeight || SpaceBelow >= SpaceAbove;
+	const ImVec2 PopupPosition(bOpenToRight ? ButtonMin.x : ButtonMax.x, bOpenBelow ? ButtonMax.y : ButtonMin.y);
+	const ImVec2 PopupPivot(bOpenToRight ? 0.0f : 1.0f, bOpenBelow ? 0.0f : 1.0f);
+	ImGui::SetNextWindowPos(PopupPosition, ImGuiCond_Appearing, PopupPivot);
+	ImGui::SetNextWindowSize(ImVec2(PopupWidth, 0.0f), ImGuiCond_Appearing);
+	if (ImGui::BeginPopup("##ComponentContextMenu"))
+	{
+		const bool bCanRemove = !Component.IsA(UTransformComponent::StaticClass());
+		if (ImGui::MenuItem("Remove Component", nullptr, false, bCanRemove))
+		{
+			bRemoveComponent = true;
+		}
+		if (ImGui::MenuItem("Copy Component"))
+		{
+			CopyComponent(Component);
+		}
+		const bool bCanPaste = CopiedComponent && CopiedComponent->GetClass() == Component.GetClass();
+		if (ImGui::MenuItem("Paste Component", nullptr, false, bCanPaste))
+		{
+			PasteComponent(Component);
+		}
+		ImGui::EndPopup();
+	}
+	return bOpen;
+}
+
+// Component의 편집 가능한 프로퍼티를 미등록 복사본에 저장한다.
+void FInspectorPanel::CopyComponent(const UComponent& Component)
+{
+	UObject* CopiedObject = Component.GetClass()->CreateObject();
+	panic(CopiedObject && CopiedObject->IsA(UComponent::StaticClass()));
+	UComponent* NewCopiedComponent = static_cast<UComponent*>(CopiedObject);
+
+	TArray<const FProperty*> Properties;
+	Component.GetClass()->GetEditorProperties(Properties);
+	for (const FProperty* Property : Properties)
+	{
+		check(Property);
+		Property->CopyValue(Property->ContainerPtrToValuePtr(NewCopiedComponent), Property->ContainerPtrToValuePtr(&Component));
+	}
+
+	GUObjectManager.Destroy(CopiedComponent);
+	CopiedComponent = NewCopiedComponent;
+}
+
+// 같은 클래스의 복사본에서 편집 가능한 프로퍼티를 붙여넣고 변경을 통지한다.
+void FInspectorPanel::PasteComponent(UComponent& Component) const
+{
+	check(CopiedComponent && CopiedComponent->GetClass() == Component.GetClass());
+	TArray<const FProperty*> Properties;
+	Component.GetClass()->GetEditorProperties(Properties);
+	for (const FProperty* Property : Properties)
+	{
+		check(Property);
+		Property->CopyValue(Property->ContainerPtrToValuePtr(&Component), Property->ContainerPtrToValuePtr(CopiedComponent));
+		Component.PostEditProperty(*Property);
+	}
+}
+
 // Editor에서 선택된 객체의 프로퍼티를 그리는 패널을 구현한다.
 void FInspectorPanel::Draw(const FEditorSelection& Selection)
 {
-	if (!ImGui::Begin("Inspector"))
+	check(BoldFont);
+	const ImVec2 InspectorPadding(0.0f, GetContentPadding());
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, InspectorPadding);
+	const bool bVisible = ImGui::Begin("Inspector");
+	ImGui::PopStyleVar();
+	if (!bVisible)
 	{
 		ImGui::End();
 		return;
@@ -50,9 +167,8 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	}
 
 	UNode& Node = *Selection.SelectedNode;
-	ImGui::TextUnformatted(Node.GetName().ToString().c_str());
-	ImGui::Separator();
 	DrawObject(Node);
+	UComponent* ComponentToRemove = nullptr;
 	for (const TObjectPtr<UComponent>& ComponentPointer : Node.GetComponents())
 	{
 		UComponent* Component = ComponentPointer.Get();
@@ -71,11 +187,20 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 			}
 		}
 		ImGui::PushID(Component);
-		if (ImGui::CollapsingHeader(HeaderName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+		bool bRemoveComponent = false;
+		if (DrawComponentHeader(*Component, HeaderName, bRemoveComponent))
 		{
 			DrawObject(*Component);
 		}
+		if (bRemoveComponent)
+		{
+			ComponentToRemove = Component;
+		}
 		ImGui::PopID();
+	}
+	if (ComponentToRemove)
+	{
+		Node.RemoveComponent(*ComponentToRemove);
 	}
 	DrawAddComponent(Node);
 	ImGui::End();
@@ -221,53 +346,135 @@ void FInspectorPanel::DrawAddComponent(UNode& Node)
 	ImGui::EndPopup();
 }
 
+// Inspector 콘텐츠의 위, 아래, 왼쪽과 오른쪽에 동일하게 적용할 여백을 반환한다.
+float FInspectorPanel::GetContentPadding()
+{
+	const float CurrentLeftPadding = ImGui::GetTreeNodeToLabelSpacing() * 0.7f;
+	const float CurrentRightPadding = ImGui::GetStyle().WindowPadding.x;
+	return (CurrentLeftPadding + CurrentRightPadding) * 0.5f;
+}
+
+// Category 영역의 위쪽 여백과 이름을 그린다.
+void FInspectorPanel::BeginCategory(const FString& CategoryName) const
+{
+	check(BoldFont);
+	const float ContentPadding = GetContentPadding();
+	const ImVec2 ItemSpacing = ImGui::GetStyle().ItemSpacing;
+	ImGui::BeginGroup();
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ItemSpacing.x, 0.0f));
+	ImGui::Dummy(ImVec2(0.0f, ItemSpacing.y));
+	ImGui::PopStyleVar();
+	ImGui::Indent(ContentPadding);
+	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + std::max(1.0f, ImGui::GetContentRegionAvail().x - ContentPadding));
+	ImGui::PushFont(BoldFont);
+	ImGui::TextUnformatted(CategoryName.c_str());
+	ImGui::PopFont();
+	ImGui::PopTextWrapPos();
+	ImGui::Unindent(ContentPadding);
+}
+
+// Category 영역의 아래쪽 여백을 적용하고 닫는다.
+void FInspectorPanel::EndCategory()
+{
+	const ImVec2 ItemSpacing = ImGui::GetStyle().ItemSpacing;
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ItemSpacing.x, 0.0f));
+	ImGui::Dummy(ImVec2(0.0f, ItemSpacing.y));
+	ImGui::PopStyleVar();
+	ImGui::EndGroup();
+}
+
 // Editor에서 선택된 객체의 프로퍼티를 리플렉션 기반으로 그린다.
 void FInspectorPanel::DrawObject(UObject& Object)
 {
 	TArray<const FProperty*> Properties;
 	Object.GetClass()->GetEditorProperties(Properties);
 	FString CurrentCategory;
+	bool bCategoryOpen = false;
 	for (const FProperty* Property : Properties)
 	{
 		if (Property)
 		{
 			const FString& Category = Property->GetMetadata().GetCategory();
-			if (!Category.empty() && Category != CurrentCategory)
+			if (Category != CurrentCategory)
 			{
+				if (bCategoryOpen)
+				{
+					EndCategory();
+				}
 				CurrentCategory = Category;
-				ImGui::SeparatorText(CurrentCategory.c_str());
+				bCategoryOpen = !CurrentCategory.empty();
+				if (bCategoryOpen)
+				{
+					BeginCategory(CurrentCategory);
+				}
 			}
 			DrawProperty(Object, *Property, &Object);
 		}
 	}
+	if (bCategoryOpen)
+	{
+		EndCategory();
+	}
+}
+
+// 좌우 여백 안에서 프로퍼티 이름과 값을 25:75 비율의 한 행으로 시작한다.
+bool FInspectorPanel::BeginPropertyRow(const char* Label)
+{
+	static constexpr float PropertySpacing = 2.0f;
+	static constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings;
+	const ImGuiStyle& Style = ImGui::GetStyle();
+	const float ContentPadding = GetContentPadding();
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(Style.CellPadding.x, 0.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(Style.ItemSpacing.x, PropertySpacing));
+	ImGui::Indent(ContentPadding);
+	const float TableWidth = std::max(1.0f, ImGui::GetContentRegionAvail().x - ContentPadding);
+	if (!ImGui::BeginTable("##PropertyRow", 2, TableFlags, ImVec2(TableWidth, 0.0f)))
+	{
+		ImGui::Unindent(ContentPadding);
+		ImGui::PopStyleVar(2);
+		return false;
+	}
+	ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.25f);
+	ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.75f);
+	ImGui::TableNextRow();
+	ImGui::TableNextColumn();
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextUnformatted(Label);
+	ImGui::TableNextColumn();
+	ImGui::AlignTextToFramePadding();
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	return true;
+}
+
+// 현재 프로퍼티 행의 테이블을 닫는다.
+void FInspectorPanel::EndPropertyRow()
+{
+	ImGui::EndTable();
+	ImGui::Unindent(GetContentPadding());
+	ImGui::PopStyleVar(2);
 }
 
 bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 {
 	ImGui::PushID(Label);
-	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
-	const bool bVisible = ImGui::BeginTable("##Vector", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
 	bool bChanged = false;
-	if (bVisible)
+	if (BeginPropertyRow(Label))
 	{
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
-		ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableNextRow();
-		ImGui::TableNextColumn();
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(Label);
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("X##Value", &Vector.X, 0.1f);
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("Y##Value", &Vector.Y, 0.1f);
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("Z##Value", &Vector.Z, 0.1f);
-		ImGui::EndTable();
+		if (ImGui::BeginTable("##VectorValues", 3, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings))
+		{
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bChanged |= ImGui::DragFloat("X##Value", &Vector.X, 0.1f);
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bChanged |= ImGui::DragFloat("Y##Value", &Vector.Y, 0.1f);
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bChanged |= ImGui::DragFloat("Z##Value", &Vector.Z, 0.1f);
+			ImGui::EndTable();
+		}
+		EndPropertyRow();
 	}
 	ImGui::PopID();
 	return bChanged;
@@ -277,29 +484,24 @@ bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 bool FInspectorPanel::DrawRotator(const char* Label, FRotator& Rotator)
 {
 	ImGui::PushID(Label);
-	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
-	const bool bVisible = ImGui::BeginTable("##Rotator", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
 	bool bChanged = false;
-	if (bVisible)
+	if (BeginPropertyRow(Label))
 	{
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
-		ImGui::TableSetupColumn("Pitch", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Yaw", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Roll", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableNextRow();
-		ImGui::TableNextColumn();
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(Label);
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
-		ImGui::EndTable();
+		if (ImGui::BeginTable("##RotatorValues", 3, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings))
+		{
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bChanged |= ImGui::DragFloat("##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bChanged |= ImGui::DragFloat("##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bChanged |= ImGui::DragFloat("##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
+			ImGui::EndTable();
+		}
+		EndPropertyRow();
 	}
 	ImGui::PopID();
 	return bChanged;
@@ -337,56 +539,51 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 		Euler = FVector(Rotator.Roll, Rotator.Pitch, Rotator.Yaw);
 	}
 
-	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
-	const bool bVisible = ImGui::BeginTable("##Quat", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
 	bool bChanged = false;
 	bool bEditing = false;
-	if (bVisible)
+	if (BeginPropertyRow(Label))
 	{
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
-		ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableNextRow();
-		ImGui::TableNextColumn();
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(Label);
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		float EditedX = Euler.X;
-		if (ImGui::DragFloat("X##Value", &EditedX, 0.1f))
+		if (ImGui::BeginTable("##QuatValues", 3, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings))
 		{
-			const FQuat DeltaRotation(FVector::ForwardVector, KMath::ToRadian(EditedX - Euler.X));
-			Quat = (Quat * DeltaRotation).GetNormalized();
-			Euler.X = EditedX;
-			bChanged = true;
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			float EditedX = Euler.X;
+			if (ImGui::DragFloat("X##Value", &EditedX, 0.1f))
+			{
+				const FQuat DeltaRotation(FVector::ForwardVector, KMath::ToRadian(EditedX - Euler.X));
+				Quat = (Quat * DeltaRotation).GetNormalized();
+				Euler.X = EditedX;
+				bChanged = true;
+			}
+			bEditing |= ImGui::IsItemActive();
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			float EditedY = Euler.Y;
+			if (ImGui::DragFloat("Y##Value", &EditedY, 0.1f))
+			{
+				const FQuat YawRotation(FVector::UpVector, KMath::ToRadian(Euler.Z));
+				const FVector PitchAxis = YawRotation.RotateVector(FVector::RightVector);
+				const FQuat DeltaRotation(PitchAxis, KMath::ToRadian(EditedY - Euler.Y));
+				Quat = (DeltaRotation * Quat).GetNormalized();
+				Euler.Y = EditedY;
+				bChanged = true;
+			}
+			bEditing |= ImGui::IsItemActive();
+			ImGui::TableNextColumn();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			float EditedZ = Euler.Z;
+			if (ImGui::DragFloat("Z##Value", &EditedZ, 0.1f))
+			{
+				const FQuat DeltaRotation(FVector::UpVector, KMath::ToRadian(EditedZ - Euler.Z));
+				Quat = (DeltaRotation * Quat).GetNormalized();
+				Euler.Z = EditedZ;
+				bChanged = true;
+			}
+			bEditing |= ImGui::IsItemActive();
+			ImGui::EndTable();
 		}
-		bEditing |= ImGui::IsItemActive();
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		float EditedY = Euler.Y;
-		if (ImGui::DragFloat("Y##Value", &EditedY, 0.1f))
-		{
-			const FQuat YawRotation(FVector::UpVector, KMath::ToRadian(Euler.Z));
-			const FVector PitchAxis = YawRotation.RotateVector(FVector::RightVector);
-			const FQuat DeltaRotation(PitchAxis, KMath::ToRadian(EditedY - Euler.Y));
-			Quat = (DeltaRotation * Quat).GetNormalized();
-			Euler.Y = EditedY;
-			bChanged = true;
-		}
-		bEditing |= ImGui::IsItemActive();
-		ImGui::TableNextColumn();
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		float EditedZ = Euler.Z;
-		if (ImGui::DragFloat("Z##Value", &EditedZ, 0.1f))
-		{
-			const FQuat DeltaRotation(FVector::UpVector, KMath::ToRadian(EditedZ - Euler.Z));
-			Quat = (DeltaRotation * Quat).GetNormalized();
-			Euler.Z = EditedZ;
-			bChanged = true;
-		}
-		bEditing |= ImGui::IsItemActive();
-		ImGui::EndTable();
+		EndPropertyRow();
 	}
 	if (bChanged && Euler.IsNearlyZero())
 	{
@@ -406,22 +603,13 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 	return bChanged;
 }
 
-bool FInspectorPanel::DrawTransform(const char* Label, const char* Tooltip, FTransform& Transform)
+// Transform의 Translation, Rotation과 Scale을 각각 한 행에 그린다.
+bool FInspectorPanel::DrawTransform(FTransform& Transform)
 {
-	const bool bOpen = ImGui::TreeNodeEx(Label, ImGuiTreeNodeFlags_DefaultOpen);
-	if (Tooltip[0] != '\0' && ImGui::IsItemHovered())
-	{
-		ImGui::SetTooltip("%s", Tooltip);
-	}
-	if (!bOpen)
-	{
-		return false;
-	}
 	bool bChanged = false;
 	bChanged |= DrawVector("Translation", Transform.Translation);
 	bChanged |= DrawQuat("Rotation", Transform.Rotation);
 	bChanged |= DrawVector("Scale", Transform.Scale);
-	ImGui::TreePop();
 	return bChanged;
 }
 
@@ -440,7 +628,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::Int32:
 	{
 		int32 EditedValue = *static_cast<int32*>(Value);
-		bChanged = ImGui::DragInt(Label.c_str(), &EditedValue);
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			bChanged = ImGui::DragInt("##Value", &EditedValue);
+			EndPropertyRow();
+		}
 		if (bChanged)
 		{
 			Property.CopyValue(Value, &EditedValue);
@@ -450,7 +642,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::Bool:
 	{
 		bool bEditedValue = *static_cast<bool*>(Value);
-		bChanged = ImGui::Checkbox(Label.c_str(), &bEditedValue);
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			bChanged = ImGui::Checkbox("##Value", &bEditedValue);
+			EndPropertyRow();
+		}
 		if (bChanged)
 		{
 			Property.CopyValue(Value, &bEditedValue);
@@ -460,7 +656,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::Float:
 	{
 		float EditedValue = *static_cast<float*>(Value);
-		bChanged = ImGui::DragFloat(Label.c_str(), &EditedValue, 0.1f);
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			bChanged = ImGui::DragFloat("##Value", &EditedValue, 0.1f);
+			EndPropertyRow();
+		}
 		if (bChanged)
 		{
 			Property.CopyValue(Value, &EditedValue);
@@ -470,7 +670,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::Double:
 	{
 		double EditedValue = *static_cast<double*>(Value);
-		bChanged = ImGui::DragScalar(Label.c_str(), ImGuiDataType_Double, &EditedValue, 0.1f);
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			bChanged = ImGui::DragScalar("##Value", ImGuiDataType_Double, &EditedValue, 0.1f);
+			EndPropertyRow();
+		}
 		if (bChanged)
 		{
 			Property.CopyValue(Value, &EditedValue);
@@ -480,7 +684,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::String:
 	{
 		FString EditedValue = *static_cast<FString*>(Value);
-		bChanged = ImGui::InputText(Label.c_str(), &EditedValue);
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			bChanged = ImGui::InputText("##Value", &EditedValue);
+			EndPropertyRow();
+		}
 		if (bChanged)
 		{
 			Property.CopyValue(Value, &EditedValue);
@@ -490,7 +698,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	case EPropertyKind::Name:
 	{
 		FString EditedText = static_cast<FName*>(Value)->ToString();
-		bChanged = ImGui::InputText(Label.c_str(), &EditedText);
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			bChanged = ImGui::InputText("##Value", &EditedText);
+			EndPropertyRow();
+		}
 		if (bChanged)
 		{
 			const FName EditedValue(EditedText);
@@ -514,18 +726,22 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 			}
 		}
 		const FString Preview = Current ? (Current->DisplayName.empty() ? Current->Name.ToString() : Current->DisplayName) : "Unknown";
-		if (ImGui::BeginCombo(Label.c_str(), Preview.c_str()))
+		if (BeginPropertyRow(Label.c_str()))
 		{
-			for (const FEnumValue& EnumValue : Enum.GetValues())
+			if (ImGui::BeginCombo("##Value", Preview.c_str()))
 			{
-				const FString EnumLabel = EnumValue.DisplayName.empty() ? EnumValue.Name.ToString() : EnumValue.DisplayName;
-				if (ImGui::Selectable(EnumLabel.c_str(), EnumValue.Value == CurrentValue))
+				for (const FEnumValue& EnumValue : Enum.GetValues())
 				{
-					Property.CopyValue(Value, &EnumValue.Value);
-					bChanged = true;
+					const FString EnumLabel = EnumValue.DisplayName.empty() ? EnumValue.Name.ToString() : EnumValue.DisplayName;
+					if (ImGui::Selectable(EnumLabel.c_str(), EnumValue.Value == CurrentValue))
+					{
+						Property.CopyValue(Value, &EnumValue.Value);
+						bChanged = true;
+					}
 				}
+				ImGui::EndCombo();
 			}
-			ImGui::EndCombo();
+			EndPropertyRow();
 		}
 		break;
 	}
@@ -563,7 +779,7 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		else if (Struct == FTransform::StaticStruct())
 		{
 			FTransform EditedValue = *static_cast<FTransform*>(Value);
-			bChanged = DrawTransform(Label.c_str(), Metadata.GetTooltip().c_str(), EditedValue);
+			bChanged = DrawTransform(EditedValue);
 			bTooltipHandled = true;
 			if (bChanged)
 			{
@@ -572,7 +788,10 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		}
 		else
 		{
-			const bool bOpen = ImGui::TreeNodeEx(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+			check(BoldFont);
+			ImGui::PushFont(BoldFont);
+			const bool bOpen = ImGui::CollapsingHeader(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+			ImGui::PopFont();
 			if (!Metadata.GetTooltip().empty() && ImGui::IsItemHovered())
 			{
 				ImGui::SetTooltip("%s", Metadata.GetTooltip().c_str());
@@ -584,9 +803,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 				Struct->GetEditorProperties(Members);
 				for (const FProperty* Member : Members)
 				{
-					bChanged |= Member && DrawProperty(Object, *Member, Value, false);
+					if (Member)
+					{
+						bChanged |= DrawProperty(Object, *Member, Value, false);
+					}
 				}
-				ImGui::TreePop();
 			}
 		}
 		break;
@@ -614,17 +835,8 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 				return std::strcmp(Left->GetDisplayName(), Right->GetDisplayName()) < 0;
 			});
 
-			const bool bVisible = ImGui::BeginTable("##GeometryMesh", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
-			if (bVisible)
+			if (BeginPropertyRow(Label.c_str()))
 			{
-				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.25f);
-				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.75f);
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn();
-				ImGui::AlignTextToFramePadding();
-				ImGui::TextUnformatted(Label.c_str());
-				ImGui::TableNextColumn();
-				ImGui::SetNextItemWidth(-FLT_MIN);
 				if (ImGui::BeginCombo("##Value", Preview))
 				{
 					for (UGeometryMesh* GeometryMesh : GeometryMeshes)
@@ -638,22 +850,38 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 					}
 					ImGui::EndCombo();
 				}
-				ImGui::EndTable();
+				EndPropertyRow();
 			}
 		}
 		else
 		{
-			ImGui::LabelText(Label.c_str(), "%s", ReferencedObject ? ReferencedObject->GetClass()->GetName().c_str() : "None");
+			if (BeginPropertyRow(Label.c_str()))
+			{
+				ImGui::TextUnformatted(ReferencedObject ? ReferencedObject->GetClass()->GetName().c_str() : "None");
+				EndPropertyRow();
+			}
 		}
 		break;
 	}
 	case EPropertyKind::SoftObject:
 	{
 		const FSoftObjectProperty& SoftProperty = static_cast<const FSoftObjectProperty&>(Property);
-		ImGui::LabelText(Label.c_str(), "%s", SoftProperty.GetSoftObjectPtrOps()->GetPath(Value).c_str());
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			ImGui::TextUnformatted(SoftProperty.GetSoftObjectPtrOps()->GetPath(Value).c_str());
+			EndPropertyRow();
+		}
 		break;
 	}
-	case EPropertyKind::Array: ImGui::LabelText(Label.c_str(), "%s", "Array"); break;
+	case EPropertyKind::Array:
+	{
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			ImGui::TextUnformatted("Array");
+			EndPropertyRow();
+		}
+		break;
+	}
 	}
 	if (!bTooltipHandled && !Metadata.GetTooltip().empty() && ImGui::IsItemHovered())
 	{

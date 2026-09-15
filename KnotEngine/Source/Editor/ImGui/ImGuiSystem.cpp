@@ -80,6 +80,7 @@ void FImGuiSystem::Startup()
 	SemiBoldFont = IO.Fonts->AddFontFromMemoryTTF(const_cast<uint8*>(SemiBoldFontBytes.data()), static_cast<int>(SemiBoldFontBytes.size()), 16.0f, &FontConfig, GlyphRanges);
 	panicf(MediumFont && SemiBoldFont, "Pretendard 폰트를 ImGui Font Atlas에 등록하지 못했습니다.");
 	IO.FontDefault = MediumFont;
+	InspectorPanel.SetBoldFont(*SemiBoldFont);
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 

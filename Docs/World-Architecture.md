@@ -25,12 +25,12 @@
 UEngine
 └─ FWorldContext[]
    └─ UWorld
-      ├─ FScene → FPrimitiveSceneProxy[]
-      ├─ PersistentLevel ─┐
-      └─ ULevel[] <───────┘
-         └─ UNode[]
-            ├─ UTransformComponent  정확히 하나
-            └─ UComponent[]         Transform을 포함한 합성 기능
+	  ├─ FScene → FPrimitiveSceneProxy[]
+	  ├─ PersistentLevel ─┐
+	  └─ ULevel[] <───────┘
+		 └─ UNode[]
+			├─ UTransformComponent  정확히 하나
+			└─ UComponent[]         Transform을 포함한 합성 기능
 ```
 
 ```text
@@ -164,15 +164,15 @@ Cube UNode
 └─ UMovementComponent
 ```
 
-`AddComponent<UTransformComponent>()`는 컴파일 시 금지된다. Transform 제거 API도 제공하지 않으므로 공개된 Node에는 항상 하나의 Transform이 존재한다.
+`AddComponent<UTransformComponent>()`는 컴파일 시 금지된다. `RemoveComponent()`도 Transform 제거를 거부하므로 공개된 Node에는 항상 하나의 Transform이 존재한다.
 
 일반 Component는 Owner Node를 통해 Level과 World에 접근한다.
 
 ```text
 UComponent::GetWorld
-    ↓
+	↓
 UNode::GetWorld
-    ↓
+	↓
 ULevel::GetWorld
 ```
 
@@ -228,11 +228,11 @@ PrimitiveComponent의 등록 훅은 World.Scene에 연결되어 있다. Physics�
 
 ```text
 Registered
-    ↓ BeginPlay
+	↓ BeginPlay
 BegunPlay + Active
-    ↓ Deactivate
+	↓ Deactivate
 BegunPlay + Inactive
-    ↓ EndPlay
+	↓ EndPlay
 Registered
 ```
 
@@ -246,9 +246,9 @@ Registered
 
 ```text
 BegunPlay + Inactive
-    ↓ Activate
+	↓ Activate
 BegunPlay + Active
-    ↓ Deactivate
+	↓ Deactivate
 BegunPlay + Inactive
 ```
 
@@ -290,15 +290,15 @@ Active → BegunPlay
 
 ```text
 Owned
-    ↓ RegisterComponent
+	↓ RegisterComponent
 Registered
-    ↓ BeginPlay
+	↓ BeginPlay
 BegunPlay + Active
-    ↕ Activate / Deactivate
+	↕ Activate / Deactivate
 BegunPlay + Inactive
-    ↓ EndPlay
+	↓ EndPlay
 Registered
-    ↓ UnregisterComponent
+	↓ UnregisterComponent
 Owned
 ```
 
@@ -310,21 +310,21 @@ Owned
 
 ```text
 UWorld::BeginPlay
-    ↓
+	↓
 ULevel::BeginPlay
-    ↓
+	↓
 UNode::BeginPlay
-    ↓
+	↓
 UComponent::BeginPlay
 ```
 
 ```text
 UWorld::EndPlay
-    ↓
+	↓
 ULevel::EndPlay
-    ↓
+	↓
 UNode::EndPlay
-    ↓
+	↓
 UComponent::EndPlay
 ```
 
@@ -334,16 +334,16 @@ Component 부착과 파괴의 전체 순서는 다음과 같다.
 
 ```text
 AttachComponent
-    ├─ Owner 설정
-    ├─ Components 배열에 추가
-    ├─ RegisterComponent → OnRegister
-    └─ World가 플레이 중이면 BeginPlay
-       └─ bAutoActivate이면 Activate → OnActivated
+	├─ Owner 설정
+	├─ Components 배열에 추가
+	├─ RegisterComponent → OnRegister
+	└─ World가 플레이 중이면 BeginPlay
+	   └─ bAutoActivate이면 Activate → OnActivated
 
 Node 파괴
-    ├─ EndPlay → Deactivate → OnDeactivated
-    ├─ UnregisterComponent → OnUnregister
-    └─ Component 역순 파괴
+	├─ EndPlay → Deactivate → OnDeactivated
+	├─ UnregisterComponent → OnUnregister
+	└─ Component 역순 파괴
 ```
 
 ## 현재 프레임 실행 순서
@@ -352,27 +352,27 @@ Node 파괴
 
 ```text
 FEngineLoop::Run
-    ↓
+	↓
 UEditorEngine::ProcessInput
-    ↓
+	↓
 UEditorEngine::Tick
-    ├─ ImGui Frame 구성과 입력 라우팅
-    ├─ 각 WorldContext의 UWorld::Tick
-    │    └─ Level/Component 갱신 후 Scene 갱신
-    ├─ ViewportClient 카메라 Tick
-    ├─ Client의 ViewFamily 구성
-    └─ ViewFamily 렌더링, ImGui Draw 및 Present
+	├─ ImGui Frame 구성과 입력 라우팅
+	├─ 각 WorldContext의 UWorld::Tick
+	│    └─ Level/Component 갱신 후 Scene 갱신
+	├─ ViewportClient 카메라 Tick
+	├─ Client의 ViewFamily 구성
+	└─ ViewFamily 렌더링, ImGui Draw 및 Present
 ```
 
 현재 World Tick은 소유 배열을 직접 순회한다.
 
 ```text
 UWorld::Tick
-    ↓ 모든 Level
+	↓ 모든 Level
 ULevel::Tick
-    ↓ 모든 Node
+	↓ 모든 Node
 UNode::Tick
-    ↓ 모든 Component
+	↓ 모든 Component
 UComponent::TickComponent
 ```
 
