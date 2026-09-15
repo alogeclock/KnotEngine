@@ -275,37 +275,102 @@ bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 
 bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 {
-	FRotator Rotator = Quat.Rotator();
 	ImGui::PushID(Label);
+	ImGuiStorage* Storage = ImGui::GetStateStorage();
+	const ImGuiID InitializedId = ImGui::GetID("##QuatInitialized");
+	const ImGuiID EditingId = ImGui::GetID("##QuatEditing");
+	const ImGuiID EulerXId = ImGui::GetID("##QuatEulerX");
+	const ImGuiID EulerYId = ImGui::GetID("##QuatEulerY");
+	const ImGuiID EulerZId = ImGui::GetID("##QuatEulerZ");
+	const ImGuiID QuatXId = ImGui::GetID("##QuatX");
+	const ImGuiID QuatYId = ImGui::GetID("##QuatY");
+	const ImGuiID QuatZId = ImGui::GetID("##QuatZ");
+	const ImGuiID QuatWId = ImGui::GetID("##QuatW");
+
+	const bool bInitialized = Storage->GetBool(InitializedId);
+	const bool bWasEditing = Storage->GetBool(EditingId);
+	const FQuat CachedQuat(
+		Storage->GetFloat(QuatXId),
+		Storage->GetFloat(QuatYId),
+		Storage->GetFloat(QuatZId),
+		Storage->GetFloat(QuatWId, 1.0f));
+	FVector Euler;
+	if (bInitialized && (bWasEditing || Quat.Equals(CachedQuat)))
+	{
+		Euler = FVector(Storage->GetFloat(EulerXId), Storage->GetFloat(EulerYId), Storage->GetFloat(EulerZId));
+	}
+	else
+	{
+		const FRotator Rotator = Quat.Rotator();
+		Euler = FVector(Rotator.Roll, Rotator.Pitch, Rotator.Yaw);
+	}
+
 	const float LabelColumnWidth = std::max(ImGui::CalcTextSize(Label).x, ImGui::CalcTextSize("Translation").x) + ImGui::GetStyle().CellPadding.x * 2.0f;
 	const bool bVisible = ImGui::BeginTable("##Quat", 4, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings);
 	bool bChanged = false;
+	bool bEditing = false;
 	if (bVisible)
 	{
 		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, LabelColumnWidth);
-		ImGui::TableSetupColumn("Pitch", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Yaw", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Roll", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Z", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableNextRow();
 		ImGui::TableNextColumn();
 		ImGui::AlignTextToFramePadding();
 		ImGui::TextUnformatted(Label);
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("Pitch##Value", &Rotator.Pitch, 0.1f);
+		float EditedX = Euler.X;
+		if (ImGui::DragFloat("X##Value", &EditedX, 0.1f))
+		{
+			const FQuat DeltaRotation(FVector::ForwardVector, KMath::ToRadian(EditedX - Euler.X));
+			Quat = (Quat * DeltaRotation).GetNormalized();
+			Euler.X = EditedX;
+			bChanged = true;
+		}
+		bEditing |= ImGui::IsItemActive();
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("Yaw##Value", &Rotator.Yaw, 0.1f);
+		float EditedY = Euler.Y;
+		if (ImGui::DragFloat("Y##Value", &EditedY, 0.1f))
+		{
+			const FQuat YawRotation(FVector::UpVector, KMath::ToRadian(Euler.Z));
+			const FVector PitchAxis = YawRotation.RotateVector(FVector::RightVector);
+			const FQuat DeltaRotation(PitchAxis, KMath::ToRadian(EditedY - Euler.Y));
+			Quat = (DeltaRotation * Quat).GetNormalized();
+			Euler.Y = EditedY;
+			bChanged = true;
+		}
+		bEditing |= ImGui::IsItemActive();
 		ImGui::TableNextColumn();
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		bChanged |= ImGui::DragFloat("Roll##Value", &Rotator.Roll, 0.1f);
+		float EditedZ = Euler.Z;
+		if (ImGui::DragFloat("Z##Value", &EditedZ, 0.1f))
+		{
+			const FQuat DeltaRotation(FVector::UpVector, KMath::ToRadian(EditedZ - Euler.Z));
+			Quat = (DeltaRotation * Quat).GetNormalized();
+			Euler.Z = EditedZ;
+			bChanged = true;
+		}
+		bEditing |= ImGui::IsItemActive();
 		ImGui::EndTable();
 	}
-	ImGui::PopID();
-	if (bChanged)
+	if (bChanged && Euler.IsNearlyZero())
 	{
-		Quat = Rotator.Quaternion().GetNormalized();
+		Quat = FQuat::Identity;
 	}
+
+	Storage->SetBool(InitializedId, true);
+	Storage->SetBool(EditingId, bEditing);
+	Storage->SetFloat(EulerXId, Euler.X);
+	Storage->SetFloat(EulerYId, Euler.Y);
+	Storage->SetFloat(EulerZId, Euler.Z);
+	Storage->SetFloat(QuatXId, Quat.X);
+	Storage->SetFloat(QuatYId, Quat.Y);
+	Storage->SetFloat(QuatZId, Quat.Z);
+	Storage->SetFloat(QuatWId, Quat.W);
+	ImGui::PopID();
 	return bChanged;
 }
 
