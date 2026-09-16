@@ -27,8 +27,10 @@ public:
 	virtual void UpdateBuffer(FBufferHandle Handle, std::span<const uint8> Data) = 0;
 	virtual void DestroyBuffer(FBufferHandle& Handle) = 0;
 
-	virtual FTextureHandle CreateTexture(const FTextureDesc& Desc, std::span<const uint8> InitialData = {}) = 0;
+	virtual FTextureHandle CreateTexture(const FTextureDesc& Desc, std::span<const FTextureSubresourceData> InitialData = {}) = 0;
 	virtual void DestroyTexture(FTextureHandle& Handle) = 0;
+	virtual FSamplerHandle CreateSampler(const FSamplerDesc& Desc) = 0;
+	virtual void DestroySampler(FSamplerHandle& Handle) = 0;
 
 	virtual FShaderHandle CreateShader(const FShaderDesc& Desc) = 0;
 	virtual void DestroyShader(FShaderHandle& Handle) = 0;
@@ -47,6 +49,8 @@ public:
 	virtual void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset = 0) = 0;
 	virtual void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset = 0) = 0;
 	virtual void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) = 0;
+	virtual void SetTexture(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FTextureHandle Texture) = 0;
+	virtual void SetSampler(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FSamplerHandle Sampler) = 0;
 	virtual void SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget) = 0;
 	virtual void SetViewport(FCommandListHandle CommandList, const FRenderViewport& Viewport) = 0;
 	virtual void ClearRenderTarget(FCommandListHandle CommandList, FTextureHandle Target, const float Color[4]) = 0;

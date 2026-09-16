@@ -18,6 +18,7 @@ struct ID3D11PixelShader;
 struct ID3D11RasterizerState;
 struct ID3D11DepthStencilView;
 struct ID3D11RenderTargetView;
+struct ID3D11SamplerState;
 struct ID3D11ShaderResourceView;
 struct ID3D11Texture2D;
 struct ID3D11VertexShader;
@@ -36,8 +37,11 @@ public:
 	void UpdateBuffer(FBufferHandle Handle, std::span<const uint8> Data) override;
 	void DestroyBuffer(FBufferHandle& Handle) override;
 
-	FTextureHandle CreateTexture(const FTextureDesc& Desc, std::span<const uint8> InitialData) override;
+	FTextureHandle CreateTexture(const FTextureDesc& Desc, std::span<const FTextureSubresourceData> InitialData) override;
 	void DestroyTexture(FTextureHandle& Handle) override;
+
+	FSamplerHandle CreateSampler(const FSamplerDesc& Desc) override;
+	void DestroySampler(FSamplerHandle& Handle) override;
 
 	FShaderHandle CreateShader(const FShaderDesc& Desc) override;
 	void DestroyShader(FShaderHandle& Handle) override;
@@ -50,11 +54,17 @@ public:
 	void Submit(FCommandListHandle& CommandList) override;
 
 	void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) override;
+	
 	void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset) override;
 	void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset) override;
+	
+	void SetTexture(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FTextureHandle Texture) override;
+	void SetSampler(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FSamplerHandle Sampler) override;
+
 	void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) override;
 	void SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget) override;
 	void SetViewport(FCommandListHandle CommandList, const FRenderViewport& Viewport) override;
+
 	void ClearRenderTarget(FCommandListHandle CommandList, FTextureHandle Target, const float Color[4]) override;
 	void ClearDepthStencil(FCommandListHandle CommandList, FTextureHandle Target, float Depth, uint8 Stencil) override;
 
@@ -87,6 +97,12 @@ private:
 		uint32 Generation = 1;
 	};
 
+	struct FSamplerSlot
+	{
+		Microsoft::WRL::ComPtr<ID3D11SamplerState> Sampler;
+		uint32 Generation = 1;
+	};
+
 	struct FPipelineStateSlot
 	{
 		Microsoft::WRL::ComPtr<ID3D11BlendState> BlendState;
@@ -100,7 +116,7 @@ private:
 		bool bValid = false;
 	};
 
-	struct FConstantBufferBinding
+	struct FConstantBufferSlot
 	{
 		Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer;
 		EShaderStage Stage = EShaderStage::Vertex;
@@ -115,15 +131,18 @@ private:
 	FPipelineStateSlot* ResolvePipelineState(FPipelineStateHandle Handle);
 	FTextureSlot* ResolveTexture(FTextureHandle Handle);
 	const FTextureSlot* ResolveTexture(FTextureHandle Handle) const;
+	FSamplerSlot* ResolveSampler(FSamplerHandle Handle);
+	const FSamplerSlot* ResolveSampler(FSamplerHandle Handle) const;
 	static void AdvanceGeneration(uint32& Generation);
 
 	// Device가 모든 GPU 자원을 소유하고 Render Context는 Swap Chain 자원만 소유한다.
 	FD3D11Device NativeDevice;
 	FD3D11BufferPool BufferPool;
 	std::vector<FTextureSlot> TextureSlots;
+	std::vector<FSamplerSlot> SamplerSlots;
 	std::vector<FShaderSlot> ShaderSlots;
 	std::vector<FPipelineStateSlot> PipelineStateSlots;
-	std::vector<FConstantBufferBinding> ConstantBufferBindings;
+	std::vector<FConstantBufferSlot> ConstantBufferSlots;
 	uint32 CommandListGeneration = 1;
 	bool bCommandListOpen = false;
 };

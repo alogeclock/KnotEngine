@@ -4,11 +4,10 @@
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
 #include "Render/Resource/MeshResources.h"
-#include "Render/Resource/MeshTypes.h"
+#include "Render/Resource/Mesh.h"
 #include "Render/Resource/VertexTypes.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
-#include "Asset/Resource/resource.h"
 
 #include <algorithm>
 #include <bit>
@@ -23,8 +22,8 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
-	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_STATIC_MESH_SHADER, "StaticMesh.hlsl", "VS", EShaderStage::Vertex });
-	const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_STATIC_MESH_SHADER, "StaticMesh.hlsl", "PS", EShaderStage::Pixel });
+	const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/StaticMesh.hlsl", "VS", EShaderStage::Vertex });
+	const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/StaticMesh.hlsl", "PS", EShaderStage::Pixel });
 	FPipelineStateDesc PipelineStateDesc;
 	PipelineStateDesc.VertexShader = VertexShader;
 	PipelineStateDesc.PixelShader = PixelShader;

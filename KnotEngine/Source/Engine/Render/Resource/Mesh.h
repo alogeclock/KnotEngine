@@ -56,6 +56,7 @@ public:
 	void Release();
 
 	bool IsValid() const { return !Vertices.empty() && LocalBounds.IsValid(); }
+
 	const TArray<FStaticMeshVertex>& GetVertices() const { return Vertices; }
 	const TArray<uint32>& GetIndices() const { return Indices; }
 	const FAABB& GetLocalBounds() const { return LocalBounds; }
@@ -85,10 +86,12 @@ public:
 	void Release();
 
 	bool IsValid() const { return !LODs.empty() && LocalBounds.IsValid(); }
+
 	SIZE_T GetLODCount() const { return LODs.size(); }
 	FStaticMeshLOD& GetLOD(SIZE_T LODIndex);
 	const FStaticMeshLOD& GetLOD(SIZE_T LODIndex) const;
 	const TArray<FStaticMeshLOD>& GetLODs() const { return LODs; }
+
 	const FAABB& GetLocalBounds() const { return LocalBounds; }
 
 private:

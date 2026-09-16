@@ -127,14 +127,10 @@ add_custom_command(TARGET Editor POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_dir
 
 include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
 
-# 리소스는 Editor.exe에 포함하되 Visual Studio에서는 원래 폴더 구조로 표시한다.
-foreach(DATA_DIR Contents Shaders)
+# Content 파일은 런타임에서 로드하며 Visual Studio에서 원래 폴더 구조로 표시한다.
+foreach(DATA_DIR Contents)
     file(GLOB_RECURSE RUNTIME_RESOURCE_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/${DATA_DIR}/*")
     set_source_files_properties(${RUNTIME_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
-    if(DATA_DIR STREQUAL "Shaders")
-        target_sources(Renderer PRIVATE ${RUNTIME_RESOURCE_FILES})
-    else()
-        target_sources(Editor PRIVATE ${RUNTIME_RESOURCE_FILES})
-    endif()
+    target_sources(Editor PRIVATE ${RUNTIME_RESOURCE_FILES})
     source_group(TREE "${KNOTENGINE_ROOT}/${DATA_DIR}" PREFIX "${DATA_DIR}" FILES ${RUNTIME_RESOURCE_FILES})
 endforeach()

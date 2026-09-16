@@ -91,11 +91,15 @@ FContentPanel::FContentPanel(FAssetRegistry& InAssetRegistry, IRenderDevice& InR
 void FContentPanel::Startup()
 {
 	TArray<uint8> Pixels;
-	const FTextureDesc IconDesc = { ContentIconSize, ContentIconSize, ETextureFormat::RGBA8UNorm, ETextureUsage::ShaderResource };
+	FTextureDesc IconDesc;
+	IconDesc.Width = ContentIconSize;
+	IconDesc.Height = ContentIconSize;
+	IconDesc.Format = ETextureFormat::RGBA8UNorm;
 	const std::filesystem::path IconDirectory = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icons";
 	if (DecodeIcon(IconDirectory / L"ContentFolder.png", Pixels))
 	{
-		FolderIcon = RenderDevice.CreateTexture(IconDesc, Pixels);
+		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
+		FolderIcon = RenderDevice.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
 	}
 	else
 	{
@@ -103,7 +107,8 @@ void FContentPanel::Startup()
 	}
 	if (DecodeIcon(IconDirectory / L"ContentFile.png", Pixels))
 	{
-		FileIcon = RenderDevice.CreateTexture(IconDesc, Pixels);
+		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
+		FileIcon = RenderDevice.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
 	}
 	else
 	{

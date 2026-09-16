@@ -5,6 +5,7 @@
 #include "Core/CoreTypes.h"
 #include "Render/RHI/VertexLayout.h"
 
+#include <limits>
 #include <span>
 
 // 렌더링 백엔드가 공유하는 API 중립 타입.
@@ -38,12 +39,14 @@ struct TRenderHandle
 
 struct FBufferHandleTag;
 struct FTextureHandleTag;
+struct FSamplerHandleTag;
 struct FShaderHandleTag;
 struct FPipelineStateHandleTag;
 struct FCommandListHandleTag;
 
 using FBufferHandle = TRenderHandle<FBufferHandleTag>;
 using FTextureHandle = TRenderHandle<FTextureHandleTag>;
+using FSamplerHandle = TRenderHandle<FSamplerHandleTag>;
 using FShaderHandle = TRenderHandle<FShaderHandleTag>;
 using FPipelineStateHandle = TRenderHandle<FPipelineStateHandleTag>;
 using FCommandListHandle = TRenderHandle<FCommandListHandleTag>;
@@ -63,7 +66,18 @@ struct ENGINE_API FBufferDesc
 };
 
 // Texture의 Pixel 및 Depth-Stencil 저장 형식을 정의한다.
-enum class ETextureFormat : uint8 { RGBA8UNorm, BGRA8UNorm, D24UNormS8UInt };
+enum class ETextureFormat : uint8
+{
+	R8UNorm,
+	RG8UNorm,
+	RGBA8UNorm,
+	BGRA8UNorm,
+	BC1UNorm,
+	BC3UNorm,
+	BC5UNorm,
+	BC7UNorm,
+	D24UNormS8UInt,
+};
 
 // Texture가 GPU Pipeline에서 사용되는 용도를 정의한다.
 enum class ETextureUsage : uint8
@@ -89,8 +103,38 @@ struct ENGINE_API FTextureDesc
 {
 	uint32 Width = 0;
 	uint32 Height = 0;
+	uint32 MipCount = 1;
 	ETextureFormat Format = ETextureFormat::RGBA8UNorm;
 	ETextureUsage Usage = ETextureUsage::ShaderResource;
+	bool bSRGB = false;
+};
+
+// Texture Mip 하나의 초기 데이터와 메모리 행 간격을 전달하는 비소유 업로드 뷰.
+struct ENGINE_API FTextureSubresourceData
+{
+	std::span<const uint8> Data;
+	uint32 RowPitch = 0;
+	uint32 SlicePitch = 0;
+};
+
+// Texture를 Sample할 때 적용할 보간 방식을 정의한다.
+enum class ESamplerFilter : uint8 { Point, Bilinear, Trilinear, Anisotropic };
+
+// Texture 좌표가 0~1 범위를 벗어났을 때 적용할 주소 지정 방식을 정의한다.
+enum class ESamplerAddressMode : uint8 { Wrap, Mirror, Clamp, Border };
+
+// Shader에 바인딩할 Sampler 상태를 정의한다.
+struct ENGINE_API FSamplerDesc
+{
+	ESamplerFilter Filter = ESamplerFilter::Trilinear;
+	ESamplerAddressMode AddressU = ESamplerAddressMode::Wrap;
+	ESamplerAddressMode AddressV = ESamplerAddressMode::Wrap;
+	ESamplerAddressMode AddressW = ESamplerAddressMode::Wrap;
+	float MipLODBias = 0.0f;
+	uint32 MaxAnisotropy = 1;
+	float BorderColor[4] = {};
+	float MinLOD = 0.0f;
+	float MaxLOD = (std::numeric_limits<float>::max)();
 };
 
 // Shader가 실행되는 Pipeline Stage를 정의한다.

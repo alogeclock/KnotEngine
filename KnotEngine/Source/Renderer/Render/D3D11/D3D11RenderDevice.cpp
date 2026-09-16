@@ -36,8 +36,9 @@ void FD3D11RenderDevice::Release()
 
 	PipelineStateSlots.clear();
 	ShaderSlots.clear();
+	SamplerSlots.clear();
 	TextureSlots.clear();
-	ConstantBufferBindings.clear();
+	ConstantBufferSlots.clear();
 	BufferPool.Release();
 	NativeDevice.FlushAndUnbindTargets();
 	NativeDevice.Release();
@@ -62,22 +63,42 @@ void FD3D11RenderDevice::DestroyBuffer(FBufferHandle& Handle)
 }
 
 // 공통 Texture Description과 초기 데이터를 D3D11 2D Texture로 변환해 생성한다.
-FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::span<const uint8> InitialData)
+FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::span<const FTextureSubresourceData> InitialData)
 {
 	panic(NativeDevice.GetDevice());
-	panicf(Desc.Width > 0 && Desc.Height > 0, "잘못된 Texture 크기. Width={}, Height={}", Desc.Width, Desc.Height);
+	panicf(Desc.Width > 0 && Desc.Height > 0 && Desc.MipCount > 0,
+		"잘못된 Texture 크기. Width={}, Height={}, MipCount={}", Desc.Width, Desc.Height, Desc.MipCount);
+	panicf(InitialData.empty() || InitialData.size() == Desc.MipCount,
+		"Texture 초기 Subresource 수가 MipCount와 일치하지 않는다. Subresources={}, MipCount={}", InitialData.size(), Desc.MipCount);
+	panicf(Desc.Format != ETextureFormat::D24UNormS8UInt || (!Desc.bSRGB && Desc.MipCount == 1 && InitialData.empty()),
+		"Depth Texture는 sRGB, Mip 및 초기 데이터를 지원하지 않는다.");
 
 	// RHI Description을 D3D11 Texture Description으로 변환한다.
 	D3D11_TEXTURE2D_DESC NativeDesc = {};
 	NativeDesc.Width = Desc.Width;
 	NativeDesc.Height = Desc.Height;
-	NativeDesc.MipLevels = 1;
+	NativeDesc.MipLevels = Desc.MipCount;
 	NativeDesc.ArraySize = 1;
 	NativeDesc.SampleDesc.Count = 1;
 	switch (Desc.Format)
 	{
-	case ETextureFormat::RGBA8UNorm: NativeDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
-	case ETextureFormat::BGRA8UNorm: NativeDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; break;
+	case ETextureFormat::R8UNorm:
+		panicf(!Desc.bSRGB, "R8 Texture에는 sRGB 형식을 사용할 수 없다.");
+		NativeDesc.Format = DXGI_FORMAT_R8_UNORM;
+		break;
+	case ETextureFormat::RG8UNorm:
+		panicf(!Desc.bSRGB, "RG8 Texture에는 sRGB 형식을 사용할 수 없다.");
+		NativeDesc.Format = DXGI_FORMAT_R8G8_UNORM;
+		break;
+	case ETextureFormat::RGBA8UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM; break;
+	case ETextureFormat::BGRA8UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_B8G8R8A8_UNORM_SRGB : DXGI_FORMAT_B8G8R8A8_UNORM; break;
+	case ETextureFormat::BC1UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_BC1_UNORM_SRGB : DXGI_FORMAT_BC1_UNORM; break;
+	case ETextureFormat::BC3UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_BC3_UNORM_SRGB : DXGI_FORMAT_BC3_UNORM; break;
+	case ETextureFormat::BC5UNorm:
+		panicf(!Desc.bSRGB, "BC5 Texture에는 sRGB 형식을 사용할 수 없다.");
+		NativeDesc.Format = DXGI_FORMAT_BC5_UNORM;
+		break;
+	case ETextureFormat::BC7UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_BC7_UNORM_SRGB : DXGI_FORMAT_BC7_UNORM; break;
 	case ETextureFormat::D24UNormS8UInt: NativeDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; break;
 	}
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
@@ -94,19 +115,21 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 	}
 	panicf(NativeDesc.BindFlags != 0, "Texture Usage가 비어 있다.");
 
-	D3D11_SUBRESOURCE_DATA NativeInitialData = {};
-	if (!InitialData.empty())
+	std::vector<D3D11_SUBRESOURCE_DATA> NativeInitialData;
+	NativeInitialData.reserve(InitialData.size());
+	for (const FTextureSubresourceData& Subresource : InitialData)
 	{
-		panicf(Desc.Format != ETextureFormat::D24UNormS8UInt && InitialData.size() == static_cast<size_t>(Desc.Width) * Desc.Height * 4,
-			"Texture 초기 데이터 크기 불일치. Bytes={}", InitialData.size());
-		NativeInitialData.pSysMem = InitialData.data();
-		NativeInitialData.SysMemPitch = Desc.Width * 4;
+		panicf(!Subresource.Data.empty() && Subresource.RowPitch > 0 && Subresource.SlicePitch >= Subresource.RowPitch &&
+			Subresource.Data.size() >= Subresource.SlicePitch,
+			"Texture 초기 Subresource가 유효하지 않다. Bytes={}, RowPitch={}, SlicePitch={}",
+			Subresource.Data.size(), Subresource.RowPitch, Subresource.SlicePitch);
+		NativeInitialData.push_back({ Subresource.Data.data(), Subresource.RowPitch, Subresource.SlicePitch });
 	}
 
 	// 네이티브 생성 결과까지 검증한 다음에만 외부에서 사용할 Handle 슬롯에 보관한다.
 	FTextureSlot Slot;
 	HRESULT Result = NativeDevice.GetDevice()->CreateTexture2D(
-		&NativeDesc, InitialData.empty() ? nullptr : &NativeInitialData, Slot.Texture.GetAddressOf());
+		&NativeDesc, NativeInitialData.empty() ? nullptr : NativeInitialData.data(), Slot.Texture.GetAddressOf());
 	panicf(SUCCEEDED(Result) && Slot.Texture, "ID3D11Device::CreateTexture2D 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
 	{
@@ -127,6 +150,69 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 	panicf(TextureSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Texture 슬롯 수가 uint32 범위를 초과했다.");
 	TextureSlots.push_back(std::move(Slot));
 	return { static_cast<uint32>(TextureSlots.size() - 1), TextureSlots.back().Generation };
+}
+
+// 공통 Sampler Description을 D3D11 Sampler State로 변환해 생성한다.
+FSamplerHandle FD3D11RenderDevice::CreateSampler(const FSamplerDesc& Desc)
+{
+	panic(NativeDevice.GetDevice());
+	panicf(Desc.MaxAnisotropy >= 1 && Desc.MaxAnisotropy <= D3D11_REQ_MAXANISOTROPY,
+		"Sampler MaxAnisotropy 범위를 벗어났다. MaxAnisotropy={}", Desc.MaxAnisotropy);
+	panicf(Desc.MinLOD <= Desc.MaxLOD, "Sampler LOD 범위가 유효하지 않다. MinLOD={}, MaxLOD={}", Desc.MinLOD, Desc.MaxLOD);
+
+	const auto ConvertAddressMode = [](ESamplerAddressMode AddressMode)
+	{
+		switch (AddressMode)
+		{
+		case ESamplerAddressMode::Wrap: return D3D11_TEXTURE_ADDRESS_WRAP;
+		case ESamplerAddressMode::Mirror: return D3D11_TEXTURE_ADDRESS_MIRROR;
+		case ESamplerAddressMode::Clamp: return D3D11_TEXTURE_ADDRESS_CLAMP;
+		case ESamplerAddressMode::Border: return D3D11_TEXTURE_ADDRESS_BORDER;
+		}
+		return D3D11_TEXTURE_ADDRESS_WRAP;
+	};
+
+	D3D11_SAMPLER_DESC NativeDesc = {};
+	switch (Desc.Filter)
+	{
+	case ESamplerFilter::Point: NativeDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT; break;
+	case ESamplerFilter::Bilinear: NativeDesc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT; break;
+	case ESamplerFilter::Trilinear: NativeDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR; break;
+	case ESamplerFilter::Anisotropic: NativeDesc.Filter = D3D11_FILTER_ANISOTROPIC; break;
+	}
+	NativeDesc.AddressU = ConvertAddressMode(Desc.AddressU);
+	NativeDesc.AddressV = ConvertAddressMode(Desc.AddressV);
+	NativeDesc.AddressW = ConvertAddressMode(Desc.AddressW);
+	NativeDesc.MipLODBias = Desc.MipLODBias;
+	NativeDesc.MaxAnisotropy = Desc.MaxAnisotropy;
+	NativeDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	std::memcpy(NativeDesc.BorderColor, Desc.BorderColor, sizeof(NativeDesc.BorderColor));
+	NativeDesc.MinLOD = Desc.MinLOD;
+	NativeDesc.MaxLOD = Desc.MaxLOD;
+
+	FSamplerSlot Slot;
+	const HRESULT Result = NativeDevice.GetDevice()->CreateSamplerState(&NativeDesc, Slot.Sampler.GetAddressOf());
+	panicf(SUCCEEDED(Result) && Slot.Sampler, "ID3D11Device::CreateSamplerState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+
+	panicf(SamplerSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Sampler 슬롯 수가 uint32 범위를 초과했다.");
+	SamplerSlots.push_back(std::move(Slot));
+	return { static_cast<uint32>(SamplerSlots.size() - 1), SamplerSlots.back().Generation };
+}
+
+// Sampler 슬롯의 자원을 해제하고 Generation을 증가시켜 과거 Handle의 접근을 차단한다.
+void FD3D11RenderDevice::DestroySampler(FSamplerHandle& Handle)
+{
+	checkf(!Handle.IsValid() || Handle.Index < SamplerSlots.size(), "유효하지 않은 Sampler 핸들. Index={}", Handle.Index);
+	if (Handle.IsValid() && Handle.Index < SamplerSlots.size())
+	{
+		FSamplerSlot& Slot = SamplerSlots[Handle.Index];
+		if (Slot.Generation == Handle.Generation)
+		{
+			Slot.Sampler.Reset();
+			AdvanceGeneration(Slot.Generation);
+		}
+	}
+	Handle.Reset();
 }
 
 // Texture 슬롯의 자원을 해제하고 Generation을 증가시켜 과거 Handle의 접근을 차단한다.
@@ -442,8 +528,8 @@ void FD3D11RenderDevice::SetConstantData(FCommandListHandle CommandList, EShader
 	panicf(Slot < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, "Constant Buffer Slot 범위를 벗어났다. Slot={}", Slot);
 
 	const uint32 AlignedSize = static_cast<uint32>((Data.size() + 15) & ~static_cast<size_t>(15));
-	FConstantBufferBinding* Binding = nullptr;
-	for (FConstantBufferBinding& Candidate : ConstantBufferBindings)
+	FConstantBufferSlot* Binding = nullptr;
+	for (FConstantBufferSlot& Candidate : ConstantBufferSlots)
 	{
 		if (Candidate.Stage == Stage && Candidate.Slot == Slot)
 		{
@@ -453,7 +539,7 @@ void FD3D11RenderDevice::SetConstantData(FCommandListHandle CommandList, EShader
 	}
 	if (!Binding)
 	{
-		Binding = &ConstantBufferBindings.emplace_back();
+		Binding = &ConstantBufferSlots.emplace_back();
 		Binding->Stage = Stage;
 		Binding->Slot = Slot;
 	}
@@ -490,6 +576,53 @@ void FD3D11RenderDevice::SetConstantData(FCommandListHandle CommandList, EShader
 		NativeDevice.GetContext()->PSSetConstantBuffers(Slot, 1, &NativeBuffer);
 	}
 }
+
+// Texture Shader Resource View를 지정한 Shader Stage와 Register Slot에 바인딩한다.
+void FD3D11RenderDevice::SetTexture(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FTextureHandle Texture)
+{
+	ValidateCommandList(CommandList);
+	panicf(Slot < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, "Texture Slot 범위를 벗어났다. Slot={}", Slot);
+
+	ID3D11ShaderResourceView* ShaderResourceView = nullptr;
+	if (Texture.IsValid())
+	{
+		const FTextureSlot* TextureSlot = ResolveTexture(Texture);
+		panic(TextureSlot && TextureSlot->ShaderResourceView);
+		ShaderResourceView = TextureSlot->ShaderResourceView.Get();
+	}
+	if (Stage == EShaderStage::Vertex)
+	{
+		NativeDevice.GetContext()->VSSetShaderResources(Slot, 1, &ShaderResourceView);
+	}
+	else
+	{
+		NativeDevice.GetContext()->PSSetShaderResources(Slot, 1, &ShaderResourceView);
+	}
+}
+
+// Sampler State를 지정한 Shader Stage와 Register Slot에 바인딩한다.
+void FD3D11RenderDevice::SetSampler(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FSamplerHandle Sampler)
+{
+	ValidateCommandList(CommandList);
+	panicf(Slot < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, "Sampler Slot 범위를 벗어났다. Slot={}", Slot);
+
+	ID3D11SamplerState* SamplerState = nullptr;
+	if (Sampler.IsValid())
+	{
+		const FSamplerSlot* SamplerSlot = ResolveSampler(Sampler);
+		panic(SamplerSlot && SamplerSlot->Sampler);
+		SamplerState = SamplerSlot->Sampler.Get();
+	}
+	if (Stage == EShaderStage::Vertex)
+	{
+		NativeDevice.GetContext()->VSSetSamplers(Slot, 1, &SamplerState);
+	}
+	else
+	{
+		NativeDevice.GetContext()->PSSetSamplers(Slot, 1, &SamplerState);
+	}
+}
+
 void FD3D11RenderDevice::SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget)
 {
 	ValidateCommandList(CommandList);
@@ -597,6 +730,21 @@ const FD3D11RenderDevice::FTextureSlot* FD3D11RenderDevice::ResolveTexture(FText
 	}
 	const FTextureSlot& Slot = TextureSlots[Handle.Index];
 	return Slot.Generation == Handle.Generation && Slot.Texture ? &Slot : nullptr;
+}
+
+FD3D11RenderDevice::FSamplerSlot* FD3D11RenderDevice::ResolveSampler(FSamplerHandle Handle)
+{
+	return const_cast<FSamplerSlot*>(static_cast<const FD3D11RenderDevice*>(this)->ResolveSampler(Handle));
+}
+
+const FD3D11RenderDevice::FSamplerSlot* FD3D11RenderDevice::ResolveSampler(FSamplerHandle Handle) const
+{
+	if (!Handle.IsValid() || Handle.Index >= SamplerSlots.size())
+	{
+		return nullptr;
+	}
+	const FSamplerSlot& Slot = SamplerSlots[Handle.Index];
+	return Slot.Generation == Handle.Generation && Slot.Sampler ? &Slot : nullptr;
 }
 
 // 파괴된 슬롯의 과거 Handle이 다시 유효해지지 않도록 Generation을 다음 유효 값으로 전진시킨다.

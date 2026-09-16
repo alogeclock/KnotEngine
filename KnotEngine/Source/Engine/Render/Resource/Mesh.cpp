@@ -1,4 +1,4 @@
-#include "Render/Resource/MeshTypes.h"
+#include "Render/Resource/Mesh.h"
 
 #include "Core/Assert.h"
 

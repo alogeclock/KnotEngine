@@ -12,7 +12,7 @@ class ENGINE_API FPaths
 public:
 	static FWString RootDir();
 	static FWString ContentDir() { return RootDir() + L"Contents/"; }
-	static FWString ShaderDir() { return RootDir() + L"Shaders/"; }
+	static FWString ShaderDir() { return ContentDir() + L"Engine/Shaders/"; }
 	static FWString SavedDir();
 	static FWString ConfigDir() { return SavedDir() + L"Config/"; }
 	static FWString LogDir() { return SavedDir() + L"Logs/"; }

@@ -4,11 +4,10 @@
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
 #include "Render/Resource/MeshResources.h"
-#include "Render/Resource/MeshTypes.h"
+#include "Render/Resource/Mesh.h"
 #include "Render/Resource/VertexTypes.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
-#include "Asset/Resource/resource.h"
 
 uint32 FOverlayPass::AddPass(
 	FRenderGraph& Graph,
@@ -26,8 +25,8 @@ uint32 FOverlayPass::AddPass(
 	FPassParameters Parameters;
 	if (ShowFlags.bGrid)
 	{
-		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_GRID_SHADER, "Grid.hlsl", "VS", EShaderStage::Vertex });
-		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_GRID_SHADER, "Grid.hlsl", "PS", EShaderStage::Pixel });
+		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/Grid.hlsl", "VS", EShaderStage::Vertex });
+		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/Grid.hlsl", "PS", EShaderStage::Pixel });
 		FPipelineStateDesc PipelineStateDesc;
 		PipelineStateDesc.VertexShader = VertexShader;
 		PipelineStateDesc.PixelShader = PixelShader;
@@ -52,8 +51,8 @@ uint32 FOverlayPass::AddPass(
 
 	if (ShowFlags.bAxis)
 	{
-		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_AXIS_SHADER, "Axis.hlsl", "VS", EShaderStage::Vertex });
-		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_AXIS_SHADER, "Axis.hlsl", "PS", EShaderStage::Pixel });
+		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/Axis.hlsl", "VS", EShaderStage::Vertex });
+		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/Axis.hlsl", "PS", EShaderStage::Pixel });
 		FPipelineStateDesc PipelineStateDesc;
 		PipelineStateDesc.VertexShader = VertexShader;
 		PipelineStateDesc.PixelShader = PixelShader;
@@ -76,8 +75,8 @@ uint32 FOverlayPass::AddPass(
 		panicf(BoundsMesh.InitResources(*RenderDevice), "Bounds Mesh의 GPU Buffer 생성에 실패했다.");
 		Parameters.BoundsMeshBuffer = &BoundsMesh.GetMeshBuffer();
 
-		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ IDR_GEOMETRY_MESH_SHADER, "GeometryMesh.hlsl", "VS", EShaderStage::Vertex });
-		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ IDR_GEOMETRY_MESH_SHADER, "GeometryMesh.hlsl", "PS", EShaderStage::Pixel });
+		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/GeometryMesh.hlsl", "VS", EShaderStage::Vertex });
+		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ "/Engine/Shaders/GeometryMesh.hlsl", "PS", EShaderStage::Pixel });
 		FPipelineStateDesc PipelineStateDesc;
 		PipelineStateDesc.VertexShader = VertexShader;
 		PipelineStateDesc.PixelShader = PixelShader;

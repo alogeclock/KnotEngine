@@ -58,6 +58,12 @@ FSceneViewFamily ──참조──> FScene
 ## 디렉터리와 책임
 
 ```text
+KnotEngine/Contents/Engine/Shaders/
+├─ StaticMesh.hlsl
+├─ GeometryMesh.hlsl
+├─ Grid.hlsl
+└─ Axis.hlsl
+
 KnotEngine/Source/
 ├─ Engine/
 │  ├─ Component/
@@ -77,7 +83,7 @@ KnotEngine/Source/
 │     ├─ Proxy/PrimitiveSceneProxy.h/.cpp
 │     ├─ Resource/
 │     │  ├─ Buffer.h/.cpp
-│     │  ├─ MeshTypes.h/.cpp
+│     │  ├─ Mesh.h/.cpp
 │     │  ├─ MeshResources.h/.cpp
 │     │  ├─ ShaderRegistry.h/.cpp
 │     │  ├─ PipelineStateCache.h/.cpp
@@ -248,7 +254,7 @@ GetProxies → CullView → VisiblePrimitives
 
 `FOpaquePass`와 `FOverlayPass`는 장기 수명 인스턴스를 만들지 않는 정적 Node Builder다. 각 `AddPass()` 호출은 현재 View의 상수와 Draw 데이터를 캡처한 임시 Node를 생성한다. Node 실행 함수는 공용 Registry와 Cache에서 얻은 Handle을 바인딩하고 Draw를 수행한다. 범용 Render Pass 기반 클래스나 Pass registry는 없다.
 
-`FShaderRegistry`는 Resource·EntryPoint·Stage Key별 Shader를, `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. 각 객체의 `Create()`는 `GShaderRegistry`, `GPipelineStateCache`에 현재 인스턴스를 연결하고 `Release()`는 이를 해제한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않는다. Primitive Geometry는 Common shader를 사용한다. Overlay Node 내부에서는 Grid, Axis, Bounds를 고정 순서로 그리며 각각의 Shader와 PSO는 독립적으로 유지한다.
+`FShaderRegistry`는 소스 경로·Entry Point·Stage·Permutation ID로 구성된 `FShaderKey`별 GPU Shader를 최초 요청 시 생성한다. HLSL은 `Contents/Engine/Shaders`에서 읽으며 Win32 바이너리 리소스에 내장하지 않는다. Permutation ID를 컴파일 define에 적용하는 기능은 아직 구현하지 않는다. `FPipelineStateCache`는 완전한 `FPipelineStateDesc`별 PSO를 최초 요청 시 생성하고 Render Device 수명 동안 보관한다. Pass Node 파괴는 Shader나 PSO 수명에 영향을 주지 않으며 Overlay Node 내부에서는 Grid, Axis, Bounds를 고정 순서로 그린다.
 
 Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. 각 Pass Node는 실행 직전에 자신의 Viewport를 설정한다. 각 View의 출력 영역은 Family 타깃 안에 있어야 한다. Family 종료 시 Back Buffer를 복구한다.
 
@@ -420,7 +426,7 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 - [World.cpp](../KnotEngine/Source/Engine/World/World.cpp)
 - [PrimitiveComponent.h](../KnotEngine/Source/Engine/Component/PrimitiveComponent.h)
 - [StaticMeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/StaticMeshComponent.cpp)
-- [MeshTypes.cpp](../KnotEngine/Source/Engine/Render/Resource/MeshTypes.cpp)
+- [Mesh.cpp](../KnotEngine/Source/Engine/Render/Resource/Mesh.cpp)
 - [PrimitiveSceneProxy.h](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.h)
 - [PrimitiveSceneProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.cpp)
 - [Scene.h](../KnotEngine/Source/Engine/Render/Scene/Scene.h)

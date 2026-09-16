@@ -39,7 +39,7 @@ Asset은 다음 세 계층으로 나뉜다.
 
 | 계층 | 역할 | 예시 |
 |---|---|---|
-| Asset UObject | 논리 경로, Asset 타입과 참조 관계 관리 | `UStaticMesh`, 향후 `UMaterial`, `UTexture2D` |
+| Asset UObject | 논리 경로, Asset 타입과 참조 관계 관리 | `UStaticMesh`, `UMaterial`, `UMaterialInstance`, `UTexture2D` |
 | CPU 데이터 | 역직렬화된 Runtime 데이터 보관 | Vertex, Index, Mip, Bone, Animation Track |
 | GPU Resource | Renderer가 사용하는 Device Resource | Vertex Buffer, Texture, Constant Buffer |
 
@@ -105,27 +105,24 @@ FAssetManager
 Material은 Shader 자체와 인스턴스 값을 구분한다.
 
 ```text
-UMaterial
-├─ Material Profile 또는 Shader 선택
-├─ Render State
-└─ Parameter 정의
+UMaterialInterface
+├─ UMaterial
+│  ├─ FMaterial Shader와 Render State
+│  └─ 기본 Parameter
+└─ UMaterialInstance
+   ├─ UMaterial 참조
+   └─ Scalar / Vector / Texture Override
 
-UMaterialInstance
-├─ UMaterial 참조
-├─ Scalar / Vector Parameter
-└─ UTexture 참조
+UTexture
+└─ UTexture2D
+   ├─ 크기, Format과 sRGB 정보
+   ├─ CPU Mip Payload
+   └─ FTexture GPU Resource
 ```
 
-`UMaterial`은 PBR 또는 NPR Shader의 실행 계약을 정의하고, `UMaterialInstance`는 Import된 색상, 수치와 Texture를 보관한다. 여러 Material Instance가 동일한 Shader와 Pipeline State를 공유할 수 있어야 한다.
+`UMaterial`은 Shader와 고정 Pipeline State의 실행 계약을 정의하고, `FMaterial`은 Content 소스 경로·Entry Point·Stage·Permutation ID로 구성된 `FShaderKey`를 저장한다. Shader Registry는 같은 Key의 GPU Shader를 최초 사용 시 생성하여 공유한다. `UMaterialInstance`는 Import된 색상, 수치와 Texture를 보관하며 부모 `UMaterial`의 Parameter를 이름으로 조회하고 Override가 없으면 기본값으로 돌아간다.
 
 Texture는 다음 계층으로 관리한다.
-
-```text
-UTexture2D
-├─ 크기, Format과 Color Space
-├─ CPU Mip Payload
-└─ GPU Texture Handle
-```
 
 Texture의 원본 PNG 같은 Source 파일은 Editor Import 입력이다. Runtime은 플랫폼에 맞게 변환된 `.kasset` Mip Payload를 읽는다. GPU Texture는 최초 사용 시 생성하고 Material은 Texture UObject를 참조한다.
 
@@ -218,7 +215,8 @@ CPU 데이터를 GPU 업로드 뒤 유지할지는 Asset 타입과 Editor 기능
 | `UStaticMesh`와 `FAssetManager` Cache | 구현 |
 | Static Mesh CPU LOD와 Bounds | 구현 |
 | 최초 가시 Draw의 GPU Buffer 생성 | 구현 |
-| Material과 Texture Asset | 미구현 |
+| Material과 Texture UObject 및 Render Resource 계층 | 구현 |
+| Material과 Texture `.kasset` 역직렬화 | 미구현 |
 | Skeletal Mesh와 Skeleton Asset | 미구현 |
 | Animation Asset | 미구현 |
 | Asset 의존성과 영속 ID | 미구현 |
@@ -235,5 +233,9 @@ CPU 데이터를 GPU 업로드 뒤 유지할지는 Asset 타입과 Editor 기능
 - [AssetManager.h](../KnotEngine/Source/Engine/Asset/AssetManager.h)
 - [AssetBinaryLoader.h](../KnotEngine/Source/Engine/Asset/AssetBinaryLoader.h)
 - [StaticMesh.h](../KnotEngine/Source/Engine/Asset/Mesh/StaticMesh.h)
-- [MeshTypes.h](../KnotEngine/Source/Engine/Render/Resource/MeshTypes.h)
+- [Mesh.h](../KnotEngine/Source/Engine/Render/Resource/Mesh.h)
+- [MaterialInterface.h](../KnotEngine/Source/Engine/Asset/Material/MaterialInterface.h)
+- [Texture2D.h](../KnotEngine/Source/Engine/Asset/Texture/Texture2D.h)
+- [Material.h](../KnotEngine/Source/Engine/Render/Resource/Material.h)
+- [Texture.h](../KnotEngine/Source/Engine/Render/Resource/Texture.h)
 - [AssetRegistry.h](../KnotEngine/Source/Editor/Asset/AssetRegistry.h)

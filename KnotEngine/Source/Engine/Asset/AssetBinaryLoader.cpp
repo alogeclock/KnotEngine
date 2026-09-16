@@ -1,7 +1,6 @@
 #include "Asset/AssetBinaryLoader.h"
 
 #include "Asset/Mesh/StaticMesh.h"
-#include "Asset/Mesh/StaticMeshBinaryFormat.h"
 
 #include "Core/IO/Paths.h"
 

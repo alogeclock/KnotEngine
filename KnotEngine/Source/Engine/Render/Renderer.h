@@ -3,7 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Render/RHI/RenderTypes.h"
-#include "Render/Resource/MeshTypes.h"
+#include "Render/Resource/Mesh.h"
 #include "Render/Resource/PipelineStateCache.h"
 #include "Render/Resource/ShaderRegistry.h"
 
@@ -48,7 +48,7 @@ private:
 
 	FShaderRegistry ShaderRegistry;
 	FPipelineStateCache PipelineStateCache;
-	FGeometryMesh DebugBoundsMesh;
+	FGeometryMesh DebugBoundsMesh; // TODO: 별도 DebugDraw() 파이프라인을 구현한다.
 
 	FCommandListHandle CommandList;
 };

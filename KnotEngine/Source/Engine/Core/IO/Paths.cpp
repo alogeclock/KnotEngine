@@ -37,7 +37,7 @@ FWString FPaths::RootDir()
 #if defined(KNOT_BUILD_SHIPPING)
 		Cached = ExeDir.generic_wstring() + L"/";
 #else
-		if (std::filesystem::exists(ExeDir / L"Shaders"))
+		if (std::filesystem::exists(ExeDir / L"Contents"))
 		{
 			Cached = ExeDir.generic_wstring() + L"/";
 		}
@@ -50,7 +50,7 @@ FWString FPaths::RootDir()
 			{
 				SearchDir = SearchDir.parent_path();
 
-				if (std::filesystem::exists(SearchDir / L"Shaders"))
+				if (std::filesystem::exists(SearchDir / L"Contents"))
 				{
 					Cached = SearchDir.generic_wstring() + L"/";
 					bFound = true;
