@@ -66,7 +66,7 @@ foreach(MODULE Engine Renderer Editor)
     file(GLOB_RECURSE ${MODULE}_SOURCES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Source/${MODULE}/*.cpp")
     file(GLOB_RECURSE ${MODULE}_HEADERS CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Source/${MODULE}/*.h" "${KNOTENGINE_ROOT}/Source/${MODULE}/*.inl")
     if(MODULE STREQUAL "Editor")
-        add_executable(${MODULE} WIN32 ${${MODULE}_SOURCES} ${${MODULE}_HEADERS} "${KNOTENGINE_ROOT}/Source/Engine/Asset/Resource/KnotEngine.rc" "${KNOTENGINE_ROOT}/Source/Engine/Asset/Resource/resource.h")
+        add_executable(${MODULE} WIN32 ${${MODULE}_SOURCES} ${${MODULE}_HEADERS} "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngine.rc" "${KNOTENGINE_ROOT}/Source/Asset/Resource/resource.h")
     else()
         add_library(${MODULE} SHARED ${${MODULE}_SOURCES} ${${MODULE}_HEADERS})
         string(TOUPPER "${MODULE}" MODULE_UPPER)
@@ -75,7 +75,7 @@ foreach(MODULE Engine Renderer Editor)
 
     target_compile_features(${MODULE} PUBLIC cxx_std_20)
     target_include_directories(${MODULE} PUBLIC "${KNOTENGINE_ROOT}/Source/${MODULE}")
-    target_include_directories(${MODULE} PRIVATE "${KNOTENGINE_ROOT}")
+    target_include_directories(${MODULE} PRIVATE "${KNOTENGINE_ROOT}" "${KNOTENGINE_ROOT}/Source")
     set(${MODULE}_PCH "${KNOTENGINE_ROOT}/Source/${MODULE}/${MODULE}PCH.h")
     target_precompile_headers(${MODULE} PRIVATE "${${MODULE}_PCH}")
     target_compile_definitions(${MODULE} PUBLIC
@@ -103,17 +103,17 @@ foreach(MODULE Engine Renderer Editor)
     source_group("Generated\\CMake" REGULAR_EXPRESSION ".*cmake_pch.*")
 endforeach()
 
-source_group("Source\\Engine\\Asset\\Resource" FILES
-    "${KNOTENGINE_ROOT}/Source/Engine/Asset/Resource/KnotEngine.rc"
-    "${KNOTENGINE_ROOT}/Source/Engine/Asset/Resource/KnotEngine.manifest"
-    "${KNOTENGINE_ROOT}/Source/Engine/Asset/Resource/resource.h"
+source_group("Source\\Asset\\Resource" FILES
+    "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngine.rc"
+    "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngine.manifest"
+    "${KNOTENGINE_ROOT}/Source/Asset/Resource/resource.h"
 )
 
-target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Asset/Resource/KnotEngine.manifest")
+target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngine.manifest")
 
 target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)
-target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui)
+target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui windowscodecs ole32 shell32)
 
 # 전역 new/delete만 각 바이너리에 포함하고, 실제 할당과 통계는 Engine.dll에서 공유한다.
 target_sources(Renderer PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory/MemoryOperators.cpp")

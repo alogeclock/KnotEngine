@@ -1,5 +1,8 @@
 #include "Paths.h"
 
+#include "Core/Assert.h"
+
+#include <algorithm>
 #include <filesystem>
 
 // 지정된 코드 페이지를 사용해 문자열을 Wide 문자열로 변환합니다.
@@ -106,6 +109,66 @@ FWString FPaths::SavedDir()
 	return Cached;
 }
 
+// 논리 경로의 구분자와 끝 구분자를 엔진 경로 형식으로 정규화한다.
+FString FPaths::Normalize(const FString& Path)
+{
+	FString Result = Path;
+	std::replace(Result.begin(), Result.end(), '\\', '/');
+	while (Result.size() > 1 && Result.ends_with('/'))
+	{
+		Result.pop_back();
+	}
+	return Result;
+}
+
+// 논리 경로에서 마지막 이름을 제외한 부모 경로를 반환한다.
+FString FPaths::GetPath(const FString& Path)
+{
+	const FString NormalizedPath = Normalize(Path);
+	const SIZE_T Separator = NormalizedPath.find_last_of('/');
+	if (Separator == FString::npos)
+	{
+		return {};
+	}
+	return Separator == 0 ? "/" : NormalizedPath.substr(0, Separator);
+}
+
+// 두 논리 경로를 중복 구분자 없이 결합한다.
+FString FPaths::Combine(const FString& Left, const FString& Right)
+{
+	const FString NormalizedLeft = Normalize(Left);
+	FString NormalizedRight = Normalize(Right);
+	while (NormalizedRight.starts_with('/'))
+	{
+		NormalizedRight.erase(NormalizedRight.begin());
+	}
+	if (NormalizedLeft.empty())
+	{
+		return NormalizedRight;
+	}
+	if (NormalizedRight.empty())
+	{
+		return NormalizedLeft;
+	}
+	return NormalizedLeft == "/" ? "/" + NormalizedRight : NormalizedLeft + "/" + NormalizedRight;
+}
+
+// 경로가 부모 경로와 같거나 부모 아래에 위치하는지 경로 구분자 단위로 확인한다.
+bool FPaths::IsInside(const FString& Path, const FString& ParentPath)
+{
+	const FString NormalizedPath = Normalize(Path);
+	const FString NormalizedParent = Normalize(ParentPath);
+	if (NormalizedPath == NormalizedParent)
+	{
+		return true;
+	}
+	if (NormalizedParent == "/")
+	{
+		return NormalizedPath.starts_with('/');
+	}
+	return NormalizedPath.starts_with(NormalizedParent + "/");
+}
+
 // UTF-8 문자열을 Wide 문자열로 변환한다. 먼저 CP_UTF8로 시도하고, 실패하면 CP_ACP로 시도.
 FWString FPaths::ToWide(const FString& Utf8String)
 {
@@ -140,4 +203,18 @@ FString FPaths::ToUtf8(const FWString& WideString)
 	FString Result(static_cast<size_t>(Size - 1), '\0');
 	WideCharToMultiByte(CP_UTF8, 0, WideString.c_str(), -1, Result.data(), Size, nullptr, nullptr);
 	return Result;
+}
+
+// Contents 기준 논리 경로를 정규화하고 Contents 외부로 벗어나지 않는 실제 경로로 변환한다.
+std::filesystem::path FPaths::ResolveContentPath(const FString& LogicalPath)
+{
+	const FString NormalizedPath = Normalize(LogicalPath);
+	const FString RelativePath = NormalizedPath.starts_with('/') ? NormalizedPath.substr(1) : NormalizedPath;
+	const std::filesystem::path ContentRoot = std::filesystem::path(ContentDir()).lexically_normal();
+	const std::filesystem::path ResolvedPath = (ContentRoot / ToWide(RelativePath)).lexically_normal();
+	const std::filesystem::path RelativeToRoot = ResolvedPath.lexically_relative(ContentRoot);
+	const bool bOutsideContent = RelativeToRoot.empty() || RelativeToRoot.is_absolute() ||
+	                             (RelativeToRoot.begin() != RelativeToRoot.end() && *RelativeToRoot.begin() == L"..");
+	panicf(!bOutsideContent, "Content 외부 경로를 사용할 수 없다. Path={}", LogicalPath);
+	return ResolvedPath;
 }

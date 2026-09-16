@@ -29,7 +29,8 @@ FImGuiSystem::FImGuiSystem(
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
 	: Application(InApplication), EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState), ContentPanel(InAssetRegistry)
+	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState),
+	  ContentPanel(InAssetRegistry, InRenderDevice, InRenderBackend)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
 }
@@ -87,6 +88,7 @@ void FImGuiSystem::Startup()
 
 	RenderBackend.Startup(ImGui::GetCurrentContext());
 	ConsolePanel.Startup();
+	ContentPanel.Startup();
 	bStarted = true;
 	Application.SetMessageHandler(ImGui_ImplWin32_WndProcHandler);
 }
@@ -164,6 +166,7 @@ void FImGuiSystem::Shutdown()
 	check(bStarted);
 	Application.SetMessageHandler(nullptr);
 	bStarted = false;
+	ContentPanel.Shutdown();
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
 	RenderBackend.Shutdown();

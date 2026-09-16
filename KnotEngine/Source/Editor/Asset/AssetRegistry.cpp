@@ -15,13 +15,6 @@ static FString MakeAssetPath(const std::filesystem::path& RelativeFilePath)
 	return "/" + FPaths::ToUtf8(RelativeAssetPath.generic_wstring());
 }
 
-// 논리 Asset 경로에서 Asset이 속한 폴더 경로를 구한다.
-static FString GetFolderPath(const FString& AssetPath)
-{
-	const SIZE_T Separator = AssetPath.find_last_of('/');
-	return Separator == 0 || Separator == FString::npos ? "/" : AssetPath.substr(0, Separator);
-}
-
 // Contents의 원본과 바이너리를 다시 찾아 Asset 목록과 경로 인덱스를 교체한다.
 void FAssetRegistry::Scan()
 {
@@ -36,6 +29,8 @@ void FAssetRegistry::Scan()
 	}
 
 	TMap<FString, FAssetData> ScannedAssets;
+	TSet<FString> FolderSet;
+	FolderSet.emplace("/");
 	std::filesystem::recursive_directory_iterator Iterator(ContentPath, std::filesystem::directory_options::skip_permission_denied, FileSystemError);
 	const std::filesystem::recursive_directory_iterator End;
 	while (Iterator != End)
@@ -49,7 +44,15 @@ void FAssetRegistry::Scan()
 		}
 
 		const std::filesystem::directory_entry& Entry = *Iterator;
-		if (Entry.is_regular_file(FileSystemError) && !FileSystemError)
+		if (Entry.is_directory(FileSystemError) && !FileSystemError)
+		{
+			const std::filesystem::path RelativePath = std::filesystem::relative(Entry.path(), ContentPath, FileSystemError);
+			if (!FileSystemError)
+			{
+				FolderSet.emplace("/" + FPaths::ToUtf8(RelativePath.generic_wstring()));
+			}
+		}
+		else if (Entry.is_regular_file(FileSystemError) && !FileSystemError)
 		{
 			FString Extension = FPaths::ToUtf8(Entry.path().extension().generic_wstring());
 			std::transform(Extension.begin(), Extension.end(), Extension.begin(), [](unsigned char Character)
@@ -66,7 +69,7 @@ void FAssetRegistry::Scan()
 					FAssetData& Asset = ScannedAssets[AssetPath];
 					Asset.Name = FPaths::ToUtf8(RelativePath.stem().wstring());
 					Asset.AssetPath = AssetPath;
-					Asset.FolderPath = GetFolderPath(AssetPath);
+					Asset.FolderPath = FPaths::GetPath(AssetPath);
 					if (Extension == ".blend")
 					{
 						Asset.SourceFilePath = Entry.path();
@@ -84,8 +87,6 @@ void FAssetRegistry::Scan()
 		Iterator.increment(FileSystemError);
 	}
 
-	TSet<FString> FolderSet;
-	FolderSet.emplace("/");
 	Assets.reserve(ScannedAssets.size());
 	for (auto& Entry : ScannedAssets)
 	{
@@ -94,7 +95,7 @@ void FAssetRegistry::Scan()
 		while (FolderPath != "/")
 		{
 			FolderSet.emplace(FolderPath);
-			FolderPath = GetFolderPath(FolderPath);
+			FolderPath = FPaths::GetPath(FolderPath);
 		}
 		Assets.push_back(std::move(Asset));
 	}
