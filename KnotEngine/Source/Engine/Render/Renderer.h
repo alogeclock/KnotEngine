@@ -6,6 +6,7 @@
 #include "Render/Resource/Mesh/Mesh.h"
 #include "Render/Resource/State/PipelineStateCache.h"
 #include "Render/Resource/State/SamplerStateCache.h"
+#include "Render/Resource/Texture.h"
 #include "Render/Shader/ShaderCompiler.h"
 #include "Render/Shader/ShaderRegistry.h"
 
@@ -40,6 +41,8 @@ public:
 	FShaderRegistry& GetShaderRegistry();
 	FPipelineStateCache& GetPipelineStateCache();
 	FSamplerStateCache& GetSamplerStateCache();
+
+	FTextureHandle GetDefaultTexture() const { return DefaultTexture.GetHandle(); }
 	FGeometryMesh& GetDebugBoundsMesh() { return DebugBoundsMesh; }
 
 	IRenderDevice& GetRenderDevice() const;
@@ -54,6 +57,8 @@ private:
 	FShaderRegistry ShaderRegistry;
 	FPipelineStateCache PipelineStateCache;
 	FSamplerStateCache SamplerStateCache;
+
+	FTexture DefaultTexture; // 1x1 White Texture
 	FGeometryMesh DebugBoundsMesh; // TODO: 별도 DebugDraw() 파이프라인을 구현한다.
 
 	FCommandListHandle CommandList;

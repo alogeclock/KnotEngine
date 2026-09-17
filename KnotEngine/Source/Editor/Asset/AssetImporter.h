@@ -1,14 +1,33 @@
 #pragma once
 
-// 외부 GLB Asset을 엔진의 .kasset으로 변환하는 Editor 전용 계층의 Skeleton이다.
+#include "Asset/AssetTypes.h"
+#include "Core/CoreTypes.h"
+
+#include <filesystem>
+
+// 한 번의 Import로 생성된 개별 Runtime Asset의 논리 경로와 종류다.
+struct FImportedAsset
+{
+	FString AssetPath;
+	EAssetType Type = EAssetType::Unknown;
+};
+
+// Import 성공 여부와 생성된 Asset, 경고 및 오류를 함께 반환하는 결과다.
+struct FAssetImportResult
+{
+	bool bSucceeded = false;
+	TArray<FImportedAsset> ImportedAssets;
+	TArray<FString> Warnings;
+	FString Error;
+};
+
+// GLB Source를 Runtime 전용 Mesh, Material, Texture .kasset으로 변환하는 Editor 전용 Importer다.
 class FAssetImporter final
 {
 public:
-	FAssetImporter();
-	~FAssetImporter();
+	// 단일 GLB를 읽어 Mesh, Material, Texture .kasset으로 변환한다.
+	FAssetImportResult ImportGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath, bool bCreateTypeFolders = true) const;
 
-	FAssetImporter(const FAssetImporter&) = delete;
-	FAssetImporter& operator=(const FAssetImporter&) = delete;
-	FAssetImporter(FAssetImporter&&) = delete;
-	FAssetImporter& operator=(FAssetImporter&&) = delete;
+	// Content 아래의 모든 GLB를 탐색하여 변경된 Source Asset을 Import한다.
+	bool ImportAllGLB() const;
 };

@@ -4,7 +4,7 @@
 
 이 문서는 Knot Engine의 World 렌더 상태, ViewFamily 구성, 가시성 판정, Draw Command 생성과 GPU 실행의 책임을 정의한다. 현재 구현은 메인 스레드에서 동기 실행하는 D3D11 렌더링 경로다.
 
-현재 Opaque와 Grid는 매 프레임 생성되는 Render Graph Node로 구성하며 Shader와 Pipeline State는 공용 Cache가 장기 소유한다. Render Thread 분리와 Graph Resource 추적은 향후 목표다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
+현재 Opaque, Gamma Correction Post Process와 Overlay는 매 프레임 생성되는 Render Graph Node로 구성하며 Shader와 Pipeline State는 공용 Cache가 장기 소유한다. Render Thread 분리와 Graph Resource 추적은 향후 목표다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
 
 ## 설계 원칙
 
@@ -38,6 +38,7 @@ UEditorEngine
            │      └─ Render(Renderer)
 		   │             ├─ View별 CullView
 		   │             ├─ FOpaquePass::AddPass
+		   │             ├─ FPostProcessPass::AddPass
 		   │             ├─ FOverlayPass::AddPass
 		   │             └─ URenderer::Execute
            ├─ FImGuiSystem::Render
@@ -60,6 +61,7 @@ FSceneViewFamily ──참조──> FScene
 ```text
 KnotEngine/Content/Engine/Shader/
 ├─ StaticMesh.hlsl
+├─ PostProcess.hlsl
 ├─ GeometryMesh.hlsl
 ├─ Grid.hlsl
 └─ Axis.hlsl
@@ -75,6 +77,7 @@ KnotEngine/Source/
 │     ├─ Graph/RenderGraph.h/.cpp
 │     ├─ Pass/
 │     │  ├─ OpaquePass.h/.cpp
+│     │  ├─ PostProcessPass.h/.cpp
 │     │  └─ OverlayPass.h/.cpp
 │     ├─ Scene/
 │     │  ├─ Scene.h/.cpp
@@ -220,7 +223,7 @@ Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mes
 
 `FSceneView`는 ViewMatrix, ProjectionMatrix, ViewProjectionMatrix, ViewOrigin, Frustum과 FRenderViewport를 보관한다. 행벡터 규약으로 `ViewProjectionMatrix = ViewMatrix * ProjectionMatrix`이며 Draw 시 `WorldMatrix * ViewProjectionMatrix`를 사용한다.
 
-`FSceneViewFamily`는 Scene 참조, View 배열, RenderTarget과 ShowFlags를 묶는다. `FSceneRenderTarget`은 Color·Depth texture handle과 Width·Height를 보관한다. Family는 Scene이나 GPU 타깃을 소유하지 않는다.
+`FSceneViewFamily`는 Scene 참조, View 배열, RenderTarget과 ShowFlags를 묶는다. `FSceneRenderTarget`은 선형 Scene Color, 화면 표시용 Color, Depth texture handle과 Width·Height를 보관한다. Family는 Scene이나 GPU 타깃을 소유하지 않는다.
 
 `FEditorViewportClient::GetWorld()`는 기본적으로 `GEngine->GetWorld()`를 사용하고 파생 Client가 다른 World를 선택할 수 있다. `BuildSceneViewFamily()`는 출력과 Scene이 유효할 때 `BuildSceneView()` 결과를 묶는다. 현재 Editor는 Family당 View 하나를 만들고 SceneRenderer는 여러 View를 처리할 수 있다.
 
@@ -262,7 +265,7 @@ Family 시작 시 Color·Depth 타깃을 바인딩하고 한 번 Clear한다. �
 
 SceneRenderer는 ViewFamily마다 지역 `FRenderGraph`를 만들고 구체 Pass Builder를 고정 순서로 호출한다. Pass Builder는 Node만 등록하고, SceneRenderer가 반환된 raw `uint32` Node Index를 사용해 `AddDependency()`로 고정 실행 순서를 연결한다. Pass Builder는 자신의 입력, 명령 선택, Sort Key, 상수와 실행 함수를 책임지며 선행 Pass를 알지 않는다. `URenderer`는 구체 Pass를 모르고 완성된 Graph만 실행한다.
 
-현재 구현된 View별 순서는 `Opaque → Overlay`다. Grid, Axis, Bounds Show Flag가 모두 꺼지면 Overlay Node를 만들지 않으며, 활성화된 기능만 Node 내부에서 실행한다.
+현재 구현된 순서는 `Opaque → Post Process Gamma Correction → Overlay`다. Post Process는 선형 Scene Color를 piecewise sRGB 전달 함수로 변환해 화면 표시용 Color에 기록한다. 조명, Exposure와 Tone Mapping은 적용하지 않는다. Grid, Axis, Bounds Show Flag가 모두 꺼지면 Overlay Node를 만들지 않으며, 활성화된 기능만 Node 내부에서 실행한다.
 
 ```text
 목표 Forward 경로
@@ -322,7 +325,7 @@ Command allocator/list 재사용, descriptor 관리, resource state transition, 
 
 ## Texture와 Pipeline 계약
 
-Viewport의 offscreen Color는 Render Target이면서 ImGui에서 읽는 Shader Resource이고 Depth는 DepthStencil 용도다. 현재 바인딩과 Clear는 Renderer가 수행하며 ImGui texture ID 변환은 GPU backend를 통해 처리한다.
+Viewport의 offscreen Scene Color는 선형 색을 저장하는 Render Target이자 Post Process 입력 Shader Resource다. 화면 표시용 Color는 Post Process 출력 Render Target이면서 ImGui에서 읽는 Shader Resource이고, Depth는 두 렌더 단계가 공유하는 DepthStencil 용도다. 현재 바인딩과 Clear는 Renderer가 수행하며 ImGui texture ID 변환은 GPU backend를 통해 처리한다.
 
 Pipeline State는 Shader, Vertex Layout, Primitive Topology와 depth 설정을 묶는다. 현재 FGeometryVertex의 위치·색상 데이터와 Common shader를 사용하며 ViewProjection은 View 상수 `b0`, Model은 Draw 상수 `b3`으로 Vertex Shader에 전달한다. `FPipelineStateCache`가 동일한 Description의 생성을 중복하지 않으며 Material별 texture·sampler·상수와 여러 Pipeline State 조합은 후속 확장이다.
 

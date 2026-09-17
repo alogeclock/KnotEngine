@@ -25,7 +25,8 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 	ColorDesc.Height = InHeight;
 	ColorDesc.Format = ETextureFormat::BGRA8UNorm;
 	ColorDesc.Usage = ETextureUsage::RenderTarget | ETextureUsage::ShaderResource;
-	ColorTarget = RenderDevice.CreateTexture(ColorDesc);
+	SceneColorTarget = RenderDevice.CreateTexture(ColorDesc);
+	DisplayColorTarget = RenderDevice.CreateTexture(ColorDesc);
 
 	FTextureDesc DepthDesc;
 	DepthDesc.Width = InWidth;
@@ -40,7 +41,8 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 void FViewport::Release()
 {
 	RenderDevice.DestroyTexture(DepthTarget);
-	RenderDevice.DestroyTexture(ColorTarget);
+	RenderDevice.DestroyTexture(DisplayColorTarget);
+	RenderDevice.DestroyTexture(SceneColorTarget);
 	Width = 0;
 	Height = 0;
 }

@@ -3,7 +3,13 @@
 #include <limits>
 
 // Texture 메타데이터와 각 Mip의 CPU Payload를 검증하고 Asset에 저장한다.
-bool UTexture2D::Initialize(FString InAssetPath, uint32 InWidth, uint32 InHeight, ETextureFormat InFormat, bool bInSRGB, TArray<FTextureMipData>&& InMips)
+bool UTexture2D::Initialize(
+	FString InAssetPath,
+	uint32 InWidth,
+	uint32 InHeight,
+	ETextureFormat InFormat,
+	ETextureColorSpace InColorSpace,
+	TArray<FTextureMipData>&& InMips)
 {
 	if (InMips.empty() || InMips.size() > (std::numeric_limits<uint32>::max)())
 	{
@@ -16,7 +22,7 @@ bool UTexture2D::Initialize(FString InAssetPath, uint32 InWidth, uint32 InHeight
 			return false;
 		}
 	}
-	if (!Super::Initialize(std::move(InAssetPath), InWidth, InHeight, static_cast<uint32>(InMips.size()), InFormat, bInSRGB))
+	if (!Super::Initialize(std::move(InAssetPath), InWidth, InHeight, static_cast<uint32>(InMips.size()), InFormat, InColorSpace))
 	{
 		return false;
 	}

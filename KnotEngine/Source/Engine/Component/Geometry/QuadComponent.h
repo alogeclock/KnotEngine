@@ -11,5 +11,5 @@ public:
 	UQuadComponent();
 
 private:
-	static constexpr const char* StaticMeshPath = "/Engine/Geometry/Quad";
+	static constexpr const char* StaticMeshPath = "/Engine/Model/Quad/Quad";
 };

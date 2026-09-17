@@ -29,7 +29,7 @@ FImGuiSystem::FImGuiSystem(
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
 	: Application(InApplication), EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState),
+	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState),
 	  ContentPanel(InAssetRegistry, InRenderDevice, InRenderBackend)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());

@@ -17,27 +17,26 @@ struct ENGINE_API FStaticMaterial
 	TObjectPtr<UMaterialInterface> Material;
 };
 
-// Static Mesh .kasset 전체에 한 번 저장되는 고정 크기 헤더다.
-struct FStaticMeshBinaryHeader
+// Static Mesh .kasset Payload 전체에 한 번 저장되는 고정 크기 헤더다.
+struct FStaticMeshPayloadHeader
 {
-	inline static constexpr char MagicValue[4] = { 'K', 'M', 'S', 'H' };
 	inline static constexpr uint32 CurrentVersion = 1;
 	inline static constexpr uint32 MaxLODCount = 16;
 
-	char Magic[4];
-	uint32 Version;
 	uint32 VertexStride;
 	uint32 LODCount;
+	uint32 MaterialCount;
 };
-static_assert(sizeof(FStaticMeshBinaryHeader) == 16);
+static_assert(sizeof(FStaticMeshPayloadHeader) == 12);
 
 // Static Mesh의 각 LOD 데이터 앞에 저장되는 배열 크기다.
-struct FStaticMeshLODBinaryHeader
+struct FStaticMeshLODPayloadHeader
 {
 	uint32 VertexCount;
 	uint32 IndexCount;
+	uint32 SectionCount;
 };
-static_assert(sizeof(FStaticMeshLODBinaryHeader) == 8);
+static_assert(sizeof(FStaticMeshLODPayloadHeader) == 12);
 
 // 경로로 식별되는 Static Mesh UObject Asset. 실제 LOD와 GPU 리소스는 FStaticMesh가 소유한다.
 UCLASS()

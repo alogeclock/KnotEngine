@@ -5,6 +5,7 @@
 #include "Render/Graph/RenderGraph.h"
 #include "Render/Pass/OverlayPass.h"
 #include "Render/Pass/OpaquePass.h"
+#include "Render/Pass/PostProcessPass.h"
 #include "Render/Renderer.h"
 #include "Render/Scene/Scene.h"
 
@@ -21,13 +22,15 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	const FSceneRenderTarget& Target = ViewFamily.RenderTarget;
 
-	check(CommandList.IsValid() && Target.Color.IsValid() && Target.Depth.IsValid() && Target.Width > 0 && Target.Height > 0);
+	check(CommandList.IsValid() && Target.SceneColor.IsValid() && Target.DisplayColor.IsValid() && Target.Depth.IsValid() && Target.Width > 0 && Target.Height > 0);
 	const FRenderViewport TargetViewport = { 0.0f, 0.0f, static_cast<float>(Target.Width), static_cast<float>(Target.Height), 0.0f, 1.0f };
 
 	// Family 전체를 한 번 Clear한다. 여러 View가 같은 타깃의 서로 다른 영역을 사용할 수 있다.
-	Renderer.BeginRenderTarget(Target.Color, Target.Depth, TargetViewport);
+	Renderer.BeginRenderTarget(Target.SceneColor, Target.Depth, TargetViewport);
+
 	FRenderGraph RenderGraph;
 	uint32 PreviousNode = FRenderGraph::InvalidIndex;
+	TArray<uint32> OverlayNodes;
 	for (const FSceneView& View : ViewFamily.Views)
 	{
 		check(View.Viewport.Width > 0.0f && View.Viewport.Height > 0.0f);
@@ -51,13 +54,19 @@ void FSceneRenderer::Render(URenderer& Renderer)
 		}
 		if (ViewFamily.ShowFlags.bGrid || ViewFamily.ShowFlags.bAxis || ViewFamily.ShowFlags.bBounds)
 		{
-			const uint32 OverlayNode = FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, VisiblePrimitives);
-			if (PreviousNode != FRenderGraph::InvalidIndex)
-			{
-				RenderGraph.AddDependency(OverlayNode, PreviousNode);
-			}
-			PreviousNode = OverlayNode;
+			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, VisiblePrimitives));
 		}
+	}
+	const uint32 PostProcessNode = FPostProcessPass::AddPass(RenderGraph, Renderer, Target.SceneColor, Target.DisplayColor, Target.Depth, TargetViewport);
+	if (PreviousNode != FRenderGraph::InvalidIndex)
+	{
+		RenderGraph.AddDependency(PostProcessNode, PreviousNode);
+	}
+	PreviousNode = PostProcessNode;
+	for (const uint32 OverlayNode : OverlayNodes)
+	{
+		RenderGraph.AddDependency(OverlayNode, PreviousNode);
+		PreviousNode = OverlayNode;
 	}
 	Renderer.Execute(RenderGraph);
 

@@ -7,14 +7,14 @@
 // 부모가 없는 에디터 카메라의 변환과 투영 값이다. 위치는 cm, 회전은 degree를 사용한다.
 struct FEditorViewportCameraTransform
 {
-	FVector ViewLocation = FVector(-10.0f, 10.0f, 12.5f);
+	FVector ViewLocation = FVector(-100.0f, 100.0f, 125.0f);
 	FRotator ViewRotation = FRotator(-45.0f, -45.0f, 0.0f);
 
 	float OrthoZoom = 10.0f; // 직교 화면 폭 (cm)
 	float FOV = 60.0f; // 수직 시야각 (degree)
 	float AspectRatio = 16.0f / 9.0f;
-	float NearClip = 0.1f;
-	float FarClip = 10000.0f;
+	float NearClip = 5.0f;
+	float FarClip = 100000.0f;
 	bool bIsOrtho = false;
 
 	void TranslateWorld(const FVector& WorldDelta);

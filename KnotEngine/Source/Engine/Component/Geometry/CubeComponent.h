@@ -11,5 +11,5 @@ public:
 	UCubeComponent();
 
 private:
-	static constexpr const char* StaticMeshPath = "/Engine/Geometry/Cube";
+	static constexpr const char* StaticMeshPath = "/Engine/Model/Cube/Cube";
 };

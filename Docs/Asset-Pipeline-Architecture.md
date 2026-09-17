@@ -231,19 +231,22 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 
 ### 현재 구현
 
-- `FAssetRegistry`의 `.glb`와 `.kasset` 검색
-- Static Mesh `.kasset` 로드
-- `UStaticMesh`와 CPU/GPU Mesh Resource
-- 동작하지 않는 `FAssetImporter` Skeleton
+- `FAssetRegistry`의 `.glb`와 타입별 `.kasset` 검색
+- GLB의 Static Mesh, Base Color Material과 embedded PNG Texture Import
+- Static Mesh, Material, Texture2D `.kasset` 로드
+- Base Color Texture용 sRGB BC7 Mip 생성
+- glTF 좌표계와 미터 단위를 Knot 좌표계와 센티미터 단위로 변환
+- Unlit `OpaquePS`, Alpha Mask용 `MaskedPS`, Alpha Blend용 `TranslucentPS` 렌더링
+- Source보다 새 출력이 모두 존재하면 Import 생략
+- Skin, Animation과 Morph Target Runtime Data는 아직 지원하지 않음
 
 ### 목표 순서
 
-1. 표준 GLB의 Static Mesh Import
-2. PNG Texture와 표준 PBR Material Import
+1. Normal, ORM 등 Texture 용도별 Color Space와 Material Parameter 확장
+2. Import Metadata와 Hash 기반 Reimport 및 원자적 교체
 3. Skeleton, Skinning과 Bake된 Animation Import
 4. Blender Knot Engine Add-on과 안정적인 Sub-Asset ID
 5. `KNOT_materials_npr`와 필요한 Material Profile
-6. Import Metadata, Hash 기반 Reimport와 원자적 교체
 
 ## 관련 문서
 

@@ -1,14 +1,9 @@
 #pragma once
 
+#include "Asset/AssetTypes.h"
 #include "Core/CoreTypes.h"
 
 #include <filesystem>
-
-enum class EAssetType : uint8
-{
-	Unknown,
-	StaticMesh,
-};
 
 // Content에 존재하는 원본 파일과 파생 바이너리를 하나의 논리 Asset으로 표현한다.
 struct FAssetData

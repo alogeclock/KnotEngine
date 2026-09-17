@@ -93,8 +93,10 @@ private:
 
 	FShaderKey VertexShader;
 	FShaderKey PixelShader;
+
 	EMaterialBlendMode BlendMode = EMaterialBlendMode::Opaque;
 	EMaterialDepthMode DepthMode = EMaterialDepthMode::ReadWrite;
 	ECullMode CullMode = ECullMode::Back;
+
 	mutable FMaterialParameterLayout ParameterLayout;
 };

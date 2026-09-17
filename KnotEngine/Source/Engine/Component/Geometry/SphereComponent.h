@@ -11,5 +11,5 @@ public:
 	USphereComponent();
 
 private:
-	static constexpr const char* StaticMeshPath = "/Engine/Geometry/Sphere";
+	static constexpr const char* StaticMeshPath = "/Engine/Model/Sphere/Sphere";
 };

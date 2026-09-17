@@ -15,13 +15,10 @@
 #include <wincodec.h>
 #include <wrl/client.h>
 
-namespace
-{
-constexpr uint32 ContentIconSize = 128;
-constexpr ImU32 DropHighlightColor = IM_COL32(43, 188, 255, 255);
+const uint32 FContentPanel::DropHighlightColor = IM_COL32(43, 188, 255, 255);
 
 // 대소문자를 구분하지 않고 문자열에 검색어가 포함되는지 확인한다.
-bool ContainsText(std::string_view Text, std::string_view SearchText)
+bool FContentPanel::ContainsText(std::string_view Text, std::string_view SearchText)
 {
 	if (SearchText.empty())
 	{
@@ -36,7 +33,7 @@ bool ContainsText(std::string_view Text, std::string_view SearchText)
 }
 
 // PNG 파일을 Content Browser 썸네일 크기의 RGBA Pixel 배열로 디코딩한다.
-bool DecodeIcon(const std::filesystem::path& FilePath, TArray<uint8>& Pixels)
+bool FContentPanel::DecodeIcon(const std::filesystem::path& FilePath, TArray<uint8>& Pixels)
 {
 	const HRESULT InitializeResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	const bool bUninitialize = SUCCEEDED(InitializeResult);
@@ -48,11 +45,11 @@ bool DecodeIcon(const std::filesystem::path& FilePath, TArray<uint8>& Pixels)
 		Microsoft::WRL::ComPtr<IWICBitmapScaler> Scaler;
 		Microsoft::WRL::ComPtr<IWICFormatConverter> Converter;
 		if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&Factory))) &&
-			SUCCEEDED(Factory->CreateDecoderFromFilename(FilePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &Decoder)) &&
-			SUCCEEDED(Decoder->GetFrame(0, &Frame)) && SUCCEEDED(Factory->CreateBitmapScaler(&Scaler)) &&
-			SUCCEEDED(Scaler->Initialize(Frame.Get(), ContentIconSize, ContentIconSize, WICBitmapInterpolationModeFant)) &&
-			SUCCEEDED(Factory->CreateFormatConverter(&Converter)) &&
-			SUCCEEDED(Converter->Initialize(Scaler.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom)))
+		    SUCCEEDED(Factory->CreateDecoderFromFilename(FilePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &Decoder)) &&
+		    SUCCEEDED(Decoder->GetFrame(0, &Frame)) && SUCCEEDED(Factory->CreateBitmapScaler(&Scaler)) &&
+		    SUCCEEDED(Scaler->Initialize(Frame.Get(), ContentIconSize, ContentIconSize, WICBitmapInterpolationModeFant)) &&
+		    SUCCEEDED(Factory->CreateFormatConverter(&Converter)) &&
+		    SUCCEEDED(Converter->Initialize(Scaler.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom)))
 		{
 			Pixels.resize(static_cast<SIZE_T>(ContentIconSize) * ContentIconSize * 4);
 			bDecoded = SUCCEEDED(Converter->CopyPixels(nullptr, ContentIconSize * 4, static_cast<UINT>(Pixels.size()), Pixels.data()));
@@ -66,7 +63,7 @@ bool DecodeIcon(const std::filesystem::path& FilePath, TArray<uint8>& Pixels)
 }
 
 // 긴 Tile 이름을 폭에 맞게 생략 부호가 붙은 문자열로 줄인다.
-FString MakeTileLabel(const FString& Label, float Width)
+FString FContentPanel::MakeTileLabel(const FString& Label, float Width)
 {
 	if (ImGui::CalcTextSize(Label.c_str()).x <= Width)
 	{
@@ -80,10 +77,9 @@ FString MakeTileLabel(const FString& Label, float Width)
 	}
 	return Result + "...";
 }
-}
 
 FContentPanel::FContentPanel(FAssetRegistry& InAssetRegistry, IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend)
-	: AssetRegistry(InAssetRegistry), RenderDevice(InRenderDevice), RenderBackend(InRenderBackend)
+    : AssetRegistry(InAssetRegistry), RenderDevice(InRenderDevice), RenderBackend(InRenderBackend)
 {
 }
 
@@ -283,12 +279,12 @@ void FContentPanel::DrawToolbar()
 		if (Direction == ImGuiDir_Left)
 		{
 			ImGui::GetWindowDrawList()->AddTriangleFilled(ImVec2(Center.x - Radius, Center.y), ImVec2(Center.x + Radius, Center.y - Radius),
-				ImVec2(Center.x + Radius, Center.y + Radius), Color);
+			                                              ImVec2(Center.x + Radius, Center.y + Radius), Color);
 		}
 		else
 		{
 			ImGui::GetWindowDrawList()->AddTriangleFilled(ImVec2(Center.x + Radius, Center.y), ImVec2(Center.x - Radius, Center.y - Radius),
-				ImVec2(Center.x - Radius, Center.y + Radius), Color);
+			                                              ImVec2(Center.x - Radius, Center.y + Radius), Color);
 		}
 		return bClicked;
 	};
@@ -322,7 +318,7 @@ void FContentPanel::DrawBreadcrumbs(float Width)
 	const float BreadcrumbHeight = ImGui::GetFrameHeight();
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f, 0.0f));
 	const bool bVisible = ImGui::BeginChild("ContentBreadcrumbs", ImVec2(Width, BreadcrumbHeight), ImGuiChildFlags_Borders,
-		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	                                        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 	ImGui::PopStyleVar();
 	if (!bVisible)
 	{
@@ -391,8 +387,7 @@ void FContentPanel::DrawContentTiles()
 	const bool bSearching = AssetSearchText[0] != '\0';
 	for (const FString& FolderPath : AssetRegistry.GetFolders())
 	{
-		const bool bInScope = bSearching ? FolderPath != "/" && FPaths::IsInside(FolderPath, SelectedFolderPath) :
-			IsDirectChildFolder(FolderPath, SelectedFolderPath);
+		const bool bInScope = bSearching ? FolderPath != "/" && FPaths::IsInside(FolderPath, SelectedFolderPath) : IsDirectChildFolder(FolderPath, SelectedFolderPath);
 		if (bInScope && ContainsText(GetFolderName(FolderPath), AssetSearchText.data()))
 		{
 			ImGui::TableNextColumn();
@@ -401,8 +396,7 @@ void FContentPanel::DrawContentTiles()
 	}
 	for (const FAssetData& Asset : AssetRegistry.GetAssets())
 	{
-		const bool bInScope = bSearching ? FPaths::IsInside(Asset.FolderPath, SelectedFolderPath) :
-			Asset.FolderPath == SelectedFolderPath;
+		const bool bInScope = bSearching ? FPaths::IsInside(Asset.FolderPath, SelectedFolderPath) : Asset.FolderPath == SelectedFolderPath;
 		if (bInScope && IsAssetSearchMatch(Asset))
 		{
 			ImGui::TableNextColumn();
@@ -440,9 +434,9 @@ void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, f
 	const ImVec2 TypeSize = ImGui::CalcTextSize("Folder");
 	ImGui::PopFont();
 	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMinimum.x + (TileWidth - LabelSize.x) * 0.5f, TileMinimum.y + 63.0f),
-		ImGui::GetColorU32(ImGuiCol_Text), Label.c_str());
+	                  ImGui::GetColorU32(ImGuiCol_Text), Label.c_str());
 	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMinimum.x + (TileWidth - TypeSize.x) * 0.5f, TileMinimum.y + 90.0f),
-		ImGui::GetColorU32(ImGuiCol_TextDisabled), "Folder");
+	                  ImGui::GetColorU32(ImGuiCol_TextDisabled), "Folder");
 
 	if (bHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 	{
@@ -465,13 +459,27 @@ void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, f
 // Asset 썸네일 Tile을 표시하고 이동용 Drag Payload를 시작한다.
 void FContentPanel::DrawAssetTile(const FAssetData& Asset, float TileWidth, float TileHeight)
 {
+	const char* TypeLabel = "GLB Source";
+	if (Asset.Type == EAssetType::StaticMesh)
+	{
+		TypeLabel = "Static Mesh";
+	}
+	else if (Asset.Type == EAssetType::Material)
+	{
+		TypeLabel = "Material";
+	}
+	else if (Asset.Type == EAssetType::Texture2D)
+	{
+		TypeLabel = "Texture 2D";
+	}
 	ImGui::PushID(Asset.AssetPath.c_str());
 	const ImVec2 TileMinimum = ImGui::GetCursorScreenPos();
 	ImGui::InvisibleButton("##AssetTile", ImVec2(TileWidth, TileHeight));
 	const ImVec2 TileMaximum = ImGui::GetItemRectMax();
 	const bool bHovered = ImGui::IsItemHovered();
 	const bool bSelected = SelectedAssetPath == Asset.AssetPath;
-	const ImU32 Background = ImGui::GetColorU32(bSelected ? ImGuiCol_Header : bHovered ? ImGuiCol_HeaderHovered : ImGuiCol_FrameBg);
+	const ImU32 Background = ImGui::GetColorU32(bSelected ? ImGuiCol_Header : bHovered ? ImGuiCol_HeaderHovered
+	                                                                                   : ImGuiCol_FrameBg);
 	ImDrawList* DrawList = ImGui::GetWindowDrawList();
 	DrawList->AddRectFilled(TileMinimum, TileMaximum, Background, 5.0f);
 	DrawList->AddRect(TileMinimum, TileMaximum, ImGui::GetColorU32(ImGuiCol_Border), 5.0f);
@@ -487,12 +495,12 @@ void FContentPanel::DrawAssetTile(const FAssetData& Asset, float TileWidth, floa
 	const float TileFontSize = ImGui::GetFontSize();
 	const FString Label = MakeTileLabel(Asset.Name, TileWidth - 10.0f);
 	const ImVec2 LabelSize = ImGui::CalcTextSize(Label.c_str());
-	const ImVec2 TypeSize = ImGui::CalcTextSize("Static Mesh");
+	const ImVec2 TypeSize = ImGui::CalcTextSize(TypeLabel);
 	ImGui::PopFont();
 	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMinimum.x + (TileWidth - LabelSize.x) * 0.5f, TileMinimum.y + 63.0f),
-		ImGui::GetColorU32(ImGuiCol_Text), Label.c_str());
+	                  ImGui::GetColorU32(ImGuiCol_Text), Label.c_str());
 	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMinimum.x + (TileWidth - TypeSize.x) * 0.5f, TileMinimum.y + 90.0f),
-		ImGui::GetColorU32(ImGuiCol_TextDisabled), "Static Mesh");
+	                  ImGui::GetColorU32(ImGuiCol_TextDisabled), TypeLabel);
 
 	if (bHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 	{
@@ -765,7 +773,7 @@ bool FContentPanel::RenameItem()
 {
 	const FString NewName = RenameText.data();
 	if (NewName.empty() || NewName == "." || NewName == ".." || NewName.find_first_of("<>:\"/\\|?*") != FString::npos ||
-		NewName.ends_with('.') || NewName.ends_with(' '))
+	    NewName.ends_with('.') || NewName.ends_with(' '))
 	{
 		KE_LOG(LogContentPanel, Warning, "사용할 수 없는 Content 이름. Name={}", NewName);
 		return false;
@@ -794,7 +802,7 @@ bool FContentPanel::RenameItem()
 			BinaryDestination.replace_extension(Asset->BinaryFilePath.extension());
 		}
 		if ((!SourceDestination.empty() && std::filesystem::exists(SourceDestination)) ||
-			(!BinaryDestination.empty() && std::filesystem::exists(BinaryDestination)))
+		    (!BinaryDestination.empty() && std::filesystem::exists(BinaryDestination)))
 		{
 			KE_LOG(LogContentPanel, Warning, "같은 이름의 Content가 이미 존재한다. Name={}", NewName);
 			return false;
@@ -1089,8 +1097,7 @@ std::filesystem::path FContentPanel::MakeUniquePath(const std::filesystem::path&
 	for (uint32 Suffix = 1;; ++Suffix)
 	{
 		const FWString SuffixText = L" Copy" + (Suffix == 1 ? FWString() : L" " + std::to_wstring(Suffix));
-		const std::filesystem::path Candidate = bDirectory ? DesiredPath.parent_path() / (DesiredPath.filename().wstring() + SuffixText) :
-			DesiredPath.parent_path() / (DesiredPath.stem().wstring() + SuffixText + DesiredPath.extension().wstring());
+		const std::filesystem::path Candidate = bDirectory ? DesiredPath.parent_path() / (DesiredPath.filename().wstring() + SuffixText) : DesiredPath.parent_path() / (DesiredPath.stem().wstring() + SuffixText + DesiredPath.extension().wstring());
 		if (!std::filesystem::exists(Candidate))
 		{
 			return Candidate;

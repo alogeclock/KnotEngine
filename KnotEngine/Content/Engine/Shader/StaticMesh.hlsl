@@ -1,11 +1,15 @@
 struct VS_INPUT
 {
 	float3 Position : POSITION;
+	float3 Normal : NORMAL;
+	float3 Tangent : TANGENT;
+	float2 TexCoord : TEXCOORD0;
 };
 
 struct PS_INPUT
 {
 	float4 Position : SV_POSITION;
+	float2 TexCoord : TEXCOORD0;
 };
 
 // b0은 View마다 갱신하는 공용 상수 슬롯이다.
@@ -27,19 +31,41 @@ cbuffer DrawConstants : register(b3)
 cbuffer MaterialConstants : register(b2)
 {
 	float4 BaseColor;
+	float AlphaCutoff;
 };
 
-PS_INPUT VS(VS_INPUT input)
+Texture2D BaseColorTexture : register(t0);
+SamplerState BaseColorTextureSampler : register(s0);
+
+PS_INPUT MainVS(VS_INPUT input)
 {
 	PS_INPUT output;
 	
 	float4 WorldPosition = mul(float4(input.Position, 1.0f), Model);
 	output.Position = mul(WorldPosition, ViewProjection);
+	output.TexCoord = input.TexCoord;
 	
 	return output;
 }
 
-float4 PS(PS_INPUT input) : SV_TARGET
+float4 GetBaseColor(PS_INPUT input)
 {
-	return BaseColor;
+	return BaseColor * BaseColorTexture.Sample(BaseColorTextureSampler, input.TexCoord);
+}
+
+float4 OpaquePS(PS_INPUT input) : SV_TARGET
+{
+	return GetBaseColor(input);
+}
+
+float4 MaskedPS(PS_INPUT input) : SV_TARGET
+{
+	float4 Color = GetBaseColor(input);
+	clip(Color.a - AlphaCutoff);
+	return Color;
+}
+
+float4 TranslucentPS(PS_INPUT input) : SV_TARGET
+{
+	return GetBaseColor(input);
 }

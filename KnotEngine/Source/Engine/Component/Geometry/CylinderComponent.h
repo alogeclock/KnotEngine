@@ -11,5 +11,5 @@ public:
 	UCylinderComponent();
 
 private:
-	static constexpr const char* StaticMeshPath = "/Engine/Geometry/Cylinder";
+	static constexpr const char* StaticMeshPath = "/Engine/Model/Cylinder/Cylinder";
 };

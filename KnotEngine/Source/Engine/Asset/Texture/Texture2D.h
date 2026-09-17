@@ -29,7 +29,13 @@ public:
 
 private:
 	friend class FAssetBinaryLoader;
-	bool Initialize(FString InAssetPath, uint32 InWidth, uint32 InHeight, ETextureFormat InFormat, bool bInSRGB, TArray<FTextureMipData>&& InMips);
+	bool Initialize(
+		FString InAssetPath,
+		uint32 InWidth,
+		uint32 InHeight,
+		ETextureFormat InFormat,
+		ETextureColorSpace InColorSpace,
+		TArray<FTextureMipData>&& InMips);
 
 	TArray<FTextureMipData> Mips;
 	FTexture TextureResource;

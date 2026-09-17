@@ -29,8 +29,8 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
 	FSamplerStateCache& SamplerStateCache = Renderer.GetSamplerStateCache();
 
-	static const FShaderKey DefaultVertexShader{ "/Engine/Shader/StaticMesh.hlsl", "VS", EShaderStage::Vertex };
-	static const FShaderKey DefaultPixelShader{ "/Engine/Shader/StaticMesh.hlsl", "PS", EShaderStage::Pixel };
+	static const FShaderKey DefaultVertexShader{ "/Engine/Shader/StaticMesh.hlsl", "MainVS", EShaderStage::Vertex };
+	static const FShaderKey DefaultPixelShader{ "/Engine/Shader/StaticMesh.hlsl", "OpaquePS", EShaderStage::Pixel };
 	FMaterial DefaultMaterial;
 	verify(DefaultMaterial.Initialize(DefaultVertexShader, DefaultPixelShader));
 
@@ -86,23 +86,6 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 			if (bHasMaterialAsset)
 			{
 				MaterialInterface->PackMaterialConstants(Layout, Command.MaterialConstants);
-				for (const FMaterialTextureBinding& Binding : Layout.Textures)
-				{
-					FMeshDrawCommand::FTextureBinding TextureBinding;
-					TextureBinding.Stage = Binding.Stage;
-					TextureBinding.TextureSlot = Binding.TextureSlot;
-					TextureBinding.SamplerSlot = Binding.SamplerSlot;
-					if (const FTextureMaterialParameter* Parameter = MaterialInterface->FindTextureParameter(Binding.Name); Parameter && Parameter->Texture)
-					{
-						panicf(Parameter->Texture->InitResources(*RenderDevice), "Material Texture의 GPU Resource 생성에 실패했다. Name={}", Binding.Name.ToString());
-						TextureBinding.Texture = Parameter->Texture->GetResource()->GetHandle();
-						if (Binding.SamplerSlot != FSamplerHandle::InvalidIndex)
-						{
-							TextureBinding.Sampler = SamplerStateCache.GetOrCreate(Parameter->Sampler);
-						}
-					}
-					Command.Textures.push_back(TextureBinding);
-				}
 			}
 			else // Default Magenta Material
 			{
@@ -116,6 +99,30 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 						std::memcpy(Command.MaterialConstants.data() + Parameter.Offset, DefaultBaseColor.Data, sizeof(DefaultBaseColor));
 					}
 				}
+			}
+
+			for (const FMaterialTextureBinding& Binding : Layout.Textures)
+			{
+				FMeshDrawCommand::FTextureBinding TextureBinding;
+				TextureBinding.Stage = Binding.Stage;
+				TextureBinding.TextureSlot = Binding.TextureSlot;
+				TextureBinding.SamplerSlot = Binding.SamplerSlot;
+				TextureBinding.Texture = Renderer.GetDefaultTexture();
+				FSamplerDesc Sampler;
+				if (bHasMaterialAsset)
+				{
+					if (const FTextureMaterialParameter* Parameter = MaterialInterface->FindTextureParameter(Binding.Name); Parameter && Parameter->Texture)
+					{
+						panicf(Parameter->Texture->InitResources(*RenderDevice), "Material Texture의 GPU Resource 생성에 실패했다. Name={}", Binding.Name.ToString());
+						TextureBinding.Texture = Parameter->Texture->GetResource()->GetHandle();
+						Sampler = Parameter->Sampler;
+					}
+				}
+				if (Binding.SamplerSlot != FSamplerHandle::InvalidIndex)
+				{
+					TextureBinding.Sampler = SamplerStateCache.GetOrCreate(Sampler);
+				}
+				Command.Textures.push_back(TextureBinding);
 			}
 			OpaqueCommands.push_back(std::move(Command));
 		}

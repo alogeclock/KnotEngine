@@ -74,7 +74,7 @@ Load 요청
 
 동일한 Asset을 사용하는 여러 Component는 하나의 UObject와 Render Data를 공유한다. Manager는 보관 중인 `TObjectPtr`를 GC 참조 수집에 전달하고, 종료할 때 GPU Resource를 포함한 Asset을 Renderer보다 먼저 정리한다.
 
-현재 `FAssetManager`와 `FAssetBinaryLoader`는 Static Mesh만 지원한다. 다른 Asset 타입은 실제 구현과 함께 타입별 Load 함수와 검증을 추가한다.
+현재 `FAssetManager`와 `FAssetBinaryLoader`는 Static Mesh, Material, Texture2D를 지원하며 Asset별 Cache와 타입별 Payload 검증을 제공한다.
 
 ## Static Mesh
 
@@ -216,7 +216,7 @@ CPU 데이터를 GPU 업로드 뒤 유지할지는 Asset 타입과 Editor 기능
 | Static Mesh CPU LOD와 Bounds | 구현 |
 | 최초 가시 Draw의 GPU Buffer 생성 | 구현 |
 | Material과 Texture UObject 및 Render Resource 계층 | 구현 |
-| Material과 Texture `.kasset` 역직렬화 | 미구현 |
+| Material과 Texture `.kasset` 역직렬화 | 구현 |
 | Skeletal Mesh와 Skeleton Asset | 미구현 |
 | Animation Asset | 미구현 |
 | Asset 의존성과 영속 ID | 미구현 |

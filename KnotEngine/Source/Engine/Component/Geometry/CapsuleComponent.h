@@ -11,5 +11,5 @@ public:
 	UCapsuleComponent();
 
 private:
-	static constexpr const char* StaticMeshPath = "/Engine/Geometry/Capsule";
+	static constexpr const char* StaticMeshPath = "/Engine/Model/Capsule/Capsule";
 };

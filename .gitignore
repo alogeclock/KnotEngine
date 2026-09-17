@@ -447,6 +447,12 @@ FodyWeavers.xsd
 # Rider caches
 .idea_modules/
 
+# Engine은 배포에 필요한 Cooked Asset을 추적하고 Source GLB는 로컬에서만 유지한다.
+KnotEngine/Content/Engine/**/*.glb
+
+# Game은 Source Asset을 추적하고 Import 결과인 Runtime Asset은 로컬에서 생성한다.
+KnotEngine/Content/Game/**/*.kasset
+
 # ignore generated engine files
 KnotEngine/Build/*
 !KnotEngine/Build/CMake/

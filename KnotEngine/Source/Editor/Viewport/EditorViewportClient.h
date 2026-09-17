@@ -17,7 +17,7 @@ class UWorld;
 class FEditorViewportClient : public IInputTarget
 {
 public:
-	static constexpr float CameraMoveSpeed = 10.0f;
+	static constexpr float CameraMoveSpeed = 100.0f;
 	static constexpr float DefaultCameraSensitivity = 1.0f;
 	static constexpr float MinCameraSensitivity = 0.1f;
 	static constexpr float MaxCameraSensitivity = 20.0f;

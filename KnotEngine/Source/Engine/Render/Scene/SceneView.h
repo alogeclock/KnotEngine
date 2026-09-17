@@ -37,7 +37,8 @@ struct FShowFlags
 
 struct FSceneRenderTarget
 {
-	FTextureHandle Color;
+	FTextureHandle SceneColor;   // Gamma Correction 이전 Linear Color를 저장하며, Post Process Pass가 SRV로 읽는 Target이다.
+	FTextureHandle DisplayColor; // Post Process 결과를 저장하며, Viewport Panel이 표시하는 최종 Target이다.
 	FTextureHandle Depth;
 	uint32 Width = 0;
 	uint32 Height = 0;

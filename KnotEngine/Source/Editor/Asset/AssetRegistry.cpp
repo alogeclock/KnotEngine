@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
+#include <fstream>
 #include <system_error>
 
 // 확장자를 제외한 Content 상대 경로를 논리 Asset 경로로 변환한다.
@@ -13,6 +15,19 @@ static FString MakeAssetPath(const std::filesystem::path& RelativeFilePath)
 	std::filesystem::path RelativeAssetPath = RelativeFilePath;
 	RelativeAssetPath.replace_extension();
 	return "/" + FPaths::ToUtf8(RelativeAssetPath.generic_wstring());
+}
+
+static EAssetType ReadAssetType(const std::filesystem::path& FilePath)
+{
+	FAssetFileHeader Header;
+	std::ifstream Stream(FilePath, std::ios::binary);
+	if (!Stream.read(reinterpret_cast<char*>(&Header), sizeof(Header)) ||
+		std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) != 0 ||
+		Header.ContainerVersion != FAssetFileHeader::CurrentVersion)
+	{
+		return EAssetType::Unknown;
+	}
+	return Header.AssetType;
 }
 
 // Content의 원본과 바이너리를 다시 찾아 Asset 목록과 경로 인덱스를 교체한다.
@@ -73,12 +88,15 @@ void FAssetRegistry::Scan()
 					if (Extension == ".glb")
 					{
 						Asset.SourceFilePath = Entry.path();
-						Asset.Type = EAssetType::StaticMesh;
+						if (!Asset.HasBinaryFile())
+						{
+							Asset.Type = EAssetType::Unknown;
+						}
 					}
 					else
 					{
 						Asset.BinaryFilePath = Entry.path();
-						Asset.Type = EAssetType::StaticMesh;
+						Asset.Type = ReadAssetType(Entry.path());
 					}
 				}
 			}

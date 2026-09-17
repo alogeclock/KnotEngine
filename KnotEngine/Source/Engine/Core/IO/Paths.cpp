@@ -37,75 +37,29 @@ FWString FPaths::RootDir()
 #if defined(KNOT_BUILD_SHIPPING)
 		Cached = ExeDir.generic_wstring() + L"/";
 #else
-		if (std::filesystem::exists(ExeDir / L"Content"))
+		bool bFound = false;
+		std::filesystem::path SearchDir = ExeDir;
+		while (true)
 		{
-			Cached = ExeDir.generic_wstring() + L"/";
+			if (std::filesystem::is_regular_file(SearchDir / L"Build" / L"CMake" / L"CMakeLists.txt"))
+			{
+				Cached = SearchDir.generic_wstring() + L"/";
+				bFound = true;
+				break;
+			}
+			const std::filesystem::path ParentDir = SearchDir.parent_path();
+			if (ParentDir.empty() || ParentDir == SearchDir)
+			{
+				break;
+			}
+			SearchDir = ParentDir;
 		}
-		else
+		if (!bFound)
 		{
-			bool bFound = false;
-			std::filesystem::path SearchDir = ExeDir;
-
-			while (SearchDir.has_parent_path())
-			{
-				SearchDir = SearchDir.parent_path();
-
-				if (std::filesystem::exists(SearchDir / L"Content"))
-				{
-					Cached = SearchDir.generic_wstring() + L"/";
-					bFound = true;
-					break;
-				}
-
-				if (SearchDir == SearchDir.root_path())
-				{
-					break;
-				}
-			}
-
-			if (!bFound)
-			{
-				Cached = std::filesystem::current_path().generic_wstring() + L"/";
-			}
+			Cached = std::filesystem::current_path().generic_wstring() + L"/";
 		}
 #endif
 	}
-	return Cached;
-}
-
-// Development, Debug 빌드 구성일 경우 루트의 Saved 디렉토리에 저장하고,
-// Shipping 빌드 구성일 경우 실행 파일 위치의 Saved 디렉토리에 저장한다.
-FWString FPaths::SavedDir()
-{
-	static FWString Cached;
-	if (!Cached.empty())
-	{
-		return Cached;
-	}
-
-#if defined(KNOT_BUILD_DEBUG) || defined(KNOT_BUILD_DEVELOPMENT)
-	std::filesystem::path SearchDir = std::filesystem::path(RootDir());
-	while (true)
-	{
-		const bool bIsProjectRoot =
-			std::filesystem::exists(SearchDir / L"Source") &&
-			std::filesystem::exists(SearchDir / L"Build" / L"CMake" / L"CMakeLists.txt");
-		if (bIsProjectRoot)
-		{
-			Cached = (SearchDir / L"Saved").generic_wstring() + L"/";
-			return Cached;
-		}
-
-		const std::filesystem::path ParentDir = SearchDir.parent_path();
-		if (ParentDir.empty() || ParentDir == SearchDir)
-		{
-			break;
-		}
-		SearchDir = ParentDir;
-	}
-#endif
-
-	Cached = RootDir() + L"Saved/";
 	return Cached;
 }
 

@@ -4,6 +4,7 @@
 #include "Render/RHI/RenderTypes.h"
 
 #include <array>
+#include <string_view>
 
 class IImGuiRenderBackend;
 class IRenderDevice;
@@ -20,12 +21,19 @@ public:
 	void Shutdown();
 
 private:
+	static constexpr uint32 ContentIconSize = 128;
+	static const uint32 DropHighlightColor;
+
 	enum class EItemType : uint8
 	{
 		None,
 		Asset,
 		Folder,
 	};
+
+	static bool ContainsText(std::string_view Text, std::string_view SearchText);
+	static bool DecodeIcon(const std::filesystem::path& FilePath, TArray<uint8>& Pixels);
+	static FString MakeTileLabel(const FString& Label, float Width);
 
 	void DrawFolderPane();
 	void DrawFolderTree(const FString& FolderPath);

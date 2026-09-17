@@ -16,17 +16,23 @@ public:
 	void Resize(uint32 Width, uint32 Height);
 	void Release();
 
-	FTextureHandle GetColorTarget() const { return ColorTarget; }
+	FTextureHandle GetSceneColorTarget() const { return SceneColorTarget; }
+	FTextureHandle GetDisplayColorTarget() const { return DisplayColorTarget; }
 	FTextureHandle GetDepthTarget() const { return DepthTarget; }
 	FRenderViewport GetRenderViewport() const;
+
 	uint32 GetWidth() const { return Width; }
 	uint32 GetHeight() const { return Height; }
-	bool IsValid() const { return ColorTarget.IsValid() && DepthTarget.IsValid(); }
+
+	bool IsValid() const { return SceneColorTarget.IsValid() && DisplayColorTarget.IsValid() && DepthTarget.IsValid(); }
 
 private:
 	IRenderDevice& RenderDevice;
-	FTextureHandle ColorTarget;
+
+	FTextureHandle SceneColorTarget; // Gamma Correction 이전 Linear Color를 저장하며, Post Process Pass가 SRV로 읽는 Target이다.
+	FTextureHandle DisplayColorTarget; // Post Process 결과를 저장하며, Viewport Panel이 표시하는 최종 Target이다.
 	FTextureHandle DepthTarget;
+
 	uint32 Width = 0;
 	uint32 Height = 0;
 };

@@ -7,19 +7,20 @@
 class FAssetBinaryLoader;
 class FReferenceCollector;
 
-// Material 계열 .kasset의 종류와 Payload 배열 크기를 저장하는 고정 크기 헤더다.
-struct FMaterialBinaryHeader
+// Material .kasset Payload의 Render State와 Parameter 배열 크기를 저장한다.
+struct FMaterialPayloadHeader
 {
-	inline static constexpr char MagicValue[4] = { 'K', 'M', 'A', 'T' };
 	inline static constexpr uint32 CurrentVersion = 1;
 
-	char Magic[4];
-	uint32 Version;
+	EMaterialBlendMode BlendMode;
+	EMaterialDepthMode DepthMode;
+	ECullMode CullMode;
+	uint8 Reserved = 0;
 	uint32 ScalarParameterCount;
 	uint32 VectorParameterCount;
 	uint32 TextureParameterCount;
 };
-static_assert(sizeof(FMaterialBinaryHeader) == 20);
+static_assert(sizeof(FMaterialPayloadHeader) == 16);
 
 // Shader와 Pipeline 정의 및 변경되지 않는 기본 Parameter를 소유하는 Material Asset이다.
 UCLASS()

@@ -39,14 +39,7 @@ uint32 FOverlayPass::AddPass(
 		PipelineStateDesc.BlendState.RenderTarget.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 		PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 		Parameters.GridPipeline = PipelineStateCache.GetOrCreate(PipelineStateDesc);
-		Parameters.GridConstants = {
-			5.0f,
-			10.0f,
-			0.0f,
-			0.0f,
-			FVector4(0.22f, 0.24f, 0.28f, 0.45f),
-			FVector4(0.38f, 0.41f, 0.46f, 0.65f),
-		};
+		Parameters.GridConstants = { 20.0f, 5.0f, 0.0f, 0.0f, FVector4(0.30f, 0.33f, 0.38f, 0.65f), FVector4(0.42f, 0.46f, 0.52f, 0.80f), };
 	}
 
 	if (ShowFlags.bAxis)

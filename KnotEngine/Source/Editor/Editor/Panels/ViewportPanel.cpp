@@ -240,7 +240,7 @@ void FViewportPanel::DrawViewport()
 	Viewport.Resize(Width, Height);
 	if (Viewport.IsValid())
 	{
-		const ImTextureID TextureId = RenderBackend.GetImGuiTextureID(Viewport.GetColorTarget());
+		const ImTextureID TextureId = RenderBackend.GetImGuiTextureID(Viewport.GetDisplayColorTarget());
 		ImGui::Image(ImTextureRef(TextureId), ImageSize);
 		const bool bImageHovered = ImGui::IsItemHovered();
 		const bool bViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);

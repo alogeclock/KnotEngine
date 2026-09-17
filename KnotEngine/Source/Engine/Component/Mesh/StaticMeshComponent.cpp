@@ -9,7 +9,7 @@
 UStaticMeshComponent::UStaticMeshComponent(const char* DefaultAssetPath)
 {
 	panicf(GAssetManager, "기본 Static Mesh를 설정하려면 Asset Manager가 먼저 생성되어야 한다.");
-	UStaticMesh* DefaultStaticMesh = GAssetManager->FindStaticMesh(DefaultAssetPath);
+	UStaticMesh* DefaultStaticMesh = GAssetManager->LoadStaticMesh(DefaultAssetPath);
 	panicf(DefaultStaticMesh, "기본 Static Mesh를 찾을 수 없다. AssetPath={}", DefaultAssetPath);
 	StaticMesh = DefaultStaticMesh;
 }

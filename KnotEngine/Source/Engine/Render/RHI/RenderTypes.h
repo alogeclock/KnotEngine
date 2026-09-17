@@ -338,10 +338,12 @@ struct ENGINE_API FRasterizerStateDesc
 {
 	EFillMode FillMode = EFillMode::Solid;
 	ECullMode CullMode = ECullMode::Back;
+
 	bool bFrontCounterClockwise = false;
 	int32 DepthBias = 0;
 	float DepthBiasClamp = 0.0f;
 	float SlopeScaledDepthBias = 0.0f;
+
 	bool bDepthClipEnabled = true;
 	bool bMultisampleEnabled = false;
 	bool bAntialiasedLineEnabled = false;

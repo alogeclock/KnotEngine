@@ -61,6 +61,14 @@ void URenderer::Create(void* NativeWindowHandle)
 	PipelineStateCache.Create();
 	SamplerStateCache.Create();
 
+	static constexpr uint8 WhitePixel[] = { 255, 255, 255, 255 };
+	FTextureDesc WhiteTextureDesc;
+	WhiteTextureDesc.Width = 1;
+	WhiteTextureDesc.Height = 1;
+	WhiteTextureDesc.bSRGB = true;
+	const FTextureSubresourceData WhiteTextureData = { WhitePixel, sizeof(WhitePixel), sizeof(WhitePixel) };
+	panicf(DefaultTexture.Initialize(RenderDevice, WhiteTextureDesc, std::span(&WhiteTextureData, 1)), "기본 White Texture 생성에 실패했다.");
+
 	static constexpr uint32 BoundsColor = PackRGBA(255, 196, 64);
 	const FGeometryVertex BoundsVertices[] = {
 		{ FVector(-1.0f, -1.0f, -1.0f), BoundsColor },
@@ -84,6 +92,7 @@ void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
 	DebugBoundsMesh.Release();
+	DefaultTexture.Release();
 	SamplerStateCache.Release();
 	PipelineStateCache.Release();
 	ShaderRegistry.Release();

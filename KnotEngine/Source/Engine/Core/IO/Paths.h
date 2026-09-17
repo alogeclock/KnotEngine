@@ -13,7 +13,7 @@ public:
 	static FWString RootDir();
 	static FWString ContentDir() { return RootDir() + L"Content/"; }
 	static FWString ShaderDir() { return ContentDir() + L"Engine/Shader/"; }
-	static FWString SavedDir();
+	static FWString SavedDir() { return RootDir() + L"Saved/"; }
 	static FWString ConfigDir() { return SavedDir() + L"Config/"; }
 	static FWString LogDir() { return SavedDir() + L"Logs/"; }
 

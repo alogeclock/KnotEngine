@@ -1,5 +1,6 @@
 #include "Editor/Panels/InspectorPanel.h"
 
+#include "Asset/AssetRegistry.h"
 #include "Asset/AssetManager.h"
 #include "Asset/Mesh/StaticMesh.h"
 #include "Component/Component.h"
@@ -819,22 +820,11 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	{
 		const FObjectProperty& ObjectProperty = static_cast<const FObjectProperty&>(Property);
 		UObject* ReferencedObject = ObjectProperty.GetObjectPtrOps()->GetObject(Value);
-		if (ObjectProperty.GetPropertyClass() == UStaticMesh::StaticClass())
+		if (ObjectProperty.GetPropertyClass()->IsChildOf(UStaticMesh::StaticClass()))
 		{
 			check(GAssetManager);
 			const UStaticMesh* CurrentMesh = static_cast<const UStaticMesh*>(ReferencedObject);
 			const char* Preview = CurrentMesh ? CurrentMesh->GetAssetPath().c_str() : "None";
-			TArray<UStaticMesh*> StaticMeshes;
-			StaticMeshes.reserve(GAssetManager->GetStaticMeshes().size());
-			for (const auto& Entry : GAssetManager->GetStaticMeshes())
-			{
-				if (UStaticMesh* StaticMesh = Entry.second.Get())
-				{
-					StaticMeshes.push_back(StaticMesh);
-				}
-			}
-			std::sort(StaticMeshes.begin(), StaticMeshes.end(), [](const UStaticMesh* Left, const UStaticMesh* Right)
-			          { return Left->GetAssetPath() < Right->GetAssetPath(); });
 
 			if (BeginPropertyRow(Label.c_str()))
 			{
@@ -845,13 +835,20 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 						ObjectProperty.GetObjectPtrOps()->SetObject(Value, nullptr);
 						bChanged = true;
 					}
-					for (UStaticMesh* StaticMesh : StaticMeshes)
+					for (const FAssetData& Asset : AssetRegistry.GetAssets())
 					{
-						const bool bSelected = CurrentMesh == StaticMesh;
-						if (ImGui::Selectable(StaticMesh->GetAssetPath().c_str(), bSelected))
+						if (Asset.Type != EAssetType::StaticMesh || !Asset.HasBinaryFile())
 						{
-							ObjectProperty.GetObjectPtrOps()->SetObject(Value, StaticMesh);
-							bChanged = true;
+							continue;
+						}
+						const bool bSelected = CurrentMesh && CurrentMesh->GetAssetPath() == Asset.AssetPath;
+						if (ImGui::Selectable(Asset.AssetPath.c_str(), bSelected))
+						{
+							if (UStaticMesh* StaticMesh = GAssetManager->LoadStaticMesh(Asset.AssetPath))
+							{
+								ObjectProperty.GetObjectPtrOps()->SetObject(Value, StaticMesh);
+								bChanged = true;
+							}
 						}
 					}
 					ImGui::EndCombo();

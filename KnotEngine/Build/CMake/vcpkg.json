@@ -11,6 +11,8 @@
         "docking-experimental"
       ]
     },
-    "nlohmann-json"
+    "nlohmann-json",
+    "cgltf",
+    "directxtex"
   ]
 }
