@@ -11,8 +11,9 @@
 #include <algorithm>
 
 UEditorEngine::UEditorEngine(FWindowsApplication& Application)
-	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext, &ShaderCompiler),
-	  ImGuiRenderBackend(RenderDevice), ImGuiSystem(Application, *this, AssetRegistry, RenderDevice, ImGuiRenderBackend, InputRouter)
+	: RenderBackend(CreateRenderBackend()),
+	  Renderer(RenderBackend->GetRenderDevice(), RenderBackend->GetRenderContext(), RenderBackend->GetShaderFormat()),
+	  ImGuiSystem(Application, *this, AssetRegistry, RenderBackend->GetRenderDevice(), RenderBackend->GetImGuiRenderBackend(), InputRouter)
 {
 }
 

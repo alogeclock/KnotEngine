@@ -1,4 +1,4 @@
-#include "Render/D3D11/D3D11ShaderCompiler.h"
+#include "Render/D3D11/D3D11ShaderFormat.h"
 
 #include "Core/Assert.h"
 #include "Render/D3DCommon.h"
@@ -11,8 +11,10 @@
 
 #pragma comment(lib, "d3dcompiler.lib")
 
-FCompiledShaderData FD3D11ShaderCompiler::Compile(const FShaderKey& Key, std::span<const uint8> Source)
+FShaderCompilerOutput FD3D11ShaderFormat::Compile(const FShaderCompilerInput& Input)
 {
+	const FShaderKey& Key = Input.Key;
+	const std::span<const uint8> Source = Input.Source;
 	panicf(!Source.empty() && !Key.SourcePath.empty() && !Key.EntryPoint.empty(), "Shader 컴파일 정보가 비어 있다.");
 	UINT CompileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined(KNOT_BUILD_DEBUG)
@@ -30,14 +32,14 @@ FCompiledShaderData FD3D11ShaderCompiler::Compile(const FShaderKey& Key, std::sp
 	panicf(SUCCEEDED(Result) && Bytecode, "Shader 컴파일 실패. Path={}, EntryPoint={}, HRESULT=0x{:08X}\n{}",
 		Key.SourcePath, Key.EntryPoint, static_cast<uint32>(Result), GetShaderError(ErrorBlob.Get()));
 
-	FCompiledShaderData Data;
-	Data.Bytecode.resize(Bytecode->GetBufferSize());
-	std::memcpy(Data.Bytecode.data(), Bytecode->GetBufferPointer(), Bytecode->GetBufferSize());
-	Data.Reflection = ReflectShader(*Bytecode.Get(), Key.Stage);
-	return Data;
+	FShaderCompilerOutput Output;
+	Output.Bytecode.resize(Bytecode->GetBufferSize());
+	std::memcpy(Output.Bytecode.data(), Bytecode->GetBufferPointer(), Bytecode->GetBufferSize());
+	Output.Reflection = ReflectShader(*Bytecode.Get(), Key.Stage);
+	return Output;
 }
 
-FShaderReflection FD3D11ShaderCompiler::ReflectShader(ID3D10Blob& Bytecode, EShaderStage Stage)
+FShaderReflection FD3D11ShaderFormat::ReflectShader(ID3D10Blob& Bytecode, EShaderStage Stage)
 {
 	Microsoft::WRL::ComPtr<ID3D11ShaderReflection> NativeReflection;
 	const HRESULT ReflectResult = D3DReflect(Bytecode.GetBufferPointer(), Bytecode.GetBufferSize(), __uuidof(ID3D11ShaderReflection),

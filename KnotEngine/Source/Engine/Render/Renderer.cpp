@@ -7,10 +7,11 @@
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Mesh/Vertex.h"
 
-URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderCompiler* InShaderCompiler)
+URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
 	: RenderDevice(InRenderDevice),
 	  RenderContext(InRenderContext),
-	  ShaderRegistry(InRenderDevice, InShaderCompiler),
+	  ShaderCompiler(InShaderFormat),
+	  ShaderRegistry(InRenderDevice, ShaderCompiler),
 	  PipelineStateCache(InRenderDevice),
 	  SamplerStateCache(InRenderDevice)
 {

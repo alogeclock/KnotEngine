@@ -45,6 +45,7 @@ private:
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
 	FEditorSelection Selection;
+
 	ImFont* MediumFont = nullptr;
 	ImFont* SemiBoldFont = nullptr;
 

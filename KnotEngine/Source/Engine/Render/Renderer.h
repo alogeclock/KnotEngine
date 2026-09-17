@@ -6,17 +6,18 @@
 #include "Render/Mesh/Mesh.h"
 #include "Render/State/PipelineStateCache.h"
 #include "Render/State/SamplerStateCache.h"
+#include "Render/Shader/ShaderCompiler.h"
 #include "Render/Shader/ShaderRegistry.h"
 
 class FRenderGraph;
 class IRenderContext;
 class IRenderDevice;
-class IShaderCompiler;
+class IShaderFormat;
 
 class ENGINE_API URenderer
 {
 public:
-	URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderCompiler* InShaderCompiler = nullptr);
+	URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat);
 	~URenderer();
 
 	URenderer(const URenderer&) = delete;
@@ -49,6 +50,7 @@ private:
 	IRenderDevice& RenderDevice;
 	IRenderContext& RenderContext;
 
+	FShaderCompiler ShaderCompiler;
 	FShaderRegistry ShaderRegistry;
 	FPipelineStateCache PipelineStateCache;
 	FSamplerStateCache SamplerStateCache;
