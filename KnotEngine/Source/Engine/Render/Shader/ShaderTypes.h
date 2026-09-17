@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Core/Archive.h"
 #include "Render/RHI/RenderTypes.h"
 
 #include <span>
@@ -16,6 +17,15 @@ struct ENGINE_API FShaderKey
 
 	bool operator==(const FShaderKey&) const = default;
 };
+
+inline FArchive& operator<<(FArchive& Ar, FShaderKey& Key)
+{
+	Ar << Key.SourcePath;
+	Ar << Key.EntryPoint;
+	Ar << Key.Stage;
+	Ar << Key.PermutationId;
+	return Ar;
+}
 
 // 플랫폼 Shader Format에 전달할 소스와 Shader Variant 정보다. Source는 동기 Compile 호출 동안만 유효하다.
 struct ENGINE_API FShaderCompilerInput

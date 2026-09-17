@@ -5,6 +5,14 @@
 
 #include <filesystem>
 
+struct FVector;
+struct FSamplerDesc;
+struct FStaticMeshVertex;
+struct cgltf_accessor;
+struct cgltf_data;
+struct cgltf_primitive;
+struct cgltf_sampler;
+
 // 한 번의 Import로 생성된 개별 Runtime Asset의 논리 경로와 종류다.
 struct FImportedAsset
 {
@@ -30,4 +38,25 @@ public:
 
 	// Content 아래의 모든 GLB를 탐색하여 변경된 Source Asset을 Import한다.
 	bool ImportAllGLB() const;
+
+private:
+	struct FGLTFGuard
+	{
+		~FGLTFGuard();
+		cgltf_data* Data = nullptr;
+	};
+
+	static FString SanitizeName(const char* Name, const FString& Fallback);
+	static FString CombineAssetPath(const FString& Left, const FString& Right);
+	static FVector ConvertPosition(const float Value[3]);
+	static FVector ConvertDirection(const float Value[3]);
+	static FVector Cross(const FVector& Left, const FVector& Right);
+	static float Dot(const FVector& Left, const FVector& Right);
+	static const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, int Type, int Index = 0);
+	static FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler);
+
+	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes);
+	static bool IsAssetCurrent(const FString& AssetPath, const std::filesystem::file_time_type& SourceTimestamp, EAssetType ExpectedType, uint32 ExpectedPayloadVersion);
+	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
+	static void FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);
 };

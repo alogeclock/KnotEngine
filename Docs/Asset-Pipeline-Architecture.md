@@ -57,6 +57,79 @@ Content
 
 `.glb`와 `.kasset`은 목적이 다르다. `.glb`는 교환과 재Import를 위한 Source이며, `.kasset`은 빠른 로드와 Runtime 검증을 위한 엔진 전용 Binary다.
 
+## `.kasset` 직렬화 계층
+
+`.kasset`의 Binary 입출력은 `FArchive` 계층으로 통일한다. Importer와 Loader가 각자 Byte Reader 또는 Writer를 구현하지 않고, Asset과 값 타입이 하나의 `operator<<`에서 저장 및 로드 순서를 공유한다.
+
+```text
+Editor Import
+└─ Asset별 CPU Payload 구성
+   └─ FMemoryWriter
+      └─ TArray<uint8>
+         └─ FAssetFileHeader + Asset Payload
+
+Runtime Load
+└─ .kasset 전체 Byte 로드
+   └─ FMemoryReader
+      ├─ Container Header 검증
+      ├─ Asset Payload 역직렬화와 검증
+      └─ UObject Asset 생성
+```
+
+### FArchive
+
+`FArchive`는 저장 형식과 실제 저장 매체를 분리하는 공통 직렬화 Interface다.
+
+- `Serialize()`는 연속된 Byte를 읽거나 쓴다.
+- `IsLoading()`과 `IsSaving()`은 Archive의 방향을 나타낸다.
+- `CanSerialize()`는 요청한 크기를 안전하게 처리할 수 있는지 확인한다.
+- `HasError()`와 `SetError()`는 중간에 발생한 실패를 이후 단계까지 유지한다.
+- 기본형, Enum과 단순 값 타입은 `operator<<`를 통해 직렬화한다.
+- 복합 타입은 필드별 `operator<<`를 정의해 Padding과 구조체 Memory Layout에 파일 형식이 종속되지 않도록 한다.
+
+`FString`은 최대 65,535 Byte로 제한한다. Loading 시에는 문자열 길이와 남은 Byte를 먼저 확인한 뒤 Memory를 할당하며, 실패한 문자열로 `FName`을 생성하지 않는다.
+
+### FMemoryWriter와 FMemoryReader
+
+`FMemoryWriter`는 호출자가 제공한 `TArray<uint8>`의 끝에 데이터를 추가한다. 음수 크기, null Source와 배열 최대 크기를 넘는 쓰기는 Archive Error로 처리한다. 생성 시 배열을 자동으로 비우지 않으므로 새 Payload를 만들 때는 호출자가 빈 배열을 전달한다.
+
+`FMemoryReader`는 소유하지 않는 `std::span<const uint8>`를 순차적으로 읽는다. 원본 Byte 배열은 Reader보다 오래 살아 있어야 한다. 범위를 벗어난 읽기에서는 Offset과 Destination을 변경하지 않고 Archive Error를 설정한다.
+
+Archive는 Byte 이동과 공통 오류 상태만 담당한다. Asset별 Count 제한, Enum 유효성, 참조 관계와 Index 범위는 데이터 의미를 아는 `FAssetBinaryLoader`가 검증한다.
+
+### Asset Container와 Payload
+
+모든 `.kasset`은 공통 `FAssetFileHeader` 뒤에 Asset별 Payload를 저장한다.
+
+```text
+FAssetFileHeader
+├─ Magic
+├─ ContainerVersion
+├─ AssetType
+├─ PayloadVersion
+└─ PayloadSize
+
+Asset Payload
+```
+
+`ContainerVersion`은 공통 Container 구조의 변경을, `PayloadVersion`은 특정 Asset 형식의 변경을 나타낸다. Loader는 기대한 Asset Type과 Version을 확인하고, 선언된 Payload 크기가 실제 파일 크기와 정확히 일치하는지 검증한다. 이전 형식의 호환 Loader는 두지 않으며 형식이 변경되면 `.kasset`을 다시 생성한다.
+
+Texture, Material과 Static Mesh의 Payload Header 및 `FShaderKey`도 같은 Archive 연산자를 사용한다. UObject Pointer와 GPU Handle은 저장하지 않으며 Asset 사이의 관계는 논리적인 Asset Path로 기록하고 로드 후 `FAssetManager`를 통해 해결한다.
+
+### 로드 안전성
+
+외부 파일의 값은 Memory 할당이나 UObject 생성 전에 검증한다.
+
+- 문자열과 배열의 Count 및 Byte 크기
+- Count와 Element Size 곱의 Overflow
+- Texture Format, Color Space와 Material Enum 값
+- Static Mesh의 Vertex, Index, Section과 Material Slot 범위
+- Payload를 모두 읽은 뒤 남은 Byte가 없는지 여부
+
+손상되거나 잘린 `.kasset`은 Crash나 부분 Asset 생성으로 이어지지 않아야 한다. `FMemoryReader`가 오류를 기록하면 `FAssetBinaryLoader`는 로드를 중단하며, 완전히 검증된 CPU 데이터만 UObject와 GPU Resource 생성 단계로 전달한다.
+
+새로운 Asset 형식을 추가할 때는 Asset별 Payload 구조체와 명시적인 Archive 연산자를 먼저 정의한다. Asset 종류가 충분히 늘어 타입별 Dispatch가 반복되기 전까지는 Serializer Factory나 Registry 같은 추가 추상화는 도입하지 않는다.
+
 ## FAssetImporter
 
 `FAssetImporter`는 Editor 전용 진입점이다.
@@ -261,3 +334,5 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 - [AssetRegistry.h](../KnotEngine/Source/Editor/Asset/AssetRegistry.h)
 - [AssetManager.h](../KnotEngine/Source/Engine/Asset/AssetManager.h)
 - [AssetBinaryLoader.h](../KnotEngine/Source/Engine/Asset/AssetBinaryLoader.h)
+- [Archive.h](../KnotEngine/Source/Engine/Core/Archive.h)
+- [MemoryArchive.h](../KnotEngine/Source/Engine/Core/MemoryArchive.h)

@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Core/Archive.h"
 #include "Object/Object.h"
 #include "Render/RHI/RenderTypes.h"
 
@@ -28,6 +29,17 @@ struct FTexture2DPayloadHeader
 };
 static_assert(sizeof(FTexture2DPayloadHeader) == 16);
 
+inline FArchive& operator<<(FArchive& Ar, FTexture2DPayloadHeader& Header)
+{
+	Ar << Header.Width;
+	Ar << Header.Height;
+	Ar << Header.MipCount;
+	Ar << Header.Format;
+	Ar << Header.ColorSpace;
+	Ar.Serialize(Header.Reserved, sizeof(Header.Reserved));
+	return Ar;
+}
+
 // Texture2D의 각 Mip Payload 앞에 저장되는 데이터 크기와 행 간격이다.
 struct FTextureMipPayloadHeader
 {
@@ -36,6 +48,14 @@ struct FTextureMipPayloadHeader
 	uint32 SlicePitch;
 };
 static_assert(sizeof(FTextureMipPayloadHeader) == 12);
+
+inline FArchive& operator<<(FArchive& Ar, FTextureMipPayloadHeader& Header)
+{
+	Ar << Header.DataSize;
+	Ar << Header.RowPitch;
+	Ar << Header.SlicePitch;
+	return Ar;
+}
 
 // Texture Asset의 공통 경로와 이미지 메타데이터를 소유하는 UObject 기반 클래스다.
 UCLASS()

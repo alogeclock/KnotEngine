@@ -2,6 +2,7 @@
 
 #include "Asset/Material/MaterialInterface.h"
 #include "Asset/Material/MaterialParameters.h"
+#include "Core/Archive.h"
 #include "Render/Resource/Material/Material.h"
 
 class FAssetBinaryLoader;
@@ -15,12 +16,26 @@ struct FMaterialPayloadHeader
 	EMaterialBlendMode BlendMode;
 	EMaterialDepthMode DepthMode;
 	ECullMode CullMode;
+
 	uint8 Reserved = 0;
+
 	uint32 ScalarParameterCount;
 	uint32 VectorParameterCount;
 	uint32 TextureParameterCount;
 };
 static_assert(sizeof(FMaterialPayloadHeader) == 16);
+
+inline FArchive& operator<<(FArchive& Ar, FMaterialPayloadHeader& Header)
+{
+	Ar << Header.BlendMode;
+	Ar << Header.DepthMode;
+	Ar << Header.CullMode;
+	Ar << Header.Reserved;
+	Ar << Header.ScalarParameterCount;
+	Ar << Header.VectorParameterCount;
+	Ar << Header.TextureParameterCount;
+	return Ar;
+}
 
 // Shader와 Pipeline 정의 및 변경되지 않는 기본 Parameter를 소유하는 Material Asset이다.
 UCLASS()

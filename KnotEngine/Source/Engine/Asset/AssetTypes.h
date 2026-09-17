@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Core/Archive.h"
 #include "Core/CoreTypes.h"
 
 // .kasset Payload가 표현하는 Runtime Asset의 종류다.
@@ -26,3 +27,13 @@ struct ENGINE_API FAssetFileHeader
 	uint64 PayloadSize;
 };
 static_assert(sizeof(FAssetFileHeader) == 24);
+
+inline FArchive& operator<<(FArchive& Ar, FAssetFileHeader& Header)
+{
+	Ar.Serialize(Header.Magic, sizeof(Header.Magic));
+	Ar << Header.ContainerVersion;
+	Ar << Header.AssetType;
+	Ar << Header.PayloadVersion;
+	Ar << Header.PayloadSize;
+	return Ar;
+}

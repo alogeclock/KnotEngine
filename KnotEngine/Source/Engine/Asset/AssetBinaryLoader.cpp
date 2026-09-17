@@ -6,61 +6,14 @@
 #include "Asset/Mesh/StaticMesh.h"
 #include "Asset/Texture/Texture2D.h"
 #include "Core/IO/Paths.h"
+#include "Core/MemoryArchive.h"
 
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
-#include <type_traits>
 
-namespace
-{
-class FAssetReader
-{
-public:
-	explicit FAssetReader(TArray<uint8> InBytes)
-		: Bytes(std::move(InBytes))
-	{
-	}
-
-	template <typename T>
-	bool Read(T& Value)
-	{
-		static_assert(std::is_trivially_copyable_v<T>);
-		return ReadBytes(&Value, sizeof(T));
-	}
-
-	bool ReadBytes(void* Destination, SIZE_T Size)
-	{
-		if (Offset > Bytes.size() || Size > Bytes.size() - Offset)
-		{
-			return false;
-		}
-		std::memcpy(Destination, Bytes.data() + Offset, Size);
-		Offset += Size;
-		return true;
-	}
-
-	bool ReadString(FString& Value)
-	{
-		uint32 Length = 0;
-		if (!Read(Length) || Length > 65535 || Length > Remaining())
-		{
-			return false;
-		}
-		Value.resize(Length);
-		return Length == 0 || ReadBytes(Value.data(), Length);
-	}
-
-	SIZE_T Remaining() const { return Bytes.size() - Offset; }
-	bool IsAtEnd() const { return Offset == Bytes.size(); }
-
-private:
-	TArray<uint8> Bytes;
-	SIZE_T Offset = 0;
-};
-
-TArray<uint8> LoadAssetFile(const FString& AssetPath)
+TArray<uint8> FAssetBinaryLoader::LoadAssetFile(const FString& AssetPath)
 {
 	if (AssetPath.size() < 2 || AssetPath.front() != '/' || AssetPath.find("..") != FString::npos)
 	{
@@ -82,31 +35,29 @@ TArray<uint8> LoadAssetFile(const FString& AssetPath)
 	return Stream.read(reinterpret_cast<char*>(Bytes.data()), FileSize) ? std::move(Bytes) : TArray<uint8>{};
 }
 
-bool ReadAssetHeader(FAssetReader& Reader, EAssetType ExpectedType, uint32 ExpectedPayloadVersion)
+bool FAssetBinaryLoader::ReadAssetHeader(FMemoryReader& Reader, SIZE_T FileSize, EAssetType ExpectedType, uint32 ExpectedPayloadVersion)
 {
-	FAssetFileHeader Header;
-	return Reader.Read(Header) && std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) == 0 &&
+	FAssetFileHeader Header = {};
+	Reader << Header;
+	return !Reader.HasError() && std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) == 0 &&
 		Header.ContainerVersion == FAssetFileHeader::CurrentVersion && Header.AssetType == ExpectedType &&
-		Header.PayloadVersion == ExpectedPayloadVersion && Header.PayloadSize == Reader.Remaining();
+		Header.PayloadVersion == ExpectedPayloadVersion && FileSize >= sizeof(FAssetFileHeader) &&
+		Header.PayloadSize == FileSize - sizeof(FAssetFileHeader);
 }
-
-bool ReadShaderKey(FAssetReader& Reader, FShaderKey& Key)
-{
-	return Reader.ReadString(Key.SourcePath) && Reader.ReadString(Key.EntryPoint) && Reader.Read(Key.Stage) && Reader.Read(Key.PermutationId);
-}
-} // namespace
 
 // Texture2D Payload의 Mip과 Color Space 정보를 역직렬화한다.
 UTexture2D* FAssetBinaryLoader::LoadTexture2D(const FString& AssetPath) const
 {
-	FAssetReader Reader(LoadAssetFile(AssetPath));
-	if (!ReadAssetHeader(Reader, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion))
+	const TArray<uint8> FileBytes = LoadAssetFile(AssetPath);
+	FMemoryReader Reader(FileBytes);
+	if (!ReadAssetHeader(Reader, FileBytes.size(), EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion))
 	{
 		return nullptr;
 	}
-	FTexture2DPayloadHeader Header;
-	if (!Reader.Read(Header) || Header.Width == 0 || Header.Height == 0 || Header.MipCount == 0 || Header.MipCount > 32 ||
-		Header.Format == ETextureFormat::D24UNormS8UInt || Header.ColorSpace > ETextureColorSpace::SRGB)
+	FTexture2DPayloadHeader Header = {};
+	Reader << Header;
+	if (Reader.HasError() || Header.Width == 0 || Header.Height == 0 || Header.MipCount == 0 || Header.MipCount > 32 ||
+		Header.Format > ETextureFormat::BC7UNorm || Header.ColorSpace > ETextureColorSpace::SRGB)
 	{
 		return nullptr;
 	}
@@ -115,22 +66,24 @@ UTexture2D* FAssetBinaryLoader::LoadTexture2D(const FString& AssetPath) const
 	Mips.reserve(Header.MipCount);
 	for (uint32 MipIndex = 0; MipIndex < Header.MipCount; ++MipIndex)
 	{
-		FTextureMipPayloadHeader MipHeader;
-		if (!Reader.Read(MipHeader) || MipHeader.DataSize == 0 || MipHeader.RowPitch == 0 || MipHeader.SlicePitch != MipHeader.DataSize ||
-			MipHeader.DataSize > Reader.Remaining())
+		FTextureMipPayloadHeader MipHeader = {};
+		Reader << MipHeader;
+		if (Reader.HasError() || MipHeader.DataSize == 0 || MipHeader.RowPitch == 0 || MipHeader.SlicePitch != MipHeader.DataSize ||
+			!Reader.CanSerialize(MipHeader.DataSize))
 		{
 			return nullptr;
 		}
 		FTextureMipData Mip;
 		Mip.Bytes.resize(MipHeader.DataSize);
 		Mip.RowPitch = MipHeader.RowPitch;
-		if (!Reader.ReadBytes(Mip.Bytes.data(), Mip.Bytes.size()))
+		Reader.Serialize(Mip.Bytes.data(), static_cast<int64>(Mip.Bytes.size()));
+		if (Reader.HasError())
 		{
 			return nullptr;
 		}
 		Mips.push_back(std::move(Mip));
 	}
-	if (!Reader.IsAtEnd())
+	if (Reader.HasError() || Reader.CanSerialize(1))
 	{
 		return nullptr;
 	}
@@ -147,15 +100,19 @@ UTexture2D* FAssetBinaryLoader::LoadTexture2D(const FString& AssetPath) const
 // Material Payload를 역직렬화하고 참조 Texture를 Asset Manager에서 해결한다.
 UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetManager& AssetManager) const
 {
-	FAssetReader Reader(LoadAssetFile(AssetPath));
-	if (!ReadAssetHeader(Reader, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion))
+	const TArray<uint8> FileBytes = LoadAssetFile(AssetPath);
+	FMemoryReader Reader(FileBytes);
+	if (!ReadAssetHeader(Reader, FileBytes.size(), EAssetType::Material, FMaterialPayloadHeader::CurrentVersion))
 	{
 		return nullptr;
 	}
-	FMaterialPayloadHeader Header;
+	FMaterialPayloadHeader Header = {};
 	FShaderKey VertexShader;
 	FShaderKey PixelShader;
-	if (!Reader.Read(Header) || !ReadShaderKey(Reader, VertexShader) || !ReadShaderKey(Reader, PixelShader) ||
+	Reader << Header;
+	Reader << VertexShader;
+	Reader << PixelShader;
+	if (Reader.HasError() ||
 		Header.BlendMode > EMaterialBlendMode::Translucent || Header.DepthMode > EMaterialDepthMode::Disabled || Header.CullMode > ECullMode::None ||
 		Header.ScalarParameterCount > 65535 || Header.VectorParameterCount > 65535 || Header.TextureParameterCount > 65535)
 	{
@@ -172,7 +129,9 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 	{
 		FString Name;
 		float Value = 0.0f;
-		if (!Reader.ReadString(Name) || Name.empty() || !Reader.Read(Value))
+		Reader << Name;
+		Reader << Value;
+		if (Reader.HasError() || Name.empty())
 		{
 			return nullptr;
 		}
@@ -182,7 +141,9 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 	{
 		FString Name;
 		FVector4 Value;
-		if (!Reader.ReadString(Name) || Name.empty() || !Reader.Read(Value))
+		Reader << Name;
+		Reader << Value;
+		if (Reader.HasError() || Name.empty())
 		{
 			return nullptr;
 		}
@@ -193,7 +154,12 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 		FString Name;
 		FString TexturePath;
 		FSamplerDesc Sampler;
-		if (!Reader.ReadString(Name) || Name.empty() || !Reader.ReadString(TexturePath) || TexturePath.empty() || !Reader.Read(Sampler))
+		Reader << Name;
+		Reader << TexturePath;
+		Reader << Sampler;
+		if (Reader.HasError() || Name.empty() || TexturePath.empty() || Sampler.Filter > ESamplerFilter::Anisotropic ||
+			Sampler.AddressU > ESamplerAddressMode::Border || Sampler.AddressV > ESamplerAddressMode::Border ||
+			Sampler.AddressW > ESamplerAddressMode::Border)
 		{
 			return nullptr;
 		}
@@ -204,7 +170,7 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 		}
 		Textures.push_back({ FName(Name), Texture, Sampler });
 	}
-	if (!Reader.IsAtEnd())
+	if (Reader.HasError() || Reader.CanSerialize(1))
 	{
 		return nullptr;
 	}
@@ -226,13 +192,15 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 // Static Mesh Payload를 역직렬화하고 참조 Material을 Asset Manager에서 해결한다.
 UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FString& AssetPath, FAssetManager& AssetManager) const
 {
-	FAssetReader Reader(LoadAssetFile(AssetPath));
-	if (!ReadAssetHeader(Reader, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion))
+	const TArray<uint8> FileBytes = LoadAssetFile(AssetPath);
+	FMemoryReader Reader(FileBytes);
+	if (!ReadAssetHeader(Reader, FileBytes.size(), EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion))
 	{
 		return nullptr;
 	}
-	FStaticMeshPayloadHeader Header;
-	if (!Reader.Read(Header) || Header.VertexStride != sizeof(FStaticMeshVertex) || Header.LODCount == 0 ||
+	FStaticMeshPayloadHeader Header = {};
+	Reader << Header;
+	if (Reader.HasError() || Header.VertexStride != sizeof(FStaticMeshVertex) || Header.LODCount == 0 ||
 		Header.LODCount > FStaticMeshPayloadHeader::MaxLODCount || Header.MaterialCount > 65535)
 	{
 		return nullptr;
@@ -244,7 +212,9 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FString& AssetPath, FAsset
 	{
 		FString SlotName;
 		FString MaterialPath;
-		if (!Reader.ReadString(SlotName) || SlotName.empty() || !Reader.ReadString(MaterialPath))
+		Reader << SlotName;
+		Reader << MaterialPath;
+		if (Reader.HasError() || SlotName.empty())
 		{
 			return nullptr;
 		}
@@ -259,28 +229,37 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FString& AssetPath, FAsset
 	FStaticMesh RenderData;
 	for (uint32 LODIndex = 0; LODIndex < Header.LODCount; ++LODIndex)
 	{
-		FStaticMeshLODPayloadHeader LODHeader;
-		if (!Reader.Read(LODHeader) || LODHeader.VertexCount == 0 || LODHeader.SectionCount == 0 ||
-			LODHeader.VertexCount > Reader.Remaining() / sizeof(FStaticMeshVertex))
+		FStaticMeshLODPayloadHeader LODHeader = {};
+		Reader << LODHeader;
+		if (Reader.HasError() || LODHeader.VertexCount == 0 || LODHeader.SectionCount == 0 ||
+			!Reader.CanSerialize(static_cast<int64>(LODHeader.VertexCount) * sizeof(FStaticMeshVertex)))
 		{
 			return nullptr;
 		}
 		TArray<FStaticMeshVertex> Vertices(LODHeader.VertexCount);
-		if (!Reader.ReadBytes(Vertices.data(), Vertices.size() * sizeof(FStaticMeshVertex)) ||
-			LODHeader.IndexCount > Reader.Remaining() / sizeof(uint32))
+		Reader.Serialize(Vertices.data(), static_cast<int64>(Vertices.size() * sizeof(FStaticMeshVertex)));
+		if (Reader.HasError() || !Reader.CanSerialize(static_cast<int64>(LODHeader.IndexCount) * sizeof(uint32)))
 		{
 			return nullptr;
 		}
 		TArray<uint32> Indices(LODHeader.IndexCount);
-		if ((!Indices.empty() && !Reader.ReadBytes(Indices.data(), Indices.size() * sizeof(uint32))) ||
-			LODHeader.SectionCount > Reader.Remaining() / sizeof(FStaticMeshSection))
+		Reader.Serialize(Indices.data(), static_cast<int64>(Indices.size() * sizeof(uint32)));
+		if (Reader.HasError() || !Reader.CanSerialize(static_cast<int64>(LODHeader.SectionCount) * sizeof(FStaticMeshSection)))
 		{
 			return nullptr;
 		}
 		TArray<FStaticMeshSection> Sections(LODHeader.SectionCount);
-		if (!Reader.ReadBytes(Sections.data(), Sections.size() * sizeof(FStaticMeshSection)))
+		Reader.Serialize(Sections.data(), static_cast<int64>(Sections.size() * sizeof(FStaticMeshSection)));
+		if (Reader.HasError())
 		{
 			return nullptr;
+		}
+		for (uint32 Index : Indices)
+		{
+			if (Index >= Vertices.size())
+			{
+				return nullptr;
+			}
 		}
 		for (const FStaticMeshSection& Section : Sections)
 		{
@@ -294,7 +273,7 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FString& AssetPath, FAsset
 			return nullptr;
 		}
 	}
-	if (!Reader.IsAtEnd())
+	if (Reader.HasError() || Reader.CanSerialize(1))
 	{
 		return nullptr;
 	}

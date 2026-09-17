@@ -5,6 +5,7 @@
 #include "Asset/Texture/Texture.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
+#include "Core/MemoryArchive.h"
 
 #include <DirectXTex.h>
 #define CGLTF_IMPLEMENTATION
@@ -14,51 +15,13 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <limits>
-#include <type_traits>
 
-namespace
+FAssetImporter::FGLTFGuard::~FGLTFGuard()
 {
-class FByteWriter
-{
-public:
-	template <typename T>
-	void Write(const T& Value)
-	{
-		static_assert(std::is_trivially_copyable_v<T>);
-		WriteBytes(&Value, sizeof(T));
-	}
+	cgltf_free(Data);
+}
 
-	void WriteBytes(const void* Data, SIZE_T Size)
-	{
-		const SIZE_T Offset = Bytes.size();
-		Bytes.resize(Offset + Size);
-		if (Size > 0)
-		{
-			std::memcpy(Bytes.data() + Offset, Data, Size);
-		}
-	}
-
-	void WriteString(const FString& Value)
-	{
-		const uint32 Length = static_cast<uint32>(Value.size());
-		Write(Length);
-		WriteBytes(Value.data(), Value.size());
-	}
-
-	const TArray<uint8>& GetBytes() const { return Bytes; }
-
-private:
-	TArray<uint8> Bytes;
-};
-
-struct FGLTFGuard
-{
-	~FGLTFGuard() { cgltf_free(Data); }
-	cgltf_data* Data = nullptr;
-};
-
-FString SanitizeName(const char* Name, const FString& Fallback)
+FString FAssetImporter::SanitizeName(const char* Name, const FString& Fallback)
 {
 	FString Result = Name && *Name ? Name : Fallback;
 	for (char& Character : Result)
@@ -72,12 +35,12 @@ FString SanitizeName(const char* Name, const FString& Fallback)
 	return Result;
 }
 
-FString CombineAssetPath(const FString& Left, const FString& Right)
+FString FAssetImporter::CombineAssetPath(const FString& Left, const FString& Right)
 {
 	return Left.ends_with('/') ? Left + Right : Left + "/" + Right;
 }
 
-bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const FByteWriter& Payload)
+bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes)
 {
 	const std::filesystem::path FinalPath = FPaths::ResolveContentPath(AssetPath + ".kasset");
 	const std::filesystem::path TemporaryPath = FinalPath.wstring() + L".tmp";
@@ -93,10 +56,17 @@ bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion,
 	Header.ContainerVersion = FAssetFileHeader::CurrentVersion;
 	Header.AssetType = Type;
 	Header.PayloadVersion = PayloadVersion;
-	Header.PayloadSize = Payload.GetBytes().size();
+	Header.PayloadSize = PayloadBytes.size();
+	TArray<uint8> FileBytes;
+	FMemoryWriter FileArchive(FileBytes);
+	FileArchive << Header;
+	FileArchive.Serialize(const_cast<uint8*>(PayloadBytes.data()), static_cast<int64>(PayloadBytes.size()));
+	if (FileArchive.HasError())
+	{
+		return false;
+	}
 	std::ofstream Stream(TemporaryPath, std::ios::binary | std::ios::trunc);
-	if (!Stream || !Stream.write(reinterpret_cast<const char*>(&Header), sizeof(Header)) ||
-		(!Payload.GetBytes().empty() && !Stream.write(reinterpret_cast<const char*>(Payload.GetBytes().data()), Payload.GetBytes().size())))
+	if (!Stream || !Stream.write(reinterpret_cast<const char*>(FileBytes.data()), static_cast<std::streamsize>(FileBytes.size())))
 	{
 		return false;
 	}
@@ -107,35 +77,66 @@ bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion,
 	return !Error;
 }
 
-void WriteShaderKey(FByteWriter& Writer, const FShaderKey& Key)
+bool FAssetImporter::IsAssetCurrent(
+	const FString& AssetPath,
+	const std::filesystem::file_time_type& SourceTimestamp,
+	EAssetType ExpectedType,
+	uint32 ExpectedPayloadVersion)
 {
-	Writer.WriteString(Key.SourcePath);
-	Writer.WriteString(Key.EntryPoint);
-	Writer.Write(Key.Stage);
-	Writer.Write(Key.PermutationId);
+	std::error_code Error;
+	const std::filesystem::path FilePath = FPaths::ResolveContentPath(AssetPath + ".kasset");
+	if (!std::filesystem::exists(FilePath, Error) || Error || std::filesystem::last_write_time(FilePath, Error) < SourceTimestamp || Error)
+	{
+		return false;
+	}
+
+	std::ifstream Stream(FilePath, std::ios::binary | std::ios::ate);
+	std::streamoff FileSize = -1;
+	if (Stream)
+	{
+		FileSize = Stream.tellg();
+	}
+	TArray<uint8> HeaderBytes(sizeof(FAssetFileHeader));
+	if (FileSize < static_cast<std::streamoff>(HeaderBytes.size()))
+	{
+		return false;
+	}
+	Stream.seekg(0, std::ios::beg);
+	if (!Stream.read(reinterpret_cast<char*>(HeaderBytes.data()), static_cast<std::streamsize>(HeaderBytes.size())))
+	{
+		return false;
+	}
+
+	FMemoryReader HeaderArchive(HeaderBytes);
+	FAssetFileHeader Header = {};
+	HeaderArchive << Header;
+	return !HeaderArchive.HasError() && !HeaderArchive.CanSerialize(1) &&
+		std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) == 0 &&
+		Header.ContainerVersion == FAssetFileHeader::CurrentVersion && Header.AssetType == ExpectedType &&
+		Header.PayloadVersion == ExpectedPayloadVersion && Header.PayloadSize == static_cast<uint64>(FileSize) - HeaderBytes.size();
 }
 
-FVector ConvertPosition(const float Value[3])
+FVector FAssetImporter::ConvertPosition(const float Value[3])
 {
 	return FVector(-Value[2] * 100.0f, Value[0] * 100.0f, Value[1] * 100.0f);
 }
 
-FVector ConvertDirection(const float Value[3])
+FVector FAssetImporter::ConvertDirection(const float Value[3])
 {
 	return FVector(-Value[2], Value[0], Value[1]).GetSafeNormal();
 }
 
-FVector Cross(const FVector& Left, const FVector& Right)
+FVector FAssetImporter::Cross(const FVector& Left, const FVector& Right)
 {
 	return FVector(Left.Y * Right.Z - Left.Z * Right.Y, Left.Z * Right.X - Left.X * Right.Z, Left.X * Right.Y - Left.Y * Right.X);
 }
 
-float Dot(const FVector& Left, const FVector& Right)
+float FAssetImporter::Dot(const FVector& Left, const FVector& Right)
 {
 	return Left.X * Right.X + Left.Y * Right.Y + Left.Z * Right.Z;
 }
 
-void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices)
+void FAssetImporter::GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices)
 {
 	TArray<FVector> Tangents(Vertices.size());
 	TArray<FVector> Bitangents(Vertices.size());
@@ -177,7 +178,7 @@ void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>&
 	}
 }
 
-void FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, float MaximumSize)
+void FAssetImporter::FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, float MaximumSize)
 {
 	if (Vertices.empty())
 	{
@@ -207,7 +208,7 @@ void FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, float MaximumSize)
 	}
 }
 
-const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, cgltf_attribute_type Type, cgltf_int Index = 0)
+const cgltf_accessor* FAssetImporter::FindAttribute(const cgltf_primitive& Primitive, int Type, int Index)
 {
 	for (cgltf_size AttributeIndex = 0; AttributeIndex < Primitive.attributes_count; ++AttributeIndex)
 	{
@@ -220,7 +221,7 @@ const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, cgltf_attr
 	return nullptr;
 }
 
-FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler)
+FSamplerDesc FAssetImporter::ConvertSampler(const cgltf_sampler* Sampler)
 {
 	FSamplerDesc Result;
 	if (!Sampler)
@@ -238,7 +239,6 @@ FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler)
 	Result.AddressU = ConvertAddress(Sampler->wrap_s);
 	Result.AddressV = ConvertAddress(Sampler->wrap_t);
 	return Result;
-}
 }
 
 FAssetImportResult FAssetImporter::ImportGLB(
@@ -262,23 +262,29 @@ FAssetImportResult FAssetImporter::ImportGLB(
 	std::error_code TimestampError;
 	const auto SourceTimestamp = std::filesystem::last_write_time(SourceFilePath, TimestampError);
 	bool bCurrent = !TimestampError && GLTF.Data->meshes_count > 0;
-	const auto CheckCurrent = [&bCurrent, SourceTimestamp](const FString& AssetPath)
-	{
-		std::error_code Error;
-		const std::filesystem::path FilePath = FPaths::ResolveContentPath(AssetPath + ".kasset");
-		bCurrent = bCurrent && std::filesystem::exists(FilePath, Error) && !Error && std::filesystem::last_write_time(FilePath, Error) >= SourceTimestamp && !Error;
-	};
 	for (cgltf_size ImageIndex = 0; ImageIndex < GLTF.Data->images_count; ++ImageIndex)
 	{
-		CheckCurrent(CombineAssetPath(TextureRoot, SanitizeName(GLTF.Data->images[ImageIndex].name, "Texture_" + std::to_string(ImageIndex))));
+		bCurrent = bCurrent && IsAssetCurrent(
+			CombineAssetPath(TextureRoot, SanitizeName(GLTF.Data->images[ImageIndex].name, "Texture_" + std::to_string(ImageIndex))),
+			SourceTimestamp,
+			EAssetType::Texture2D,
+			FTexture2DPayloadHeader::CurrentVersion);
 	}
 	for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
 	{
-		CheckCurrent(CombineAssetPath(MaterialRoot, SanitizeName(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex))));
+		bCurrent = bCurrent && IsAssetCurrent(
+			CombineAssetPath(MaterialRoot, SanitizeName(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex))),
+			SourceTimestamp,
+			EAssetType::Material,
+			FMaterialPayloadHeader::CurrentVersion);
 	}
 	for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.Data->meshes_count; ++MeshIndex)
 	{
-		CheckCurrent(CombineAssetPath(MeshRoot, SanitizeName(GLTF.Data->meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()))));
+		bCurrent = bCurrent && IsAssetCurrent(
+			CombineAssetPath(MeshRoot, SanitizeName(GLTF.Data->meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()))),
+			SourceTimestamp,
+			EAssetType::StaticMesh,
+			FStaticMeshPayloadHeader::CurrentVersion);
 	}
 	if (bCurrent)
 	{
@@ -321,14 +327,15 @@ FAssetImportResult FAssetImporter::ImportGLB(
 
 		const FString TextureName = SanitizeName(Image.name, "Texture_" + std::to_string(ImageIndex));
 		const FString AssetPath = CombineAssetPath(TextureRoot, TextureName);
-		FByteWriter Payload;
+		TArray<uint8> PayloadBytes;
+		FMemoryWriter Payload(PayloadBytes);
 		FTexture2DPayloadHeader Header = {};
 		Header.Width = static_cast<uint32>(Compressed.GetMetadata().width);
 		Header.Height = static_cast<uint32>(Compressed.GetMetadata().height);
 		Header.MipCount = static_cast<uint32>(Compressed.GetMetadata().mipLevels);
 		Header.Format = ETextureFormat::BC7UNorm;
 		Header.ColorSpace = ETextureColorSpace::SRGB;
-		Payload.Write(Header);
+		Payload << Header;
 		for (SIZE_T MipIndex = 0; MipIndex < Compressed.GetImageCount(); ++MipIndex)
 		{
 			const DirectX::Image& Mip = Compressed.GetImages()[MipIndex];
@@ -336,10 +343,10 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			MipHeader.DataSize = static_cast<uint32>(Mip.slicePitch);
 			MipHeader.RowPitch = static_cast<uint32>(Mip.rowPitch);
 			MipHeader.SlicePitch = static_cast<uint32>(Mip.slicePitch);
-			Payload.Write(MipHeader);
-			Payload.WriteBytes(Mip.pixels, Mip.slicePitch);
+			Payload << MipHeader;
+			Payload.Serialize(Mip.pixels, static_cast<int64>(Mip.slicePitch));
 		}
-		if (!SaveAsset(AssetPath, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, Payload))
+		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, PayloadBytes))
 		{
 			Result.Error = "Texture .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
@@ -364,24 +371,36 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		Header.VectorParameterCount = 1;
 		Header.TextureParameterCount = Source.has_pbr_metallic_roughness && Source.pbr_metallic_roughness.base_color_texture.texture ? 1 : 0;
 
-		FByteWriter Payload;
-		Payload.Write(Header);
-		WriteShaderKey(Payload, { "/Engine/Shader/StaticMesh.hlsl", "MainVS", EShaderStage::Vertex });
-		WriteShaderKey(Payload, { "/Engine/Shader/StaticMesh.hlsl", bTranslucent ? "TranslucentPS" : bMasked ? "MaskedPS" : "OpaquePS", EShaderStage::Pixel });
-		Payload.WriteString("AlphaCutoff");
-		Payload.Write(Source.alpha_cutoff);
-		Payload.WriteString("BaseColor");
+		TArray<uint8> PayloadBytes;
+		FMemoryWriter Payload(PayloadBytes);
+		Payload << Header;
+		FShaderKey VertexShader = { "/Engine/Shader/StaticMesh.hlsl", "MainVS", EShaderStage::Vertex };
+		FShaderKey PixelShader = {
+			"/Engine/Shader/StaticMesh.hlsl", bTranslucent ? "TranslucentPS" : bMasked ? "MaskedPS" : "OpaquePS", EShaderStage::Pixel
+		};
+		Payload << VertexShader;
+		Payload << PixelShader;
+		FString AlphaCutoffName = "AlphaCutoff";
+		float AlphaCutoff = Source.alpha_cutoff;
+		Payload << AlphaCutoffName;
+		Payload << AlphaCutoff;
+		FString BaseColorName = "BaseColor";
+		Payload << BaseColorName;
 		const cgltf_float* Factor = Source.pbr_metallic_roughness.base_color_factor;
-		Payload.Write(FVector4(Factor[0], Factor[1], Factor[2], Factor[3]));
+		FVector4 BaseColor(Factor[0], Factor[1], Factor[2], Factor[3]);
+		Payload << BaseColor;
 		if (Header.TextureParameterCount > 0)
 		{
 			const cgltf_texture_view& View = Source.pbr_metallic_roughness.base_color_texture;
 			const SIZE_T ImageIndex = static_cast<SIZE_T>(View.texture->image - GLTF.Data->images);
-			Payload.WriteString("BaseColorTexture");
-			Payload.WriteString(ImageAssetPaths[ImageIndex]);
-			Payload.Write(ConvertSampler(View.texture->sampler));
+			FString BaseColorTextureName = "BaseColorTexture";
+			FString TexturePath = ImageAssetPaths[ImageIndex];
+			FSamplerDesc Sampler = ConvertSampler(View.texture->sampler);
+			Payload << BaseColorTextureName;
+			Payload << TexturePath;
+			Payload << Sampler;
 		}
-		if (!SaveAsset(AssetPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, Payload))
+		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, PayloadBytes))
 		{
 			Result.Error = "Material .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
@@ -458,32 +477,37 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		}
 		GenerateTangents(Vertices, Indices);
 
-		FByteWriter Payload;
+		TArray<uint8> PayloadBytes;
+		FMemoryWriter Payload(PayloadBytes);
 		FStaticMeshPayloadHeader Header = {};
 		Header.VertexStride = sizeof(FStaticMeshVertex);
 		Header.LODCount = 1;
 		Header.MaterialCount = MaterialAssetPaths.empty() ? 1 : static_cast<uint32>(MaterialAssetPaths.size());
-		Payload.Write(Header);
+		Payload << Header;
 		if (MaterialAssetPaths.empty())
 		{
-			Payload.WriteString("Default");
-			Payload.WriteString("");
+			FString SlotName = "Default";
+			FString MaterialPath;
+			Payload << SlotName;
+			Payload << MaterialPath;
 		}
 		for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
 		{
-			Payload.WriteString(SanitizeName(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex)));
-			Payload.WriteString(MaterialAssetPaths[MaterialIndex]);
+			FString SlotName = SanitizeName(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex));
+			FString MaterialPath = MaterialAssetPaths[MaterialIndex];
+			Payload << SlotName;
+			Payload << MaterialPath;
 		}
 		FStaticMeshLODPayloadHeader LODHeader = {
 			static_cast<uint32>(Vertices.size()), static_cast<uint32>(Indices.size()), static_cast<uint32>(Sections.size())
 		};
-		Payload.Write(LODHeader);
-		Payload.WriteBytes(Vertices.data(), Vertices.size() * sizeof(FStaticMeshVertex));
-		Payload.WriteBytes(Indices.data(), Indices.size() * sizeof(uint32));
-		Payload.WriteBytes(Sections.data(), Sections.size() * sizeof(FStaticMeshSection));
+		Payload << LODHeader;
+		Payload.Serialize(Vertices.data(), static_cast<int64>(Vertices.size() * sizeof(FStaticMeshVertex)));
+		Payload.Serialize(Indices.data(), static_cast<int64>(Indices.size() * sizeof(uint32)));
+		Payload.Serialize(Sections.data(), static_cast<int64>(Sections.size() * sizeof(FStaticMeshSection)));
 		const FString MeshName = SanitizeName(SourceMesh.name, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
 		const FString AssetPath = CombineAssetPath(MeshRoot, MeshName);
-		if (!SaveAsset(AssetPath, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, Payload))
+		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, PayloadBytes))
 		{
 			Result.Error = "Static Mesh .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
