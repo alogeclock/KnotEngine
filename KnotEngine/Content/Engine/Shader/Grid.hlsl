@@ -46,21 +46,21 @@ VS_OUTPUT VS(uint VertexId : SV_VertexID)
 
 PS_OUTPUT PS(VS_OUTPUT Input)
 {
-    // NDC의 Near/Far 지점을 World 공간으로 역투영하여 픽셀별 광선을 만든다.
+    // 정확한 Far Plane은 큰 Near/Far 비율에서 역투영 오차가 커지므로 중간 깊이 지점으로 광선 방향만 복원한다.
     float4 NearPosition = mul(float4(Input.NdcPosition, 0.0f, 1.0f), InverseViewProjection);
-    float4 FarPosition = mul(float4(Input.NdcPosition, 1.0f, 1.0f), InverseViewProjection);
+    float4 RayPosition = mul(float4(Input.NdcPosition, 0.5f, 1.0f), InverseViewProjection);
     NearPosition /= NearPosition.w;
-    FarPosition /= FarPosition.w;
+    RayPosition /= RayPosition.w;
 
     // World Z=0 평면과 평행하거나 View 앞에서 평면과 만나지 않는 광선은 버린다.
-    float3 RayDirection = FarPosition.xyz - NearPosition.xyz;
+    float3 RayDirection = RayPosition.xyz - NearPosition.xyz;
     if (abs(RayDirection.z) < 0.00001f)
     {
         discard;
     }
 
     float RayDistance = -NearPosition.z / RayDirection.z;
-    if (RayDistance < 0.0f || RayDistance > 1.0f)
+    if (RayDistance < 0.0f)
     {
         discard;
     }
@@ -92,10 +92,21 @@ PS_OUTPUT PS(VS_OUTPUT Input)
         discard;
     }
 
-    // World 평면의 실제 깊이를 기록하여 Scene Geometry와 정상적으로 깊이 테스트한다.
+    // 교차점이 현재 View의 Clip 범위에 있을 때만 실제 깊이를 기록한다.
     float4 ClipPosition = mul(float4(WorldPosition, 1.0f), ViewProjection);
+    if (ClipPosition.w <= 0.0f)
+    {
+        discard;
+    }
+
+    float Depth = ClipPosition.z / ClipPosition.w;
+    if (Depth < 0.0f || Depth > 1.0f)
+    {
+        discard;
+    }
+
     PS_OUTPUT Output;
     Output.Color = GridColor;
-    Output.Depth = ClipPosition.z / ClipPosition.w;
+    Output.Depth = Depth;
     return Output;
 }
