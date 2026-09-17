@@ -44,17 +44,18 @@ private:
 		cgltf_data* Data = nullptr;
 	};
 
-	static FString SanitizeName(const char* Name, const FString& Fallback);
-	static FString CombineAssetPath(const FString& Left, const FString& Right);
+	static FString Sanitize(const char* Name, const FString& Fallback);
+	static FString Combine(const FString& Left, const FString& Right);
+
 	static FVector ConvertPosition(const float Value[3]);
 	static FVector ConvertDirection(const float Value[3]);
-	static FVector Cross(const FVector& Left, const FVector& Right);
-	static float Dot(const FVector& Left, const FVector& Right);
+
 	static const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, int Type, int Index = 0);
 	static FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler);
 
 	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes);
-	static bool IsAssetCurrent(const FString& AssetPath, const std::filesystem::file_time_type& SourceTimestamp, EAssetType ExpectedType, uint32 ExpectedPayloadVersion);
+	static bool IsAssetUpToDate(const FString& AssetPath, const std::filesystem::file_time_type& SourceTimestamp, EAssetType ExpectedType, uint32 ExpectedPayloadVersion);
+
 	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
-	static void FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);
+	static void Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);
 };

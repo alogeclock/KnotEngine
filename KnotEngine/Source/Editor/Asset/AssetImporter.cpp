@@ -16,12 +16,14 @@
 #include <cstring>
 #include <fstream>
 
+// Scope를 벗어날 때 cgltf가 할당한 GLB 데이터를 해제한다.
 FAssetImporter::FGLTFGuard::~FGLTFGuard()
 {
 	cgltf_free(Data);
 }
 
-FString FAssetImporter::SanitizeName(const char* Name, const FString& Fallback)
+// GLB 요소 이름을 Asset 파일명으로 사용할 수 있는 문자열로 정리한다.
+FString FAssetImporter::Sanitize(const char* Name, const FString& Fallback)
 {
 	FString Result = Name && *Name ? Name : Fallback;
 	for (char& Character : Result)
@@ -35,11 +37,13 @@ FString FAssetImporter::SanitizeName(const char* Name, const FString& Fallback)
 	return Result;
 }
 
-FString FAssetImporter::CombineAssetPath(const FString& Left, const FString& Right)
+// 두 Asset 경로를 하나의 구분자로 연결한다.
+FString FAssetImporter::Combine(const FString& Left, const FString& Right)
 {
 	return Left.ends_with('/') ? Left + Right : Left + "/" + Right;
 }
 
+// 공통 Header와 Payload를 임시 파일에 기록한 뒤 최종 .kasset으로 교체한다.
 bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes)
 {
 	const std::filesystem::path FinalPath = FPaths::ResolveContentPath(AssetPath + ".kasset");
@@ -77,7 +81,8 @@ bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32
 	return !Error;
 }
 
-bool FAssetImporter::IsAssetCurrent(
+// 생성된 .kasset의 수정 시각과 Header가 현재 Source 및 Asset 형식과 일치하는지 확인한다.
+bool FAssetImporter::IsAssetUpToDate(
 	const FString& AssetPath,
 	const std::filesystem::file_time_type& SourceTimestamp,
 	EAssetType ExpectedType,
@@ -116,26 +121,19 @@ bool FAssetImporter::IsAssetCurrent(
 		Header.PayloadVersion == ExpectedPayloadVersion && Header.PayloadSize == static_cast<uint64>(FileSize) - HeaderBytes.size();
 }
 
+// glTF의 오른손 Y-Up 미터 좌표를 Knot Engine의 왼손 Z-Up 센티미터 좌표로 변환한다.
 FVector FAssetImporter::ConvertPosition(const float Value[3])
 {
 	return FVector(-Value[2] * 100.0f, Value[0] * 100.0f, Value[1] * 100.0f);
 }
 
+// glTF 방향 벡터를 Knot Engine 좌표계로 변환하고 정규화한다.
 FVector FAssetImporter::ConvertDirection(const float Value[3])
 {
 	return FVector(-Value[2], Value[0], Value[1]).GetSafeNormal();
 }
 
-FVector FAssetImporter::Cross(const FVector& Left, const FVector& Right)
-{
-	return FVector(Left.Y * Right.Z - Left.Z * Right.Y, Left.Z * Right.X - Left.X * Right.Z, Left.X * Right.Y - Left.Y * Right.X);
-}
-
-float FAssetImporter::Dot(const FVector& Left, const FVector& Right)
-{
-	return Left.X * Right.X + Left.Y * Right.Y + Left.Z * Right.Z;
-}
-
+// Position과 UV로 정점 Tangent를 생성하고 Bitangent 방향을 Handedness에 기록한다.
 void FAssetImporter::GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices)
 {
 	TArray<FVector> Tangents(Vertices.size());
@@ -145,40 +143,49 @@ void FAssetImporter::GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const
 		const uint32 I0 = Indices[Index];
 		const uint32 I1 = Indices[Index + 1];
 		const uint32 I2 = Indices[Index + 2];
+
 		const FVector Edge1 = Vertices[I1].Position - Vertices[I0].Position;
 		const FVector Edge2 = Vertices[I2].Position - Vertices[I0].Position;
+
 		const FVector2 UV1 = Vertices[I1].TexCoord - Vertices[I0].TexCoord;
 		const FVector2 UV2 = Vertices[I2].TexCoord - Vertices[I0].TexCoord;
+
 		const float Determinant = UV1.X * UV2.Y - UV1.Y * UV2.X;
+
 		if (std::fabs(Determinant) <= KMath::Epsilon)
 		{
 			continue;
 		}
+
 		const float Scale = 1.0f / Determinant;
 		const FVector Tangent = (Edge1 * UV2.Y - Edge2 * UV1.Y) * Scale;
 		const FVector Bitangent = (Edge2 * UV1.X - Edge1 * UV2.X) * Scale;
+
 		Tangents[I0] += Tangent;
 		Tangents[I1] += Tangent;
 		Tangents[I2] += Tangent;
+
 		Bitangents[I0] += Bitangent;
 		Bitangents[I1] += Bitangent;
 		Bitangents[I2] += Bitangent;
 	}
+
 	for (SIZE_T Index = 0; Index < Vertices.size(); ++Index)
 	{
 		const FVector Normal = Vertices[Index].Normal.GetSafeNormal();
-		FVector Tangent = Tangents[Index] - Normal * Dot(Normal, Tangents[Index]);
+		FVector Tangent = Tangents[Index] - Normal * (Normal | Tangents[Index]);
 		if (!Tangent.Normalize())
 		{
 			const FVector Axis = std::fabs(Normal.Z) < 0.999f ? FVector(0.0f, 0.0f, 1.0f) : FVector(0.0f, 1.0f, 0.0f);
-			Tangent = Cross(Axis, Normal).GetSafeNormal();
+			Tangent = (Axis ^ Normal).GetSafeNormal();
 		}
 		Vertices[Index].Tangent = Tangent;
-		Vertices[Index].Handedness = Dot(Cross(Normal, Tangent), Bitangents[Index]) < 0.0f ? -1.0f : 1.0f;
+		Vertices[Index].Handedness = ((Normal ^ Tangent) | Bitangents[Index]) < 0.0f ? -1.0f : 1.0f;
 	}
 }
 
-void FAssetImporter::FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, float MaximumSize)
+// Vertex Bounds의 가장 긴 축이 지정한 크기가 되도록 Mesh를 균일하게 조정한다.
+void FAssetImporter::Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize)
 {
 	if (Vertices.empty())
 	{
@@ -208,6 +215,7 @@ void FAssetImporter::FitVerticesToBounds(TArray<FStaticMeshVertex>& Vertices, fl
 	}
 }
 
+// Primitive에서 지정한 Semantic Type과 Index에 해당하는 Attribute Accessor를 찾는다.
 const cgltf_accessor* FAssetImporter::FindAttribute(const cgltf_primitive& Primitive, int Type, int Index)
 {
 	for (cgltf_size AttributeIndex = 0; AttributeIndex < Primitive.attributes_count; ++AttributeIndex)
@@ -221,6 +229,7 @@ const cgltf_accessor* FAssetImporter::FindAttribute(const cgltf_primitive& Primi
 	return nullptr;
 }
 
+// glTF Sampler 설정을 렌더러가 사용하는 Sampler Descriptor로 변환한다.
 FSamplerDesc FAssetImporter::ConvertSampler(const cgltf_sampler* Sampler)
 {
 	FSamplerDesc Result;
@@ -249,9 +258,9 @@ FAssetImportResult FAssetImporter::ImportGLB(
 {
 	FAssetImportResult Result;
 	const FString SourcePathUtf8 = FPaths::ToUtf8(SourceFilePath.wstring());
-	const FString TextureRoot = bCreateTypeFolders ? CombineAssetPath(DestinationAssetPath, "Texture") : DestinationAssetPath;
-	const FString MaterialRoot = bCreateTypeFolders ? CombineAssetPath(DestinationAssetPath, "Material") : DestinationAssetPath;
-	const FString MeshRoot = bCreateTypeFolders ? CombineAssetPath(DestinationAssetPath, "Mesh") : DestinationAssetPath;
+	const FString TextureRoot = bCreateTypeFolders ? Combine(DestinationAssetPath, "Texture") : DestinationAssetPath;
+	const FString MaterialRoot = bCreateTypeFolders ? Combine(DestinationAssetPath, "Material") : DestinationAssetPath;
+	const FString MeshRoot = bCreateTypeFolders ? Combine(DestinationAssetPath, "Mesh") : DestinationAssetPath;
 	cgltf_options Options = {};
 	FGLTFGuard GLTF;
 	if (cgltf_parse_file(&Options, SourcePathUtf8.c_str(), &GLTF.Data) != cgltf_result_success)
@@ -265,24 +274,24 @@ FAssetImportResult FAssetImporter::ImportGLB(
 	bool bCurrent = !TimestampError && GLTF.Data->meshes_count > 0;
 	for (cgltf_size ImageIndex = 0; ImageIndex < GLTF.Data->images_count; ++ImageIndex)
 	{
-		bCurrent = bCurrent && IsAssetCurrent(
-			CombineAssetPath(TextureRoot, SanitizeName(GLTF.Data->images[ImageIndex].name, "Texture_" + std::to_string(ImageIndex))),
+		bCurrent = bCurrent && IsAssetUpToDate(
+			Combine(TextureRoot, Sanitize(GLTF.Data->images[ImageIndex].name, "Texture_" + std::to_string(ImageIndex))),
 			SourceTimestamp,
 			EAssetType::Texture2D,
 			FTexture2DPayloadHeader::CurrentVersion);
 	}
 	for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
 	{
-		bCurrent = bCurrent && IsAssetCurrent(
-			CombineAssetPath(MaterialRoot, SanitizeName(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex))),
+		bCurrent = bCurrent && IsAssetUpToDate(
+			Combine(MaterialRoot, Sanitize(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex))),
 			SourceTimestamp,
 			EAssetType::Material,
 			FMaterialPayloadHeader::CurrentVersion);
 	}
 	for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.Data->meshes_count; ++MeshIndex)
 	{
-		bCurrent = bCurrent && IsAssetCurrent(
-			CombineAssetPath(MeshRoot, SanitizeName(GLTF.Data->meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()))),
+		bCurrent = bCurrent && IsAssetUpToDate(
+			Combine(MeshRoot, Sanitize(GLTF.Data->meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()))),
 			SourceTimestamp,
 			EAssetType::StaticMesh,
 			FStaticMeshPayloadHeader::CurrentVersion);
@@ -326,8 +335,8 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			return Result;
 		}
 
-		const FString TextureName = SanitizeName(Image.name, "Texture_" + std::to_string(ImageIndex));
-		const FString AssetPath = CombineAssetPath(TextureRoot, TextureName);
+		const FString TextureName = Sanitize(Image.name, "Texture_" + std::to_string(ImageIndex));
+		const FString AssetPath = Combine(TextureRoot, TextureName);
 		TArray<uint8> PayloadBytes;
 		FMemoryWriter Payload(PayloadBytes);
 		FTexture2DPayloadHeader Header = {};
@@ -362,8 +371,8 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		const cgltf_material& Source = GLTF.Data->materials[MaterialIndex];
 		const bool bMasked = Source.alpha_mode == cgltf_alpha_mode_mask;
 		const bool bTranslucent = Source.alpha_mode == cgltf_alpha_mode_blend;
-		const FString MaterialName = SanitizeName(Source.name, "Material_" + std::to_string(MaterialIndex));
-		const FString AssetPath = CombineAssetPath(MaterialRoot, MaterialName);
+		const FString MaterialName = Sanitize(Source.name, "Material_" + std::to_string(MaterialIndex));
+		const FString AssetPath = Combine(MaterialRoot, MaterialName);
 		FMaterialPayloadHeader Header = {};
 		Header.BlendMode = bTranslucent ? EMaterialBlendMode::Translucent : bMasked ? EMaterialBlendMode::Masked : EMaterialBlendMode::Opaque;
 		Header.DepthMode = EMaterialDepthMode::ReadWrite;
@@ -474,7 +483,7 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		}
 		if (DestinationAssetPath.starts_with("/Engine/Model/"))
 		{
-			FitVerticesToBounds(Vertices, 100.0f); // 기본 Geometry의 가장 긴 축을 1m에 맞춘다.
+			Normalize(Vertices, 100.0f); // 기본 Geometry의 가장 긴 축을 1m에 맞춘다.
 		}
 		GenerateTangents(Vertices, Indices);
 
@@ -494,7 +503,7 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		}
 		for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
 		{
-			FString SlotName = SanitizeName(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex));
+			FString SlotName = Sanitize(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex));
 			FString MaterialPath = MaterialAssetPaths[MaterialIndex];
 			Payload << SlotName;
 			Payload << MaterialPath;
@@ -506,8 +515,8 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		Payload.Serialize(Vertices.data(), static_cast<int64>(Vertices.size() * sizeof(FStaticMeshVertex)));
 		Payload.Serialize(Indices.data(), static_cast<int64>(Indices.size() * sizeof(uint32)));
 		Payload.Serialize(Sections.data(), static_cast<int64>(Sections.size() * sizeof(FStaticMeshSection)));
-		const FString MeshName = SanitizeName(SourceMesh.name, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
-		const FString AssetPath = CombineAssetPath(MeshRoot, MeshName);
+		const FString MeshName = Sanitize(SourceMesh.name, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
+		const FString AssetPath = Combine(MeshRoot, MeshName);
 		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, PayloadBytes))
 		{
 			Result.Error = "Static Mesh .kasset 저장에 실패했다: " + AssetPath;
