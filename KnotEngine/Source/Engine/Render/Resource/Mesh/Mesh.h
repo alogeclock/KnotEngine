@@ -3,8 +3,8 @@
 #include "EngineAPI.h"
 #include "Core/Geometry/AABB.h"
 
-#include "Render/Mesh/MeshBuffer.h"
-#include "Render/Mesh/Vertex.h"
+#include "Render/Resource/Mesh/MeshBuffer.h"
+#include "Render/Resource/Mesh/Vertex.h"
 
 #include <span>
 

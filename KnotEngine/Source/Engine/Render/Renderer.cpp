@@ -5,7 +5,7 @@
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
-#include "Render/Mesh/Vertex.h"
+#include "Render/Resource/Mesh/Vertex.h"
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
 	: RenderDevice(InRenderDevice),

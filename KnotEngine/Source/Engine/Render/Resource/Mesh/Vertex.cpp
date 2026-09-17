@@ -1,4 +1,4 @@
-#include "Render/Mesh/Vertex.h"
+#include "Render/Resource/Mesh/Vertex.h"
 
 #include <cstddef>
 

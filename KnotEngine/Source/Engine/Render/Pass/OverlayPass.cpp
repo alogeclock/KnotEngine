@@ -3,9 +3,9 @@
 #include "Core/Assert.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
-#include "Render/Mesh/MeshBuffer.h"
-#include "Render/Mesh/Mesh.h"
-#include "Render/Mesh/Vertex.h"
+#include "Render/Resource/Mesh/MeshBuffer.h"
+#include "Render/Resource/Mesh/Mesh.h"
+#include "Render/Resource/Mesh/Vertex.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
 

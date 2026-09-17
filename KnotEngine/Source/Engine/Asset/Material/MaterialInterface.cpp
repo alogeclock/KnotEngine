@@ -1,7 +1,7 @@
 #include "Asset/Material/MaterialInterface.h"
 
 #include "Core/Assert.h"
-#include "Render/Material/Material.h"
+#include "Render/Resource/Material/Material.h"
 
 #include <cstring>
 

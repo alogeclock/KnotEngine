@@ -5,7 +5,7 @@
 #include "Asset/Material/MaterialInterface.h"
 #include "Core/Name.h"
 #include "Object/Object.h"
-#include "Render/Mesh/Mesh.h"
+#include "Render/Resource/Mesh/Mesh.h"
 
 class FAssetBinaryLoader;
 class FReferenceCollector;

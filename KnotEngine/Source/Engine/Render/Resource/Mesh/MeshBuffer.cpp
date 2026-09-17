@@ -1,4 +1,4 @@
-#include "Render/Mesh/MeshBuffer.h"
+#include "Render/Resource/Mesh/MeshBuffer.h"
 
 #include "Core/Assert.h"
 #include "Render/RHI/RenderDevice.h"

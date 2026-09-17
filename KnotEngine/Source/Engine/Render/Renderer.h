@@ -3,9 +3,9 @@
 #include "EngineAPI.h"
 
 #include "Render/RHI/RenderTypes.h"
-#include "Render/Mesh/Mesh.h"
-#include "Render/State/PipelineStateCache.h"
-#include "Render/State/SamplerStateCache.h"
+#include "Render/Resource/Mesh/Mesh.h"
+#include "Render/Resource/State/PipelineStateCache.h"
+#include "Render/Resource/State/SamplerStateCache.h"
 #include "Render/Shader/ShaderCompiler.h"
 #include "Render/Shader/ShaderRegistry.h"
 

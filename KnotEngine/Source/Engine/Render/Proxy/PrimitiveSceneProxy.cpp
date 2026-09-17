@@ -2,7 +2,7 @@
 
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
-#include "Render/Mesh/Mesh.h"
+#include "Render/Resource/Mesh/Mesh.h"
 
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent)
 	: Component(InComponent)

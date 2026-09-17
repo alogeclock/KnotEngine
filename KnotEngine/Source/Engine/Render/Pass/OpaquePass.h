@@ -5,7 +5,7 @@
 #include "Core/Math/Matrix.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderTypes.h"
-#include "Render/Material/Material.h"
+#include "Render/Resource/Material/Material.h"
 
 #include <span>
 
