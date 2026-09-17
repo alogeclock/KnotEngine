@@ -241,6 +241,7 @@ FSamplerDesc FAssetImporter::ConvertSampler(const cgltf_sampler* Sampler)
 	return Result;
 }
 
+// 단일 GLB를 읽어 Mesh, Material, Texture .kasset으로 변환한다.
 FAssetImportResult FAssetImporter::ImportGLB(
 	const std::filesystem::path& SourceFilePath,
 	const FString& DestinationAssetPath,
@@ -519,6 +520,7 @@ FAssetImportResult FAssetImporter::ImportGLB(
 	return Result;
 }
 
+// Content 아래의 모든 GLB를 탐색하여 변경된 Source Asset을 Import한다.
 bool FAssetImporter::ImportAllGLB() const
 {
 	const std::filesystem::path ContentRoot(FPaths::ContentDir());

@@ -33,10 +33,8 @@ struct FAssetImportResult
 class FAssetImporter final
 {
 public:
-	// 단일 GLB를 읽어 Mesh, Material, Texture .kasset으로 변환한다.
 	FAssetImportResult ImportGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath, bool bCreateTypeFolders = true) const;
 
-	// Content 아래의 모든 GLB를 탐색하여 변경된 Source Asset을 Import한다.
 	bool ImportAllGLB() const;
 
 private:
