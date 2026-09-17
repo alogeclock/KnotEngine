@@ -11,7 +11,7 @@
 #include <algorithm>
 
 UEditorEngine::UEditorEngine(FWindowsApplication& Application)
-	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext),
+	: RenderContext(RenderDevice), Renderer(RenderDevice, RenderContext, &ShaderCompiler),
 	  ImGuiRenderBackend(RenderDevice), ImGuiSystem(Application, *this, AssetRegistry, RenderDevice, ImGuiRenderBackend, InputRouter)
 {
 }

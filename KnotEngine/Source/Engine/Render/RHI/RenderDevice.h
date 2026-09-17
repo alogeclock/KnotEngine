@@ -32,7 +32,7 @@ public:
 	virtual FSamplerHandle CreateSampler(const FSamplerDesc& Desc) = 0;
 	virtual void DestroySampler(FSamplerHandle& Handle) = 0;
 
-	virtual FShaderHandle CreateShader(const FShaderDesc& Desc) = 0;
+	virtual FShaderHandle CreateShader(const FShaderBytecodeDesc& Desc) = 0;
 	virtual void DestroyShader(FShaderHandle& Handle) = 0;
 
 	virtual FPipelineStateHandle CreatePipelineState(const FPipelineStateDesc& Desc) = 0;

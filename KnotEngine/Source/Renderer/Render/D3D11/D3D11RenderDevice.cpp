@@ -1,15 +1,11 @@
 #include "Render/D3D11/D3D11RenderDevice.h"
-
 #include "Core/Assert.h"
 #include "Render/D3DCommon.h"
 
 #include <d3d11.h>
-#include <d3dcompiler.h>
 
 #include <cstring>
 #include <limits>
-
-#pragma comment(lib, "d3dcompiler.lib")
 
 FD3D11RenderDevice::FD3D11RenderDevice() = default;
 
@@ -234,42 +230,27 @@ void FD3D11RenderDevice::DestroyTexture(FTextureHandle& Handle)
 	Handle.Reset();
 }
 
-// HLSL Source를 Stage별 Shader Model로 컴파일하고 네이티브 Shader 객체와 Bytecode를 함께 보관한다.
-FShaderHandle FD3D11RenderDevice::CreateShader(const FShaderDesc& Desc)
+// 컴파일된 Bytecode로 네이티브 Shader 객체를 생성한다.
+FShaderHandle FD3D11RenderDevice::CreateShader(const FShaderBytecodeDesc& Desc)
 {
 	panic(NativeDevice.GetDevice());
-	panicf(!Desc.Source.empty() && !Desc.EntryPoint.empty(), "Shader 생성 정보가 비어 있다.");
-
-	// RHI는 Shader Model을 노출하지 않고 각 백엔드가 지원하는 Target을 선택한다.
-	UINT CompileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#if defined(KNOT_BUILD_DEBUG)
-	CompileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-	CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-#endif
+	panicf(!Desc.Bytecode.empty(), "Shader Bytecode가 비어 있다. DebugName={}", Desc.DebugName);
 
 	FShaderSlot Slot;
 	Slot.Stage = Desc.Stage;
-	Microsoft::WRL::ComPtr<ID3DBlob> ErrorBlob;
-	const char* Target = Desc.Stage == EShaderStage::Vertex ? "vs_5_0" : "ps_5_0";
-	HRESULT Result = D3DCompile(
-		Desc.Source.data(), Desc.Source.size(), Desc.SourceName.empty() ? nullptr : Desc.SourceName.c_str(), nullptr, nullptr,
-		Desc.EntryPoint.c_str(), Target, CompileFlags, 0,
-		Slot.Bytecode.GetAddressOf(), ErrorBlob.GetAddressOf());
-	panicf(SUCCEEDED(Result) && Slot.Bytecode, "Shader 컴파일 실패. HRESULT=0x{:08X}\n{}",
-		static_cast<uint32>(Result), GetShaderError(ErrorBlob.Get()));
-
+	Slot.Bytecode.assign(Desc.Bytecode.begin(), Desc.Bytecode.end());
+	HRESULT Result = S_OK;
 	if (Desc.Stage == EShaderStage::Vertex)
 	{
 		Result = NativeDevice.GetDevice()->CreateVertexShader(
-			Slot.Bytecode->GetBufferPointer(), Slot.Bytecode->GetBufferSize(), nullptr, Slot.VertexShader.GetAddressOf());
+			Slot.Bytecode.data(), Slot.Bytecode.size(), nullptr, Slot.VertexShader.GetAddressOf());
 	}
 	else
 	{
 		Result = NativeDevice.GetDevice()->CreatePixelShader(
-			Slot.Bytecode->GetBufferPointer(), Slot.Bytecode->GetBufferSize(), nullptr, Slot.PixelShader.GetAddressOf());
+			Slot.Bytecode.data(), Slot.Bytecode.size(), nullptr, Slot.PixelShader.GetAddressOf());
 	}
-	panicf(SUCCEEDED(Result), "D3D11 Shader 생성 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	panicf(SUCCEEDED(Result), "D3D11 Shader 생성 실패. DebugName={}, HRESULT=0x{:08X}", Desc.DebugName, static_cast<uint32>(Result));
 
 	panicf(ShaderSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Shader 슬롯 수가 uint32 범위를 초과했다.");
 	ShaderSlots.push_back(std::move(Slot));
@@ -284,7 +265,7 @@ void FD3D11RenderDevice::DestroyShader(FShaderHandle& Handle)
 	{
 		Slot->VertexShader.Reset();
 		Slot->PixelShader.Reset();
-		Slot->Bytecode.Reset();
+		Slot->Bytecode.clear();
 		AdvanceGeneration(Slot->Generation);
 	}
 	Handle.Reset();
@@ -333,7 +314,7 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	{
 		Result = NativeDevice.GetDevice()->CreateInputLayout(
 			LayoutDescs.data(), static_cast<UINT>(LayoutDescs.size()),
-			VertexShader->Bytecode->GetBufferPointer(), VertexShader->Bytecode->GetBufferSize(), Slot.InputLayout.GetAddressOf());
+			VertexShader->Bytecode.data(), VertexShader->Bytecode.size(), Slot.InputLayout.GetAddressOf());
 		panicf(SUCCEEDED(Result) && Slot.InputLayout, "ID3D11Device::CreateInputLayout 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	}
 
@@ -703,7 +684,7 @@ const FD3D11RenderDevice::FShaderSlot* FD3D11RenderDevice::ResolveShader(FShader
 		return nullptr;
 	}
 	const FShaderSlot& Slot = ShaderSlots[Handle.Index];
-	return Slot.Generation == Handle.Generation && Slot.Bytecode ? &Slot : nullptr;
+	return Slot.Generation == Handle.Generation && !Slot.Bytecode.empty() ? &Slot : nullptr;
 }
 
 // Index와 Generation이 일치하고 생성이 완료된 Pipeline State 슬롯만 반환한다.

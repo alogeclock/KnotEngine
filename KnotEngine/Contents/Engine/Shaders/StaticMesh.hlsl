@@ -23,6 +23,12 @@ cbuffer DrawConstants : register(b3)
 	row_major float4x4 Model;
 };
 
+// b2는 Material Asset 값이 Shader Reflection Layout에 따라 패킹되는 상수 슬롯이다.
+cbuffer MaterialConstants : register(b2)
+{
+	float4 BaseColor;
+};
+
 PS_INPUT VS(VS_INPUT input)
 {
 	PS_INPUT output;
@@ -35,5 +41,5 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT input) : SV_TARGET
 {
-	return float4(0.8f, 0.8f, 0.8f, 1.0f);
+	return BaseColor;
 }

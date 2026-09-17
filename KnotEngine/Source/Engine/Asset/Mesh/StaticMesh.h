@@ -2,10 +2,20 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/Material/MaterialInterface.h"
+#include "Core/Name.h"
 #include "Object/Object.h"
-#include "Render/Resource/Mesh.h"
+#include "Render/Mesh/Mesh.h"
 
 class FAssetBinaryLoader;
+class FReferenceCollector;
+
+// Static Mesh의 이름 있는 Material Slot과 Asset 기본 Material을 저장한다.
+struct ENGINE_API FStaticMaterial
+{
+	FName SlotName;
+	TObjectPtr<UMaterialInterface> Material;
+};
 
 // Static Mesh .kasset 전체에 한 번 저장되는 고정 크기 헤더다.
 struct FStaticMeshBinaryHeader
@@ -40,10 +50,18 @@ public:
 	FStaticMesh& GetRenderData() { return RenderData; }
 	const FStaticMesh& GetRenderData() const { return RenderData; }
 
+	SIZE_T GetMaterialCount() const { return StaticMaterials.size(); }
+	UMaterialInterface* GetMaterial(SIZE_T MaterialIndex) const;
+	const TArray<FStaticMaterial>& GetStaticMaterials() const { return StaticMaterials; }
+
+	void AddReferencedObjects(FReferenceCollector& Collector) override;
+
 private:
 	friend class FAssetBinaryLoader;
-	bool Initialize(FString InAssetPath, FStaticMesh&& InRenderData);
+	bool Initialize(FString InAssetPath, FStaticMesh&& InRenderData, TArray<FStaticMaterial>&& InStaticMaterials = {});
 
 	UPROPERTY(NoEdit) FString AssetPath;
+
 	FStaticMesh RenderData;
+	TArray<FStaticMaterial> StaticMaterials;
 };

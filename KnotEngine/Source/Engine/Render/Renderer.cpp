@@ -5,10 +5,14 @@
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
-#include "Render/Resource/VertexTypes.h"
+#include "Render/Mesh/Vertex.h"
 
-URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext)
-	: RenderDevice(InRenderDevice), RenderContext(InRenderContext), ShaderRegistry(InRenderDevice), PipelineStateCache(InRenderDevice)
+URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderCompiler* InShaderCompiler)
+	: RenderDevice(InRenderDevice),
+	  RenderContext(InRenderContext),
+	  ShaderRegistry(InRenderDevice, InShaderCompiler),
+	  PipelineStateCache(InRenderDevice),
+	  SamplerStateCache(InRenderDevice)
 {
 }
 
@@ -32,6 +36,11 @@ FPipelineStateCache& URenderer::GetPipelineStateCache()
 	return PipelineStateCache;
 }
 
+FSamplerStateCache& URenderer::GetSamplerStateCache()
+{
+	return SamplerStateCache;
+}
+
 FCommandListHandle URenderer::GetCommandList() const
 {
 	return CommandList;
@@ -49,6 +58,7 @@ void URenderer::Create(void* NativeWindowHandle)
 	RenderContext.Create(NativeWindowHandle);
 	ShaderRegistry.Create();
 	PipelineStateCache.Create();
+	SamplerStateCache.Create();
 
 	static constexpr uint32 BoundsColor = PackRGBA(255, 196, 64);
 	const FGeometryVertex BoundsVertices[] = {
@@ -73,6 +83,7 @@ void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
 	DebugBoundsMesh.Release();
+	SamplerStateCache.Release();
 	PipelineStateCache.Release();
 	ShaderRegistry.Release();
 	RenderContext.Release();

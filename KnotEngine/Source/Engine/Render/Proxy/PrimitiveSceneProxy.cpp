@@ -2,7 +2,7 @@
 
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
-#include "Render/Resource/Mesh.h"
+#include "Render/Mesh/Mesh.h"
 
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent)
 	: Component(InComponent)
@@ -33,9 +33,18 @@ void FStaticMeshSceneProxy::Update()
 	}
 
 	Mesh = MeshComponent.GetStaticMesh() ? &MeshComponent.GetStaticMesh()->GetRenderData() : nullptr;
+	Materials.clear();
 	if (Mesh && !Mesh->IsValid())
 	{
 		Mesh = nullptr;
+	}
+	if (Mesh)
+	{
+		Materials.resize(MeshComponent.GetMaterialCount());
+		for (SIZE_T MaterialIndex = 0; MaterialIndex < Materials.size(); ++MaterialIndex)
+		{
+			Materials[MaterialIndex] = MeshComponent.GetMaterial(MaterialIndex);
+		}
 	}
 	UpdateBounds(Mesh ? Mesh->GetLocalBounds() : FAABB());
 }

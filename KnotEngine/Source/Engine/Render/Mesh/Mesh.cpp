@@ -1,4 +1,4 @@
-#include "Render/Resource/Mesh.h"
+#include "Render/Mesh/Mesh.h"
 
 #include "Core/Assert.h"
 
@@ -44,7 +44,10 @@ void FGeometryMesh::Release()
 	MeshBuffer.Release();
 }
 
-bool FStaticMeshLOD::Initialize(std::span<const FStaticMeshVertex> InVertices, std::span<const uint32> InIndices)
+bool FStaticMeshLOD::Initialize(
+	std::span<const FStaticMeshVertex> InVertices,
+	std::span<const uint32> InIndices,
+	std::span<const FStaticMeshSection> InSections)
 {
 	if (InVertices.empty() || InVertices.size() > (std::numeric_limits<uint32>::max)() ||
 		InIndices.size() > (std::numeric_limits<uint32>::max)())
@@ -58,10 +61,23 @@ bool FStaticMeshLOD::Initialize(std::span<const FStaticMeshVertex> InVertices, s
 			return false;
 		}
 	}
+	const uint32 ElementCount = static_cast<uint32>(InIndices.empty() ? InVertices.size() : InIndices.size());
+	for (const FStaticMeshSection& Section : InSections)
+	{
+		if (Section.IndexCount == 0 || Section.FirstIndex > ElementCount || Section.IndexCount > ElementCount - Section.FirstIndex)
+		{
+			return false;
+		}
+	}
 
 	Release();
 	Vertices.assign(InVertices.begin(), InVertices.end());
 	Indices.assign(InIndices.begin(), InIndices.end());
+	Sections.assign(InSections.begin(), InSections.end());
+	if (Sections.empty())
+	{
+		Sections.push_back({ 0, ElementCount, 0 });
+	}
 	LocalBounds.Reset();
 	for (const FStaticMeshVertex& Vertex : Vertices)
 	{
@@ -96,10 +112,10 @@ void FStaticMeshLOD::Release()
 	MeshBuffer.Release();
 }
 
-bool FStaticMesh::AddLOD(std::span<const FStaticMeshVertex> Vertices, std::span<const uint32> Indices)
+bool FStaticMesh::AddLOD(std::span<const FStaticMeshVertex> Vertices, std::span<const uint32> Indices, std::span<const FStaticMeshSection> Sections)
 {
 	FStaticMeshLOD LOD;
-	if (!LOD.Initialize(Vertices, Indices))
+	if (!LOD.Initialize(Vertices, Indices, Sections))
 	{
 		return false;
 	}

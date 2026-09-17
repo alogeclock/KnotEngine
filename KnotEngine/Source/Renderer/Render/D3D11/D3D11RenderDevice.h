@@ -9,7 +9,6 @@
 #include <vector>
 #include <wrl/client.h>
 
-struct ID3D10Blob;
 struct ID3D11DepthStencilState;
 struct ID3D11BlendState;
 struct ID3D11Buffer;
@@ -43,7 +42,7 @@ public:
 	FSamplerHandle CreateSampler(const FSamplerDesc& Desc) override;
 	void DestroySampler(FSamplerHandle& Handle) override;
 
-	FShaderHandle CreateShader(const FShaderDesc& Desc) override;
+	FShaderHandle CreateShader(const FShaderBytecodeDesc& Desc) override;
 	void DestroyShader(FShaderHandle& Handle) override;
 
 	FPipelineStateHandle CreatePipelineState(const FPipelineStateDesc& Desc) override;
@@ -93,7 +92,7 @@ private:
 		EShaderStage Stage = EShaderStage::Vertex;
 		Microsoft::WRL::ComPtr<ID3D11VertexShader> VertexShader;
 		Microsoft::WRL::ComPtr<ID3D11PixelShader> PixelShader;
-		Microsoft::WRL::ComPtr<ID3D10Blob> Bytecode;
+		TArray<uint8> Bytecode;
 		uint32 Generation = 1;
 	};
 

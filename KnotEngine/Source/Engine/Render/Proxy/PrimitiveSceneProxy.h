@@ -8,6 +8,7 @@ class FStaticMesh;
 class FScene;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
+class UMaterialInterface;
 
 // Scene이 소유하는 렌더 상태. 등록 기간 동안 Component를 참조하고 Dirty일 때만 데이터를 복사한다.
 struct ENGINE_API FPrimitiveSceneProxy
@@ -38,12 +39,15 @@ private:
 };
 
 // FStaticMeshVertex 기반 Static Mesh의 렌더 상태를 보관한다.
+// TODO: 추후 Render Thread가 분리될 경우, 직접 UMaterialInterface*를 읽는 대신 UMaterialProxy 계층을 추가한다.
 struct ENGINE_API FStaticMeshSceneProxy final : FPrimitiveSceneProxy
 {
 	explicit FStaticMeshSceneProxy(const UStaticMeshComponent& InComponent);
 	void Update() override;
 
 	FStaticMesh* Mesh = nullptr; // Component의 UStaticMesh 참조가 Proxy 등록 기간 동안 Asset 수명을 유지한다.
+	TArray<UMaterialInterface*> Materials; // Component Override를 적용한 Slot별 비소유 Material 참조다.
+	UMaterialInterface* GetMaterial(SIZE_T MaterialIndex) const { return MaterialIndex < Materials.size() ? Materials[MaterialIndex] : nullptr; }
 
 private:
 	const UStaticMeshComponent& MeshComponent;

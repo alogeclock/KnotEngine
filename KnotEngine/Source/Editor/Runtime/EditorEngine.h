@@ -2,6 +2,7 @@
 
 #include "Render/D3D11/D3D11RenderContext.h"
 #include "Render/D3D11/D3D11RenderDevice.h"
+#include "Render/D3D11/D3D11ShaderCompiler.h"
 #include "Render/ImGui/D3D11ImGuiBackend.h"
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
@@ -40,6 +41,7 @@ private:
 	// TODO: EditorEngine는 Editor 전용이므로 추상화된 IRenderDevice와 IRenderContext를 사용하도록 한다.
 	FD3D11RenderDevice RenderDevice;
 	FD3D11RenderContext RenderContext;
+	FD3D11ShaderCompiler ShaderCompiler; // TODO: Shader Compiler 직접 소유 개선
 	URenderer Renderer;
 	FD3D11ImGuiBackend ImGuiRenderBackend;
 

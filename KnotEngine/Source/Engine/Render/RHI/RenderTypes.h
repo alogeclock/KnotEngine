@@ -3,6 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Core/CoreTypes.h"
+#include "Core/Name.h"
 #include "Render/RHI/VertexLayout.h"
 
 #include <limits>
@@ -52,10 +53,18 @@ using FPipelineStateHandle = TRenderHandle<FPipelineStateHandleTag>;
 using FCommandListHandle = TRenderHandle<FCommandListHandleTag>;
 
 // Buffer가 GPU Pipeline에서 사용되는 용도를 정의한다.
-enum class EBufferUsage : uint8 { Vertex, Index };
+enum class EBufferUsage : uint8
+{
+	Vertex,
+	Index
+};
 
 // Buffer에 대한 CPU와 GPU의 접근 방식을 정의한다.
-enum class EResourceAccess : uint8 { GPUOnly, CPUWrite };
+enum class EResourceAccess : uint8
+{
+	GPUOnly,
+	CPUWrite
+};
 
 // Buffer 생성에 필요한 크기, 용도 및 접근 방식을 정의한다.
 struct ENGINE_API FBufferDesc
@@ -118,10 +127,22 @@ struct ENGINE_API FTextureSubresourceData
 };
 
 // Texture를 Sample할 때 적용할 보간 방식을 정의한다.
-enum class ESamplerFilter : uint8 { Point, Bilinear, Trilinear, Anisotropic };
+enum class ESamplerFilter : uint8
+{
+	Point,
+	Bilinear,
+	Trilinear,
+	Anisotropic
+};
 
 // Texture 좌표가 0~1 범위를 벗어났을 때 적용할 주소 지정 방식을 정의한다.
-enum class ESamplerAddressMode : uint8 { Wrap, Mirror, Clamp, Border };
+enum class ESamplerAddressMode : uint8
+{
+	Wrap,
+	Mirror,
+	Clamp,
+	Border
+};
 
 // Shader에 바인딩할 Sampler 상태를 정의한다.
 struct ENGINE_API FSamplerDesc
@@ -135,22 +156,101 @@ struct ENGINE_API FSamplerDesc
 	float BorderColor[4] = {};
 	float MinLOD = 0.0f;
 	float MaxLOD = (std::numeric_limits<float>::max)();
+
+	bool operator==(const FSamplerDesc&) const = default;
 };
 
 // Shader가 실행되는 Pipeline Stage를 정의한다.
-enum class EShaderStage : uint8 { Vertex, Pixel };
-
-// Shader 생성에 필요한 메모리 소스, 진단용 이름, 진입점 및 Stage를 정의한다.
-struct ENGINE_API FShaderDesc
+enum class EShaderStage : uint8
 {
-	std::span<const uint8> Source;
-	FString SourceName;
-	FString EntryPoint;
+	Vertex,
+	Pixel
+};
+
+// Shader Reflection에서 Constant 변수가 사용하는 HLSL 기본 자료형이다.
+enum class EShaderParameterBaseType : uint8
+{
+	Unknown,
+	Float,
+	Int,
+	UInt,
+	Bool
+};
+
+// Shader Reflection에서 Constant 변수의 Scalar, Vector, Matrix 형태를 구분한다.
+enum class EShaderParameterClass : uint8
+{
+	Unknown,
+	Scalar,
+	Vector,
+	MatrixRows,
+	MatrixColumns,
+	Struct
+};
+
+// Shader Constant Buffer 안에 배치된 변수 하나의 컴파일 결과다.
+struct ENGINE_API FShaderParameterDesc
+{
+	FName Name;
+	EShaderParameterBaseType BaseType = EShaderParameterBaseType::Unknown;
+	EShaderParameterClass Class = EShaderParameterClass::Unknown;
+	uint32 Offset = 0;
+	uint32 Size = 0;
+	uint32 Rows = 0;
+	uint32 Columns = 0;
+	uint32 Elements = 0;
+};
+
+// Shader Stage의 b 슬롯에 바인딩되는 Constant Buffer와 변수 배치를 나타낸다.
+struct ENGINE_API FShaderConstantBufferDesc
+{
+	FName Name;
+	EShaderStage Stage = EShaderStage::Vertex;
+	uint32 Slot = 0;
+	uint32 Size = 0;
+	TArray<FShaderParameterDesc> Parameters;
+};
+
+// Shader Stage에서 사용하는 Texture 또는 Sampler 자원 종류다.
+enum class EShaderResourceType : uint8
+{
+	Unknown,
+	Texture2D,
+	TextureCube,
+	Sampler
+};
+
+// 컴파일된 Shader 자원의 이름과 Stage별 Register 범위를 나타낸다.
+struct ENGINE_API FShaderResourceBindingDesc
+{
+	FName Name;
+	EShaderStage Stage = EShaderStage::Vertex;
+	EShaderResourceType Type = EShaderResourceType::Unknown;
+	uint32 Slot = 0;
+	uint32 Count = 1;
+};
+
+// D3DReflect 결과를 API 중립 형태로 보관하는 컴파일된 Shader 메타데이터다.
+struct ENGINE_API FShaderReflection
+{
+	TArray<FShaderConstantBufferDesc> ConstantBuffers;
+	TArray<FShaderResourceBindingDesc> Resources;
+};
+
+// 이미 컴파일된 Shader Bytecode와 Stage를 RHI에 전달한다.
+struct ENGINE_API FShaderBytecodeDesc
+{
+	std::span<const uint8> Bytecode;
+	FString DebugName;
 	EShaderStage Stage = EShaderStage::Vertex;
 };
 
 // 입력 정점을 조립해 Primitive를 구성하는 방식을 정의한다.
-enum class EPrimitiveTopology : uint8 { TriangleList, LineList };
+enum class EPrimitiveTopology : uint8
+{
+	TriangleList,
+	LineList
+};
 
 // Blend 연산에서 Source 및 Destination 색상에 곱할 계수를 정의한다.
 enum class EBlendFactor : uint8
@@ -168,7 +268,14 @@ enum class EBlendFactor : uint8
 };
 
 // 계수가 적용된 Source 및 Destination 값을 결합하는 연산을 정의한다.
-enum class EBlendOperation : uint8 { Add, Subtract, ReverseSubtract, Minimum, Maximum };
+enum class EBlendOperation : uint8
+{
+	Add,
+	Subtract,
+	ReverseSubtract,
+	Minimum,
+	Maximum
+};
 
 // Render Target에 기록할 Color Channel을 Bit Mask로 정의한다.
 enum class EColorWriteMask : uint8
@@ -212,10 +319,19 @@ struct ENGINE_API FBlendStateDesc
 };
 
 // Rasterizer가 Triangle 내부를 채우는 방식을 정의한다.
-enum class EFillMode : uint8 { Solid, Wireframe };
+enum class EFillMode : uint8
+{
+	Solid,
+	Wireframe
+};
 
 // Rasterizer가 제거할 Triangle 면 방향을 정의한다.
-enum class ECullMode : uint8 { None, Front, Back };
+enum class ECullMode : uint8
+{
+	None,
+	Front,
+	Back
+};
 
 // Primitive를 Pixel Fragment로 변환할 때 적용할 Rasterizer 상태를 정의한다.
 struct ENGINE_API FRasterizerStateDesc
@@ -244,7 +360,7 @@ struct ENGINE_API FPipelineStateDesc
 	bool bDepthWriteEnabled = true;
 	ETextureFormat RenderTargetFormat = ETextureFormat::BGRA8UNorm; // 현재 Render Target은 1개
 	ETextureFormat DepthStencilFormat = ETextureFormat::D24UNormS8UInt;
-	uint8 SampleCount = 1;	
+	uint8 SampleCount = 1;
 	FBlendStateDesc BlendState;
 	FRasterizerStateDesc RasterizerState;
 
@@ -252,7 +368,11 @@ struct ENGINE_API FPipelineStateDesc
 };
 
 // Index Buffer의 요소 하나가 사용하는 정수 저장 형식을 정의한다.
-enum class EIndexFormat : uint8 { UInt16, UInt32 };
+enum class EIndexFormat : uint8
+{
+	UInt16,
+	UInt32
+};
 
 // Render Target에서 Rasterization이 수행될 사각 영역과 Depth 범위를 정의한다.
 struct ENGINE_API FRenderViewport
