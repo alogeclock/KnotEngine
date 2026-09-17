@@ -95,7 +95,7 @@ void FContentPanel::Startup()
 	IconDesc.Width = ContentIconSize;
 	IconDesc.Height = ContentIconSize;
 	IconDesc.Format = ETextureFormat::RGBA8UNorm;
-	const std::filesystem::path IconDirectory = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icons";
+	const std::filesystem::path IconDirectory = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icon";
 	if (DecodeIcon(IconDirectory / L"ContentFolder.png", Pixels))
 	{
 		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
@@ -341,7 +341,7 @@ void FContentPanel::DrawBreadcrumbs(float Width)
 	const float SegmentHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
 	const float VerticalOffset = std::max(0.0f, (ImGui::GetContentRegionAvail().y - SegmentHeight) * 0.5f);
 	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + VerticalOffset);
-	if (ImGui::Button("Contents"))
+	if (ImGui::Button("Content"))
 	{
 		Navigate("/");
 	}
@@ -738,14 +738,14 @@ void FContentPanel::PasteItem(const FString& FolderPath)
 		}
 		std::filesystem::path DestinationBase = DestinationFolder / FPaths::ToWide(Asset->Name);
 		uint32 Suffix = 1;
-		while (std::filesystem::exists(DestinationBase.wstring() + L".blend") || std::filesystem::exists(DestinationBase.wstring() + L".kasset"))
+		while (std::filesystem::exists(DestinationBase.wstring() + L".glb") || std::filesystem::exists(DestinationBase.wstring() + L".kasset"))
 		{
 			DestinationBase = DestinationFolder / (FPaths::ToWide(Asset->Name) + L" Copy" + (Suffix == 1 ? L"" : L" " + std::to_wstring(Suffix)));
 			++Suffix;
 		}
 		if (Asset->HasSourceFile())
 		{
-			std::filesystem::copy_file(Asset->SourceFilePath, DestinationBase.wstring() + L".blend", FileSystemError);
+			std::filesystem::copy_file(Asset->SourceFilePath, DestinationBase.wstring() + L".glb", FileSystemError);
 		}
 		if (!FileSystemError && Asset->HasBinaryFile())
 		{
@@ -935,7 +935,7 @@ void FContentPanel::MoveItem(EItemType ItemType, const FString& SourcePath, cons
 		const std::filesystem::path DestinationFolder = FPaths::ResolveContentPath(DestinationFolderPath);
 		std::filesystem::path DestinationBase = DestinationFolder / FPaths::ToWide(Asset->Name);
 		uint32 Suffix = 1;
-		while (std::filesystem::exists(DestinationBase.wstring() + L".blend") || std::filesystem::exists(DestinationBase.wstring() + L".kasset"))
+		while (std::filesystem::exists(DestinationBase.wstring() + L".glb") || std::filesystem::exists(DestinationBase.wstring() + L".kasset"))
 		{
 			DestinationBase = DestinationFolder / (FPaths::ToWide(Asset->Name) + L" " + std::to_wstring(Suffix++));
 		}
@@ -943,7 +943,7 @@ void FContentPanel::MoveItem(EItemType ItemType, const FString& SourcePath, cons
 		std::error_code FileSystemError;
 		if (Asset->HasSourceFile())
 		{
-			std::filesystem::rename(Asset->SourceFilePath, DestinationBase.wstring() + L".blend", FileSystemError);
+			std::filesystem::rename(Asset->SourceFilePath, DestinationBase.wstring() + L".glb", FileSystemError);
 		}
 		if (!FileSystemError && Asset->HasBinaryFile())
 		{
@@ -1074,7 +1074,7 @@ FString FContentPanel::GetFolderName(const FString& FolderPath) const
 {
 	if (FolderPath == "/")
 	{
-		return "Contents";
+		return "Content";
 	}
 	return FolderPath.substr(FolderPath.find_last_of('/') + 1);
 }

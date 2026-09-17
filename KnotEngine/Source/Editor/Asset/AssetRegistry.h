@@ -24,7 +24,7 @@ struct FAssetData
 	bool HasBinaryFile() const { return !BinaryFilePath.empty(); }
 };
 
-// Contents 디렉터리를 스캔하고 UObject를 로드하지 않은 Asset 메타데이터를 보관한다.
+// Content 디렉터리를 스캔하고 UObject를 로드하지 않은 Asset 메타데이터를 보관한다.
 class FAssetRegistry final
 {
 public:

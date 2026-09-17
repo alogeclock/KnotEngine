@@ -35,7 +35,7 @@ FAssetImporter
 ├─ Asset와 의존성 생성
 └─ Import Metadata 기록
         ↓
-Contents
+Content
 ├─ Mesh.kasset
 ├─ Material.kasset
 ├─ Texture.kasset
@@ -231,7 +231,7 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 
 ### 현재 구현
 
-- `FAssetRegistry`의 `.blend`와 `.kasset` 검색
+- `FAssetRegistry`의 `.glb`와 `.kasset` 검색
 - Static Mesh `.kasset` 로드
 - `UStaticMesh`와 CPU/GPU Mesh Resource
 - 동작하지 않는 `FAssetImporter` Skeleton

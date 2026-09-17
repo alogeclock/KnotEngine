@@ -29,8 +29,8 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
 	FSamplerStateCache& SamplerStateCache = Renderer.GetSamplerStateCache();
 
-	static const FShaderKey DefaultVertexShader{ "/Engine/Shaders/StaticMesh.hlsl", "VS", EShaderStage::Vertex };
-	static const FShaderKey DefaultPixelShader{ "/Engine/Shaders/StaticMesh.hlsl", "PS", EShaderStage::Pixel };
+	static const FShaderKey DefaultVertexShader{ "/Engine/Shader/StaticMesh.hlsl", "VS", EShaderStage::Vertex };
+	static const FShaderKey DefaultPixelShader{ "/Engine/Shader/StaticMesh.hlsl", "PS", EShaderStage::Pixel };
 	FMaterial DefaultMaterial;
 	verify(DefaultMaterial.Initialize(DefaultVertexShader, DefaultPixelShader));
 

@@ -160,7 +160,7 @@ Cube UNode
 └─ UMovementComponent
 ```
 
-Cube, Sphere, Quad, Cylinder, Capsule Component는 `UStaticMeshComponent`를 상속하고 생성할 때 `Contents/Engine/Geometry`의 기본 `.kasset`을 선택한다. `FAssetManager`는 `LoadStaticMesh()`로 파일을 로드하고 `FindStaticMesh()`로 이미 등록된 Asset만 조회한다.
+Cube, Sphere, Quad, Cylinder, Capsule Component는 `UStaticMeshComponent`를 상속하고 생성할 때 `Content/Engine/Geometry`의 기본 `.glb`에서 Import된 Static Mesh를 선택한다. `FAssetManager`는 `LoadStaticMesh()`로 파일을 로드하고 `FindStaticMesh()`로 이미 등록된 Asset만 조회한다.
 
 `AddComponent<UTransformComponent>()`는 컴파일 시 금지된다. `RemoveComponent()`도 Transform 제거를 거부하므로 공개된 Node에는 항상 하나의 Transform이 존재한다.
 

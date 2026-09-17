@@ -37,7 +37,7 @@ FWString FPaths::RootDir()
 #if defined(KNOT_BUILD_SHIPPING)
 		Cached = ExeDir.generic_wstring() + L"/";
 #else
-		if (std::filesystem::exists(ExeDir / L"Contents"))
+		if (std::filesystem::exists(ExeDir / L"Content"))
 		{
 			Cached = ExeDir.generic_wstring() + L"/";
 		}
@@ -50,7 +50,7 @@ FWString FPaths::RootDir()
 			{
 				SearchDir = SearchDir.parent_path();
 
-				if (std::filesystem::exists(SearchDir / L"Contents"))
+				if (std::filesystem::exists(SearchDir / L"Content"))
 				{
 					Cached = SearchDir.generic_wstring() + L"/";
 					bFound = true;
@@ -205,7 +205,7 @@ FString FPaths::ToUtf8(const FWString& WideString)
 	return Result;
 }
 
-// Contents 기준 논리 경로를 정규화하고 Contents 외부로 벗어나지 않는 실제 경로로 변환한다.
+// Content 기준 논리 경로를 정규화하고 Content 외부로 벗어나지 않는 실제 경로로 변환한다.
 std::filesystem::path FPaths::ResolveContentPath(const FString& LogicalPath)
 {
 	const FString NormalizedPath = Normalize(LogicalPath);

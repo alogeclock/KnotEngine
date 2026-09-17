@@ -2,8 +2,8 @@
 
 // ID, 리소스 타입과 실제 파일 경로를 연결하는 리소스 스크립트
 
-IDI_KNOTENGINE ICON "Contents\\Engine\\Icons\\EngineIcon.ico"
-IDR_ENGINE_ICON_PNG RCDATA "Contents\\Engine\\Icons\\EngineIcon.png"
-IDR_PRETENDARD_MEDIUM RCDATA "Contents\\Engine\\Fonts\\Pretendard-Medium.otf"
-IDR_PRETENDARD_SEMIBOLD RCDATA "Contents\\Engine\\Fonts\\Pretendard-SemiBold.otf"
-IDR_PRETENDARD_LICENSE RCDATA "Contents\\Engine\\Fonts\\OFL-Pretendard.txt"
+IDI_KNOTENGINE ICON "Content\\Engine\\Icon\\EngineIcon.ico"
+IDR_ENGINE_ICON_PNG RCDATA "Content\\Engine\\Icon\\EngineIcon.png"
+IDR_PRETENDARD_MEDIUM RCDATA "Content\\Engine\\Font\\Pretendard-Medium.otf"
+IDR_PRETENDARD_SEMIBOLD RCDATA "Content\\Engine\\Font\\Pretendard-SemiBold.otf"
+IDR_PRETENDARD_LICENSE RCDATA "Content\\Engine\\Font\\OFL-Pretendard.txt"

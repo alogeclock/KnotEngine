@@ -124,14 +124,15 @@ set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT Editor)
 set_target_properties(Editor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Editor>")
 
 add_custom_command(TARGET Editor POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:Editor>/Contents/"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${KNOTENGINE_ROOT}/Contents/" "$<TARGET_FILE_DIR:Editor>/Contents/"
+	COMMAND ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:Editor>/Contents/"
+	COMMAND ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:Editor>/Content/"
+	COMMAND ${CMAKE_COMMAND} -E copy_directory "${KNOTENGINE_ROOT}/Content/" "$<TARGET_FILE_DIR:Editor>/Content/"
 )
 
 include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
 
 # Content 파일은 런타임에서 로드하며 Visual Studio에서 원래 폴더 구조로 표시한다.
-foreach(DATA_DIR Contents)
+foreach(DATA_DIR Content)
     file(GLOB_RECURSE RUNTIME_RESOURCE_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/${DATA_DIR}/*")
     set_source_files_properties(${RUNTIME_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
     target_sources(Editor PRIVATE ${RUNTIME_RESOURCE_FILES})

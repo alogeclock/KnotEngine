@@ -19,7 +19,7 @@
 ## 전체 구조
 
 ```text
-Contents/<Asset>.kasset
+Content/<Asset>.kasset
         ↓
 FAssetBinaryLoader
 ├─ Header와 Version 검증
@@ -49,7 +49,7 @@ Asset은 다음 세 계층으로 나뉜다.
 
 ### FAssetRegistry
 
-`FAssetRegistry`는 Editor에서 `Contents`를 스캔하고 다음 메타데이터를 관리한다.
+`FAssetRegistry`는 Editor에서 `Content`를 스캔하고 다음 메타데이터를 관리한다.
 
 - 논리 Asset 경로
 - 실제 Source와 Binary 파일 경로

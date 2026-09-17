@@ -15,7 +15,7 @@ static FString MakeAssetPath(const std::filesystem::path& RelativeFilePath)
 	return "/" + FPaths::ToUtf8(RelativeAssetPath.generic_wstring());
 }
 
-// Contents의 원본과 바이너리를 다시 찾아 Asset 목록과 경로 인덱스를 교체한다.
+// Content의 원본과 바이너리를 다시 찾아 Asset 목록과 경로 인덱스를 교체한다.
 void FAssetRegistry::Scan()
 {
 	Reset();
@@ -60,7 +60,7 @@ void FAssetRegistry::Scan()
 				return static_cast<char>(std::tolower(Character));
 			});
 
-			if (Extension == ".blend" || Extension == ".kasset")
+			if (Extension == ".glb" || Extension == ".kasset")
 			{
 				const std::filesystem::path RelativePath = std::filesystem::relative(Entry.path(), ContentPath, FileSystemError);
 				if (!FileSystemError)
@@ -70,7 +70,7 @@ void FAssetRegistry::Scan()
 					Asset.Name = FPaths::ToUtf8(RelativePath.stem().wstring());
 					Asset.AssetPath = AssetPath;
 					Asset.FolderPath = FPaths::GetPath(AssetPath);
-					if (Extension == ".blend")
+					if (Extension == ".glb")
 					{
 						Asset.SourceFilePath = Entry.path();
 						Asset.Type = EAssetType::StaticMesh;
