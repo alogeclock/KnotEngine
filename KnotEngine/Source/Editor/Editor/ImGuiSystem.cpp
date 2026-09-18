@@ -41,6 +41,7 @@ FImGuiSystem::FImGuiSystem(
 
 FImGuiSystem::~FImGuiSystem()
 {
+	InputRouter.UnregisterTarget(*this);
 	EditorEngine.UnregisterViewportClient(ViewportPanel.GetViewportClient());
 }
 
@@ -111,9 +112,10 @@ void FImGuiSystem::Draw(float DeltaTime)
 {
 	KNOT_PROFILE_SCOPE("Tick", "FImGuiSystem::Draw");
 
+	InputRouter.RegisterGlobalKeyTarget(*this);
 	DrawMenuBar();
 	DrawBottomToolbar();
-	const ImGuiID DockspaceId = ImGui::GetID("KnotEditorDockspace");
+	const ImGuiID DockspaceId = ImGui::GetID("KnotEditorDockspaceV2");
 	const bool bNeedsDefaultLayout = ImGui::DockBuilderGetNode(DockspaceId) == nullptr;
 	ImGui::DockSpaceOverViewport(DockspaceId, ImGui::GetMainViewport(), ImGuiDockNodeFlags_None);
 	if (bNeedsDefaultLayout)
@@ -132,47 +134,158 @@ void FImGuiSystem::Draw(float DeltaTime)
 		InspectorPanel.Draw(Selection);
 	}
 	ViewportPanel.Draw(bShowViewport, DeltaTime);
+	DrawBottomPanelDockspace();
 	if (bShowContent)
 	{
 		ContentPanel.Draw();
+		if (bFocusContentRequested)
+		{
+			ImGui::SetWindowFocus("Content");
+			bFocusContentRequested = false;
+		}
 	}
 	if (bShowConsole)
 	{
 		ConsolePanel.Draw();
+		if (bFocusConsoleRequested)
+		{
+			ImGui::SetWindowFocus("Console");
+			bFocusConsoleRequested = false;
+		}
 	}
 #if KNOT_CPU_PROFILER_ENABLED
 	if (bShowProfile)
 	{
 		ProfilePanel.Draw(DeltaTime);
+		if (bFocusProfileRequested)
+		{
+			ImGui::SetWindowFocus("Profile");
+			bFocusProfileRequested = false;
+		}
 	}
 #endif
-	if (bNeedsDefaultLayout && bShowContent)
-	{
-		ImGui::SetWindowFocus("Content");
-	}
 
 	const ImGuiIO& IO = ImGui::GetIO();
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
+// Snapshot에서 Router가 전달한 전역 단축키로 Bottom Panel을 토글한다.
+FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
+{
+	const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event);
+	if (!KeyEvent || !KeyEvent->bDown || KeyEvent->bRepeat)
+	{
+		return FInputReply::Unhandled();
+	}
+
+	if (KeyEvent->Key == EKeyboardKey::Tilde)
+	{
+		bShowConsole = !bShowConsole;
+		bFocusConsoleRequested = bShowConsole;
+		if (bShowConsole)
+		{
+			ConsolePanel.RequestCommandInputFocus();
+		}
+		return FInputReply::Handled();
+	}
+	if (KeyEvent->Key != EKeyboardKey::Space)
+	{
+		return FInputReply::Unhandled();
+	}
+
+	const bool bControlDown = HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control);
+	const bool bShiftDown = HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift);
+	if (bControlDown && !bShiftDown)
+	{
+		bShowContent = !bShowContent;
+		bFocusContentRequested = bShowContent;
+		return FInputReply::Handled();
+	}
+#if KNOT_CPU_PROFILER_ENABLED
+	if (bShiftDown && !bControlDown)
+	{
+		bShowProfile = !bShowProfile;
+		bFocusProfileRequested = bShowProfile;
+		return FInputReply::Handled();
+	}
+#endif
+	return FInputReply::Unhandled();
+}
+
 // Main Viewport 하단에 비동기 작업 상태를 표시하고 Dockspace에서 Toolbar 영역을 제외한다.
 void FImGuiSystem::DrawBottomToolbar()
 {
-	const float ToolbarHeight = ImGui::GetFrameHeight() + 4.0f;
+	const float ToolbarHeight = ImGui::GetFrameHeight();
 	const ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+	const ImVec2 WindowPadding(0.0f, ImGui::GetStyle().WindowPadding.y);
+	const ImVec2 MenuBarItemSpacing(0.0f, ImGui::GetStyle().ItemSpacing.y);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, WindowPadding);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, MenuBarItemSpacing);
 	if (ImGui::BeginViewportSideBar("##BottomToolbar", ImGui::GetMainViewport(), ImGuiDir_Down, ToolbarHeight, WindowFlags))
 	{
-		if (ImGui::BeginMenuBar())
+		const bool bMenuBarVisible = ImGui::BeginMenuBar();
+		ImGui::PopStyleVar();
+		if (bMenuBarVisible)
 		{
+			const auto TogglePanel = [](bool& bShowPanel, bool& bFocusRequested)
+			{
+				bShowPanel = !bShowPanel;
+				bFocusRequested = bShowPanel;
+			};
 			const FAssetImportStatus Status = AssetImportManager.GetStatus();
+			FString StatusText;
+			float ImportStatusWidth = 0.0f;
 			if (Status.bRunning)
 			{
 				const FString FileName = FPaths::ToUtf8(Status.SourceFilePath.filename().wstring());
-				const FString StatusText = "Importing " + FileName + "..." + "  |  " + std::to_string(static_cast<uint32>(Status.ElapsedSeconds)) + "s" +
+				StatusText = "Importing " + FileName + "..." + "  |  " + std::to_string(static_cast<uint32>(Status.ElapsedSeconds)) + "s" +
 					(Status.QueuedCount > 0 ? "  |  " + std::to_string(Status.QueuedCount) + " queued" : "");
+				ImportStatusWidth = ImGui::GetFontSize() * 0.8f + ImGui::GetStyle().ItemSpacing.x + ImGui::CalcTextSize(StatusText.c_str()).x;
+			}
+
+			const auto DrawToolbarButton = [](const char* Label)
+			{
+				const ImVec4 ToolbarColor = ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg);
+				ImGui::PushStyleColor(ImGuiCol_Button, ToolbarColor);
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+				ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+				const bool bClicked = ImGui::Button(Label, ImVec2(0.0f, ImGui::GetFrameHeight()));
+				ImGui::PopStyleVar();
+				ImGui::PopStyleColor(3);
+				const ImVec2 Minimum = ImGui::GetItemRectMin();
+				const ImVec2 Maximum = ImGui::GetItemRectMax();
+				const ImU32 BorderColor = ImGui::GetColorU32(ImGuiCol_Border);
+				ImDrawList* DrawList = ImGui::GetWindowDrawList();
+				DrawList->AddLine(ImVec2(Minimum.x, Minimum.y), ImVec2(Minimum.x, Maximum.y), BorderColor);
+				DrawList->AddLine(ImVec2(Maximum.x, Minimum.y), ImVec2(Maximum.x, Maximum.y), BorderColor);
+				return bClicked;
+			};
+
+			if (DrawToolbarButton("Content"))
+			{
+				TogglePanel(bShowContent, bFocusContentRequested);
+			}
+			ImGui::SameLine(0.0f, 0.0f);
+			if (DrawToolbarButton("Console"))
+			{
+				TogglePanel(bShowConsole, bFocusConsoleRequested);
+			}
+
+			float RightContentWidth = ImportStatusWidth;
+#if KNOT_CPU_PROFILER_ENABLED
+			const float ProfileButtonWidth = ImGui::CalcTextSize("Profile").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+			RightContentWidth += ProfileButtonWidth + (Status.bRunning ? ImGui::GetStyle().ItemSpacing.x : 0.0f);
+#endif
+			const float RightContentX = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - RightContentWidth;
+			if (RightContentWidth > 0.0f)
+			{
+				ImGui::SameLine();
+				ImGui::SetCursorPosX((std::max)(ImGui::GetCursorPosX(), RightContentX));
+			}
+			if (Status.bRunning)
+			{
 				const float SpinnerSize = ImGui::GetFontSize() * 0.4f;
-				const float ContentWidth = SpinnerSize * 2.0f + ImGui::GetStyle().ItemSpacing.x + ImGui::CalcTextSize(StatusText.c_str()).x;
-				ImGui::SetCursorPosX((std::max)(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - ContentWidth - ImGui::GetStyle().WindowPadding.x));
 				const ImVec2 Center(ImGui::GetCursorScreenPos().x + SpinnerSize, ImGui::GetCursorScreenPos().y + ImGui::GetFrameHeight() * 0.5f);
 				ImDrawList* DrawList = ImGui::GetWindowDrawList();
 				const float StartAngle = static_cast<float>(ImGui::GetTime() * 5.0);
@@ -182,10 +295,67 @@ void FImGuiSystem::DrawBottomToolbar()
 				ImGui::SameLine();
 				ImGui::TextUnformatted(StatusText.c_str());
 			}
+#if KNOT_CPU_PROFILER_ENABLED
+			if (Status.bRunning)
+			{
+				ImGui::SameLine();
+			}
+			if (DrawToolbarButton("Profile"))
+			{
+				TogglePanel(bShowProfile, bFocusProfileRequested);
+			}
+#endif
 			ImGui::EndMenuBar();
 		}
 	}
+	else
+	{
+		ImGui::PopStyleVar();
+	}
 	ImGui::End();
+	ImGui::PopStyleVar();
+}
+
+// Content, Console, Profile 중 하나가 열리면 Main Viewport 하단 전체 폭에 Drawer Dockspace를 표시한다.
+void FImGuiSystem::DrawBottomPanelDockspace()
+{
+	bool bShowBottomPanel = bShowContent || bShowConsole;
+#if KNOT_CPU_PROFILER_ENABLED
+	bShowBottomPanel = bShowBottomPanel || bShowProfile;
+#endif
+	if (!bShowBottomPanel)
+	{
+		return;
+	}
+
+	const ImGuiViewport* MainViewport = ImGui::GetMainViewport();
+	const float DrawerHeight = MainViewport->WorkSize.y * 0.4f;
+	ImGui::SetNextWindowPos(ImVec2(MainViewport->WorkPos.x, MainViewport->WorkPos.y + MainViewport->WorkSize.y - DrawerHeight));
+	ImGui::SetNextWindowSize(ImVec2(MainViewport->WorkSize.x, DrawerHeight));
+	ImGui::SetNextWindowViewport(MainViewport->ID);
+	constexpr ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
+		| ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	if (ImGui::Begin("##BottomPanelDrawer", nullptr, WindowFlags))
+	{
+		const ImGuiID DockspaceId = ImGui::GetID("KnotEditorBottomPanelDockspace");
+		constexpr ImGuiDockNodeFlags DockspaceFlags = ImGuiDockNodeFlags_NoDockingSplit | ImGuiDockNodeFlags_NoResize | ImGuiDockNodeFlags_NoUndocking;
+		if (ImGui::DockBuilderGetNode(DockspaceId) == nullptr)
+		{
+			ImGui::DockBuilderAddNode(DockspaceId, ImGuiDockNodeFlags_DockSpace | DockspaceFlags);
+			ImGui::DockBuilderSetNodeSize(DockspaceId, ImGui::GetContentRegionAvail());
+			ImGui::DockBuilderDockWindow("Content", DockspaceId);
+			ImGui::DockBuilderDockWindow("Console", DockspaceId);
+#if KNOT_CPU_PROFILER_ENABLED
+			ImGui::DockBuilderDockWindow("Profile", DockspaceId);
+#endif
+			ImGui::DockBuilderFinish(DockspaceId);
+		}
+		ImGui::DockSpace(DockspaceId, ImVec2(0.0f, 0.0f), DockspaceFlags);
+	}
+	ImGui::End();
+	ImGui::PopStyleVar(2);
 }
 
 void FImGuiSystem::EndFrame()
@@ -218,12 +388,32 @@ void FImGuiSystem::DrawMenuBar()
 {
 	check(SemiBoldFont);
 	ImGui::PushFont(SemiBoldFont);
-	if (!ImGui::BeginMainMenuBar())
+	const ImVec2 WindowPadding(0.0f, ImGui::GetStyle().WindowPadding.y);
+	const ImVec2 MenuBarItemSpacing(0.0f, ImGui::GetStyle().ItemSpacing.y);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, WindowPadding);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, MenuBarItemSpacing);
+	ImGuiStyle& Style = ImGui::GetStyle();
+	const float PreviousSafeAreaPaddingX = Style.DisplaySafeAreaPadding.x;
+	Style.DisplaySafeAreaPadding.x = 0.0f;
+	const bool bMenuBarVisible = ImGui::BeginMainMenuBar();
+	Style.DisplaySafeAreaPadding.x = PreviousSafeAreaPaddingX;
+	ImGui::PopStyleVar();
+	if (!bMenuBarVisible)
 	{
+		ImGui::PopStyleVar();
 		ImGui::PopFont();
 		return;
 	}
-	if (ImGui::BeginMenu("Window"))
+	ImDrawList* MenuBarDrawList = ImGui::GetWindowDrawList();
+	const float MenuBarTop = ImGui::GetWindowPos().y;
+	const float MenuBarBottom = MenuBarTop + ImGui::GetWindowHeight();
+	const bool bWindowMenuOpen = ImGui::BeginMenu("Window");
+	const ImVec2 WindowMenuMinimum = ImGui::GetItemRectMin();
+	const ImVec2 WindowMenuMaximum = ImGui::GetItemRectMax();
+	const ImU32 BorderColor = ImGui::GetColorU32(ImGuiCol_Border);
+	MenuBarDrawList->AddLine(ImVec2(WindowMenuMinimum.x, MenuBarTop), ImVec2(WindowMenuMinimum.x, MenuBarBottom), BorderColor);
+	MenuBarDrawList->AddLine(ImVec2(WindowMenuMaximum.x, MenuBarTop), ImVec2(WindowMenuMaximum.x, MenuBarBottom), BorderColor);
+	if (bWindowMenuOpen)
 	{
 		ImGui::MenuItem("Hierarchy", nullptr, &bShowHierarchy);
 		ImGui::MenuItem("Inspector", nullptr, &bShowInspector);
@@ -236,6 +426,7 @@ void FImGuiSystem::DrawMenuBar()
 		ImGui::EndMenu();
 	}
 	ImGui::EndMainMenuBar();
+	ImGui::PopStyleVar();
 	ImGui::PopFont();
 }
 
@@ -250,17 +441,10 @@ void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)
 	ImGuiID CenterId = DockspaceId;
 	ImGuiID LeftId = 0;
 	ImGuiID RightId = 0;
-	ImGuiID BottomId = 0;
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Left, 0.20f, &LeftId, &CenterId);
 	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Right, 0.25f, &RightId, &CenterId);
-	ImGui::DockBuilderSplitNode(CenterId, ImGuiDir_Down, 0.25f, &BottomId, &CenterId);
 	ImGui::DockBuilderDockWindow("Hierarchy", LeftId);
 	ImGui::DockBuilderDockWindow("Inspector", RightId);
-	ImGui::DockBuilderDockWindow("Content", BottomId);
-	ImGui::DockBuilderDockWindow("Console", BottomId);
-#if KNOT_CPU_PROFILER_ENABLED
-	ImGui::DockBuilderDockWindow("Profile", BottomId);
-#endif
 	ImGui::DockBuilderDockWindow("Viewport", CenterId);
 	ImGui::DockBuilderFinish(DockspaceId);
 }

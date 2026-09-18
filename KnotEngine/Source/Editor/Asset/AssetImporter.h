@@ -13,14 +13,14 @@ struct cgltf_data;
 struct cgltf_primitive;
 struct cgltf_sampler;
 
-// 한 번의 Import로 생성된 개별 Runtime Asset의 논리 경로와 종류다.
+// 한 번의 Import로 생성된 개별 Runtime Asset의 논리 경로와 종류.
 struct FImportedAsset
 {
 	FString AssetPath;
 	EAssetType Type = EAssetType::Unknown;
 };
 
-// Import 성공 여부와 생성된 Asset, 경고 및 오류를 함께 반환하는 결과다.
+// Import 성공 여부와 생성된 Asset, 경고 및 오류를 함께 반환하는 결과.
 struct FAssetImportResult
 {
 	bool bSucceeded = false;
@@ -29,7 +29,7 @@ struct FAssetImportResult
 	FString Error;
 };
 
-// GLB Source를 Runtime 전용 Mesh, Material, Texture .kasset으로 변환하는 Editor 전용 Importer다.
+// GLB Source를 Runtime 전용 Mesh, Material, Texture .kasset으로 변환하는 Editor 전용 Importer.
 class FAssetImporter final
 {
 public:

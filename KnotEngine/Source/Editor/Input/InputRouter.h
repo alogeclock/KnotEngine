@@ -43,6 +43,7 @@ class FInputRouter final
 {
 public:
 	void BeginFrame(const FInputSnapshot& InputSnapshot);
+	void RegisterGlobalKeyTarget(IInputTarget& Target);
 	void RegisterTarget(IInputTarget& Target, bool bHovered, bool bFocused);
 	void UnregisterTarget(IInputTarget& Target);
 
@@ -113,6 +114,7 @@ private:
 	IInputTarget* HoveredTarget = nullptr;
 	IInputTarget* KeyboardFocusOwner = nullptr;
 	IInputTarget* MouseCaptureOwner = nullptr;
+	IInputTarget* GlobalKeyTarget = nullptr;
 
 	bool bImGuiWantsMouse = false;
 	bool bImGuiWantsKeyboard = false;

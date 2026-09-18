@@ -57,10 +57,19 @@ void FInputRouter::BeginFrame(const FInputSnapshot& InputSnapshot)
 	RegisteredTargets.clear();
 	HandledEvents.clear();
 	HoveredTarget = nullptr;
+	GlobalKeyTarget = nullptr;
 	bImGuiWantsMouse = false;
 	bImGuiWantsKeyboard = false;
 	bImGuiWantsTextInput = false;
 	bHasPendingFrame = true;
+}
+
+// UI 전역 단축키가 ImGui와 Viewport보다 먼저 Key Event를 소비할 수 있도록 대상 하나를 등록한다.
+void FInputRouter::RegisterGlobalKeyTarget(IInputTarget& Target)
+{
+	checkf(bHasPendingFrame, "FInputRouter::BeginFrame()보다 먼저 전역 Key 입력 대상을 등록할 수 없다.");
+	checkf(!GlobalKeyTarget || GlobalKeyTarget == &Target, "전역 Key 입력 대상은 프레임마다 하나만 등록할 수 있다.");
+	GlobalKeyTarget = &Target;
 }
 
 // 매 프레임 Input Target을 새로 등록하며, 같은 Input Target 객체는 입력 라우팅이 끝날 때까지 살아 있어야 한다.
@@ -83,6 +92,10 @@ void FInputRouter::RegisterTarget(IInputTarget& Target, bool bHovered, bool bFoc
 
 void FInputRouter::UnregisterTarget(IInputTarget& Target)
 {
+	if (GlobalKeyTarget == &Target)
+	{
+		GlobalKeyTarget = nullptr;
+	}
 	if (HoveredTarget == &Target)
 	{
 		HoveredTarget = nullptr;
@@ -160,6 +173,7 @@ void FInputRouter::Reset()
 	RegisteredTargets.clear();
 	HandledEvents.clear();
 	HoveredTarget = nullptr;
+	GlobalKeyTarget = nullptr;
 	bImGuiWantsMouse = false;
 	bImGuiWantsKeyboard = false;
 	bImGuiWantsTextInput = false;
@@ -238,6 +252,11 @@ bool FInputRouter::RouteKeyEvent(const FKeyInputEvent& Event)
 			return true;
 		}
 		DispatchEvent(SequenceOwner.Target, FInputEvent(Event));
+		return true;
+	}
+	else if (DispatchEvent(GlobalKeyTarget, FInputEvent(Event)))
+	{
+		SequenceOwner = { GlobalKeyTarget, ESequenceOwner::Native };
 		return true;
 	}
 
@@ -480,13 +499,13 @@ void FInputRouter::ClearAllOwnership(bool bNotifyOwners)
 
 bool FInputRouter::IsTargetRegistered(const IInputTarget* Target) const
 {
-	return Target && std::any_of(
+	return Target && (Target == GlobalKeyTarget || std::any_of(
 		RegisteredTargets.begin(),
 		RegisteredTargets.end(),
 		[Target](const FRegisteredTarget& RegisteredTarget)
 		{
 			return RegisteredTarget.Target == Target;
-		});
+		}));
 }
 
 bool FInputRouter::IsAnyMouseButtonDown() const

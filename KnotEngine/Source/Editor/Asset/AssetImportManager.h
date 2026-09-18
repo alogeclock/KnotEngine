@@ -9,7 +9,7 @@
 #include <mutex>
 #include <thread>
 
-// Worker Thread에서 끝난 GLB Import 결과와 원본 경로다.
+// Worker Thread에서 끝난 GLB Import 결과와 원본 경로.
 struct FAssetImportCompletion
 {
 	std::filesystem::path SourceFilePath;
@@ -24,7 +24,7 @@ struct FAssetImportStatus
 	bool bRunning = false;
 };
 
-// 비동기 GLB Import 요청과 완료 결과를 단일 Worker Thread에서 처리하는 Editor 관리자다.
+// 비동기 GLB Import 요청과 완료 결과를 단일 Worker Thread에서 처리하는 Editor 관리자.
 class FAssetImportManager final
 {
 public:
@@ -61,6 +61,7 @@ private:
 	TQueue<FRequest> PendingRequests;
 	TArray<FAssetImportCompletion> CompletedRequests;
 	TSet<FWString> ActiveSourceKeys;
+
 	std::filesystem::path CurrentSourceFilePath;
 	std::chrono::steady_clock::time_point CurrentStartTime;
 	bool bImportRunning = false;

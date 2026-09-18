@@ -47,8 +47,9 @@ FInputRouter::BeginFrame
 ImGui Frame 구성 및 입력 대상 등록
         ↓
 FInputRouter::RouteInput
-        ├─ ImGui
-        ├─ Mouse Capture Target
+		├─ Global Key Target
+		├─ ImGui
+		├─ Mouse Capture Target
         ├─ Keyboard Focus Target
         └─ Hovered Target
 ```
@@ -97,7 +98,7 @@ KnotEngine/Source/
 | `FWindowsInput` | Win32 입력 해석, 상태 누적, 이벤트 생성, Raw Mouse 수집 | ImGui capture, 뷰포트 선택 |
 | `FInputSnapshot` | 한 프레임 입력의 읽기 전용 상태와 이벤트 | 소비 여부, 포커스, 캡처 정책 |
 | `FImGuiSystem` | ImGui 프레임 구성, 패널 그리기, ImGui capture 상태 전달 | 물리 키 변환, 입력 소유권 보관 |
-| `FInputRouter` | 대상 등록, 이벤트별 target 결정, 논리 포커스와 캡처 | Win32 처리, ImGui 위젯 렌더링 |
+| `FInputRouter` | 전역 단축키와 대상 등록, 이벤트별 target 결정, 논리 포커스와 캡처 | Win32 처리, ImGui 위젯 렌더링 |
 | `IInputTarget` | 뷰포트·기즈모 등의 이벤트 소비 지점 | 전역 target 선택 |
 | `FEditorViewportClient` | 에디터 뷰포트 입력을 카메라 조작으로 해석 | OS 메시지 직접 처리 |
 
@@ -308,6 +309,12 @@ InputRouter.RegisterTarget(
 
 등록은 프레임 단위다. 등록 순서는 겹친 대상의 우선순위로 사용하며 마지막에 등록된 hovered/focused 대상이 우선한다. 대상은 `RouteInput()`이 끝날 때까지 살아 있어야 한다.
 
+Bottom Toolbar처럼 ImGui의 포커스와 무관하게 동작하는 에디터 전역 단축키 대상은 프레임마다 하나를 별도로 등록한다. 이 대상이 처리한 KeyDown은 Down/Up 소유권에 기록되어 ImGui나 Viewport로 다시 전달되지 않는다.
+
+```cpp
+InputRouter.RegisterGlobalKeyTarget(ImGuiSystem);
+```
+
 ### FInputReply
 
 대상은 이벤트 처리 결과와 상태 변경 요청을 함께 반환한다.
@@ -333,7 +340,7 @@ return FInputReply::Handled()
 | Mouse Button | Down 소유자, 캡처 대상, hovered 대상, ImGui |
 | Pointer Move/Wheel | 캡처 대상, hovered 대상, ImGui |
 | Raw Move | 캡처 대상, ImGui |
-| Key | Down 소유자, ImGui keyboard/text, focused 대상 |
+| Key | Down 소유자, Global Key Target, ImGui keyboard/text, focused 대상 |
 | Character | ImGui text/keyboard, focused 대상 |
 | Focus Lost | 모든 논리 소유권 해제 |
 
@@ -375,7 +382,7 @@ Capture 해제
 
 ## 뷰포트 연결 계획
 
-현재 `FInputRouter`와 엔진 프레임 연결은 구현되어 있지만 등록된 뷰포트 입력 대상은 아직 없다.
+`FInputRouter`와 엔진 프레임 연결 및 Level Editor Viewport 입력 대상 등록은 구현되어 있다. 추가 Viewport layout과 Gizmo는 같은 target 등록 방식으로 확장한다.
 
 향후 뷰포트는 다음 경로로 연결한다.
 
@@ -438,6 +445,7 @@ ImGui DockSpace
 - 순서 보존 `FInputEvent` 배열
 - `FInputRouter`의 프레임 입력 보관
 - 프레임 단위 target 등록
+- 에디터 전역 단축키 대상 등록
 - hovered, keyboard focus, mouse capture owner 관리
 - ImGui mouse/keyboard/text capture 반영
 - 키와 버튼의 Down/Up 소유권 추적

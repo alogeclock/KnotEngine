@@ -2,6 +2,7 @@
 
 #include "Render/RHI/RenderTypes.h"
 #include "Editor/EditorSelection.h"
+#include "Input/InputRouter.h"
 #include "Editor/Panels/ConsolePanel.h"
 #include "Editor/Panels/ContentPanel.h"
 #include "Editor/Panels/HierarchyPanel.h"
@@ -16,12 +17,12 @@ class IImGuiRenderBackend;
 class IRenderDevice;
 class FAssetImportManager;
 class FAssetRegistry;
-class FInputRouter;
 struct ImFont;
 class UEditorEngine;
 class FWindowsApplication;
 
-class FImGuiSystem
+// Editor의 ImGui Context와 Panel 수명주기 및 Frame 렌더링을 관리한다.
+class FImGuiSystem : public IInputTarget
 {
 public:
 	FImGuiSystem(
@@ -42,6 +43,8 @@ public:
 	void Shutdown();
 
 private:
+	FInputReply OnInputEvent(const FInputEvent& Event) override;
+
 	FWindowsApplication& Application;
 	UEditorEngine& EditorEngine;
 	FAssetImportManager& AssetImportManager;
@@ -68,13 +71,19 @@ private:
 	bool bShowHierarchy = true;
 	bool bShowInspector = true;
 	bool bShowViewport = true;
-	bool bShowConsole = true;
-	bool bShowContent = true;
+	bool bShowConsole = false;
+	bool bShowContent = false;
+
+	bool bFocusConsoleRequested = false;
+	bool bFocusContentRequested = false;
+
 #if KNOT_CPU_PROFILER_ENABLED
-	bool bShowProfile = true;
+	bool bShowProfile = false;
+	bool bFocusProfileRequested = false;
 #endif
 
 	void DrawMenuBar();
 	void DrawBottomToolbar();
+	void DrawBottomPanelDockspace();
 	void BuildLayout(std::uint32_t DockspaceId);
 };
