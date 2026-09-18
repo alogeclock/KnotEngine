@@ -29,6 +29,7 @@ public:
 private:
 	friend class FAssetBinaryLoader;
 	bool Initialize(
+		const FAssetId& InAssetId,
 		FString InAssetPath,
 		UMaterial* InParent,
 		TArray<FScalarMaterialParameter>&& InScalarParameters,

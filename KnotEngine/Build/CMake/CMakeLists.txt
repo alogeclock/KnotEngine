@@ -113,7 +113,7 @@ source_group("Source\\Asset\\Resource" FILES
 
 target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngine.manifest")
 
-target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json ole32)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)
 target_include_directories(Editor PRIVATE "${CGLTF_INCLUDE_DIR}")
 target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui Microsoft::DirectXTex windowscodecs ole32 shell32)

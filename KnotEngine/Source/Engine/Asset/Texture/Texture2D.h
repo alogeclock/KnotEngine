@@ -19,6 +19,7 @@ class ENGINE_API UTexture2D final : public UTexture
 	GENERATED_CLASS(UTexture2D, UTexture)
 
 public:
+	EAssetType GetAssetType() const override { return EAssetType::Texture2D; }
 	bool InitResources(IRenderDevice& RenderDevice) override;
 	void ReleaseResources() override;
 
@@ -30,6 +31,7 @@ public:
 private:
 	friend class FAssetBinaryLoader;
 	bool Initialize(
+		const FAssetId& InAssetId,
 		FString InAssetPath,
 		uint32 InWidth,
 		uint32 InHeight,

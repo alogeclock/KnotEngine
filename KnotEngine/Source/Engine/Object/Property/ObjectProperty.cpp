@@ -1,5 +1,7 @@
 #include "ObjectProperty.h"
 
+#include "Asset/Asset/Asset.h"
+#include "Asset/AssetManager.h"
 #include "Object/Class.h"
 #include "Object/Object.h"
 
@@ -38,22 +40,71 @@ void FObjectProperty::CopyElement(void* Dst, const void* Src) const
 	ObjectPtrOps->CopyValue(Dst, Src);
 }
 
-// 강한 객체 참조를 현재 실행의 UUID로 저장하고 이미 등록된 UObject 주소로 복원한다.
+// UAsset 강한 참조는 영속 ID로, 그 외 UObject 강한 참조는 현재 실행의 UUID로 저장하고 실제 객체로 복원한다.
 void FObjectProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
+	enum class EObjectReferenceKind : uint8
+	{
+		Null,
+		RuntimeObject,
+		Asset,
+	};
+
+	EObjectReferenceKind Kind = EObjectReferenceKind::Null;
 	uint32 ObjectUUID = 0;
+	FAssetId AssetId;
 	if (Ar.IsSaving())
 	{
 		if (UObject* Object = ObjectPtrOps->GetObject(Value))
 		{
-			ObjectUUID = Object->GetUUID();
+			if (Object->IsA(UAsset::StaticClass()))
+			{
+				Kind = EObjectReferenceKind::Asset;
+				AssetId = static_cast<UAsset*>(Object)->GetAssetId();
+				if (!AssetId.IsValid())
+				{
+					Ar.SetError();
+					return;
+				}
+			}
+			else
+			{
+				Kind = EObjectReferenceKind::RuntimeObject;
+				ObjectUUID = Object->GetUUID();
+			}
 		}
 	}
 
-	Ar << ObjectUUID;
+	Ar << Kind;
+	if (Ar.HasError() || Kind > EObjectReferenceKind::Asset)
+	{
+		Ar.SetError();
+		return;
+	}
+	if (Kind == EObjectReferenceKind::Asset)
+	{
+		Ar << AssetId;
+	}
+	else if (Kind == EObjectReferenceKind::RuntimeObject)
+	{
+		Ar << ObjectUUID;
+	}
 	if (Ar.IsLoading())
 	{
-		UObject* Object = ObjectUUID != 0 ? GUObjectManager.FindByUUID(ObjectUUID) : nullptr;
+		UObject* Object = nullptr;
+		if (Kind == EObjectReferenceKind::Asset)
+		{
+			if (!AssetId.IsValid() || !GAssetManager || !(Object = GAssetManager->LoadAsset(AssetId)) || !Object->IsA(PropertyClass))
+			{
+				Ar.SetError();
+				ObjectPtrOps->SetObject(Value, nullptr);
+				return;
+			}
+		}
+		else if (Kind == EObjectReferenceKind::RuntimeObject && ObjectUUID != 0)
+		{
+			Object = GUObjectManager.FindByUUID(ObjectUUID);
+		}
 		ObjectPtrOps->SetObject(Value, Object && Object->IsA(PropertyClass) ? Object : nullptr);
 	}
 }

@@ -10,6 +10,8 @@
 #include <Shellapi.h>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
+#include <fstream>
 #include <imgui.h>
 #include <objbase.h>
 #include <system_error>
@@ -61,6 +63,22 @@ bool FContentPanel::DecodeIcon(const std::filesystem::path& FilePath, TArray<uin
 		CoUninitialize();
 	}
 	return bDecoded;
+}
+
+// 복제된 .kasset이 원본과 충돌하지 않도록 컨테이너 헤더에 새로운 영속 ID를 기록한다.
+bool FContentPanel::RegenerateAssetId(const std::filesystem::path& FilePath)
+{
+	std::fstream Stream(FilePath, std::ios::binary | std::ios::in | std::ios::out);
+	FAssetFileHeader Header = {};
+	if (!Stream.read(reinterpret_cast<char*>(&Header), sizeof(Header)) ||
+		std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) != 0 ||
+		Header.ContainerVersion != FAssetFileHeader::CurrentVersion)
+	{
+		return false;
+	}
+	Header.AssetId = FAssetId::New();
+	Stream.seekp(0, std::ios::beg);
+	return static_cast<bool>(Stream.write(reinterpret_cast<const char*>(&Header), sizeof(Header)));
 }
 
 // 긴 Tile 이름을 폭에 맞게 생략 부호가 붙은 문자열로 줄인다.
@@ -776,6 +794,17 @@ void FContentPanel::PasteItem(const FString& FolderPath)
 		}
 		const std::filesystem::path Destination = MakeUniquePath(DestinationFolder / Source.filename(), true);
 		std::filesystem::copy(Source, Destination, std::filesystem::copy_options::recursive, FileSystemError);
+		if (!FileSystemError)
+		{
+			for (std::filesystem::recursive_directory_iterator It(Destination), End; It != End; ++It)
+			{
+				if (It->is_regular_file() && It->path().extension() == L".kasset" && !RegenerateAssetId(It->path()))
+				{
+					FileSystemError = std::make_error_code(std::errc::invalid_argument);
+					break;
+				}
+			}
+		}
 	}
 	else if (CopiedItemType == EItemType::Asset)
 	{
@@ -797,7 +826,12 @@ void FContentPanel::PasteItem(const FString& FolderPath)
 		}
 		if (!FileSystemError && Asset->HasBinaryFile())
 		{
-			std::filesystem::copy_file(Asset->BinaryFilePath, DestinationBase.wstring() + L".kasset", FileSystemError);
+			const std::filesystem::path DestinationBinary = DestinationBase.wstring() + L".kasset";
+			std::filesystem::copy_file(Asset->BinaryFilePath, DestinationBinary, FileSystemError);
+			if (!FileSystemError && !RegenerateAssetId(DestinationBinary))
+			{
+				FileSystemError = std::make_error_code(std::errc::invalid_argument);
+			}
 		}
 	}
 	if (FileSystemError)

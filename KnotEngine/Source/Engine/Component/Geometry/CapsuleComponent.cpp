@@ -1,6 +1,6 @@
 #include "Component/Geometry/CapsuleComponent.h"
 
 UCapsuleComponent::UCapsuleComponent()
-    : UStaticMeshComponent(StaticMeshPath)
+	: UStaticMeshComponent(FEngineAssetIds::Capsule)
 {
 }

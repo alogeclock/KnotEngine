@@ -11,7 +11,7 @@ class FReferenceCollector;
 // Material .kasset Payload의 Render State와 Parameter 배열 크기를 저장한다.
 struct FMaterialPayloadHeader
 {
-	inline static constexpr uint32 CurrentVersion = 1;
+	inline static constexpr uint32 CurrentVersion = 2;
 
 	EMaterialBlendMode BlendMode;
 	EMaterialDepthMode DepthMode;
@@ -59,6 +59,7 @@ public:
 private:
 	friend class FAssetBinaryLoader;
 	bool Initialize(
+		const FAssetId& InAssetId,
 		FString InAssetPath,
 		FMaterial&& InMaterial,
 		TArray<FScalarMaterialParameter>&& InScalarParameters,

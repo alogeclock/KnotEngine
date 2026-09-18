@@ -2,14 +2,17 @@
 
 #include "Object/ReferenceCollector.h"
 
-bool UStaticMesh::Initialize(FString InAssetPath, FStaticMesh&& InRenderData, TArray<FStaticMaterial>&& InStaticMaterials)
+bool UStaticMesh::Initialize(
+	const FAssetId& InAssetId,
+	FString InAssetPath,
+	FStaticMesh&& InRenderData,
+	TArray<FStaticMaterial>&& InStaticMaterials)
 {
-	if (InAssetPath.empty() || !InRenderData.IsValid())
+	if (!InRenderData.IsValid() || !InitializeAsset(InAssetId, std::move(InAssetPath)))
 	{
 		return false;
 	}
 
-	AssetPath = std::move(InAssetPath);
 	RenderData = std::move(InRenderData);
 	StaticMaterials = std::move(InStaticMaterials);
 

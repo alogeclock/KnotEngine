@@ -8,6 +8,8 @@ class UStaticMesh;
 class UMaterial;
 class UTexture2D;
 class FAssetManager;
+struct FAssetData;
+struct FAssetFileHeader;
 class FMemoryReader;
 enum class EAssetType : uint32;
 
@@ -15,11 +17,17 @@ enum class EAssetType : uint32;
 class ENGINE_API FAssetBinaryLoader final
 {
 public:
-	UStaticMesh* LoadStaticMesh(const FString& AssetPath, FAssetManager& AssetManager) const;
-	UMaterial* LoadMaterial(const FString& AssetPath, FAssetManager& AssetManager) const;
-	UTexture2D* LoadTexture2D(const FString& AssetPath) const;
+	UStaticMesh* LoadStaticMesh(const FAssetData& Asset, FAssetManager& AssetManager) const;
+	UMaterial* LoadMaterial(const FAssetData& Asset, FAssetManager& AssetManager) const;
+	UTexture2D* LoadTexture2D(const FAssetData& Asset) const;
 
 private:
-	static TArray<uint8> LoadAssetFile(const FString& AssetPath);
-	static bool ReadAssetHeader(FMemoryReader& Reader, SIZE_T FileSize, EAssetType ExpectedType, uint32 ExpectedPayloadVersion);
+	static TArray<uint8> LoadAssetFile(const FAssetData& Asset);
+	static bool ReadAssetHeader(
+		FMemoryReader& Reader,
+		SIZE_T FileSize,
+		const FAssetData& Asset,
+		EAssetType ExpectedType,
+		uint32 ExpectedPayloadVersion,
+		FAssetFileHeader& OutHeader);
 };

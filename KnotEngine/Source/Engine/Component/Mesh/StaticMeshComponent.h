@@ -6,7 +6,7 @@
 
 #include <memory>
 
-// 경로로 로드된 Static Mesh Asset을 Scene에 제출하는 Primitive Component다.
+// 영속 ID로 해결된 Static Mesh Asset을 Scene에 제출하는 Primitive Component다.
 UCLASS(EditorSpawnable, Category = "Mesh", DisplayName = "Static Mesh")
 class ENGINE_API UStaticMeshComponent : public UPrimitiveComponent
 {
@@ -26,7 +26,7 @@ public:
 	const TArray<TObjectPtr<UMaterialInterface>>& GetOverrideMaterials() const { return OverrideMaterials; }
 
 protected:
-	explicit UStaticMeshComponent(const char* DefaultAssetPath);
+	explicit UStaticMeshComponent(const FAssetId& DefaultAssetId);
 	std::unique_ptr<FPrimitiveSceneProxy> CreatePrimitiveSceneProxy() const override;
 
 private:

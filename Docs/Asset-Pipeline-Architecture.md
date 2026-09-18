@@ -107,14 +107,17 @@ FAssetFileHeader
 ├─ ContainerVersion
 ├─ AssetType
 ├─ PayloadVersion
-└─ PayloadSize
+├─ PayloadSize
+└─ FAssetId
 
 Asset Payload
 ```
 
 `ContainerVersion`은 공통 Container 구조의 변경을, `PayloadVersion`은 특정 Asset 형식의 변경을 나타낸다. Loader는 기대한 Asset Type과 Version을 확인하고, 선언된 Payload 크기가 실제 파일 크기와 정확히 일치하는지 검증한다. 이전 형식의 호환 Loader는 두지 않으며 형식이 변경되면 `.kasset`을 다시 생성한다.
 
-Texture, Material과 Static Mesh의 Payload Header 및 `FShaderKey`도 같은 Archive 연산자를 사용한다. UObject Pointer와 GPU Handle은 저장하지 않으며 Asset 사이의 관계는 논리적인 Asset Path로 기록하고 로드 후 `FAssetManager`를 통해 해결한다.
+`FAssetId`는 `.kasset`을 처음 생성할 때 발급되는 128-bit 영속 ID다. 이름 변경, 폴더 이동과 Reimport에서는 기존 ID를 유지하고 Asset 복제에서는 새 ID를 발급한다. `FAssetRegistry`는 ID와 현재 논리 경로를 양방향으로 인덱싱하므로 경로가 바뀌어도 참조를 복원할 수 있다.
+
+Texture, Material과 Static Mesh의 Payload Header 및 `FShaderKey`도 같은 Archive 연산자를 사용한다. UObject Pointer와 GPU Handle은 저장하지 않으며 Asset 사이의 관계는 논리 경로가 아니라 `FAssetId`로 기록하고 로드 후 `FAssetManager`를 통해 해결한다. `UAsset` 계층은 영속 ID와 현재 표시 경로를 함께 보유하며, 일반 `UObject`의 런타임 UUID와 Asset ID는 서로 다른 수명과 용도로 유지한다.
 
 ### 로드 안전성
 
@@ -305,6 +308,8 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 ### 현재 구현
 
 - `FAssetRegistry`의 `.glb`와 타입별 `.kasset` 검색
+- `FAssetId`와 현재 경로의 양방향 Registry 조회
+- Static Mesh → Material → Texture 참조의 영속 ID 직렬화
 - GLB의 Static Mesh, Base Color Material과 embedded PNG Texture Import
 - Static Mesh, Material, Texture2D `.kasset` 로드
 - Base Color Texture용 sRGB BC7 Mip 생성
@@ -331,7 +336,8 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 ## 관련 파일
 
 - [AssetImporter.h](../KnotEngine/Source/Editor/Asset/AssetImporter.h)
-- [AssetRegistry.h](../KnotEngine/Source/Editor/Asset/AssetRegistry.h)
+- [AssetId.h](../KnotEngine/Source/Engine/Asset/Asset/AssetId.h)
+- [AssetRegistry.h](../KnotEngine/Source/Engine/Asset/AssetRegistry.h)
 - [AssetManager.h](../KnotEngine/Source/Engine/Asset/AssetManager.h)
 - [AssetBinaryLoader.h](../KnotEngine/Source/Engine/Asset/AssetBinaryLoader.h)
 - [Archive.h](../KnotEngine/Source/Engine/Core/Archive.h)

@@ -4,6 +4,7 @@
 
 // Texture 메타데이터와 각 Mip의 CPU Payload를 검증하고 Asset에 저장한다.
 bool UTexture2D::Initialize(
+	const FAssetId& InAssetId,
 	FString InAssetPath,
 	uint32 InWidth,
 	uint32 InHeight,
@@ -22,7 +23,7 @@ bool UTexture2D::Initialize(
 			return false;
 		}
 	}
-	if (!Super::Initialize(std::move(InAssetPath), InWidth, InHeight, static_cast<uint32>(InMips.size()), InFormat, InColorSpace))
+	if (!Super::Initialize(InAssetId, std::move(InAssetPath), InWidth, InHeight, static_cast<uint32>(InMips.size()), InFormat, InColorSpace))
 	{
 		return false;
 	}

@@ -10,27 +10,23 @@
 #include <system_error>
 
 // 확장자를 제외한 Content 상대 경로를 논리 Asset 경로로 변환한다.
-static FString MakeAssetPath(const std::filesystem::path& RelativeFilePath)
+FString FAssetRegistry::MakeAssetPath(const std::filesystem::path& RelativeFilePath)
 {
 	std::filesystem::path RelativeAssetPath = RelativeFilePath;
 	RelativeAssetPath.replace_extension();
 	return "/" + FPaths::ToUtf8(RelativeAssetPath.generic_wstring());
 }
 
-static EAssetType ReadAssetType(const std::filesystem::path& FilePath)
+// 현재 컨테이너 형식의 .kasset 헤더를 읽는다.
+bool FAssetRegistry::ReadAssetHeader(const std::filesystem::path& FilePath, FAssetFileHeader& OutHeader)
 {
-	FAssetFileHeader Header;
 	std::ifstream Stream(FilePath, std::ios::binary);
-	if (!Stream.read(reinterpret_cast<char*>(&Header), sizeof(Header)) ||
-		std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) != 0 ||
-		Header.ContainerVersion != FAssetFileHeader::CurrentVersion)
-	{
-		return EAssetType::Unknown;
-	}
-	return Header.AssetType;
+	return Stream.read(reinterpret_cast<char*>(&OutHeader), sizeof(OutHeader)) &&
+		std::memcmp(OutHeader.Magic, FAssetFileHeader::MagicValue, sizeof(OutHeader.Magic)) == 0 &&
+		OutHeader.ContainerVersion == FAssetFileHeader::CurrentVersion && OutHeader.AssetId.IsValid();
 }
 
-// Content의 원본과 바이너리를 다시 찾아 Asset 목록과 경로 인덱스를 교체한다.
+// Content의 원본과 바이너리를 다시 찾아 Asset 목록 및 ID/경로 인덱스를 교체한다.
 void FAssetRegistry::Scan()
 {
 	Reset();
@@ -88,15 +84,16 @@ void FAssetRegistry::Scan()
 					if (Extension == ".glb")
 					{
 						Asset.SourceFilePath = Entry.path();
-						if (!Asset.HasBinaryFile())
-						{
-							Asset.Type = EAssetType::Unknown;
-						}
 					}
 					else
 					{
+						FAssetFileHeader Header = {};
 						Asset.BinaryFilePath = Entry.path();
-						Asset.Type = ReadAssetType(Entry.path());
+						if (ReadAssetHeader(Entry.path(), Header))
+						{
+							Asset.AssetId = Header.AssetId;
+							Asset.Type = Header.AssetType;
+						}
 					}
 				}
 			}
@@ -122,10 +119,24 @@ void FAssetRegistry::Scan()
 	{
 		return Left.AssetPath < Right.AssetPath;
 	});
-	AssetIndices.reserve(Assets.size());
+	AssetIdIndices.reserve(Assets.size());
+	AssetPathIndices.reserve(Assets.size());
 	for (SIZE_T AssetIndex = 0; AssetIndex < Assets.size(); ++AssetIndex)
 	{
-		AssetIndices.emplace(Assets[AssetIndex].AssetPath, AssetIndex);
+		FAssetData& Asset = Assets[AssetIndex];
+		AssetPathIndices.emplace(Asset.AssetPath, AssetIndex);
+		if (!Asset.AssetId.IsValid())
+		{
+			continue;
+		}
+		const auto [It, bInserted] = AssetIdIndices.emplace(Asset.AssetId, AssetIndex);
+		if (!bInserted)
+		{
+			KE_LOG(LogAssetRegistry, Error, "중복 Asset ID를 발견했다. AssetId={}, FirstPath={}, DuplicatePath={}",
+				Asset.AssetId.ToString(), Assets[It->second].AssetPath, Asset.AssetPath);
+			Asset.AssetId = {};
+			Asset.Type = EAssetType::Unknown;
+		}
 	}
 
 	Folders.assign(FolderSet.begin(), FolderSet.end());
@@ -133,17 +144,22 @@ void FAssetRegistry::Scan()
 	KE_LOG(LogAssetRegistry, Log, "Content 스캔 완료. Assets={}, Folders={}", Assets.size(), Folders.size());
 }
 
-// 스캔 결과와 경로 인덱스를 비운다.
 void FAssetRegistry::Reset()
 {
 	Assets.clear();
 	Folders.clear();
-	AssetIndices.clear();
+	AssetIdIndices.clear();
+	AssetPathIndices.clear();
 }
 
-// 논리 경로에 대응하는 스캔 결과를 찾는다.
+const FAssetData* FAssetRegistry::FindAsset(const FAssetId& AssetId) const
+{
+	const auto It = AssetIdIndices.find(AssetId);
+	return It != AssetIdIndices.end() ? &Assets[It->second] : nullptr;
+}
+
 const FAssetData* FAssetRegistry::FindAsset(const FString& AssetPath) const
 {
-	const auto It = AssetIndices.find(AssetPath);
-	return It != AssetIndices.end() ? &Assets[It->second] : nullptr;
+	const auto It = AssetPathIndices.find(AssetPath);
+	return It != AssetPathIndices.end() ? &Assets[It->second] : nullptr;
 }

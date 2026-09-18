@@ -204,6 +204,14 @@ class HeaderTool:
         visited.add(identity)
         return any(self.derives_object(c.type.get_declaration(), visited) for c in cursor.get_children() if c.kind.name == "CXX_BASE_SPECIFIER")
 
+    def derives_reflected_type(self, name: str, base_name: str) -> bool:
+        while name:
+            if name == base_name:
+                return True
+            reflected = self.types.get(name)
+            name = reflected.parent if reflected else None
+        return False
+
     def collect(self, translation_unit) -> None:
         for cursor in translation_unit.cursor.get_children():
             if cursor.kind.name != "MACRO_INSTANTIATION" or cursor.spelling not in self.MARKERS | self.BODY_MARKERS or not cursor.location.file:
@@ -294,6 +302,8 @@ class HeaderTool:
             if target.is_const_qualified() or target.is_volatile_qualified():
                 self.error(cursor, "Qualified object reference targets are unsupported.")
             soft = declared_name == "TSoftObjectPtr"
+            if soft and not self.derives_reflected_type(target_name, "UAsset"):
+                self.error(cursor, "TSoftObjectPtr target must derive from UAsset.")
             prop = "SoftObjectProperty" if soft else "ObjectProperty"
             self.includes.add(prop)
             ops = "GetTSoftObjectPtrOps" if soft else "GetTObjectPtrOps"

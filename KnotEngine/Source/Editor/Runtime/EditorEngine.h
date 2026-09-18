@@ -42,7 +42,6 @@ private:
 
 	TArray<FEditorViewportClient*> AllViewportClients;
 
-	FAssetRegistry AssetRegistry;
 	FAssetImportManager AssetImportManager;
 	FInputRouter InputRouter;
 	FImGuiSystem ImGuiSystem;

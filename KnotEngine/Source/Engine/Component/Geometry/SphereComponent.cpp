@@ -1,6 +1,6 @@
 #include "Component/Geometry/SphereComponent.h"
 
 USphereComponent::USphereComponent()
-    : UStaticMeshComponent(StaticMeshPath)
+	: UStaticMeshComponent(FEngineAssetIds::Sphere)
 {
 }

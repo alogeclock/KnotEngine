@@ -638,12 +638,14 @@ bool FInspectorPanel::DrawStaticMeshMaterials(UStaticMeshComponent& Component)
 		UMaterialInterface* BaseMaterial = StaticMesh ? StaticMesh->GetMaterial(MaterialIndex) : nullptr;
 		UMaterialInterface* OverrideMaterial = MaterialIndex < OverrideMaterials.size() ? OverrideMaterials[MaterialIndex].Get() : nullptr;
 		UMaterialInterface* CurrentMaterial = OverrideMaterial ? OverrideMaterial : BaseMaterial;
-		const char* Preview = CurrentMaterial ? CurrentMaterial->GetAssetPath().c_str() : "Default Material";
+		const FAssetData* CurrentAsset = CurrentMaterial ? AssetRegistry.FindAsset(CurrentMaterial->GetAssetId()) : nullptr;
+		const char* Preview = CurrentAsset ? CurrentAsset->AssetPath.c_str() : "Default Material";
 		if (BeginPropertyRow(Label.c_str()))
 		{
 			if (ImGui::BeginCombo("##Value", Preview))
 			{
-				const char* BaseLabel = BaseMaterial ? BaseMaterial->GetAssetPath().c_str() : "Default Material";
+				const FAssetData* BaseAsset = BaseMaterial ? AssetRegistry.FindAsset(BaseMaterial->GetAssetId()) : nullptr;
+				const char* BaseLabel = BaseAsset ? BaseAsset->AssetPath.c_str() : "Default Material";
 				if (ImGui::Selectable(BaseLabel, OverrideMaterial == nullptr))
 				{
 					if (OverrideMaterial)
@@ -657,14 +659,14 @@ bool FInspectorPanel::DrawStaticMeshMaterials(UStaticMeshComponent& Component)
 				for (const FAssetData& Asset : AssetRegistry.GetAssets())
 				{
 					if (Asset.Type != EAssetType::Material || !Asset.HasBinaryFile() ||
-						(BaseMaterial && BaseMaterial->GetAssetPath() == Asset.AssetPath))
+						(BaseMaterial && BaseMaterial->GetAssetId() == Asset.AssetId))
 					{
 						continue;
 					}
-					const bool bSelected = CurrentMaterial && CurrentMaterial->GetAssetPath() == Asset.AssetPath;
+					const bool bSelected = CurrentMaterial && CurrentMaterial->GetAssetId() == Asset.AssetId;
 					if (ImGui::Selectable(Asset.AssetPath.c_str(), bSelected))
 					{
-						if (UMaterialInterface* Material = GAssetManager->LoadMaterial(Asset.AssetPath); Material && Material != OverrideMaterial)
+						if (UMaterialInterface* Material = GAssetManager->LoadMaterial(Asset.AssetId); Material && Material != OverrideMaterial)
 						{
 							Component.SetMaterial(MaterialIndex, Material);
 							OverrideMaterial = Material;
@@ -889,7 +891,8 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		{
 			check(GAssetManager);
 			const UStaticMesh* CurrentMesh = static_cast<const UStaticMesh*>(ReferencedObject);
-			const char* Preview = CurrentMesh ? CurrentMesh->GetAssetPath().c_str() : "None";
+			const FAssetData* CurrentAsset = CurrentMesh ? AssetRegistry.FindAsset(CurrentMesh->GetAssetId()) : nullptr;
+			const char* Preview = CurrentAsset ? CurrentAsset->AssetPath.c_str() : "None";
 
 			if (BeginPropertyRow(Label.c_str()))
 			{
@@ -906,10 +909,10 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 						{
 							continue;
 						}
-						const bool bSelected = CurrentMesh && CurrentMesh->GetAssetPath() == Asset.AssetPath;
+						const bool bSelected = CurrentMesh && CurrentMesh->GetAssetId() == Asset.AssetId;
 						if (ImGui::Selectable(Asset.AssetPath.c_str(), bSelected))
 						{
-							if (UStaticMesh* StaticMesh = GAssetManager->LoadStaticMesh(Asset.AssetPath))
+							if (UStaticMesh* StaticMesh = GAssetManager->LoadStaticMesh(Asset.AssetId))
 							{
 								ObjectProperty.GetObjectPtrOps()->SetObject(Value, StaticMesh);
 								bChanged = true;
@@ -925,7 +928,8 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		{
 			check(GAssetManager);
 			const UMaterialInterface* CurrentMaterial = static_cast<const UMaterialInterface*>(ReferencedObject);
-			const char* Preview = CurrentMaterial ? CurrentMaterial->GetAssetPath().c_str() : "Default Material";
+			const FAssetData* CurrentAsset = CurrentMaterial ? AssetRegistry.FindAsset(CurrentMaterial->GetAssetId()) : nullptr;
+			const char* Preview = CurrentAsset ? CurrentAsset->AssetPath.c_str() : "Default Material";
 			if (BeginPropertyRow(Label.c_str()))
 			{
 				if (ImGui::BeginCombo("##Value", Preview))
@@ -936,10 +940,10 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 						{
 							continue;
 						}
-						const bool bSelected = CurrentMaterial && CurrentMaterial->GetAssetPath() == Asset.AssetPath;
+						const bool bSelected = CurrentMaterial && CurrentMaterial->GetAssetId() == Asset.AssetId;
 						if (ImGui::Selectable(Asset.AssetPath.c_str(), bSelected))
 						{
-							UMaterialInterface* Material = GAssetManager->LoadMaterial(Asset.AssetPath);
+							UMaterialInterface* Material = GAssetManager->LoadMaterial(Asset.AssetId);
 							if (Material && Material->IsA(ObjectProperty.GetPropertyClass()))
 							{
 								ObjectProperty.GetObjectPtrOps()->SetObject(Value, Material);
@@ -967,7 +971,9 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		const FSoftObjectProperty& SoftProperty = static_cast<const FSoftObjectProperty&>(Property);
 		if (BeginPropertyRow(Label.c_str()))
 		{
-			ImGui::TextUnformatted(SoftProperty.GetSoftObjectPtrOps()->GetPath(Value).c_str());
+			const FAssetId& AssetId = SoftProperty.GetSoftObjectPtrOps()->GetAssetId(Value);
+			const FAssetData* Asset = AssetRegistry.FindAsset(AssetId);
+			ImGui::TextUnformatted(Asset ? Asset->AssetPath.c_str() : "None");
 			EndPropertyRow();
 		}
 		break;

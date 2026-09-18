@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset/Asset/EngineAssetIds.h"
 #include "Component/Mesh/StaticMeshComponent.h"
 
 UCLASS(EditorSpawnable, Category = "Geometry", DisplayName = "Capsule")
@@ -9,7 +10,4 @@ class ENGINE_API UCapsuleComponent final : public UStaticMeshComponent
 
 public:
 	UCapsuleComponent();
-
-private:
-	static constexpr const char* StaticMeshPath = "/Engine/Model/Capsule/Capsule";
 };

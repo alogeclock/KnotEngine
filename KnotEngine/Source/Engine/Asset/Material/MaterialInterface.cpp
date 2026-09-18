@@ -6,14 +6,9 @@
 #include <cstring>
 
 // Material Interface를 식별하는 논리 Asset 경로를 검증해 저장한다.
-bool UMaterialInterface::Initialize(FString InAssetPath)
+bool UMaterialInterface::Initialize(const FAssetId& InAssetId, FString InAssetPath)
 {
-	if (InAssetPath.empty())
-	{
-		return false;
-	}
-	AssetPath = std::move(InAssetPath);
-	return true;
+	return InitializeAsset(InAssetId, std::move(InAssetPath));
 }
 
 // Reflection Layout의 Offset/Size에 맞춰 Material 및 Instance Parameter 값을 연속 Constant Buffer 데이터로 패킹한다.

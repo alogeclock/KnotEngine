@@ -1,5 +1,6 @@
 #include "Asset/AssetManager.h"
 
+#include "Asset/Asset/Asset.h"
 #include "Core/Assert.h"
 #include "Object/ReferenceCollector.h"
 
@@ -15,6 +16,7 @@ void FAssetManager::Create()
 	checkf(!GAssetManager, "Asset Manager가 이미 생성되어 있다.");
 	check(StaticMeshes.empty() && Materials.empty() && Textures.empty());
 	GAssetManager = this;
+	AssetRegistry.Scan();
 }
 
 void FAssetManager::Release()
@@ -49,73 +51,123 @@ void FAssetManager::Release()
 		}
 	}
 	Textures.clear();
+	AssetRegistry.Reset();
 	GAssetManager = nullptr;
 }
 
-// 캐시에 없으면 Binary Loader로 Static Mesh UObject를 생성하고 장기 참조에 등록한다.
+UAsset* FAssetManager::LoadAsset(const FAssetId& AssetId)
+{
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetId);
+	if (!Asset)
+	{
+		return nullptr;
+	}
+	switch (Asset->Type)
+	{
+	case EAssetType::StaticMesh: return LoadStaticMesh(AssetId);
+	case EAssetType::Material: return LoadMaterial(AssetId);
+	case EAssetType::Texture2D: return LoadTexture2D(AssetId);
+	default: return nullptr;
+	}
+}
+
 UStaticMesh* FAssetManager::LoadStaticMesh(const FString& AssetPath)
 {
-	check(GAssetManager == this);
-	if (UStaticMesh* ExistingMesh = FindStaticMesh(AssetPath))
-	{
-		return ExistingMesh;
-	}
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetPath);
+	return Asset && Asset->Type == EAssetType::StaticMesh ? LoadStaticMesh(Asset->AssetId) : nullptr;
+}
 
-	UStaticMesh* Mesh = BinaryLoader.LoadStaticMesh(AssetPath, *this);
+UStaticMesh* FAssetManager::LoadStaticMesh(const FAssetId& AssetId)
+{
+	check(GAssetManager == this);
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetId);
+	if (!Asset || Asset->Type != EAssetType::StaticMesh)
+	{
+		return nullptr;
+	}
+	if (UStaticMesh* Existing = FindStaticMesh(AssetId))
+	{
+		Existing->SetAssetPath(Asset->AssetPath);
+		return Existing;
+	}
+	UStaticMesh* Mesh = BinaryLoader.LoadStaticMesh(*Asset, *this);
 	if (!Mesh)
 	{
 		return nullptr;
 	}
-	StaticMeshes.emplace(AssetPath, Mesh);
+	StaticMeshes.emplace(AssetId, Mesh);
 	return Mesh;
 }
 
 UMaterial* FAssetManager::LoadMaterial(const FString& AssetPath)
 {
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetPath);
+	return Asset && Asset->Type == EAssetType::Material ? LoadMaterial(Asset->AssetId) : nullptr;
+}
+
+UMaterial* FAssetManager::LoadMaterial(const FAssetId& AssetId)
+{
 	check(GAssetManager == this);
-	if (UMaterial* Existing = FindMaterial(AssetPath))
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetId);
+	if (!Asset || Asset->Type != EAssetType::Material)
 	{
+		return nullptr;
+	}
+	if (UMaterial* Existing = FindMaterial(AssetId))
+	{
+		Existing->SetAssetPath(Asset->AssetPath);
 		return Existing;
 	}
-	UMaterial* Material = BinaryLoader.LoadMaterial(AssetPath, *this);
+	UMaterial* Material = BinaryLoader.LoadMaterial(*Asset, *this);
 	if (Material)
 	{
-		Materials.emplace(AssetPath, Material);
+		Materials.emplace(AssetId, Material);
 	}
 	return Material;
 }
 
 UTexture2D* FAssetManager::LoadTexture2D(const FString& AssetPath)
 {
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetPath);
+	return Asset && Asset->Type == EAssetType::Texture2D ? LoadTexture2D(Asset->AssetId) : nullptr;
+}
+
+UTexture2D* FAssetManager::LoadTexture2D(const FAssetId& AssetId)
+{
 	check(GAssetManager == this);
-	if (UTexture2D* Existing = FindTexture2D(AssetPath))
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetId);
+	if (!Asset || Asset->Type != EAssetType::Texture2D)
 	{
+		return nullptr;
+	}
+	if (UTexture2D* Existing = FindTexture2D(AssetId))
+	{
+		Existing->SetAssetPath(Asset->AssetPath);
 		return Existing;
 	}
-	UTexture2D* Texture = BinaryLoader.LoadTexture2D(AssetPath);
+	UTexture2D* Texture = BinaryLoader.LoadTexture2D(*Asset);
 	if (Texture)
 	{
-		Textures.emplace(AssetPath, Texture);
+		Textures.emplace(AssetId, Texture);
 	}
 	return Texture;
 }
 
-// 캐시에서 논리 Asset 경로에 대응하는 Static Mesh를 찾는다.
-UStaticMesh* FAssetManager::FindStaticMesh(const FString& AssetPath) const
+UStaticMesh* FAssetManager::FindStaticMesh(const FAssetId& AssetId) const
 {
-	const auto It = StaticMeshes.find(AssetPath);
+	const auto It = StaticMeshes.find(AssetId);
 	return It != StaticMeshes.end() ? It->second.Get() : nullptr;
 }
 
-UMaterial* FAssetManager::FindMaterial(const FString& AssetPath) const
+UMaterial* FAssetManager::FindMaterial(const FAssetId& AssetId) const
 {
-	const auto It = Materials.find(AssetPath);
+	const auto It = Materials.find(AssetId);
 	return It != Materials.end() ? It->second.Get() : nullptr;
 }
 
-UTexture2D* FAssetManager::FindTexture2D(const FString& AssetPath) const
+UTexture2D* FAssetManager::FindTexture2D(const FAssetId& AssetId) const
 {
-	const auto It = Textures.find(AssetPath);
+	const auto It = Textures.find(AssetId);
 	return It != Textures.end() ? It->second.Get() : nullptr;
 }
 

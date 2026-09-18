@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/Asset/AssetId.h"
 #include "Core/Archive.h"
 #include "Core/CoreTypes.h"
 
@@ -18,15 +19,16 @@ enum class EAssetType : uint32
 struct ENGINE_API FAssetFileHeader
 {
 	inline static constexpr char MagicValue[4] = { 'K', 'A', 'S', 'T' };
-	inline static constexpr uint32 CurrentVersion = 1;
+	inline static constexpr uint32 CurrentVersion = 2;
 
 	char Magic[4];
 	uint32 ContainerVersion;
 	EAssetType AssetType;
 	uint32 PayloadVersion;
 	uint64 PayloadSize;
+	FAssetId AssetId;
 };
-static_assert(sizeof(FAssetFileHeader) == 24);
+static_assert(sizeof(FAssetFileHeader) == 40);
 
 inline FArchive& operator<<(FArchive& Ar, FAssetFileHeader& Header)
 {
@@ -35,5 +37,6 @@ inline FArchive& operator<<(FArchive& Ar, FAssetFileHeader& Header)
 	Ar << Header.AssetType;
 	Ar << Header.PayloadVersion;
 	Ar << Header.PayloadSize;
+	Ar << Header.AssetId;
 	return Ar;
 }

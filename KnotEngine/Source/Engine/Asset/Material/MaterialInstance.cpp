@@ -52,13 +52,14 @@ const FTextureMaterialParameter* UMaterialInstance::FindTextureParameter(const F
 
 // 부모 Material과 Instance 전용 Parameter Override를 검증해 UObject Asset에 저장한다.
 bool UMaterialInstance::Initialize(
+	const FAssetId& InAssetId,
 	FString InAssetPath,
 	UMaterial* InParent,
 	TArray<FScalarMaterialParameter>&& InScalarParameters,
 	TArray<FVectorMaterialParameter>&& InVectorParameters,
 	TArray<FTextureMaterialParameter>&& InTextureParameters)
 {
-	if (!InParent || !InParent->GetMaterial() || !InParent->GetMaterial()->IsValid() || !Super::Initialize(std::move(InAssetPath)))
+	if (!InParent || !InParent->GetMaterial() || !InParent->GetMaterial()->IsValid() || !Super::Initialize(InAssetId, std::move(InAssetPath)))
 	{
 		return false;
 	}

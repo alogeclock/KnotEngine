@@ -14,7 +14,8 @@
 - `FReflectionRegistry`가 최상위 스키마를, `UStruct`와 `UClass`가 멤버 스키마를 소유한다.
 - `FProperty`는 값을 소유하지 않고 오프셋과 타입별 연산만 제공한다.
 - 에디터 열거, 직렬화와 참조 수집은 같은 프로퍼티 스키마를 각자의 플래그 정책으로 순회한다.
-- `TObjectPtr`는 강한 참조로, `TSoftObjectPtr`는 물리 에셋 경로 기반 비소유 참조로 취급한다.
+- `TObjectPtr`는 로드된 객체의 강한 참조로, `TSoftObjectPtr`는 `FAssetId` 기반 비소유 에셋 참조로 취급한다.
+- 같은 논리 프로퍼티에 강한 포인터와 소프트 포인터를 나란히 두지 않고 필요한 수명 정책에 따라 둘 중 하나만 사용한다.
 - 등록과 객체 생명주기 변경은 메인 스레드에서 수행한다.
 - 현재 필요한 구체 타입과 연산만 제공하며 동적 타입 시스템이나 별도 범용 필드 계층을 미리 만들지 않는다.
 
@@ -105,6 +106,7 @@ KnotEngine/Build/CMake/
 | 타입 또는 파일 | 책임 |
 |---|---|
 | `UObject` | UUID, 전역 객체 배열 등록과 실제 런타임 클래스 보관 |
+| `UAsset` | 경로와 독립적인 `FAssetId`, 현재 논리 에셋 경로와 구체 에셋 타입 제공 |
 | `UField` | 스키마 이름, 소유자와 메타데이터 |
 | `UStruct` | 크기, 정렬, 상속 관계와 프로퍼티 소유 |
 | `UClass` | 클래스 플래그, 객체 생성 함수와 함수 스키마 소유 |
@@ -347,7 +349,24 @@ FProperty로 출력·반환값 조회
 
 `UObject::Serialize()`와 `FStructProperty`는 `UStruct::SerializeProperties()`를 사용한다. 직렬화는 메모리 전체를 복사하지 않고 등록된 필드를 부모부터 재귀적으로 순회하며 `Transient` 프로퍼티를 건너뛴다. 배열은 내부 원소 프로퍼티로 처리한다.
 
-강한 객체 참조는 같은 실행에서 이미 존재하는 객체의 UUID로, 소프트 참조는 물리 에셋 경로로 저장한다. 현재 형식은 필드 순서에 의존하며 버전 관리, 이름 변경 대응과 지연 참조 복원을 제공하지 않는다.
+객체 참조의 영속 형식은 대상과 수명 정책에 따라 다르다.
+
+| 프로퍼티 | 영속 값 | 역직렬화와 수명 |
+|---|---|---|
+| `TObjectPtr<UAsset 파생 타입>` | `FAssetId` | `FAssetManager`가 ID를 현재 경로로 해석해 즉시 로드하며 참조 수집 대상이 된다. |
+| `TObjectPtr<일반 UObject 파생 타입>` | 런타임 UUID | 현재 실행에 이미 존재하는 객체만 복원하며 프로세스를 넘는 영속 ID가 아니다. |
+| `TSoftObjectPtr<UAsset 파생 타입>` | `FAssetId` | 역직렬화만으로 에셋을 로드하지 않고 참조 수집에서도 제외한다. |
+
+`TSoftObjectPtr`의 논리적인 참조 값은 `FAssetId` 하나뿐이다. 내부의 raw pointer는 ID를 해석한 결과를 반복 조회하지 않기 위한 선택적 비소유 캐시이며 별도 프로퍼티, 별도 소유권 또는 별도 직렬화 값이 아니다. 캐시에 객체를 설정할 때는 객체의 `FAssetId`가 포인터의 ID와 같아야 하며, ID를 바꾸거나 역직렬화하면 기존 캐시를 비운다.
+
+따라서 로드된 객체를 반드시 유지해야 하는 필드는 `TObjectPtr` 하나를 사용하고, 로드를 미루거나 로드 여부와 무관하게 참조만 보존해야 하는 필드는 `TSoftObjectPtr` 하나를 사용한다. 같은 에셋을 나타내기 위해 두 멤버를 동시에 저장하지 않는다.
+
+```cpp
+UPROPERTY() TObjectPtr<UStaticMesh> StaticMesh;
+UPROPERTY() TSoftObjectPtr<UTexture2D> PreviewTexture;
+```
+
+에셋 파일을 이동하거나 이름을 바꿔도 참조에는 `FAssetId`가 남는다. `FAssetRegistry`가 ID를 변경된 현재 경로에 대응시키므로 다음 로드에서 참조를 복원할 수 있다. 현재 직렬화 형식은 필드 순서에 의존하며 필드 이름 변경과 일반 스키마 버전 관리는 아직 제공하지 않는다.
 
 ### 참조 수집
 
@@ -356,7 +375,7 @@ FProperty로 출력·반환값 조회
 1. 객체가 직접 구현한 `AddReferencedObjects()`의 수동 참조
 2. 등록된 프로퍼티 안의 `TObjectPtr`, 중첩 구조체와 배열의 강한 참조
 
-방문 집합으로 순환 참조를 차단한다. 마커 없는 `TObjectPtr`는 자동 방문되지 않으므로 필요하면 `AddReferencedObjects()`에서 수동으로 등록한다. `TSoftObjectPtr`는 강한 참조 수집에서 제외되고 경로와 선택적 캐시만 보관한다.
+방문 집합으로 순환 참조를 차단한다. 마커 없는 `TObjectPtr`는 자동 방문되지 않으므로 필요하면 `AddReferencedObjects()`에서 수동으로 등록한다. `TSoftObjectPtr`는 강한 참조 수집에서 제외되며 영속 `FAssetId`와 선택적 비소유 캐시만 보관한다.
 
 현재 수집기는 도달 가능한 집합만 계산한다. root set, sweep GC와 포인터 자동 무효화는 제공하지 않는다.
 
@@ -365,7 +384,7 @@ FProperty로 출력·반환값 조회
 | 대상 | 지원 범위 |
 |---|---|
 | 값 | `int32`, `bool`, `float`, `double`, `FString`, `FName`, 등록된 struct·enum |
-| 참조와 배열 | `TObjectPtr<T>`, `TSoftObjectPtr<T>`, 기본 allocator의 `TArray<T>` |
+| 참조와 배열 | UObject 대상 `TObjectPtr<T>`, UAsset 대상 `TSoftObjectPtr<T>`, 기본 allocator의 `TArray<T>` |
 | 타입 선언 | namespace 범위의 이름 있는 구체 타입, public 단일 비가상 상속 |
 | 함수 | UObject의 일반 멤버 함수, 값 인자·반환, `const T&` 입력, `T&` 입출력, const 함수 |
 
@@ -376,6 +395,7 @@ FProperty로 출력·반환값 조회
 - static 함수, overload, 함수 템플릿, operator, 가변 인자, rvalue reference, 참조 반환, ref-qualified·volatile 함수
 
 객체 포인터 프로퍼티는 `TObjectPtr`를 사용한다. 런타임에서 수동으로 만든 `FObjectProperty`가 raw pointer 연산을 지원하더라도 자동 생성 파서는 일반 포인터를 허용하지 않는다. 열거값은 런타임 스키마의 `int64` 범위 안에 있어야 한다.
+`TSoftObjectPtr`의 대상은 반드시 `UAsset` 파생 타입이어야 하며 생성기가 이를 검증한다.
 
 ## 스레딩과 수명
 
@@ -393,13 +413,14 @@ FProperty로 출력·반환값 조회
 - 에디터 프로퍼티 열거와 메타데이터
 - 등록 필드 기반 직렬화
 - 강한 참조의 도달 가능 집합 수집
+- `FAssetId` 기반 강한 에셋 참조 복원과 소프트 에셋 참조 직렬화
 
 ### 미구현
 
 - 동적 클래스와 동적으로 추가되는 인스턴스 데이터
 - CDO와 hot reload
 - root set과 sweep GC
-- 에셋 로딩과 지연 참조 복원
+- `TSoftObjectPtr`의 명시적 동기·비동기 로드 API와 캐시 무효화
 - 직렬화 버전 관리와 필드 이름 변경 대응
 - replication과 스크립팅 VM
 - 에디터 property customization

@@ -45,13 +45,14 @@ const FTextureMaterialParameter* UMaterial::FindTextureParameter(const FName& Na
 
 // Material 렌더 정의와 기본 Parameter를 검증해 UObject Asset에 저장한다.
 bool UMaterial::Initialize(
+	const FAssetId& InAssetId,
 	FString InAssetPath,
 	FMaterial&& InMaterial,
 	TArray<FScalarMaterialParameter>&& InScalarParameters,
 	TArray<FVectorMaterialParameter>&& InVectorParameters,
 	TArray<FTextureMaterialParameter>&& InTextureParameters)
 {
-	if (!InMaterial.IsValid() || !Super::Initialize(std::move(InAssetPath)))
+	if (!InMaterial.IsValid() || !Super::Initialize(InAssetId, std::move(InAssetPath)))
 	{
 		return false;
 	}

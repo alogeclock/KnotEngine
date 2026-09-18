@@ -30,19 +30,19 @@ void FSoftObjectProperty::DestroyElement(void* Value) const
 	SoftObjectPtrOps->DestroyValue(Value);
 }
 
-// 이미 생성된 목적지 TSoftObjectPtr에 물리 에셋 경로와 캐시를 복사한다.
+// 이미 생성된 목적지 TSoftObjectPtr에 영속 Asset ID와 그 ID를 해석한 비소유 캐시를 복사한다.
 void FSoftObjectProperty::CopyElement(void* Dst, const void* Src) const
 {
 	SoftObjectPtrOps->CopyValue(Dst, Src);
 }
 
-// 객체를 강하게 참조하지 않고 물리 에셋 경로만 저장하거나 복원한다.
+// 객체를 로드하거나 강하게 참조하지 않고 소프트 참조의 유일한 영속 값인 Asset ID만 저장하거나 복원한다.
 void FSoftObjectProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
-	FString Path = Ar.IsSaving() ? SoftObjectPtrOps->GetPath(Value) : FString();
-	Ar << Path;
+	FAssetId AssetId = Ar.IsSaving() ? SoftObjectPtrOps->GetAssetId(Value) : FAssetId();
+	Ar << AssetId;
 	if (Ar.IsLoading())
 	{
-		SoftObjectPtrOps->SetPath(Value, std::move(Path));
+		SoftObjectPtrOps->SetAssetId(Value, AssetId);
 	}
 }

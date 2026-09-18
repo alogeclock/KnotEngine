@@ -23,7 +23,6 @@ public:
 
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	// Life Cycle & Input
 	virtual void Startup(FWindowsApplication& Application) {}
 	virtual void ProcessInput(const FInputSnapshot& InputSnapshot) {}
 	virtual void OnWindowResized(FWindowSize Size) {}
@@ -33,7 +32,6 @@ public:
 	FAssetManager& GetAssetManager() { return AssetManager; }
 	const FAssetManager& GetAssetManager() const { return AssetManager; }
 
-	// Context와 해당 World를 함께 생성하고 파괴한다.
 	uint64 CreateWorldContext(EWorldType WorldType);
 	UWorld* FindWorld(uint64 ContextId) const;
 	void DestroyWorldContext(uint64 ContextId);

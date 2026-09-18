@@ -34,6 +34,7 @@ private:
 
 	static bool ContainsText(std::string_view Text, std::string_view SearchText);
 	static bool DecodeIcon(const std::filesystem::path& FilePath, TArray<uint8>& Pixels);
+	static bool RegenerateAssetId(const std::filesystem::path& FilePath);
 	static FString MakeTileLabel(const FString& Label, float Width);
 
 	void DrawFolderPane();

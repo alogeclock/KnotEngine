@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset/Asset/EngineAssetIds.h"
 #include "Component/Mesh/StaticMeshComponent.h"
 
 UCLASS(EditorSpawnable, Category = "Geometry", DisplayName = "Cylinder")
@@ -9,7 +10,4 @@ class ENGINE_API UCylinderComponent final : public UStaticMeshComponent
 
 public:
 	UCylinderComponent();
-
-private:
-	static constexpr const char* StaticMeshPath = "/Engine/Model/Cylinder/Cylinder";
 };

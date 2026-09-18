@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/Asset/Asset.h"
 #include "Asset/Material/MaterialInterface.h"
 #include "Core/Archive.h"
 #include "Core/Name.h"
@@ -21,7 +22,7 @@ struct ENGINE_API FStaticMaterial
 // Static Mesh .kasset Payload 전체에 한 번 저장되는 고정 크기 헤더다.
 struct FStaticMeshPayloadHeader
 {
-	inline static constexpr uint32 CurrentVersion = 1;
+	inline static constexpr uint32 CurrentVersion = 2;
 	inline static constexpr uint32 MaxLODCount = 16;
 
 	uint32 VertexStride;
@@ -55,14 +56,14 @@ inline FArchive& operator<<(FArchive& Ar, FStaticMeshLODPayloadHeader& Header)
 	return Ar;
 }
 
-// 경로로 식별되는 Static Mesh UObject Asset. 실제 LOD와 GPU 리소스는 FStaticMesh가 소유한다.
+// 영속 Asset ID로 식별되는 Static Mesh UObject. 실제 LOD와 GPU 리소스는 FStaticMesh가 소유한다.
 UCLASS()
-class ENGINE_API UStaticMesh final : public UObject
+class ENGINE_API UStaticMesh final : public UAsset
 {
-	GENERATED_CLASS(UStaticMesh, UObject)
+	GENERATED_CLASS(UStaticMesh, UAsset)
 
 public:
-	const FString& GetAssetPath() const { return AssetPath; }
+	EAssetType GetAssetType() const override { return EAssetType::StaticMesh; }
 	FStaticMesh& GetRenderData() { return RenderData; }
 	const FStaticMesh& GetRenderData() const { return RenderData; }
 
@@ -74,9 +75,11 @@ public:
 
 private:
 	friend class FAssetBinaryLoader;
-	bool Initialize(FString InAssetPath, FStaticMesh&& InRenderData, TArray<FStaticMaterial>&& InStaticMaterials = {});
-
-	UPROPERTY(NoEdit) FString AssetPath;
+	bool Initialize(
+		const FAssetId& InAssetId,
+		FString InAssetPath,
+		FStaticMesh&& InRenderData,
+		TArray<FStaticMaterial>&& InStaticMaterials = {});
 
 	FStaticMesh RenderData;
 	TArray<FStaticMaterial> StaticMaterials;

@@ -2,6 +2,7 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/Asset/AssetId.h"
 #include "Core/CoreTypes.h"
 
 #include <cstddef>
@@ -147,28 +148,33 @@ class TSoftObjectPtr
 public:
 	TSoftObjectPtr() = default;
 	TSoftObjectPtr(std::nullptr_t) {}
-	explicit TSoftObjectPtr(FString InPath) : Path(std::move(InPath))
+	explicit TSoftObjectPtr(const FAssetId& InAssetId) : AssetId(InAssetId)
 	{
 		static_assert(std::is_base_of_v<UObject, T>, "TSoftObjectPtr can only point to UObject-derived types.");
 	}
 
-	const FString& GetPath() const { return Path; }
-	void SetPath(FString InPath)
+	const FAssetId& GetAssetId() const { return AssetId; }
+	void SetAssetId(const FAssetId& InAssetId)
 	{
-		Path = std::move(InPath);
+		AssetId = InAssetId;
 		CachedObject = nullptr;
 	}
 
 	T* Get() const { return CachedObject; }
-	void SetCachedObject(T* InObject) { CachedObject = InObject; }
+	void SetResolvedObject(T* InObject) const
+	{
+		check(!InObject || (AssetId.IsValid() && InObject->GetAssetId() == AssetId));
+		CachedObject = InObject;
+	}
+	void ResetResolvedObject() const { CachedObject = nullptr; }
 	void Reset()
 	{
-		Path.clear();
+		AssetId = {};
 		CachedObject = nullptr;
 	}
 
-	bool IsNull() const { return Path.empty(); }
-	bool IsPending() const { return !Path.empty() && CachedObject == nullptr; }
+	bool IsNull() const { return !AssetId.IsValid(); }
+	bool IsPending() const { return AssetId.IsValid() && CachedObject == nullptr; }
 	T* operator->() const { return Get(); }
 	explicit operator bool() const { return CachedObject != nullptr; }
 
@@ -179,11 +185,11 @@ public:
 	}
 
 private:
-	FString Path;
+	FAssetId AssetId; // AssetId만 논리적인 소프트 참조. 이 포인터는 해석 결과를 재사용하는 비소유 캐시이며 직렬화와 강한 참조 수집에서 제외된다.
 	mutable T* CachedObject = nullptr;
 };
 
-// FSoftObjectProperty가 TSoftObjectPtr의 템플릿 인자를 알지 않고 물리 에셋 경로를 다루기 위한 타입 소거 인터페이스.
+// FSoftObjectProperty가 TSoftObjectPtr의 템플릿 인자를 알지 않고 영속 Asset ID를 다루기 위한 타입 소거 인터페이스.
 class ENGINE_API ISoftObjectPtrOps
 {
 public:
@@ -193,8 +199,8 @@ public:
 	virtual void InitializeValue(void* Value) const = 0;
 	virtual void DestroyValue(void* Value) const = 0;
 	virtual void CopyValue(void* Dst, const void* Src) const = 0;
-	virtual const FString& GetPath(const void* Value) const = 0;
-	virtual void SetPath(void* Value, FString Path) const = 0;
+	virtual const FAssetId& GetAssetId(const void* Value) const = 0;
+	virtual void SetAssetId(void* Value, const FAssetId& AssetId) const = 0;
 };
 
 template <typename T>
@@ -219,14 +225,14 @@ public:
 		*static_cast<TSoftObjectPtr<T>*>(Dst) = *static_cast<const TSoftObjectPtr<T>*>(Src);
 	}
 
-	const FString& GetPath(const void* Value) const override
+	const FAssetId& GetAssetId(const void* Value) const override
 	{
-		return static_cast<const TSoftObjectPtr<T>*>(Value)->GetPath();
+		return static_cast<const TSoftObjectPtr<T>*>(Value)->GetAssetId();
 	}
 
-	void SetPath(void* Value, FString Path) const override
+	void SetAssetId(void* Value, const FAssetId& AssetId) const override
 	{
-		static_cast<TSoftObjectPtr<T>*>(Value)->SetPath(std::move(Path));
+		static_cast<TSoftObjectPtr<T>*>(Value)->SetAssetId(AssetId);
 	}
 };
 

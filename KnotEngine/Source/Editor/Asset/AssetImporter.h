@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Asset/AssetTypes.h"
+#include "Asset/Asset/AssetTypes.h"
 #include "Core/CoreTypes.h"
 
 #include <filesystem>
@@ -18,6 +18,7 @@ struct FImportedAsset
 {
 	FString AssetPath;
 	EAssetType Type = EAssetType::Unknown;
+	FAssetId AssetId;
 };
 
 // Import 성공 여부와 생성된 Asset, 경고 및 오류를 함께 반환하는 결과.
@@ -53,13 +54,13 @@ private:
 	static const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, int Type, int Index = 0);
 	static FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler);
 
-	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes);
+	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& OutAssetId);
 	static bool IsAssetUpToDate(const FString& AssetPath, const std::filesystem::file_time_type& SourceTimestamp, EAssetType ExpectedType, uint32 ExpectedPayloadVersion);
 
 	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
 	static void Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);
 
-	static bool SaveDefaultWhiteMaterial();
+	static bool SaveDefaultWhiteMaterial(FAssetId& OutAssetId);
 
 	inline static constexpr const char* DefaultWhiteMaterialPath = "/Engine/Material/DefaultWhite";
 };

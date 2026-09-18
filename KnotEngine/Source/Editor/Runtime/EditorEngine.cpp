@@ -15,7 +15,14 @@
 UEditorEngine::UEditorEngine(FWindowsApplication& Application)
 	: RenderBackend(CreateRenderBackend()),
 	  Renderer(RenderBackend->GetRenderDevice(), RenderBackend->GetRenderContext(), RenderBackend->GetShaderFormat()),
-	  ImGuiSystem(Application, *this, AssetRegistry, AssetImportManager, RenderBackend->GetRenderDevice(), RenderBackend->GetImGuiRenderBackend(), InputRouter)
+	  ImGuiSystem(
+		  Application,
+		  *this,
+		  GetAssetManager().GetAssetRegistry(),
+		  AssetImportManager,
+		  RenderBackend->GetRenderDevice(),
+		  RenderBackend->GetImGuiRenderBackend(),
+		  InputRouter)
 {
 }
 
@@ -25,7 +32,6 @@ void UEditorEngine::Startup(FWindowsApplication& Application)
 	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 
 	Renderer.Create(Application.GetWindow().GetHwnd());
-	AssetRegistry.Scan();
 	AssetImportManager.Startup();
 	ImGuiSystem.Startup();
 
@@ -100,7 +106,7 @@ void UEditorEngine::ProcessAssetImports()
 		}
 		KE_LOG(LogAssetImporter, Display, "GLB Import 완료. Source={}, AssetCount={}", SourcePath, Result.ImportedAssets.size());
 	}
-	AssetRegistry.Scan();
+	GetAssetManager().GetAssetRegistry().Scan();
 }
 
 void UEditorEngine::Render()
@@ -165,7 +171,6 @@ void UEditorEngine::Shutdown()
 	AssetImportManager.Shutdown();
 	InputRouter.Reset();
 	ImGuiSystem.Shutdown();
-	AssetRegistry.Reset();
 	Super::Shutdown();
 	Renderer.Release();
 }

@@ -2,8 +2,8 @@
 
 #include "EngineAPI.h"
 
+#include "Asset/Asset/Asset.h"
 #include "Core/Archive.h"
-#include "Object/Object.h"
 #include "Render/RHI/RenderTypes.h"
 
 class FTexture;
@@ -59,12 +59,11 @@ inline FArchive& operator<<(FArchive& Ar, FTextureMipPayloadHeader& Header)
 
 // Texture Asset의 공통 경로와 이미지 메타데이터를 소유하는 UObject 기반 클래스다.
 UCLASS()
-class ENGINE_API UTexture : public UObject
+class ENGINE_API UTexture : public UAsset
 {
-	GENERATED_CLASS(UTexture, UObject)
+	GENERATED_CLASS(UTexture, UAsset)
 
 public:
-	const FString& GetAssetPath() const { return AssetPath; }
 	uint32 GetWidth() const { return Width; }
 	uint32 GetHeight() const { return Height; }
 	uint32 GetMipCount() const { return MipCount; }
@@ -80,11 +79,16 @@ public:
 	virtual const FTexture* GetResource() const = 0;
 
 protected:
-	bool Initialize(FString InAssetPath, uint32 InWidth, uint32 InHeight, uint32 InMipCount, ETextureFormat InFormat, ETextureColorSpace InColorSpace);
+	bool Initialize(
+		const FAssetId& InAssetId,
+		FString InAssetPath,
+		uint32 InWidth,
+		uint32 InHeight,
+		uint32 InMipCount,
+		ETextureFormat InFormat,
+		ETextureColorSpace InColorSpace);
 
 private:
-	UPROPERTY(NoEdit) FString AssetPath;
-
 	uint32 Width = 0;
 	uint32 Height = 0;
 	uint32 MipCount = 0;
