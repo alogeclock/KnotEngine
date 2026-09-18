@@ -1,5 +1,6 @@
 #include "Editor/ImGuiSystem.h"
 
+#include "Asset/AssetImportManager.h"
 #include "Core/Assert.h"
 #include "Platform/WindowsApplication.h"
 #include "Core/IO/Paths.h"
@@ -10,6 +11,7 @@
 #include "Asset/Resource/resource.h"
 #include "World/World.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -25,12 +27,14 @@ FImGuiSystem::FImGuiSystem(
 	FWindowsApplication& InApplication,
 	UEditorEngine& InEditorEngine,
 	FAssetRegistry& InAssetRegistry,
+	FAssetImportManager& InAssetImportManager,
 	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter)
-	: Application(InApplication), EditorEngine(InEditorEngine), RenderBackend(InRenderBackend), InputRouter(InInputRouter),
+	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
+	  RenderBackend(InRenderBackend), InputRouter(InInputRouter),
 	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState),
-	  ContentPanel(InAssetRegistry, InRenderDevice, InRenderBackend)
+	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
 }
@@ -108,6 +112,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	KNOT_PROFILE_SCOPE("Tick", "FImGuiSystem::Draw");
 
 	DrawMenuBar();
+	DrawBottomToolbar();
 	const ImGuiID DockspaceId = ImGui::GetID("KnotEditorDockspace");
 	const bool bNeedsDefaultLayout = ImGui::DockBuilderGetNode(DockspaceId) == nullptr;
 	ImGui::DockSpaceOverViewport(DockspaceId, ImGui::GetMainViewport(), ImGuiDockNodeFlags_None);
@@ -148,6 +153,39 @@ void FImGuiSystem::Draw(float DeltaTime)
 
 	const ImGuiIO& IO = ImGui::GetIO();
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
+}
+
+// Main Viewport 하단에 비동기 작업 상태를 표시하고 Dockspace에서 Toolbar 영역을 제외한다.
+void FImGuiSystem::DrawBottomToolbar()
+{
+	const float ToolbarHeight = ImGui::GetFrameHeight() + 4.0f;
+	const ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+	if (ImGui::BeginViewportSideBar("##BottomToolbar", ImGui::GetMainViewport(), ImGuiDir_Down, ToolbarHeight, WindowFlags))
+	{
+		if (ImGui::BeginMenuBar())
+		{
+			const FAssetImportStatus Status = AssetImportManager.GetStatus();
+			if (Status.bRunning)
+			{
+				const FString FileName = FPaths::ToUtf8(Status.SourceFilePath.filename().wstring());
+				const FString StatusText = "Importing " + FileName + "..." + "  |  " + std::to_string(static_cast<uint32>(Status.ElapsedSeconds)) + "s" +
+					(Status.QueuedCount > 0 ? "  |  " + std::to_string(Status.QueuedCount) + " queued" : "");
+				const float SpinnerSize = ImGui::GetFontSize() * 0.4f;
+				const float ContentWidth = SpinnerSize * 2.0f + ImGui::GetStyle().ItemSpacing.x + ImGui::CalcTextSize(StatusText.c_str()).x;
+				ImGui::SetCursorPosX((std::max)(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - ContentWidth - ImGui::GetStyle().WindowPadding.x));
+				const ImVec2 Center(ImGui::GetCursorScreenPos().x + SpinnerSize, ImGui::GetCursorScreenPos().y + ImGui::GetFrameHeight() * 0.5f);
+				ImDrawList* DrawList = ImGui::GetWindowDrawList();
+				const float StartAngle = static_cast<float>(ImGui::GetTime() * 5.0);
+				DrawList->PathArcTo(Center, SpinnerSize, StartAngle, StartAngle + 4.7f, 20);
+				DrawList->PathStroke(ImGui::GetColorU32(ImGuiCol_CheckMark), 0, 2.8f);
+				ImGui::Dummy(ImVec2(SpinnerSize * 2.0f, ImGui::GetFrameHeight()));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(StatusText.c_str());
+			}
+			ImGui::EndMenuBar();
+		}
+	}
+	ImGui::End();
 }
 
 void FImGuiSystem::EndFrame()

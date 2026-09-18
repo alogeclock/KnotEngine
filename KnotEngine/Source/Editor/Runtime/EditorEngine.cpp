@@ -6,6 +6,8 @@
 #include "Render/Scene/SceneRenderer.h"
 #include "Viewport/EditorViewportClient.h"
 #include "Core/Assert.h"
+#include "Core/IO/Paths.h"
+#include "Core/Log.h"
 #include "Core/Profiling/CPUProfiler.h"
 
 #include <algorithm>
@@ -13,7 +15,7 @@
 UEditorEngine::UEditorEngine(FWindowsApplication& Application)
 	: RenderBackend(CreateRenderBackend()),
 	  Renderer(RenderBackend->GetRenderDevice(), RenderBackend->GetRenderContext(), RenderBackend->GetShaderFormat()),
-	  ImGuiSystem(Application, *this, AssetRegistry, RenderBackend->GetRenderDevice(), RenderBackend->GetImGuiRenderBackend(), InputRouter)
+	  ImGuiSystem(Application, *this, AssetRegistry, AssetImportManager, RenderBackend->GetRenderDevice(), RenderBackend->GetImGuiRenderBackend(), InputRouter)
 {
 }
 
@@ -24,6 +26,7 @@ void UEditorEngine::Startup(FWindowsApplication& Application)
 
 	Renderer.Create(Application.GetWindow().GetHwnd());
 	AssetRegistry.Scan();
+	AssetImportManager.Startup();
 	ImGuiSystem.Startup();
 
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
@@ -47,6 +50,7 @@ void UEditorEngine::Tick(float DeltaTime)
 {
 	KNOT_PROFILE_SCOPE("Tick", "UEditorEngine::Tick");
 
+	ProcessAssetImports();
 	ImGuiSystem.BeginFrame();
 	ImGuiSystem.Draw(DeltaTime);
 	InputRouter.RouteInput();
@@ -69,6 +73,34 @@ void UEditorEngine::Tick(float DeltaTime)
 
 	ImGuiSystem.EndFrame();
 	Render();
+}
+
+// Worker Thread의 Import 완료 결과를 Main Thread에서 로그와 Asset Registry에 반영한다.
+void UEditorEngine::ProcessAssetImports()
+{
+	TArray<FAssetImportCompletion> Completions;
+	AssetImportManager.DrainCompleted(Completions);
+	if (Completions.empty())
+	{
+		return;
+	}
+
+	for (const FAssetImportCompletion& Completion : Completions)
+	{
+		const FAssetImportResult& Result = Completion.Result;
+		const FString SourcePath = FPaths::ToUtf8(Completion.SourceFilePath.wstring());
+		if (!Result.bSucceeded)
+		{
+			KE_LOG(LogAssetImporter, Error, "GLB Import 실패. Source={}, Error={}", SourcePath, Result.Error);
+			continue;
+		}
+		for (const FString& Warning : Result.Warnings)
+		{
+			KE_LOG(LogAssetImporter, Warning, "GLB Import 경고. Source={}, Warning={}", SourcePath, Warning);
+		}
+		KE_LOG(LogAssetImporter, Display, "GLB Import 완료. Source={}, AssetCount={}", SourcePath, Result.ImportedAssets.size());
+	}
+	AssetRegistry.Scan();
 }
 
 void UEditorEngine::Render()
@@ -130,6 +162,7 @@ void UEditorEngine::Shutdown()
 	DestroyWorldContext(EditorContextId);
 	EditorContextId = 0;
 
+	AssetImportManager.Shutdown();
 	InputRouter.Reset();
 	ImGuiSystem.Shutdown();
 	AssetRegistry.Reset();

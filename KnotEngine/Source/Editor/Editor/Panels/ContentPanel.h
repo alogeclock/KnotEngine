@@ -8,13 +8,14 @@
 
 class IImGuiRenderBackend;
 class IRenderDevice;
+class FAssetImportManager;
 struct ImVec2;
 
 // Asset Registry의 폴더와 Asset 메타데이터를 탐색하고 Content 파일 작업을 제공하는 Editor 창이다.
 class FContentPanel final
 {
 public:
-	FContentPanel(FAssetRegistry& InAssetRegistry, IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend);
+	FContentPanel(FAssetRegistry& InAssetRegistry, FAssetImportManager& InAssetImportManager, IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend);
 
 	void Startup();
 	void Draw();
@@ -70,6 +71,7 @@ private:
 	std::filesystem::path MakeUniquePath(const std::filesystem::path& DesiredPath, bool bDirectory) const;
 
 	FAssetRegistry& AssetRegistry;
+	FAssetImportManager& AssetImportManager;
 	IRenderDevice& RenderDevice;
 	IImGuiRenderBackend& RenderBackend;
 

@@ -3,6 +3,7 @@
 #include "Render/RenderBackend.h"
 #include "Render/Renderer.h"
 #include "Runtime/Engine.h"
+#include "Asset/AssetImportManager.h"
 #include "Asset/AssetRegistry.h"
 #include "Input/InputRouter.h"
 #include "Editor/ImGuiSystem.h"
@@ -33,6 +34,7 @@ public:
 	void UnregisterViewportClient(FEditorViewportClient& ViewportClient);
 
 private:
+	void ProcessAssetImports();
 	void Render();
 
 	std::unique_ptr<IRenderBackend> RenderBackend;
@@ -41,6 +43,7 @@ private:
 	TArray<FEditorViewportClient*> AllViewportClients;
 
 	FAssetRegistry AssetRegistry;
+	FAssetImportManager AssetImportManager;
 	FInputRouter InputRouter;
 	FImGuiSystem ImGuiSystem;
 

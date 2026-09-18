@@ -1,6 +1,6 @@
 #include "Editor/Panels/ContentPanel.h"
 
-#include "Asset/AssetImporter.h"
+#include "Asset/AssetImportManager.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
@@ -79,8 +79,12 @@ FString FContentPanel::MakeTileLabel(const FString& Label, float Width)
 	return Result + "...";
 }
 
-FContentPanel::FContentPanel(FAssetRegistry& InAssetRegistry, IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend)
-    : AssetRegistry(InAssetRegistry), RenderDevice(InRenderDevice), RenderBackend(InRenderBackend)
+FContentPanel::FContentPanel(
+	FAssetRegistry& InAssetRegistry,
+	FAssetImportManager& InAssetImportManager,
+	IRenderDevice& InRenderDevice,
+	IImGuiRenderBackend& InRenderBackend)
+    : AssetRegistry(InAssetRegistry), AssetImportManager(InAssetImportManager), RenderDevice(InRenderDevice), RenderBackend(InRenderBackend)
 {
 }
 
@@ -527,15 +531,17 @@ void FContentPanel::DrawContextMenu()
 	if (ImGui::BeginPopup("ContentContext"))
 	{
 		const FAssetData* ContextAsset = ContextAssetPath.empty() ? nullptr : AssetRegistry.FindAsset(ContextAssetPath);
+		const bool bHasActiveImports = AssetImportManager.HasActiveImports();
 		if (ContextAsset && ContextAsset->HasSourceFile())
 		{
-			if (ImGui::MenuItem("Import"))
+			const bool bImporting = AssetImportManager.IsImporting(ContextAsset->SourceFilePath);
+			if (ImGui::MenuItem(bImporting ? "Importing..." : "Import", nullptr, false, !bImporting))
 			{
 				ImportAsset();
 			}
 			ImGui::Separator();
 		}
-		if (ImGui::MenuItem("New Folder"))
+		if (ImGui::MenuItem("New Folder", nullptr, false, !bHasActiveImports))
 		{
 			CreateFolder(ContextFolderPath);
 		}
@@ -551,13 +557,13 @@ void FContentPanel::DrawContextMenu()
 			CopyItem();
 		}
 		ImGui::EndDisabled();
-		ImGui::BeginDisabled(CopiedItemType == EItemType::None);
+		ImGui::BeginDisabled(CopiedItemType == EItemType::None || bHasActiveImports);
 		if (ImGui::MenuItem("Paste"))
 		{
 			PasteItem(ContextFolderPath);
 		}
 		ImGui::EndDisabled();
-		ImGui::BeginDisabled(!bCanEdit);
+		ImGui::BeginDisabled(!bCanEdit || bHasActiveImports);
 		if (ImGui::MenuItem("Rename"))
 		{
 			const FAssetData* Asset = ContextAssetPath.empty() ? nullptr : AssetRegistry.FindAsset(ContextAssetPath);
@@ -673,6 +679,11 @@ void FContentPanel::OpenContextMenu(const FString& FolderPath, const FString& As
 // 대상 Folder 아래에 충돌하지 않는 New Folder를 만든다.
 void FContentPanel::CreateFolder(const FString& ParentFolderPath)
 {
+	if (AssetImportManager.HasActiveImports())
+	{
+		return;
+	}
+
 	const std::filesystem::path ParentPath = FPaths::ResolveContentPath(ParentFolderPath);
 	std::filesystem::path FolderPath = ParentPath / L"New Folder";
 	for (uint32 Suffix = 2; std::filesystem::exists(FolderPath); ++Suffix)
@@ -715,7 +726,7 @@ void FContentPanel::OpenInFileExplorer() const
 	}
 }
 
-// Context 대상 GLB를 Runtime .kasset으로 Import하고 결과를 로그와 Registry에 반영한다.
+// Context 대상 GLB를 비동기 Import Queue에 등록한다.
 void FContentPanel::ImportAsset()
 {
 	const FAssetData* Asset = AssetRegistry.FindAsset(ContextAssetPath);
@@ -726,19 +737,7 @@ void FContentPanel::ImportAsset()
 
 	const std::filesystem::path SourceFilePath = Asset->SourceFilePath;
 	const FString DestinationAssetPath = Asset->FolderPath;
-	const FAssetImportResult Result = FAssetImporter().ImportGLB(SourceFilePath, DestinationAssetPath);
-	if (!Result.bSucceeded)
-	{
-		KE_LOG(LogContentPanel, Error, "GLB Import 실패. Source={}, Error={}", FPaths::ToUtf8(SourceFilePath.wstring()), Result.Error);
-		return;
-	}
-
-	for (const FString& Warning : Result.Warnings)
-	{
-		KE_LOG(LogContentPanel, Warning, "GLB Import 경고. Source={}, Warning={}", FPaths::ToUtf8(SourceFilePath.wstring()), Warning);
-	}
-	KE_LOG(LogContentPanel, Display, "GLB Import 완료. Source={}, AssetCount={}", FPaths::ToUtf8(SourceFilePath.wstring()), Result.ImportedAssets.size());
-	bRefreshRequested = true;
+	AssetImportManager.EnqueueGLB(SourceFilePath, DestinationAssetPath);
 }
 
 // Context 대상의 논리 경로를 내부 Copy Clipboard에 저장한다.
@@ -761,6 +760,11 @@ void FContentPanel::CopyItem()
 // Copy Clipboard의 Asset 또는 Folder를 대상 Folder에 복제한다.
 void FContentPanel::PasteItem(const FString& FolderPath)
 {
+	if (AssetImportManager.HasActiveImports())
+	{
+		return;
+	}
+
 	const std::filesystem::path DestinationFolder = FPaths::ResolveContentPath(FolderPath);
 	std::error_code FileSystemError;
 	if (CopiedItemType == EItemType::Folder)
@@ -807,6 +811,11 @@ void FContentPanel::PasteItem(const FString& FolderPath)
 // Context 대상 Asset의 파일명 또는 Folder 이름을 검증하고 실제 경로에 반영한다.
 bool FContentPanel::RenameItem()
 {
+	if (AssetImportManager.HasActiveImports())
+	{
+		return false;
+	}
+
 	const FString NewName = RenameText.data();
 	if (NewName.empty() || NewName == "." || NewName == ".." || NewName.find_first_of("<>:\"/\\|?*") != FString::npos ||
 	    NewName.ends_with('.') || NewName.ends_with(' '))
@@ -920,6 +929,11 @@ bool FContentPanel::RenameItem()
 // Context 대상 Asset의 모든 파일 또는 Folder 전체를 확인 후 삭제한다.
 void FContentPanel::DeleteItem()
 {
+	if (AssetImportManager.HasActiveImports())
+	{
+		return;
+	}
+
 	std::error_code FileSystemError;
 	if (!ContextAssetPath.empty())
 	{
@@ -968,6 +982,11 @@ void FContentPanel::DeleteItem()
 // Content 항목 종류에 따라 논리 Asset 또는 Folder를 대상 Folder 아래로 이동한다.
 void FContentPanel::MoveItem(EItemType ItemType, const FString& SourcePath, const FString& DestinationFolderPath)
 {
+	if (AssetImportManager.HasActiveImports())
+	{
+		return;
+	}
+
 	if (ItemType == EItemType::Asset)
 	{
 		const FAssetData* Asset = AssetRegistry.FindAsset(SourcePath);

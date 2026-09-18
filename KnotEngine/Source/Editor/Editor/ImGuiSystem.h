@@ -14,6 +14,7 @@
 
 class IImGuiRenderBackend;
 class IRenderDevice;
+class FAssetImportManager;
 class FAssetRegistry;
 class FInputRouter;
 struct ImFont;
@@ -27,6 +28,7 @@ public:
 		FWindowsApplication& InApplication,
 		UEditorEngine& InEditorEngine,
 		FAssetRegistry& InAssetRegistry,
+		FAssetImportManager& InAssetImportManager,
 		IRenderDevice& InRenderDevice,
 		IImGuiRenderBackend& InRenderBackend,
 		FInputRouter& InInputRouter);
@@ -42,6 +44,7 @@ public:
 private:
 	FWindowsApplication& Application;
 	UEditorEngine& EditorEngine;
+	FAssetImportManager& AssetImportManager;
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
 	FEditorSelection Selection;
@@ -72,5 +75,6 @@ private:
 #endif
 
 	void DrawMenuBar();
+	void DrawBottomToolbar();
 	void BuildLayout(std::uint32_t DockspaceId);
 };
