@@ -82,4 +82,4 @@ jobs:
         shell: cmd
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "%GITHUB_REF_NAME%" "%RELEASE_PACKAGE%" --verify-tag --title "KnotEngine %GITHUB_REF_NAME%" --notes-from-tag
+        run: gh release create "%GITHUB_REF_NAME%" "%RELEASE_PACKAGE%" --verify-tag --title "%GITHUB_REF_NAME%" --notes-from-tag
