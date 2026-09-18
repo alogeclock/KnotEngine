@@ -9,6 +9,7 @@ struct FTransform;
 struct FVector;
 struct ImFont;
 class UComponent;
+class UStaticMeshComponent;
 class FProperty;
 class UObject;
 class UNode;
@@ -46,11 +47,13 @@ private:
 
 	static float GetContentPadding();
 
-	bool DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject = true);
+	bool DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject = true, const char* LabelOverride = nullptr);
 	bool DrawVector(const char* Label, FVector& Vector);
 	bool DrawRotator(const char* Label, FRotator& Rotator);
 	bool DrawQuat(const char* Label, FQuat& Quat);
 	bool DrawTransform(FTransform& Transform);
+
+	bool DrawStaticMeshMaterials(UStaticMeshComponent& Component);
 
 	FAssetRegistry& AssetRegistry;
 

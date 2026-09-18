@@ -46,7 +46,9 @@ public:
 		std::unique_ptr<FProperty> InInner,
 		EPropertyFlags InFlags = EPropertyFlags::None);
 
-	const FProperty* GetInner() const { return Inner.get(); }
+	SIZE_T Num(const void* Value) const;
+	void* GetElement(void* Value, SIZE_T Index) const;
+	const FProperty& GetInner() const { return *Inner; }
 	EPropertyKind GetKind() const override { return EPropertyKind::Array; }
 
 protected:

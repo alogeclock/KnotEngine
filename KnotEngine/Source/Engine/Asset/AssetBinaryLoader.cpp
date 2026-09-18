@@ -6,6 +6,7 @@
 #include "Asset/Mesh/StaticMesh.h"
 #include "Asset/Texture/Texture2D.h"
 #include "Core/IO/Paths.h"
+#include "Core/Log.h"
 #include "Core/MemoryArchive.h"
 
 #include <cstring>
@@ -104,6 +105,7 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 	FMemoryReader Reader(FileBytes);
 	if (!ReadAssetHeader(Reader, FileBytes.size(), EAssetType::Material, FMaterialPayloadHeader::CurrentVersion))
 	{
+		KE_LOG(LogAssetBinaryLoader, Error, "Material Header 검증에 실패했다. AssetPath={}, FileSize={}", AssetPath, FileBytes.size());
 		return nullptr;
 	}
 	FMaterialPayloadHeader Header = {};
@@ -113,9 +115,10 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 	Reader << VertexShader;
 	Reader << PixelShader;
 	if (Reader.HasError() ||
-		Header.BlendMode > EMaterialBlendMode::Translucent || Header.DepthMode > EMaterialDepthMode::Disabled || Header.CullMode > ECullMode::None ||
+		Header.BlendMode > EMaterialBlendMode::Translucent || Header.DepthMode > EMaterialDepthMode::Disabled || Header.CullMode > ECullMode::Back ||
 		Header.ScalarParameterCount > 65535 || Header.VectorParameterCount > 65535 || Header.TextureParameterCount > 65535)
 	{
+		KE_LOG(LogAssetBinaryLoader, Error, "Material Payload Header 검증에 실패했다. AssetPath={}", AssetPath);
 		return nullptr;
 	}
 
@@ -172,17 +175,20 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FString& AssetPath, FAssetMana
 	}
 	if (Reader.HasError() || Reader.CanSerialize(1))
 	{
+		KE_LOG(LogAssetBinaryLoader, Error, "Material Payload 크기 검증에 실패했다. AssetPath={}", AssetPath);
 		return nullptr;
 	}
 
 	FMaterial RenderMaterial;
 	if (!RenderMaterial.Initialize(std::move(VertexShader), std::move(PixelShader), Header.BlendMode, Header.DepthMode, Header.CullMode))
 	{
+		KE_LOG(LogAssetBinaryLoader, Error, "Material Render Definition 초기화에 실패했다. AssetPath={}", AssetPath);
 		return nullptr;
 	}
 	UMaterial* Material = GUObjectManager.Create<UMaterial>();
 	if (!Material->Initialize(AssetPath, std::move(RenderMaterial), std::move(Scalars), std::move(Vectors), std::move(Textures)))
 	{
+		KE_LOG(LogAssetBinaryLoader, Error, "Material UObject 초기화에 실패했다. AssetPath={}", AssetPath);
 		GUObjectManager.Destroy(Material);
 		return nullptr;
 	}
@@ -221,6 +227,7 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FString& AssetPath, FAsset
 		UMaterial* Material = MaterialPath.empty() ? nullptr : AssetManager.LoadMaterial(MaterialPath);
 		if (!MaterialPath.empty() && !Material)
 		{
+			KE_LOG(LogAssetBinaryLoader, Error, "Static Mesh Material을 불러오지 못했다. AssetPath={}, MaterialPath={}", AssetPath, MaterialPath);
 			return nullptr;
 		}
 		Materials.push_back({ FName(SlotName), Material });

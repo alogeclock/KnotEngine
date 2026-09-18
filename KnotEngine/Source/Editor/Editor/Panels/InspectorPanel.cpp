@@ -2,17 +2,24 @@
 
 #include "Asset/AssetRegistry.h"
 #include "Asset/AssetManager.h"
+#include "Asset/Material/MaterialInterface.h"
 #include "Asset/Mesh/StaticMesh.h"
+
 #include "Component/Component.h"
+#include "Component/Mesh/StaticMeshComponent.h"
+
 #include "Core/Geometry/Transform.h"
 #include "Core/Math/Rotator.h"
+
 #include "Object/Class.h"
 #include "Object/Property.h"
+#include "Object/Property/ArrayProperty.h"
 #include "Object/Property/EnumProperty.h"
 #include "Object/Property/ObjectProperty.h"
 #include "Object/Property/SoftObjectProperty.h"
 #include "Object/Property/StructProperty.h"
 #include "Object/Reflection/ReflectionRegistry.h"
+
 #include "Editor/EditorSelection.h"
 #include "World/Node.h"
 
@@ -617,13 +624,71 @@ bool FInspectorPanel::DrawTransform(FTransform& Transform)
 	return bChanged;
 }
 
+// Static Mesh의 기본 Material을 표시하고 기본값과 다른 선택만 Component Override로 저장한다.
+bool FInspectorPanel::DrawStaticMeshMaterials(UStaticMeshComponent& Component)
+{
+	check(GAssetManager);
+	bool bChanged = false;
+	const UStaticMesh* StaticMesh = Component.GetStaticMesh();
+	const TArray<TObjectPtr<UMaterialInterface>>& OverrideMaterials = Component.GetOverrideMaterials();
+	for (SIZE_T MaterialIndex = 0; MaterialIndex < Component.GetMaterialCount(); ++MaterialIndex)
+	{
+		ImGui::PushID(static_cast<int>(MaterialIndex));
+		const FString Label = "Element " + std::to_string(MaterialIndex);
+		UMaterialInterface* BaseMaterial = StaticMesh ? StaticMesh->GetMaterial(MaterialIndex) : nullptr;
+		UMaterialInterface* OverrideMaterial = MaterialIndex < OverrideMaterials.size() ? OverrideMaterials[MaterialIndex].Get() : nullptr;
+		UMaterialInterface* CurrentMaterial = OverrideMaterial ? OverrideMaterial : BaseMaterial;
+		const char* Preview = CurrentMaterial ? CurrentMaterial->GetAssetPath().c_str() : "Default Material";
+		if (BeginPropertyRow(Label.c_str()))
+		{
+			if (ImGui::BeginCombo("##Value", Preview))
+			{
+				const char* BaseLabel = BaseMaterial ? BaseMaterial->GetAssetPath().c_str() : "Default Material";
+				if (ImGui::Selectable(BaseLabel, OverrideMaterial == nullptr))
+				{
+					if (OverrideMaterial)
+					{
+						Component.SetMaterial(MaterialIndex, nullptr);
+						OverrideMaterial = nullptr;
+						CurrentMaterial = BaseMaterial;
+						bChanged = true;
+					}
+				}
+				for (const FAssetData& Asset : AssetRegistry.GetAssets())
+				{
+					if (Asset.Type != EAssetType::Material || !Asset.HasBinaryFile() ||
+						(BaseMaterial && BaseMaterial->GetAssetPath() == Asset.AssetPath))
+					{
+						continue;
+					}
+					const bool bSelected = CurrentMaterial && CurrentMaterial->GetAssetPath() == Asset.AssetPath;
+					if (ImGui::Selectable(Asset.AssetPath.c_str(), bSelected))
+					{
+						if (UMaterialInterface* Material = GAssetManager->LoadMaterial(Asset.AssetPath); Material && Material != OverrideMaterial)
+						{
+							Component.SetMaterial(MaterialIndex, Material);
+							OverrideMaterial = Material;
+							CurrentMaterial = Material;
+							bChanged = true;
+						}
+					}
+				}
+				ImGui::EndCombo();
+			}
+			EndPropertyRow();
+		}
+		ImGui::PopID();
+	}
+	return bChanged;
+}
+
 // Editor에서 객체의 속성을 프로퍼티를 어떻게 그릴지 결정한다.
 // ImGui를 사용하여 다양한 속성 타입에 따라 적절한 UI 위젯을 생성하고, 값이 변경되면 해당 값을 업데이트한다.
-bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject)
+bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject, const char* LabelOverride)
 {
 	void* Value = Property.ContainerPtrToValuePtr(Container);
 	const FReflectionMetadata& Metadata = Property.GetMetadata();
-	const FString Label = Metadata.GetDisplayName().empty() ? Property.GetName() : Metadata.GetDisplayName();
+	const FString Label = LabelOverride ? FString(LabelOverride) : Metadata.GetDisplayName().empty() ? Property.GetName() : Metadata.GetDisplayName();
 	ImGui::PushID(&Property);
 	bool bChanged = false;
 	bool bTooltipHandled = false;
@@ -856,6 +921,37 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 				EndPropertyRow();
 			}
 		}
+		else if (ObjectProperty.GetPropertyClass()->IsChildOf(UMaterialInterface::StaticClass()))
+		{
+			check(GAssetManager);
+			const UMaterialInterface* CurrentMaterial = static_cast<const UMaterialInterface*>(ReferencedObject);
+			const char* Preview = CurrentMaterial ? CurrentMaterial->GetAssetPath().c_str() : "Default Material";
+			if (BeginPropertyRow(Label.c_str()))
+			{
+				if (ImGui::BeginCombo("##Value", Preview))
+				{
+					for (const FAssetData& Asset : AssetRegistry.GetAssets())
+					{
+						if (Asset.Type != EAssetType::Material || !Asset.HasBinaryFile())
+						{
+							continue;
+						}
+						const bool bSelected = CurrentMaterial && CurrentMaterial->GetAssetPath() == Asset.AssetPath;
+						if (ImGui::Selectable(Asset.AssetPath.c_str(), bSelected))
+						{
+							UMaterialInterface* Material = GAssetManager->LoadMaterial(Asset.AssetPath);
+							if (Material && Material->IsA(ObjectProperty.GetPropertyClass()))
+							{
+								ObjectProperty.GetObjectPtrOps()->SetObject(Value, Material);
+								bChanged = true;
+							}
+						}
+					}
+					ImGui::EndCombo();
+				}
+				EndPropertyRow();
+			}
+		}
 		else
 		{
 			if (BeginPropertyRow(Label.c_str()))
@@ -878,10 +974,32 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	}
 	case EPropertyKind::Array:
 	{
-		if (BeginPropertyRow(Label.c_str()))
+		const FArrayProperty& ArrayProperty = static_cast<const FArrayProperty&>(Property);
+		const FProperty& Inner = ArrayProperty.GetInner();
+		static const FName OverrideMaterialsPropertyName("OverrideMaterials");
+		const bool bStaticMeshMaterials = Property.GetFName() == OverrideMaterialsPropertyName && Object.IsA(UStaticMeshComponent::StaticClass()) &&
+			Inner.GetKind() == EPropertyKind::Object &&
+			static_cast<const FObjectProperty&>(Inner).GetPropertyClass()->IsChildOf(UMaterialInterface::StaticClass());
+		if (bStaticMeshMaterials)
 		{
-			ImGui::TextUnformatted("Array");
-			EndPropertyRow();
+			bChanged = DrawStaticMeshMaterials(static_cast<UStaticMeshComponent&>(Object));
+			break;
+		}
+		const SIZE_T ElementCount = ArrayProperty.Num(Value);
+		if (ElementCount == 0)
+		{
+			if (BeginPropertyRow(Label.c_str()))
+			{
+				ImGui::TextDisabled("Empty");
+				EndPropertyRow();
+			}
+		}
+		for (SIZE_T Index = 0; Index < ElementCount; ++Index)
+		{
+			ImGui::PushID(static_cast<int>(Index));
+			const FString ElementLabel = "Element " + std::to_string(Index);
+			bChanged |= DrawProperty(Object, Inner, ArrayProperty.GetElement(Value, Index), false, ElementLabel.c_str());
+			ImGui::PopID();
 		}
 		break;
 	}

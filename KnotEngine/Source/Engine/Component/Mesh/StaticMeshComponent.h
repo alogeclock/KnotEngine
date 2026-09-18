@@ -17,6 +17,7 @@ public:
 
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
 	UStaticMesh* GetStaticMesh() const { return StaticMesh.Get(); }
+	void PostEditProperty(const FProperty& Property) override;
 
 	void SetMaterial(SIZE_T MaterialIndex, UMaterialInterface* InMaterial);
 

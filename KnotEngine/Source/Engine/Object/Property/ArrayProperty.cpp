@@ -19,6 +19,20 @@ FArrayProperty::FArrayProperty(
 	panic(Inner->GetSize() == ArrayOps->ElementSize);
 }
 
+// 리플렉션 배열에 저장된 원소 수를 반환한다.
+SIZE_T FArrayProperty::Num(const void* Value) const
+{
+	check(Value);
+	return ArrayOps->Num(Value);
+}
+
+// 리플렉션 배열에서 지정한 원소의 주소를 반환한다.
+void* FArrayProperty::GetElement(void* Value, SIZE_T Index) const
+{
+	check(Value && Index < Num(Value));
+	return ArrayOps->GetElement(Value, Index);
+}
+
 // 등록된 배열 연산으로 빈 배열 컨테이너를 생성한다.
 void FArrayProperty::InitializeElement(void* Value) const
 {

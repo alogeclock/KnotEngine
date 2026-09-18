@@ -2,6 +2,7 @@
 
 #include "Asset/AssetManager.h"
 #include "Core/Assert.h"
+#include "Object/Property.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 
 #include <algorithm>
@@ -22,7 +23,19 @@ void UStaticMeshComponent::SetStaticMesh(UStaticMesh* InStaticMesh)
 	}
 
 	StaticMesh = InStaticMesh;
+	OverrideMaterials.clear();
 	MarkPrimitiveSceneProxy();
+}
+
+// Inspector에서 Static Mesh가 교체되면 이전 Mesh의 Material Override를 제거한다.
+void UStaticMeshComponent::PostEditProperty(const FProperty& Property)
+{
+	static const FName StaticMeshPropertyName("StaticMesh");
+	if (Property.GetFName() == StaticMeshPropertyName)
+	{
+		OverrideMaterials.clear();
+	}
+	Super::PostEditProperty(Property);
 }
 
 void UStaticMeshComponent::SetMaterial(SIZE_T MaterialIndex, UMaterialInterface* InMaterial)

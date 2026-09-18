@@ -81,6 +81,38 @@ bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32
 	return !Error;
 }
 
+// 기본 Geometry가 사용하는 흰색 Material Asset을 저장한다. Texture가 없으면 Renderer의 1x1 White Texture를 사용한다.
+bool FAssetImporter::SaveDefaultWhiteMaterial()
+{
+	FMaterialPayloadHeader Header = {};
+	Header.BlendMode = EMaterialBlendMode::Opaque;
+	Header.DepthMode = EMaterialDepthMode::ReadWrite;
+	Header.CullMode = ECullMode::Back;
+	Header.ScalarParameterCount = 1;
+	Header.VectorParameterCount = 1;
+
+	TArray<uint8> PayloadBytes;
+	FMemoryWriter Payload(PayloadBytes);
+	Payload << Header;
+
+	FShaderKey VertexShader = { "/Engine/Shader/StaticMesh.hlsl", "MainVS", EShaderStage::Vertex };
+	FShaderKey PixelShader = { "/Engine/Shader/StaticMesh.hlsl", "OpaquePS", EShaderStage::Pixel };
+	Payload << VertexShader;
+	Payload << PixelShader;
+
+	FString AlphaCutoffName = "AlphaCutoff";
+	float AlphaCutoff = 0.5f;
+	Payload << AlphaCutoffName;
+	Payload << AlphaCutoff;
+
+	FString BaseColorName = "BaseColor";
+	FVector4 BaseColor(1.0f, 1.0f, 1.0f, 1.0f);
+	Payload << BaseColorName;
+	Payload << BaseColor;
+
+	return !Payload.HasError() && SaveAsset(DefaultWhiteMaterialPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, PayloadBytes);
+}
+
 // 생성된 .kasset의 수정 시각과 Header가 현재 Source 및 Asset 형식과 일치하는지 확인한다.
 bool FAssetImporter::IsAssetUpToDate(
 	const FString& AssetPath,
@@ -264,6 +296,12 @@ FAssetImportResult FAssetImporter::ImportGLB(const std::filesystem::path& Source
 	}
 	const bool bHasTextures = GLTF.Data->images_count > 0;
 	const bool bHasMaterials = GLTF.Data->materials_count > 0;
+	const bool bEngineGeometry = DestinationAssetPath.starts_with("/Engine/Model/");
+	if (bEngineGeometry && !bHasMaterials && !SaveDefaultWhiteMaterial())
+	{
+		Result.Error = "DefaultWhite Material 저장에 실패했다.";
+		return Result;
+	}
 	const FString TextureRoot = bHasTextures ? Combine(DestinationAssetPath, "Texture") : DestinationAssetPath;
 	const FString MaterialRoot = bHasMaterials ? Combine(DestinationAssetPath, "Material") : DestinationAssetPath;
 	const FString MeshRoot = bHasTextures || bHasMaterials ? Combine(DestinationAssetPath, "Mesh") : DestinationAssetPath;
@@ -496,7 +534,7 @@ FAssetImportResult FAssetImporter::ImportGLB(const std::filesystem::path& Source
 		if (MaterialAssetPaths.empty())
 		{
 			FString SlotName = "Default";
-			FString MaterialPath;
+			FString MaterialPath = bEngineGeometry ? DefaultWhiteMaterialPath : FString();
 			Payload << SlotName;
 			Payload << MaterialPath;
 		}
