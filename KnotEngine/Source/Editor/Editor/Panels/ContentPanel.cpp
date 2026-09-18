@@ -10,6 +10,7 @@
 #include <Shellapi.h>
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <imgui.h>
@@ -138,38 +139,95 @@ void FContentPanel::Startup()
 // Folder와 Content Tile 영역을 좌우로 배치한다.
 void FContentPanel::Draw()
 {
-	if (!ImGui::Begin("Content"))
+	const bool bContentVisible = ImGui::Begin("Content");
+	if (bContentVisible)
 	{
-		ImGui::End();
-		return;
-	}
+		const float FolderWidth = std::clamp(ImGui::GetContentRegionAvail().x * 0.22f, 170.0f, 280.0f);
+		if (ImGui::BeginChild("ContentFolders", ImVec2(FolderWidth, 0.0f), ImGuiChildFlags_Borders))
+		{
+			DrawFolderPane();
+		}
+		ImGui::EndChild();
+		ImGui::SameLine();
+		if (ImGui::BeginChild("ContentItems", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders))
+		{
+			DrawContentPane();
+		}
+		ImGui::EndChild();
 
-	const float FolderWidth = std::clamp(ImGui::GetContentRegionAvail().x * 0.22f, 170.0f, 280.0f);
-	if (ImGui::BeginChild("ContentFolders", ImVec2(FolderWidth, 0.0f), ImGuiChildFlags_Borders))
-	{
-		DrawFolderPane();
+		if (bOpenContextMenu)
+		{
+			ImGui::OpenPopup("ContentContext");
+			bOpenContextMenu = false;
+		}
+		DrawContextMenu();
 	}
-	ImGui::EndChild();
-	ImGui::SameLine();
-	if (ImGui::BeginChild("ContentItems", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders))
-	{
-		DrawContentPane();
-	}
-	ImGui::EndChild();
-
-	if (bOpenContextMenu)
-	{
-		ImGui::OpenPopup("ContentContext");
-		bOpenContextMenu = false;
-	}
-	DrawContextMenu();
 	ImGui::End();
+	DrawImportOptions();
 
 	if (bRefreshRequested)
 	{
 		bRefreshRequested = false;
 		Refresh();
 	}
+}
+
+// GLB Import 설정을 조정하고 비동기 Import Queue에 요청을 등록하는 Modal을 표시한다.
+void FContentPanel::DrawImportOptions()
+{
+	static constexpr const char* PopupTitle = "GLB Import Options";
+	if (bOpenImportOptions)
+	{
+		ImGui::OpenPopup(PopupTitle);
+		bOpenImportOptions = false;
+	}
+
+	if (!ImGui::BeginPopupModal(PopupTitle, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		return;
+	}
+
+	ImGui::TextUnformatted(FPaths::ToUtf8(PendingImportSourceFilePath.filename().wstring()).c_str());
+	ImGui::TextDisabled("Source: %s", FPaths::ToUtf8(PendingImportSourceFilePath.generic_wstring()).c_str());
+	ImGui::TextDisabled("Destination: %s", PendingImportDestinationAssetPath.c_str());
+	ImGui::Separator();
+
+	if (ImGui::CollapsingHeader("Static Mesh", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::Checkbox("Combine Meshes", &PendingImportOptions.bCombineMeshes);
+		ImGui::TextDisabled("Bake scene node transforms and combine all mesh nodes into one Static Mesh.");
+		ImGui::SetNextItemWidth(180.0f);
+		ImGui::DragFloat("Uniform Scale", &PendingImportOptions.UniformScale, 0.01f, 0.0001f, 1000.0f, "%.4f");
+		ImGui::TextDisabled("1.0 converts glTF meters to Knot Engine centimeters.");
+	}
+
+	const bool bScaleValid = std::isfinite(PendingImportOptions.UniformScale) && PendingImportOptions.UniformScale > 0.0f;
+	if (!bScaleValid)
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "Uniform Scale must be greater than zero.");
+	}
+
+	ImGui::Separator();
+	ImGui::BeginDisabled(!bScaleValid || AssetImportManager.HasActiveImports());
+	if (ImGui::Button("Import"))
+	{
+		if (AssetImportManager.EnqueueGLB(PendingImportSourceFilePath, PendingImportDestinationAssetPath, PendingImportOptions))
+		{
+			PendingImportSourceFilePath.clear();
+			PendingImportDestinationAssetPath.clear();
+			ImGui::CloseCurrentPopup();
+		}
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	if (ImGui::Button("Cancel"))
+	{
+		PendingImportSourceFilePath.clear();
+		PendingImportDestinationAssetPath.clear();
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
 }
 
 // Content Browser가 소유한 썸네일 Texture를 해제한다.
@@ -410,7 +468,9 @@ void FContentPanel::DrawContentTiles()
 	const bool bSearching = AssetSearchText[0] != '\0';
 	for (const FString& FolderPath : AssetRegistry.GetFolders())
 	{
-		const bool bInScope = bSearching ? FolderPath != "/" && FPaths::IsInside(FolderPath, SelectedFolderPath) : IsDirectChildFolder(FolderPath, SelectedFolderPath);
+		const bool bInScope = bSearching
+		                          ? FolderPath != "/" && FPaths::IsInside(FolderPath, SelectedFolderPath)
+		                          : IsDirectChildFolder(FolderPath, SelectedFolderPath);
 		if (bInScope && ContainsText(GetFolderName(FolderPath), AssetSearchText.data()))
 		{
 			ImGui::TableNextColumn();
@@ -744,7 +804,7 @@ void FContentPanel::OpenInFileExplorer() const
 	}
 }
 
-// Context 대상 GLB를 비동기 Import Queue에 등록한다.
+// Context 대상 GLB와 출력 경로를 보관하고 다음 Frame에 Import 설정 Modal을 연다.
 void FContentPanel::ImportAsset()
 {
 	const FAssetData* Asset = AssetRegistry.FindAsset(ContextAssetPath);
@@ -753,9 +813,10 @@ void FContentPanel::ImportAsset()
 		return;
 	}
 
-	const std::filesystem::path SourceFilePath = Asset->SourceFilePath;
-	const FString DestinationAssetPath = Asset->FolderPath;
-	AssetImportManager.EnqueueGLB(SourceFilePath, DestinationAssetPath);
+	PendingImportSourceFilePath = Asset->SourceFilePath;
+	PendingImportDestinationAssetPath = Asset->FolderPath;
+	PendingImportOptions = FGLBImportOptions();
+	bOpenImportOptions = true;
 }
 
 // Context 대상의 논리 경로를 내부 Copy Clipboard에 저장한다.
@@ -1186,7 +1247,10 @@ std::filesystem::path FContentPanel::MakeUniquePath(const std::filesystem::path&
 	for (uint32 Suffix = 1;; ++Suffix)
 	{
 		const FWString SuffixText = L" Copy" + (Suffix == 1 ? FWString() : L" " + std::to_wstring(Suffix));
-		const std::filesystem::path Candidate = bDirectory ? DesiredPath.parent_path() / (DesiredPath.filename().wstring() + SuffixText) : DesiredPath.parent_path() / (DesiredPath.stem().wstring() + SuffixText + DesiredPath.extension().wstring());
+		const std::filesystem::path Candidate = bDirectory
+		                                            ? DesiredPath.parent_path() / (DesiredPath.filename().wstring() + SuffixText)
+		                                            : DesiredPath.parent_path() /
+		                                                  (DesiredPath.stem().wstring() + SuffixText + DesiredPath.extension().wstring());
 		if (!std::filesystem::exists(Candidate))
 		{
 			return Candidate;

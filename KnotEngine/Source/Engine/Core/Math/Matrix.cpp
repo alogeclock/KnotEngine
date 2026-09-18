@@ -4,6 +4,57 @@
 
 const FMatrix FMatrix::Identity;
 
+FMatrix FMatrix::GetTransposed() const noexcept
+{
+	return FMatrix(
+		M[0][0], M[1][0], M[2][0], M[3][0],
+		M[0][1], M[1][1], M[2][1], M[3][1],
+		M[0][2], M[1][2], M[2][2], M[3][2],
+		M[0][3], M[1][3], M[2][3], M[3][3]);
+}
+
+float FMatrix::GetDeterminant() const noexcept
+{
+	const float A0 = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+	const float A1 = M[0][0] * M[1][2] - M[0][2] * M[1][0];
+	const float A2 = M[0][0] * M[1][3] - M[0][3] * M[1][0];
+	const float A3 = M[0][1] * M[1][2] - M[0][2] * M[1][1];
+	const float A4 = M[0][1] * M[1][3] - M[0][3] * M[1][1];
+	const float A5 = M[0][2] * M[1][3] - M[0][3] * M[1][2];
+	const float B0 = M[2][0] * M[3][1] - M[2][1] * M[3][0];
+	const float B1 = M[2][0] * M[3][2] - M[2][2] * M[3][0];
+	const float B2 = M[2][0] * M[3][3] - M[2][3] * M[3][0];
+	const float B3 = M[2][1] * M[3][2] - M[2][2] * M[3][1];
+	const float B4 = M[2][1] * M[3][3] - M[2][3] * M[3][1];
+	const float B5 = M[2][2] * M[3][3] - M[2][3] * M[3][2];
+	return A0 * B5 - A1 * B4 + A2 * B3 + A3 * B2 - A4 * B1 + A5 * B0;
+}
+
+FMatrix FMatrix::GetNormalMatrix(float Tolerance) const noexcept
+{
+	const float C00 = M[1][1] * M[2][2] - M[1][2] * M[2][1];
+	const float C01 = M[1][2] * M[2][0] - M[1][0] * M[2][2];
+	const float C02 = M[1][0] * M[2][1] - M[1][1] * M[2][0];
+	const float C10 = M[0][2] * M[2][1] - M[0][1] * M[2][2];
+	const float C11 = M[0][0] * M[2][2] - M[0][2] * M[2][0];
+	const float C12 = M[0][1] * M[2][0] - M[0][0] * M[2][1];
+	const float C20 = M[0][1] * M[1][2] - M[0][2] * M[1][1];
+	const float C21 = M[0][2] * M[1][0] - M[0][0] * M[1][2];
+	const float C22 = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+	const float Det = M[0][0] * C00 + M[0][1] * C01 + M[0][2] * C02;
+	if (std::fabs(Det) <= Tolerance)
+	{
+		return Identity;
+	}
+
+	const float InvDet = 1.0f / Det;
+	return FMatrix(
+		C00 * InvDet, C01 * InvDet, C02 * InvDet, 0.0f,
+		C10 * InvDet, C11 * InvDet, C12 * InvDet, 0.0f,
+		C20 * InvDet, C21 * InvDet, C22 * InvDet, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
+}
+
 FMatrix FMatrix::GetInverse(float Tolerance) const noexcept
 {
 	FMatrix Result;
@@ -88,6 +139,7 @@ FMatrix FMatrix::MakeRotationZ(float AngleRad) noexcept
 		0.0f, 0.0f, 0.0f, 1.0f);
 }
 
+// D3D [0, 1] Clip Depth에서 Near=1, Far=0인 Reversed-Z Projection을 생성한다.
 FMatrix FMatrix::MakePerspectiveFov(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept
 {
 	check(AspectRatio > 0.0f);

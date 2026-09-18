@@ -6,6 +6,7 @@
 #include <filesystem>
 
 struct FVector;
+struct FMatrix;
 struct FSamplerDesc;
 struct FStaticMeshVertex;
 struct cgltf_accessor;
@@ -30,11 +31,22 @@ struct FAssetImportResult
 	FString Error;
 };
 
+// GLB의 Static Mesh 생성 방식을 지정하는 Editor Import 설정.
+struct FGLBImportOptions
+{
+	float UniformScale = 1.0f;
+	bool bCombineMeshes = true;
+	bool bSkipUnchanged = false;
+};
+
 // GLB Source를 Runtime 전용 Mesh, Material, Texture .kasset으로 변환하는 Editor 전용 Importer.
 class FAssetImporter final
 {
 public:
-	FAssetImportResult ImportGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath) const;
+	FAssetImportResult ImportGLB(
+		const std::filesystem::path& SourceFilePath,
+		const FString& DestinationAssetPath,
+		const FGLBImportOptions& ImportOptions = {}) const;
 
 	bool ImportAllGLB() const;
 
@@ -48,14 +60,19 @@ private:
 	static FString Sanitize(const char* Name, const FString& Fallback);
 	static FString Combine(const FString& Left, const FString& Right);
 
-	static FVector ConvertPosition(const float Value[3]);
-	static FVector ConvertDirection(const float Value[3]);
+	static FVector ConvertPosition(const FVector& Value);
+	static FVector ConvertDirection(const FVector& Value);
+	static FMatrix ConvertMatrix(const float Value[16]);
 
 	static const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, int Type, int Index = 0);
 	static FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler);
 
 	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& OutAssetId);
-	static bool IsAssetUpToDate(const FString& AssetPath, const std::filesystem::file_time_type& SourceTimestamp, EAssetType ExpectedType, uint32 ExpectedPayloadVersion);
+	static bool IsAssetUpToDate(
+		const FString& AssetPath,
+		const std::filesystem::file_time_type& SourceTimestamp,
+		EAssetType ExpectedType,
+		uint32 ExpectedPayloadVersion);
 
 	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
 	static void Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);

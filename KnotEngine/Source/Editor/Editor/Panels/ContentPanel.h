@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset/AssetImporter.h"
 #include "Asset/AssetRegistry.h"
 #include "Render/RHI/RenderTypes.h"
 
@@ -46,6 +47,7 @@ private:
 	void DrawFolderTile(const FString& FolderPath, float TileWidth, float TileHeight);
 	void DrawAssetTile(const FAssetData& Asset, float TileWidth, float TileHeight);
 	void DrawContextMenu();
+	void DrawImportOptions();
 
 	void Navigate(const FString& FolderPath, bool bRecordHistory = true);
 	void OpenContextMenu(const FString& FolderPath, const FString& AssetPath);
@@ -89,6 +91,10 @@ private:
 	FString CopiedAssetPath;
 	FString CopiedFolderPath;
 
+	std::filesystem::path PendingImportSourceFilePath;
+	FString PendingImportDestinationAssetPath;
+	FGLBImportOptions PendingImportOptions;
+
 	TArray<FString> NavigationHistory = { "/" };
 	SIZE_T NavigationIndex = 0;
 
@@ -97,6 +103,7 @@ private:
 	TStaticArray<char, 128> RenameText = {};
 
 	bool bOpenContextMenu = false;
+	bool bOpenImportOptions = false;
 	bool bOpenRenamePopup = false;
 	bool bOpenDeleteConfirmation = false;
 	bool bRefreshRequested = false;

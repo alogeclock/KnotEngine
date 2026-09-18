@@ -39,7 +39,10 @@ public:
 	void Startup();
 	void Shutdown();
 
-	bool EnqueueGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath);
+	bool EnqueueGLB(
+		const std::filesystem::path& SourceFilePath,
+		const FString& DestinationAssetPath,
+		const FGLBImportOptions& Options);
 	void DrainCompleted(TArray<FAssetImportCompletion>& OutCompletions);
 	FAssetImportStatus GetStatus() const;
 	bool HasActiveImports() const;
@@ -50,6 +53,7 @@ private:
 	{
 		std::filesystem::path SourceFilePath;
 		FString DestinationAssetPath;
+		FGLBImportOptions Options;
 	};
 
 	static FWString MakeSourceKey(const std::filesystem::path& SourceFilePath);

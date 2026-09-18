@@ -3,6 +3,7 @@
 #include "Core/Assert.h"
 
 #include <Windows.h>
+#include <cmath>
 #include <objbase.h>
 #include <utility>
 
@@ -57,9 +58,13 @@ FAssetImportStatus FAssetImportManager::GetStatus() const
 }
 
 // 같은 Source의 중복 실행을 막고 GLB Import 요청을 Worker Queue에 추가한다.
-bool FAssetImportManager::EnqueueGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath)
+bool FAssetImportManager::EnqueueGLB(
+	const std::filesystem::path& SourceFilePath,
+	const FString& DestinationAssetPath,
+	const FGLBImportOptions& Options)
 {
-	if (!Worker.joinable() || SourceFilePath.empty() || DestinationAssetPath.empty())
+	if (!Worker.joinable() || SourceFilePath.empty() || DestinationAssetPath.empty() ||
+		!std::isfinite(Options.UniformScale) || Options.UniformScale <= 0.0f)
 	{
 		return false;
 	}
@@ -72,7 +77,7 @@ bool FAssetImportManager::EnqueueGLB(const std::filesystem::path& SourceFilePath
 			return false;
 		}
 		ActiveSourceKeys.emplace(SourceKey);
-		PendingRequests.push({ SourceFilePath, DestinationAssetPath });
+		PendingRequests.push({ SourceFilePath, DestinationAssetPath, Options });
 	}
 	Condition.notify_one();
 	return true;
@@ -143,7 +148,7 @@ void FAssetImportManager::WorkerLoop(std::stop_token StopToken)
 		}
 		else
 		{
-			Result = FAssetImporter().ImportGLB(Request.SourceFilePath, Request.DestinationAssetPath);
+			Result = FAssetImporter().ImportGLB(Request.SourceFilePath, Request.DestinationAssetPath, Request.Options);
 		}
 
 		std::scoped_lock Lock(Mutex);

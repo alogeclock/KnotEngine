@@ -147,6 +147,9 @@ struct ENGINE_API FMatrix
 		}
 	}
 
+	FMatrix GetTransposed() const noexcept;
+	float GetDeterminant() const noexcept;
+	FMatrix GetNormalMatrix(float Tolerance = KMath::Epsilon) const noexcept;
 	FMatrix GetInverse(float Tolerance = KMath::Epsilon) const noexcept;
 	bool Decompose(FVector& OutTranslation, FMatrix& OutRotation, FVector& OutScale, float Tolerance = KMath::Epsilon) const noexcept;
 
@@ -156,7 +159,6 @@ struct ENGINE_API FMatrix
 	static FMatrix MakeRotationX(float AngleRad) noexcept;
 	static FMatrix MakeRotationY(float AngleRad) noexcept;
 	static FMatrix MakeRotationZ(float AngleRad) noexcept;
-	// D3D [0, 1] Clip Depth에서 Near=1, Far=0인 Reversed-Z Projection을 생성한다.
 	static FMatrix MakePerspectiveFov(float FovYRad, float AspectRatio, float NearZ, float FarZ) noexcept;
 	static FMatrix MakeOrthographic(float ViewWidth, float ViewHeight, float NearZ, float FarZ) noexcept;
 	static FMatrix MakeLookAt(const FVector& Eye, const FVector& Target, const FVector& Up = FVector::UpVector) noexcept;
