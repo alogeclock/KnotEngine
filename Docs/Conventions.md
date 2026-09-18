@@ -5,6 +5,8 @@
 - 월드 거리의 기본 단위는 센티미터(cm)이다.
 - 회전 각도의 기본 단위는 도(degree)이다.
 - 양의 회전 방향은 각 축의 규칙에 따라 정의한다.
+- D3D Clip Depth는 `[0, 1]` 범위의 Reversed-Z를 사용하며 Near Plane은 1, Far Plane은 0으로 매핑한다.
+- 기본 Depth Buffer는 `D32_FLOAT`, Clear 값은 0, 비교 함수는 `GreaterEqual`을 사용한다.
 
 ## Coding Conventions & Backgrounds
 

@@ -84,6 +84,7 @@ private:
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ShaderResourceView;
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> RenderTargetView;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView> DepthStencilView;
+		ETextureFormat Format = ETextureFormat::RGBA8UNorm;
 		uint32 Generation = 1;
 	};
 

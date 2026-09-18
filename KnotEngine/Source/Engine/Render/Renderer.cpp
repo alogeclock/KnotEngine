@@ -140,7 +140,7 @@ void URenderer::BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle Dep
 	RenderDevice.SetRenderTargets(CommandList, ColorTarget, DepthTarget);
 	RenderDevice.SetViewport(CommandList, Viewport);
 	RenderDevice.ClearRenderTarget(CommandList, ColorTarget, ViewportClearColor);
-	RenderDevice.ClearDepthStencil(CommandList, DepthTarget, 1.0f, 0);
+	RenderDevice.ClearDepthStencil(CommandList, DepthTarget, 0.0f, 0);
 }
 
 // Offscreen RTV 바인딩을 끝내고 Back Buffer를 복구하여 이후 ImGui가 Color Target의 SRV를 화면에 렌더링할 수 있게 한다.

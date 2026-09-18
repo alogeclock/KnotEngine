@@ -103,7 +103,7 @@ void FD3D11RenderContext::BeginFrame(FCommandListHandle CommandList)
 	panic(DepthStencilView);
 
 	Context->ClearRenderTargetView(FrameBufferRTV.Get(), ClearColor);
-	Context->ClearDepthStencilView(DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	Context->ClearDepthStencilView(DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
 
 	D3D11_VIEWPORT NativeViewport = {
 		Viewport.TopLeftX, Viewport.TopLeftY, Viewport.Width, Viewport.Height,
@@ -165,7 +165,7 @@ void FD3D11RenderContext::CreateFrameTargets()
 	DepthDesc.Height = static_cast<UINT>(Viewport.Height);
 	DepthDesc.MipLevels = 1;
 	DepthDesc.ArraySize = 1;
-	DepthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	DepthDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	DepthDesc.SampleDesc.Count = 1;
 	DepthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	Result = RenderDevice.GetNativeDevice()->CreateTexture2D(&DepthDesc, nullptr, DepthStencilBuffer.GetAddressOf());

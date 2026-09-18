@@ -95,11 +95,12 @@ FMatrix FMatrix::MakePerspectiveFov(float FovYRad, float AspectRatio, float Near
 
 	const float YScale = 1.0f / std::tan(FovYRad * 0.5f);
 	const float XScale = YScale / AspectRatio;
+	// D3D의 [0, 1] Clip Depth에서 Near를 1, Far를 0으로 매핑한다.
 	return FMatrix(
 		XScale, 0.0f, 0.0f, 0.0f,
 		0.0f, YScale, 0.0f, 0.0f,
-		0.0f, 0.0f, FarZ / (FarZ - NearZ), 1.0f,
-		0.0f, 0.0f, -NearZ * FarZ / (FarZ - NearZ), 0.0f);
+		0.0f, 0.0f, NearZ / (NearZ - FarZ), 1.0f,
+		0.0f, 0.0f, NearZ * FarZ / (FarZ - NearZ), 0.0f);
 }
 
 FMatrix FMatrix::MakeOrthographic(
@@ -111,11 +112,12 @@ FMatrix FMatrix::MakeOrthographic(
 	check(ViewWidth > 0.0f && ViewHeight > 0.0f);
 	check(FarZ > NearZ);
 
+	// Perspective와 동일하게 Near를 1, Far를 0으로 매핑한다.
 	return FMatrix(
 		2.0f / ViewWidth, 0.0f, 0.0f, 0.0f,
 		0.0f, 2.0f / ViewHeight, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f / (FarZ - NearZ), 0.0f,
-		0.0f, 0.0f, -NearZ / (FarZ - NearZ), 1.0f);
+		0.0f, 0.0f, 1.0f / (NearZ - FarZ), 0.0f,
+		0.0f, 0.0f, FarZ / (FarZ - NearZ), 1.0f);
 }
 
 FMatrix FMatrix::MakeLookAt(const FVector& Eye, const FVector& Target, const FVector& Up) noexcept

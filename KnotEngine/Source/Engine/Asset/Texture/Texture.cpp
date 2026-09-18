@@ -9,7 +9,8 @@ bool UTexture::Initialize(
 	ETextureFormat InFormat,
 	ETextureColorSpace InColorSpace)
 {
-	if (InAssetPath.empty() || InWidth == 0 || InHeight == 0 || InMipCount == 0 || InFormat == ETextureFormat::D24UNormS8UInt)
+	if (InAssetPath.empty() || InWidth == 0 || InHeight == 0 || InMipCount == 0 ||
+		InFormat == ETextureFormat::D24UNormS8UInt || InFormat == ETextureFormat::D32Float)
 	{
 		return false;
 	}

@@ -66,7 +66,9 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 		"잘못된 Texture 크기. Width={}, Height={}, MipCount={}", Desc.Width, Desc.Height, Desc.MipCount);
 	panicf(InitialData.empty() || InitialData.size() == Desc.MipCount,
 		"Texture 초기 Subresource 수가 MipCount와 일치하지 않는다. Subresources={}, MipCount={}", InitialData.size(), Desc.MipCount);
-	panicf(Desc.Format != ETextureFormat::D24UNormS8UInt || (!Desc.bSRGB && Desc.MipCount == 1 && InitialData.empty()),
+	const bool bDepthFormat =
+		Desc.Format == ETextureFormat::D24UNormS8UInt || Desc.Format == ETextureFormat::D32Float;
+	panicf(!bDepthFormat || (!Desc.bSRGB && Desc.MipCount == 1 && InitialData.empty()),
 		"Depth Texture는 sRGB, Mip 및 초기 데이터를 지원하지 않는다.");
 
 	// RHI Description을 D3D11 Texture Description으로 변환한다.
@@ -96,6 +98,7 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 		break;
 	case ETextureFormat::BC7UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_BC7_UNORM_SRGB : DXGI_FORMAT_BC7_UNORM; break;
 	case ETextureFormat::D24UNormS8UInt: NativeDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; break;
+	case ETextureFormat::D32Float: NativeDesc.Format = DXGI_FORMAT_D32_FLOAT; break;
 	}
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
 	{
@@ -124,6 +127,7 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 
 	// 네이티브 생성 결과까지 검증한 다음에만 외부에서 사용할 Handle 슬롯에 보관한다.
 	FTextureSlot Slot;
+	Slot.Format = Desc.Format;
 	HRESULT Result = NativeDevice.GetDevice()->CreateTexture2D(
 		&NativeDesc, NativeInitialData.empty() ? nullptr : NativeInitialData.data(), Slot.Texture.GetAddressOf());
 	panicf(SUCCEEDED(Result) && Slot.Texture, "ID3D11Device::CreateTexture2D 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
@@ -282,7 +286,7 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	// TODO: Render Target 선택 API가 추가되면 현재 출력 대상의 Format과 Sample Count를 Pipeline 계약과 비교한다.
 	panicf(Desc.RenderTargetFormat == ETextureFormat::BGRA8UNorm,
 		"D3D11 Pipeline State는 BGRA8UNorm Render Target만 지원한다. Value={}", static_cast<uint8>(Desc.RenderTargetFormat));
-	panicf(Desc.DepthStencilFormat == ETextureFormat::D24UNormS8UInt,
+	panicf(Desc.DepthStencilFormat == ETextureFormat::D32Float,
 		"지원하지 않는 Pipeline State Depth Stencil Format. Value={}", static_cast<uint8>(Desc.DepthStencilFormat));
 	panicf(Desc.SampleCount == 1, "D3D11 Pipeline State는 Sample Count 1만 지원한다. Value={}", Desc.SampleCount);
 
@@ -321,7 +325,8 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	D3D11_DEPTH_STENCIL_DESC DepthDesc = {};
 	DepthDesc.DepthEnable = Desc.bDepthTestEnabled;
 	DepthDesc.DepthWriteMask = Desc.bDepthWriteEnabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-	DepthDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	// Reversed-Z는 카메라에 가까울수록 큰 Depth를 기록한다.
+	DepthDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 	Result = NativeDevice.GetDevice()->CreateDepthStencilState(&DepthDesc, Slot.DepthStencilState.GetAddressOf());
 	panicf(SUCCEEDED(Result), "ID3D11Device::CreateDepthStencilState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 
@@ -637,7 +642,10 @@ void FD3D11RenderDevice::ClearDepthStencil(FCommandListHandle CommandList, FText
 	ValidateCommandList(CommandList);
 	FTextureSlot* Slot = ResolveTexture(Target);
 	panic(Slot && Slot->DepthStencilView);
-	NativeDevice.GetContext()->ClearDepthStencilView(Slot->DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, Depth, Stencil);
+	const UINT ClearFlags = Slot->Format == ETextureFormat::D24UNormS8UInt
+		? D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL
+		: D3D11_CLEAR_DEPTH;
+	NativeDevice.GetContext()->ClearDepthStencilView(Slot->DepthStencilView.Get(), ClearFlags, Depth, Stencil);
 }
 
 ID3D11ShaderResourceView* FD3D11RenderDevice::GetNativeShaderResourceView(FTextureHandle Handle) const

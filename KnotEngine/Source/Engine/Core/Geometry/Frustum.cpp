@@ -26,8 +26,8 @@ void FFrustum::UpdateFromCamera(const FMatrix& ViewProjection)
 		C3 - C0,
 		C1 + C3,
 		C3 - C1,
-		C3 - C2,
-		C2
+		C3 - C2, // Reversed-Z Near Plane: ClipZ <= ClipW
+		C2 // Reversed-Z Far Plane: ClipZ >= 0
 	};
 
 	for (int Index = 0; Index < 6; ++Index)

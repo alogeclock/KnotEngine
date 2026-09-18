@@ -46,8 +46,8 @@ VS_OUTPUT VS(uint VertexId : SV_VertexID)
 
 PS_OUTPUT PS(VS_OUTPUT Input)
 {
-    // 정확한 Far Plane은 큰 Near/Far 비율에서 역투영 오차가 커지므로 중간 깊이 지점으로 광선 방향만 복원한다.
-    float4 NearPosition = mul(float4(Input.NdcPosition, 0.0f, 1.0f), InverseViewProjection);
+    // Reversed-Z의 Near=1에서 시작하고 정확한 Far=0 대신 중간 깊이 지점으로 광선 방향만 복원한다.
+    float4 NearPosition = mul(float4(Input.NdcPosition, 1.0f, 1.0f), InverseViewProjection);
     float4 RayPosition = mul(float4(Input.NdcPosition, 0.5f, 1.0f), InverseViewProjection);
     NearPosition /= NearPosition.w;
     RayPosition /= RayPosition.w;

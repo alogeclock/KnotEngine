@@ -31,7 +31,7 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 	FTextureDesc DepthDesc;
 	DepthDesc.Width = InWidth;
 	DepthDesc.Height = InHeight;
-	DepthDesc.Format = ETextureFormat::D24UNormS8UInt;
+	DepthDesc.Format = ETextureFormat::D32Float;
 	DepthDesc.Usage = ETextureUsage::DepthStencil;
 	DepthTarget = RenderDevice.CreateTexture(DepthDesc);
 	Width = InWidth;

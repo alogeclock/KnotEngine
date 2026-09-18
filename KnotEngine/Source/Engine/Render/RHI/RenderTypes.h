@@ -86,6 +86,7 @@ enum class ETextureFormat : uint8
 	BC5UNorm,
 	BC7UNorm,
 	D24UNormS8UInt,
+	D32Float,
 };
 
 // Texture가 GPU Pipeline에서 사용되는 용도를 정의한다.
@@ -361,7 +362,7 @@ struct ENGINE_API FPipelineStateDesc
 	bool bDepthTestEnabled = true;
 	bool bDepthWriteEnabled = true;
 	ETextureFormat RenderTargetFormat = ETextureFormat::BGRA8UNorm; // 현재 Render Target은 1개
-	ETextureFormat DepthStencilFormat = ETextureFormat::D24UNormS8UInt;
+	ETextureFormat DepthStencilFormat = ETextureFormat::D32Float;
 	uint8 SampleCount = 1;
 	FBlendStateDesc BlendState;
 	FRasterizerStateDesc RasterizerState;
