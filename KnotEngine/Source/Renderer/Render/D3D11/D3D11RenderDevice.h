@@ -69,6 +69,7 @@ public:
 
 	void Draw(FCommandListHandle CommandList, uint32 VertexCount, uint32 FirstVertex) override;
 	void DrawIndexed(FCommandListHandle CommandList, uint32 IndexCount, uint32 FirstIndex, int32 VertexOffset) override;
+	void DrawIndexedInstanced(FCommandListHandle CommandList, uint32 IndexCount, uint32 InstanceCount, uint32 FirstIndex, int32 VertexOffset, uint32 FirstInstance) override;
 
 	ID3D11Device* GetNativeDevice() const { return NativeDevice.GetDevice(); }
 	ID3D11DeviceContext* GetNativeContext() const { return NativeDevice.GetContext(); }

@@ -65,7 +65,7 @@ uint32 FOverlayPass::AddPass(
 	if (ShowFlags.bBounds)
 	{
 		FGeometryMesh& BoundsMesh = Renderer.GetDebugBoundsMesh();
-		panicf(BoundsMesh.InitResources(*RenderDevice), "Bounds Mesh의 GPU Buffer 생성에 실패했다.");
+		checkf(BoundsMesh.GetMeshBuffer().IsValid(), "준비되지 않은 Bounds Mesh가 Overlay Pass에 전달되었다.");
 		Parameters.BoundsMeshBuffer = &BoundsMesh.GetMeshBuffer();
 
 		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shader/GeometryMesh.hlsl", "VS", EShaderStage::Vertex });

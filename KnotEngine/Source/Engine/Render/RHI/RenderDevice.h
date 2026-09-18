@@ -58,4 +58,5 @@ public:
 
 	virtual void Draw(FCommandListHandle CommandList, uint32 VertexCount, uint32 FirstVertex = 0) = 0;
 	virtual void DrawIndexed(FCommandListHandle CommandList, uint32 IndexCount, uint32 FirstIndex = 0, int32 VertexOffset = 0) = 0;
+	virtual void DrawIndexedInstanced(FCommandListHandle CommandList, uint32 IndexCount, uint32 InstanceCount, uint32 FirstIndex = 0, int32 VertexOffset = 0, uint32 FirstInstance = 0) = 0;
 };

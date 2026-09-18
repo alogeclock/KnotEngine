@@ -41,9 +41,9 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	{
 		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
 		check(StaticMeshProxy.Mesh);
-		panicf(StaticMeshProxy.Mesh->InitResources(*RenderDevice), "Static Mesh의 GPU Buffer 생성에 실패했다.");
 		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(0);
 		const FMeshBuffer* MeshBuffer = &LOD.GetMeshBuffer();
+		checkf(MeshBuffer->IsValid(), "준비되지 않은 Static Mesh가 Opaque Pass에 전달되었다.");
 		const float Depth = View.ViewMatrix.TransformPosition(Primitive->WorldBounds.GetCenter()).Z;
 		check(!std::isnan(Depth) && !std::isinf(Depth));
 		const uint32 SortKey = std::bit_cast<uint32>(std::max(0.0f, Depth));
@@ -113,7 +113,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 				{
 					if (const FTextureMaterialParameter* Parameter = MaterialInterface->FindTextureParameter(Binding.Name); Parameter && Parameter->Texture)
 					{
-						panicf(Parameter->Texture->InitResources(*RenderDevice), "Material Texture의 GPU Resource 생성에 실패했다. Name={}", Binding.Name.ToString());
+						checkf(Parameter->Texture->GetResource()->IsValid(), "준비되지 않은 Material Texture가 Opaque Pass에 전달되었다. Name={}", Binding.Name.ToString());
 						TextureBinding.Texture = Parameter->Texture->GetResource()->GetHandle();
 						Sampler = Parameter->Sampler;
 					}

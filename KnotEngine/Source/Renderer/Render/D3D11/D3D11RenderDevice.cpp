@@ -670,6 +670,20 @@ void FD3D11RenderDevice::DrawIndexed(FCommandListHandle CommandList, uint32 Inde
 	NativeDevice.GetContext()->DrawIndexed(IndexCount, FirstIndex, VertexOffset);
 }
 
+// 현재 Graphics 상태와 Index Buffer를 사용해 같은 Geometry의 여러 Instance를 그린다.
+void FD3D11RenderDevice::DrawIndexedInstanced(
+	FCommandListHandle CommandList,
+	uint32 IndexCount,
+	uint32 InstanceCount,
+	uint32 FirstIndex,
+	int32 VertexOffset,
+	uint32 FirstInstance)
+{
+	ValidateCommandList(CommandList);
+	panic(IndexCount > 0 && InstanceCount > 0);
+	NativeDevice.GetContext()->DrawIndexedInstanced(IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
+}
+
 // Command List가 현재 Device에서 열린 최신 기록 구간을 가리키는지 검증한다.
 void FD3D11RenderDevice::ValidateCommandList(FCommandListHandle CommandList) const
 {
