@@ -334,6 +334,14 @@ enum class ECullMode : uint8
 	Back
 };
 
+// Graphics Pass가 Depth Buffer를 검사하고 갱신하는 공용 정책이다.
+enum class EDepthMode : uint8
+{
+	ReadWrite,
+	ReadOnly,
+	Disabled,
+};
+
 // Primitive를 Pixel Fragment로 변환할 때 적용할 Rasterizer 상태를 정의한다.
 struct ENGINE_API FRasterizerStateDesc
 {
@@ -359,8 +367,7 @@ struct ENGINE_API FPipelineStateDesc
 	FShaderHandle PixelShader;
 	FVertexLayout VertexLayout;
 	EPrimitiveTopology PrimitiveTopology = EPrimitiveTopology::TriangleList;
-	bool bDepthTestEnabled = true;
-	bool bDepthWriteEnabled = true;
+	EDepthMode DepthMode = EDepthMode::ReadWrite;
 	ETextureFormat RenderTargetFormat = ETextureFormat::BGRA8UNorm; // 현재 Render Target은 1개
 	ETextureFormat DepthStencilFormat = ETextureFormat::D32Float;
 	uint8 SampleCount = 1;

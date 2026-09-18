@@ -3,7 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Render/RHI/RenderTypes.h"
-#include "Render/Resource/Mesh/Mesh.h"
+#include "Render/DebugDraw/DebugDraw.h"
 #include "Render/Resource/State/PipelineStateCache.h"
 #include "Render/Resource/State/SamplerStateCache.h"
 #include "Render/Resource/Texture.h"
@@ -41,9 +41,9 @@ public:
 	FShaderRegistry& GetShaderRegistry();
 	FPipelineStateCache& GetPipelineStateCache();
 	FSamplerStateCache& GetSamplerStateCache();
+	FDebugDraw& GetDebugDraw() { return DebugDraw; }
 
 	FTextureHandle GetDefaultTexture() const { return DefaultTexture.GetHandle(); }
-	FGeometryMesh& GetDebugBoundsMesh() { return DebugBoundsMesh; }
 
 	IRenderDevice& GetRenderDevice() const;
 	FCommandListHandle GetCommandList() const;
@@ -59,7 +59,7 @@ private:
 	FSamplerStateCache SamplerStateCache;
 
 	FTexture DefaultTexture; // 1x1 White Texture
-	FGeometryMesh DebugBoundsMesh; // TODO: 별도 DebugDraw() 파이프라인을 구현한다.
+	FDebugDraw DebugDraw;
 
 	FCommandListHandle CommandList;
 };

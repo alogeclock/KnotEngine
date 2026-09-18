@@ -12,14 +12,6 @@ enum class EMaterialBlendMode : uint8
 	Translucent
 };
 
-// Surface Material의 Depth Test와 Depth Write 정책을 정의한다.
-enum class EMaterialDepthMode : uint8
-{
-	ReadWrite,
-	ReadOnly,
-	Disabled
-};
-
 // Material Asset 값으로 채울 수 있는 MaterialConstants 변수 형태다.
 enum class EMaterialParameterType : uint8
 {
@@ -74,14 +66,14 @@ public:
 	    FShaderKey InVertexShader,
 	    FShaderKey InPixelShader,
 	    EMaterialBlendMode InBlendMode = EMaterialBlendMode::Opaque,
-	    EMaterialDepthMode InDepthMode = EMaterialDepthMode::ReadWrite,
+	    EDepthMode InDepthMode = EDepthMode::ReadWrite,
 	    ECullMode InCullMode = ECullMode::Back);
 
 	const FShaderKey& GetVertexShader() const { return VertexShader; }
 	const FShaderKey& GetPixelShader() const { return PixelShader; }
 
 	EMaterialBlendMode GetBlendMode() const { return BlendMode; }
-	EMaterialDepthMode GetDepthMode() const { return DepthMode; }
+	EDepthMode GetDepthMode() const { return DepthMode; }
 	ECullMode GetCullMode() const { return CullMode; }
 
 	const FMaterialParameterLayout& GetOrCreateParameterLayout(FShaderRegistry& ShaderRegistry) const;
@@ -95,7 +87,7 @@ private:
 	FShaderKey PixelShader;
 
 	EMaterialBlendMode BlendMode = EMaterialBlendMode::Opaque;
-	EMaterialDepthMode DepthMode = EMaterialDepthMode::ReadWrite;
+	EDepthMode DepthMode = EDepthMode::ReadWrite;
 	ECullMode CullMode = ECullMode::Back;
 
 	mutable FMaterialParameterLayout ParameterLayout;

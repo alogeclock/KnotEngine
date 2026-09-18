@@ -14,7 +14,7 @@ struct FMaterialPayloadHeader
 	inline static constexpr uint32 CurrentVersion = 2;
 
 	EMaterialBlendMode BlendMode;
-	EMaterialDepthMode DepthMode;
+	EDepthMode DepthMode;
 	ECullMode CullMode;
 
 	uint8 Reserved = 0;

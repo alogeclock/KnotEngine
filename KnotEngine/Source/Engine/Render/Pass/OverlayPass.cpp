@@ -1,11 +1,7 @@
 #include "Render/Pass/OverlayPass.h"
 
 #include "Core/Assert.h"
-#include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
-#include "Render/Resource/Mesh/MeshBuffer.h"
-#include "Render/Resource/Mesh/Mesh.h"
-#include "Render/Resource/Mesh/Vertex.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
 
@@ -13,8 +9,7 @@ uint32 FOverlayPass::AddPass(
 	FRenderGraph& Graph,
 	URenderer& Renderer,
 	const FSceneView& View,
-	const FShowFlags& ShowFlags,
-	std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives)
+	const FShowFlags& ShowFlags)
 {
 	IRenderDevice* RenderDevice = &Renderer.GetRenderDevice();
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
@@ -30,8 +25,7 @@ uint32 FOverlayPass::AddPass(
 		FPipelineStateDesc PipelineStateDesc;
 		PipelineStateDesc.VertexShader = VertexShader;
 		PipelineStateDesc.PixelShader = PixelShader;
-		PipelineStateDesc.bDepthTestEnabled = true;
-		PipelineStateDesc.bDepthWriteEnabled = false;
+		PipelineStateDesc.DepthMode = EDepthMode::ReadOnly;
 		PipelineStateDesc.BlendState.RenderTarget.bBlendEnabled = true;
 		PipelineStateDesc.BlendState.RenderTarget.SourceColorBlend = EBlendFactor::SourceAlpha;
 		PipelineStateDesc.BlendState.RenderTarget.DestinationColorBlend = EBlendFactor::InverseSourceAlpha;
@@ -50,8 +44,7 @@ uint32 FOverlayPass::AddPass(
 		PipelineStateDesc.VertexShader = VertexShader;
 		PipelineStateDesc.PixelShader = PixelShader;
 		PipelineStateDesc.PrimitiveTopology = EPrimitiveTopology::LineList;
-		PipelineStateDesc.bDepthTestEnabled = true;
-		PipelineStateDesc.bDepthWriteEnabled = false;
+		PipelineStateDesc.DepthMode = EDepthMode::ReadOnly;
 		PipelineStateDesc.BlendState.RenderTarget.bBlendEnabled = true;
 		PipelineStateDesc.BlendState.RenderTarget.SourceColorBlend = EBlendFactor::SourceAlpha;
 		PipelineStateDesc.BlendState.RenderTarget.DestinationColorBlend = EBlendFactor::InverseSourceAlpha;
@@ -60,34 +53,6 @@ uint32 FOverlayPass::AddPass(
 		PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 		PipelineStateDesc.RasterizerState.bAntialiasedLineEnabled = true;
 		Parameters.AxisPipeline = PipelineStateCache.GetOrCreate(PipelineStateDesc);
-	}
-
-	if (ShowFlags.bBounds)
-	{
-		FGeometryMesh& BoundsMesh = Renderer.GetDebugBoundsMesh();
-		checkf(BoundsMesh.GetMeshBuffer().IsValid(), "준비되지 않은 Bounds Mesh가 Overlay Pass에 전달되었다.");
-		Parameters.BoundsMeshBuffer = &BoundsMesh.GetMeshBuffer();
-
-		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shader/GeometryMesh.hlsl", "VS", EShaderStage::Vertex });
-		const FShaderHandle PixelShader = ShaderRegistry.GetOrCreate({ "/Engine/Shader/GeometryMesh.hlsl", "PS", EShaderStage::Pixel });
-		FPipelineStateDesc PipelineStateDesc;
-		PipelineStateDesc.VertexShader = VertexShader;
-		PipelineStateDesc.PixelShader = PixelShader;
-		PipelineStateDesc.VertexLayout = FGeometryVertex::GetVertexLayout();
-		PipelineStateDesc.PrimitiveTopology = EPrimitiveTopology::LineList;
-		PipelineStateDesc.bDepthTestEnabled = false;
-		PipelineStateDesc.bDepthWriteEnabled = false;
-		PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
-		PipelineStateDesc.RasterizerState.bAntialiasedLineEnabled = true;
-		Parameters.BoundsPipeline = PipelineStateCache.GetOrCreate(PipelineStateDesc);
-
-		Parameters.BoundsCommands.reserve(VisiblePrimitives.size());
-		for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
-		{
-			const FVector Center = Primitive->WorldBounds.GetCenter();
-			const FVector Extent = Primitive->WorldBounds.GetExtent();
-			Parameters.BoundsCommands.push_back({ FMatrix::MakeScale(Extent) * FMatrix::MakeTranslation(Center) });
-		}
 	}
 
 	const FViewConstants ViewConstants = {
@@ -119,10 +84,6 @@ void FOverlayPass::ExecutePass(
 	{
 		DrawAxis(RenderDevice, CommandList, ViewConstants, Parameters);
 	}
-	if (Parameters.BoundsPipeline.IsValid())
-	{
-		DrawBounds(RenderDevice, CommandList, ViewConstants, Parameters);
-	}
 }
 
 void FOverlayPass::DrawGrid(
@@ -150,30 +111,4 @@ void FOverlayPass::DrawAxis(
 	RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
 	RenderDevice.SetConstantData(CommandList, EShaderStage::Pixel, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
 	RenderDevice.Draw(CommandList, 6);
-}
-
-void FOverlayPass::DrawBounds(
-	IRenderDevice& RenderDevice,
-	FCommandListHandle CommandList,
-	const FViewConstants& ViewConstants,
-	const FPassParameters& Parameters)
-{
-	check(Parameters.BoundsMeshBuffer);
-	const FMeshBuffer& MeshBuffer = *Parameters.BoundsMeshBuffer;
-	checkf(MeshBuffer.IsValid(), "유효하지 않은 FMeshBuffer가 Overlay Pass에 전달되었다.");
-	checkf(MeshBuffer.GetLayout() == FGeometryVertex::GetVertexLayout(), "Bounds Pipeline State와 호환되지 않는 Vertex Layout이다.");
-
-	RenderDevice.SetPipelineState(CommandList, Parameters.BoundsPipeline);
-	const auto* ViewBytes = reinterpret_cast<const uint8*>(&ViewConstants);
-	RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
-	RenderDevice.SetVertexBuffer(CommandList, MeshBuffer.GetVertexBuffer().GetHandle(), MeshBuffer.GetStride());
-	RenderDevice.SetIndexBuffer(CommandList, MeshBuffer.GetIndexBuffer().GetHandle(), EIndexFormat::UInt32);
-
-	for (const FBoundsDrawCommand& Command : Parameters.BoundsCommands)
-	{
-		const FDrawConstants DrawConstants = { Command.Model };
-		const auto* DrawBytes = reinterpret_cast<const uint8*>(&DrawConstants);
-		RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, DrawConstantsSlot, std::span<const uint8>(DrawBytes, sizeof(DrawConstants)));
-		RenderDevice.DrawIndexed(CommandList, MeshBuffer.GetIndexCount());
-	}
 }

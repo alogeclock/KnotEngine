@@ -5,6 +5,7 @@
 #include "Core/Assert.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
+#include "Render/Pass/DebugDrawPass.h"
 #include "Render/Pass/OverlayPass.h"
 #include "Render/Pass/OpaquePass.h"
 #include "Render/Pass/PostProcessPass.h"
@@ -32,6 +33,10 @@ void FSceneRenderer::Render(URenderer& Renderer)
 
 	// Family 전체를 한 번 Clear한다. 여러 View가 같은 타깃의 서로 다른 영역을 사용할 수 있다.
 	Renderer.BeginRenderTarget(Target.SceneColor, Target.Depth, TargetViewport);
+	if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
+	{
+		Renderer.GetDebugDraw().Prepare(Renderer.GetRenderDevice());
+	}
 
 	FRenderGraph RenderGraph;
 	uint32 PreviousNode = FRenderGraph::InvalidIndex;
@@ -58,9 +63,18 @@ void FSceneRenderer::Render(URenderer& Renderer)
 			}
 			PreviousNode = OpaqueNode;
 		}
-		if (ViewFamily.ShowFlags.bGrid || ViewFamily.ShowFlags.bAxis || ViewFamily.ShowFlags.bBounds)
+		if (ViewFamily.ShowFlags.bGrid || ViewFamily.ShowFlags.bAxis)
 		{
-			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, VisiblePrimitives));
+			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags));
+		}
+		if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
+		{
+			std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives;
+			if (ViewFamily.ShowFlags.bBounds)
+			{
+				BoundsPrimitives = VisiblePrimitives;
+			}
+			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives));
 		}
 	}
 	const uint32 PostProcessNode = FPostProcessPass::AddPass(RenderGraph, Renderer, Target.SceneColor, Target.DisplayColor, Target.Depth, TargetViewport);
@@ -83,10 +97,6 @@ void FSceneRenderer::Render(URenderer& Renderer)
 void FSceneRenderer::Prepare(URenderer& Renderer)
 {
 	IRenderDevice& RenderDevice = Renderer.GetRenderDevice();
-	if (ViewFamily.ShowFlags.bBounds)
-	{
-		panicf(Renderer.GetDebugBoundsMesh().InitResources(RenderDevice), "Bounds Mesh의 GPU Buffer 생성에 실패했다.");
-	}
 	if (!ViewFamily.ShowFlags.bPrimitive)
 	{
 		return;

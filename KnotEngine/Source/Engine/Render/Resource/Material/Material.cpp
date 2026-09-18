@@ -10,7 +10,7 @@ bool FMaterial::Initialize(
 	FShaderKey InVertexShader,
 	FShaderKey InPixelShader,
 	EMaterialBlendMode InBlendMode,
-	EMaterialDepthMode InDepthMode,
+	EDepthMode InDepthMode,
 	ECullMode InCullMode)
 {
 	if (InVertexShader.SourcePath.empty() || InVertexShader.EntryPoint.empty() || InVertexShader.Stage != EShaderStage::Vertex ||

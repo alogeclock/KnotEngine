@@ -122,7 +122,7 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FAssetData& Asset, FAssetManag
 	Reader << VertexShader;
 	Reader << PixelShader;
 	if (Reader.HasError() ||
-		Header.BlendMode > EMaterialBlendMode::Translucent || Header.DepthMode > EMaterialDepthMode::Disabled || Header.CullMode > ECullMode::Back ||
+		Header.BlendMode > EMaterialBlendMode::Translucent || Header.DepthMode > EDepthMode::Disabled || Header.CullMode > ECullMode::Back ||
 		Header.ScalarParameterCount > 65535 || Header.VectorParameterCount > 65535 || Header.TextureParameterCount > 65535)
 	{
 		KE_LOG(LogAssetBinaryLoader, Error, "Material Payload Header 검증에 실패했다. AssetPath={}", AssetPath);

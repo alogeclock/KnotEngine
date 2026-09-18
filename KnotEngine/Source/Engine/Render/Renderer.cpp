@@ -5,7 +5,6 @@
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
-#include "Render/Resource/Mesh/Vertex.h"
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
 	: RenderDevice(InRenderDevice),
@@ -68,30 +67,13 @@ void URenderer::Create(void* NativeWindowHandle)
 	WhiteTextureDesc.bSRGB = true;
 	const FTextureSubresourceData WhiteTextureData = { WhitePixel, sizeof(WhitePixel), sizeof(WhitePixel) };
 	panicf(DefaultTexture.Initialize(RenderDevice, WhiteTextureDesc, std::span(&WhiteTextureData, 1)), "기본 White Texture 생성에 실패했다.");
-
-	static constexpr uint32 BoundsColor = PackRGBA(255, 196, 64);
-	const FGeometryVertex BoundsVertices[] = {
-		{ FVector(-1.0f, -1.0f, -1.0f), BoundsColor },
-		{ FVector(1.0f, -1.0f, -1.0f), BoundsColor },
-		{ FVector(1.0f, 1.0f, -1.0f), BoundsColor },
-		{ FVector(-1.0f, 1.0f, -1.0f), BoundsColor },
-		{ FVector(-1.0f, -1.0f, 1.0f), BoundsColor },
-		{ FVector(1.0f, -1.0f, 1.0f), BoundsColor },
-		{ FVector(1.0f, 1.0f, 1.0f), BoundsColor },
-		{ FVector(-1.0f, 1.0f, 1.0f), BoundsColor },
-	};
-	const uint32 BoundsIndices[] = {
-		0, 1, 1, 2, 2, 3, 3, 0,
-		4, 5, 5, 6, 6, 7, 7, 4,
-		0, 4, 1, 5, 2, 6, 3, 7,
-	};
-	DebugBoundsMesh.Initialize(BoundsVertices, BoundsIndices);
+	DebugDraw.Create();
 }
 
 void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
-	DebugBoundsMesh.Release();
+	DebugDraw.Release();
 	DefaultTexture.Release();
 	SamplerStateCache.Release();
 	PipelineStateCache.Release();
@@ -124,6 +106,7 @@ void URenderer::EndFrame()
 	RenderDevice.EndCommandList(CommandList);
 	RenderDevice.Submit(CommandList);
 	RenderContext.Present();
+	DebugDraw.Reset();
 }
 
 void URenderer::Execute(FRenderGraph& RenderGraph)

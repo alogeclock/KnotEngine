@@ -60,8 +60,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 			PipelineStateDesc.PixelShader = ShaderRegistry.GetOrCreate(MaterialDefinition.GetPixelShader());
 			PipelineStateDesc.VertexLayout = FStaticMeshVertex::GetVertexLayout();
 			PipelineStateDesc.RasterizerState.CullMode = MaterialDefinition.GetCullMode();
-			PipelineStateDesc.bDepthTestEnabled = MaterialDefinition.GetDepthMode() != EMaterialDepthMode::Disabled;
-			PipelineStateDesc.bDepthWriteEnabled = MaterialDefinition.GetDepthMode() == EMaterialDepthMode::ReadWrite;
+			PipelineStateDesc.DepthMode = MaterialDefinition.GetDepthMode();
 
 			if (MaterialDefinition.GetBlendMode() == EMaterialBlendMode::Translucent)
 			{

@@ -132,7 +132,7 @@ bool FAssetImporter::SaveDefaultWhiteMaterial(FAssetId& OutAssetId)
 {
 	FMaterialPayloadHeader Header = {};
 	Header.BlendMode = EMaterialBlendMode::Opaque;
-	Header.DepthMode = EMaterialDepthMode::ReadWrite;
+	Header.DepthMode = EDepthMode::ReadWrite;
 	Header.CullMode = ECullMode::Back;
 	Header.ScalarParameterCount = 1;
 	Header.VectorParameterCount = 1;
@@ -156,8 +156,7 @@ bool FAssetImporter::SaveDefaultWhiteMaterial(FAssetId& OutAssetId)
 	Payload << BaseColorName;
 	Payload << BaseColor;
 
-	return !Payload.HasError() &&
-	       SaveAsset(DefaultWhiteMaterialPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, PayloadBytes, OutAssetId);
+	return !Payload.HasError() && SaveAsset(DefaultWhiteMaterialPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, PayloadBytes, OutAssetId);
 }
 
 // 생성된 .kasset의 수정 시각과 Header가 현재 Source 및 Asset 형식과 일치하는지 확인한다.
@@ -471,7 +470,7 @@ FAssetImportResult FAssetImporter::ImportGLB(const std::filesystem::path& Source
 		FMaterialPayloadHeader Header = {};
 		Header.BlendMode = bTranslucent ? EMaterialBlendMode::Translucent : bMasked ? EMaterialBlendMode::Masked
 		                                                                            : EMaterialBlendMode::Opaque;
-		Header.DepthMode = EMaterialDepthMode::ReadWrite;
+		Header.DepthMode = EDepthMode::ReadWrite;
 		Header.CullMode = Source.double_sided ? ECullMode::None : ECullMode::Back;
 		Header.ScalarParameterCount = 1;
 		Header.VectorParameterCount = 1;

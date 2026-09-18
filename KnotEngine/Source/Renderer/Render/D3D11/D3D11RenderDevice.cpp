@@ -323,8 +323,24 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	}
 
 	D3D11_DEPTH_STENCIL_DESC DepthDesc = {};
-	DepthDesc.DepthEnable = Desc.bDepthTestEnabled;
-	DepthDesc.DepthWriteMask = Desc.bDepthWriteEnabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+	switch (Desc.DepthMode)
+	{
+	case EDepthMode::ReadWrite:
+		DepthDesc.DepthEnable = TRUE;
+		DepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+		break;
+	case EDepthMode::ReadOnly:
+		DepthDesc.DepthEnable = TRUE;
+		DepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+		break;
+	case EDepthMode::Disabled:
+		DepthDesc.DepthEnable = FALSE;
+		DepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+		break;
+	default:
+		panicf(false, "지원하지 않는 Depth Mode. Value={}", static_cast<uint8>(Desc.DepthMode));
+	}
+	
 	// Reversed-Z는 카메라에 가까울수록 큰 Depth를 기록한다.
 	DepthDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 	Result = NativeDevice.GetDevice()->CreateDepthStencilState(&DepthDesc, Slot.DepthStencilState.GetAddressOf());

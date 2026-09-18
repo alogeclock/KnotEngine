@@ -2,43 +2,41 @@
 
 #include "EngineAPI.h"
 
-#include "Core/Math/Vector4.h"
+#include "Render/DebugDraw/DebugDraw.h"
 #include "Render/Graph/RenderGraph.h"
-#include "Render/RHI/RenderTypes.h"
+
+#include <span>
 
 class IRenderDevice;
 class URenderer;
+struct FPrimitiveSceneProxy;
 struct FSceneView;
-struct FShowFlags;
 struct FViewConstants;
 
-// Grid와 World Axis를 고정 순서로 그리는 Overlay Pass Node다.
-class ENGINE_API FOverlayPass
+// 수집된 Debug 선은 동적 Line Batch로, 기본 도형은 Indexed Instance Batch로 렌더링한다.
+class ENGINE_API FDebugDrawPass final
 {
 public:
 	static uint32 AddPass(
 		FRenderGraph& Graph,
 		URenderer& Renderer,
 		const FSceneView& View,
-		const FShowFlags& ShowFlags);
+		std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives);
 
 private:
-	struct alignas(16) FGridConstants
+	struct FShapeBatch
 	{
-		float GridSpacing;
-		float MajorGridInterval;
-		float Padding0;
-		float Padding1;
-		FVector4 MinorColor;
-		FVector4 MajorColor;
+		const FMeshBuffer* MeshBuffer = nullptr;
+		TArray<FDebugDraw::FInstance> Instances;
 	};
-	static_assert(sizeof(FGridConstants) == 48);
 
 	struct FPassParameters
 	{
-		FPipelineStateHandle GridPipeline;
-		FPipelineStateHandle AxisPipeline;
-		FGridConstants GridConstants{};
+		FPipelineStateHandle LinePipeline;
+		FPipelineStateHandle InstancePipeline;
+		FBufferHandle LineBuffer;
+		uint32 LineVertexCount = 0;
+		TArray<FShapeBatch> ShapeBatches;
 	};
 
 	static void ExecutePass(
@@ -47,19 +45,18 @@ private:
 		const FRenderViewport& Viewport,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);
-
-	static void DrawGrid(
+	static void DrawLines(
 		IRenderDevice& RenderDevice,
 		FCommandListHandle CommandList,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);
-
-	static void DrawAxis(
+	static void DrawShapes(
 		IRenderDevice& RenderDevice,
 		FCommandListHandle CommandList,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);
 
 	static constexpr uint32 ViewConstantsSlot = 0;
-	static constexpr uint32 PassConstantsSlot = 1;
+	static constexpr uint32 InstanceConstantsSlot = 3;
+	static constexpr uint32 MaxInstancesPerDraw = 128;
 };

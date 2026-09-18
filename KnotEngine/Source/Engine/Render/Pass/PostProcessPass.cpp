@@ -22,8 +22,7 @@ uint32 FPostProcessPass::AddPass(
 	FPipelineStateDesc PipelineStateDesc;
 	PipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shader/PostProcess.hlsl", "VS", EShaderStage::Vertex });
 	PipelineStateDesc.PixelShader = ShaderRegistry.GetOrCreate({ "/Engine/Shader/PostProcess.hlsl", "PSGammaCorrection", EShaderStage::Pixel });
-	PipelineStateDesc.bDepthTestEnabled = false;
-	PipelineStateDesc.bDepthWriteEnabled = false;
+	PipelineStateDesc.DepthMode = EDepthMode::Disabled;
 	PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 	const FPipelineStateHandle PipelineState = Renderer.GetPipelineStateCache().GetOrCreate(PipelineStateDesc);
 	IRenderDevice* RenderDevice = &Renderer.GetRenderDevice();
