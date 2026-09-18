@@ -1,5 +1,6 @@
 #include "Editor/Panels/ContentPanel.h"
 
+#include "Asset/AssetImporter.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
@@ -525,6 +526,15 @@ void FContentPanel::DrawContextMenu()
 {
 	if (ImGui::BeginPopup("ContentContext"))
 	{
+		const FAssetData* ContextAsset = ContextAssetPath.empty() ? nullptr : AssetRegistry.FindAsset(ContextAssetPath);
+		if (ContextAsset && ContextAsset->HasSourceFile())
+		{
+			if (ImGui::MenuItem("Import"))
+			{
+				ImportAsset();
+			}
+			ImGui::Separator();
+		}
 		if (ImGui::MenuItem("New Folder"))
 		{
 			CreateFolder(ContextFolderPath);
@@ -703,6 +713,32 @@ void FContentPanel::OpenInFileExplorer() const
 	{
 		KE_LOG(LogContentPanel, Warning, "File Explorer 실행 실패. Path={}", FPaths::ToUtf8(TargetPath.wstring()));
 	}
+}
+
+// Context 대상 GLB를 Runtime .kasset으로 Import하고 결과를 로그와 Registry에 반영한다.
+void FContentPanel::ImportAsset()
+{
+	const FAssetData* Asset = AssetRegistry.FindAsset(ContextAssetPath);
+	if (!Asset || !Asset->HasSourceFile())
+	{
+		return;
+	}
+
+	const std::filesystem::path SourceFilePath = Asset->SourceFilePath;
+	const FString DestinationAssetPath = Asset->FolderPath;
+	const FAssetImportResult Result = FAssetImporter().ImportGLB(SourceFilePath, DestinationAssetPath);
+	if (!Result.bSucceeded)
+	{
+		KE_LOG(LogContentPanel, Error, "GLB Import 실패. Source={}, Error={}", FPaths::ToUtf8(SourceFilePath.wstring()), Result.Error);
+		return;
+	}
+
+	for (const FString& Warning : Result.Warnings)
+	{
+		KE_LOG(LogContentPanel, Warning, "GLB Import 경고. Source={}, Warning={}", FPaths::ToUtf8(SourceFilePath.wstring()), Warning);
+	}
+	KE_LOG(LogContentPanel, Display, "GLB Import 완료. Source={}, AssetCount={}", FPaths::ToUtf8(SourceFilePath.wstring()), Result.ImportedAssets.size());
+	bRefreshRequested = true;
 }
 
 // Context 대상의 논리 경로를 내부 Copy Clipboard에 저장한다.

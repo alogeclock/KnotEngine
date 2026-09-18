@@ -251,16 +251,10 @@ FSamplerDesc FAssetImporter::ConvertSampler(const cgltf_sampler* Sampler)
 }
 
 // 단일 GLB를 읽어 Mesh, Material, Texture .kasset으로 변환한다.
-FAssetImportResult FAssetImporter::ImportGLB(
-	const std::filesystem::path& SourceFilePath,
-	const FString& DestinationAssetPath,
-	bool bCreateTypeFolders) const
+FAssetImportResult FAssetImporter::ImportGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath) const
 {
 	FAssetImportResult Result;
 	const FString SourcePathUtf8 = FPaths::ToUtf8(SourceFilePath.wstring());
-	const FString TextureRoot = bCreateTypeFolders ? Combine(DestinationAssetPath, "Texture") : DestinationAssetPath;
-	const FString MaterialRoot = bCreateTypeFolders ? Combine(DestinationAssetPath, "Material") : DestinationAssetPath;
-	const FString MeshRoot = bCreateTypeFolders ? Combine(DestinationAssetPath, "Mesh") : DestinationAssetPath;
 	cgltf_options Options = {};
 	FGLTFGuard GLTF;
 	if (cgltf_parse_file(&Options, SourcePathUtf8.c_str(), &GLTF.Data) != cgltf_result_success)
@@ -268,6 +262,11 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		Result.Error = "GLB 파싱에 실패했다: " + SourcePathUtf8;
 		return Result;
 	}
+	const bool bHasTextures = GLTF.Data->images_count > 0;
+	const bool bHasMaterials = GLTF.Data->materials_count > 0;
+	const FString TextureRoot = bHasTextures ? Combine(DestinationAssetPath, "Texture") : DestinationAssetPath;
+	const FString MaterialRoot = bHasMaterials ? Combine(DestinationAssetPath, "Material") : DestinationAssetPath;
+	const FString MeshRoot = bHasTextures || bHasMaterials ? Combine(DestinationAssetPath, "Mesh") : DestinationAssetPath;
 
 	std::error_code TimestampError;
 	const auto SourceTimestamp = std::filesystem::last_write_time(SourceFilePath, TimestampError);
@@ -547,8 +546,7 @@ bool FAssetImporter::ImportAllGLB() const
 		}
 		const std::filesystem::path RelativeParent = std::filesystem::relative(It->path().parent_path(), ContentRoot);
 		const FString Destination = "/" + FPaths::ToUtf8(RelativeParent.generic_wstring());
-		const bool bEnginePrimitive = Destination.starts_with("/Engine/Model/");
-		const FAssetImportResult Result = ImportGLB(It->path(), Destination, !bEnginePrimitive);
+		const FAssetImportResult Result = ImportGLB(It->path(), Destination);
 		if (!Result.bSucceeded)
 		{
 			KE_LOG(LogAssetImporter, Error, "GLB Import 실패. Source={}, Error={}", FPaths::ToUtf8(It->path().wstring()), Result.Error);

@@ -127,8 +127,6 @@ set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT Editor)
 set_target_properties(Editor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Editor>")
 
 add_custom_command(TARGET Editor POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:Editor>/Contents/"
-	COMMAND ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:Editor>/Content/"
 	COMMAND ${CMAKE_COMMAND} -E copy_directory "${KNOTENGINE_ROOT}/Content/" "$<TARGET_FILE_DIR:Editor>/Content/"
 )
 

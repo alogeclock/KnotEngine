@@ -51,6 +51,7 @@ private:
 
 	void CreateFolder(const FString& ParentFolderPath);
 	void OpenInFileExplorer() const;
+	void ImportAsset();
 
 	bool RenameItem();
 	void CopyItem();

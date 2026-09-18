@@ -33,7 +33,7 @@ struct FAssetImportResult
 class FAssetImporter final
 {
 public:
-	FAssetImportResult ImportGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath, bool bCreateTypeFolders = true) const;
+	FAssetImportResult ImportGLB(const std::filesystem::path& SourceFilePath, const FString& DestinationAssetPath) const;
 
 	bool ImportAllGLB() const;
 
