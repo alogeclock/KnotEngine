@@ -59,8 +59,4 @@ private:
 
 	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
 	static void Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);
-
-	static bool SaveDefaultWhiteMaterial(FAssetId& OutAssetId);
-
-	inline static constexpr const char* DefaultWhiteMaterialPath = "/Engine/Material/DefaultWhite";
 };
