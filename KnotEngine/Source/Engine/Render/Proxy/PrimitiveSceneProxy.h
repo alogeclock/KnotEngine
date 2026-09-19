@@ -9,6 +9,7 @@ class FScene;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
 class UMaterialInterface;
+class UNode;
 
 // Scene이 소유하는 렌더 상태. 등록 기간 동안 Component를 참조하고 Dirty일 때만 데이터를 복사한다.
 struct ENGINE_API FPrimitiveSceneProxy
@@ -18,6 +19,7 @@ struct ENGINE_API FPrimitiveSceneProxy
 	FPrimitiveSceneProxy& operator=(const FPrimitiveSceneProxy&) = delete;
 
 	virtual void Update() = 0;
+	UNode& GetOwner() const;
 
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;

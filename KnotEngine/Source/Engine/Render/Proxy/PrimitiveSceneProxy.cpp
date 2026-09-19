@@ -9,6 +9,11 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponen
 {
 }
 
+UNode& FPrimitiveSceneProxy::GetOwner() const
+{
+	return Component.GetOwner();
+}
+
 void FPrimitiveSceneProxy::UpdateBounds(const FAABB& InLocalBounds)
 {
 	// Component와의 friend 관계로 현재 상태를 읽는다. 갱신 중 임시 Proxy를 생성하지 않는다.

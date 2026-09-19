@@ -5,6 +5,7 @@
 #include "Render/RHI/RenderTypes.h"
 
 class FScene;
+class UNode;
 
 struct FSceneView
 {
@@ -13,6 +14,7 @@ struct FSceneView
 	FMatrix ViewProjectionMatrix;
 	FVector ViewOrigin;
 	float FarClip = 0.0f;
+	const UNode* SelectedNode = nullptr;
 	FFrustum Frustum;
 	FRenderViewport Viewport;
 };

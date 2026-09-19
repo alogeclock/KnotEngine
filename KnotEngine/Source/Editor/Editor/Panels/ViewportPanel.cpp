@@ -9,8 +9,13 @@
 #include <imgui.h>
 #include <iterator>
 
-FViewportPanel::FViewportPanel(IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend, FInputRouter& InInputRouter, const FViewportStatState& InStatState)
-    : Viewport(InRenderDevice), ViewportClient(Viewport), StatOverlay(InStatState), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
+FViewportPanel::FViewportPanel(
+	IRenderDevice& InRenderDevice,
+	IImGuiRenderBackend& InRenderBackend,
+	FInputRouter& InInputRouter,
+	const FViewportStatState& InStatState,
+	FEditorSelection& InSelection)
+	: Viewport(InRenderDevice), ViewportClient(Viewport, InSelection), StatOverlay(InStatState), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
 {
 }
 
@@ -242,6 +247,8 @@ void FViewportPanel::DrawViewport()
 	{
 		const ImTextureID TextureId = RenderBackend.GetImGuiTextureID(Viewport.GetDisplayColorTarget());
 		ImGui::Image(ImTextureRef(TextureId), ImageSize);
+		const ImVec2 ImagePosition = ImGui::GetItemRectMin();
+		ViewportClient.SetInputRect(FVector2(ImagePosition.x, ImagePosition.y), FVector2(ImageSize.x, ImageSize.y));
 		const bool bImageHovered = ImGui::IsItemHovered();
 		const bool bViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		StatOverlay.Draw();

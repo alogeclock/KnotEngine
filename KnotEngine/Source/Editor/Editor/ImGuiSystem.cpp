@@ -33,7 +33,7 @@ FImGuiSystem::FImGuiSystem(
 	FInputRouter& InInputRouter)
 	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
 	  RenderBackend(InRenderBackend), InputRouter(InInputRouter),
-	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState), ConsolePanel(ViewportStatState),
+	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
 	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());

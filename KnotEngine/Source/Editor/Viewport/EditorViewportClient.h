@@ -34,6 +34,7 @@ public:
 	virtual FSceneView BuildSceneView();
 	virtual std::optional<FSceneViewFamily> BuildSceneViewFamily();
 	FShowFlags& GetShowFlags() { return ShowFlags; }
+	void SetInputRect(const FVector2& Position, const FVector2& Size);
 
 	// Input
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
@@ -48,6 +49,7 @@ public:
 
 protected:
 	FViewport& GetViewport() const { return Viewport; }
+	bool GetViewportPixelPosition(const FVector2& InputPosition, FVector2& OutPixelPosition) const;
 
 private:
 	bool UpdateKeyState(const FKeyInputEvent& Event);
@@ -58,5 +60,7 @@ private:
 
 	FEditorViewportCamera Camera;
 	TBitset<static_cast<SIZE_T>(EKeyboardKey::Count)> KeysDown;
+	FVector2 InputRectPosition = FVector2::ZeroVector;
+	FVector2 InputRectSize = FVector2::ZeroVector;
 	bool bRotatingCamera = false;
 };

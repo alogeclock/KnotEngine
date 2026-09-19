@@ -20,7 +20,8 @@ struct ENGINE_API FRay
 
 	// 인스턴스 유틸리티 함수 (Instance Utility Functions)
 	void SetDirection(const FVector& NewDirection);
+	bool Intersect(const FVector& Vertex0, const FVector& Vertex1, const FVector& Vertex2, float& OutDistance) const noexcept;
 
 	// 공용 기하 계산기 (Static Geometry Functions)
-	static FRay BuildRay(int32 MouseX, int32 MouseY, const FMatrix& ViewProjection, float ViewportWidth, float ViewportHeight);
+	static FRay BuildRay(float MouseX, float MouseY, const FMatrix& ViewProjection, float ViewportWidth, float ViewportHeight);
 };

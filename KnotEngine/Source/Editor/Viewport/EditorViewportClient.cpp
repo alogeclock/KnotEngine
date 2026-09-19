@@ -79,6 +79,32 @@ UWorld* FEditorViewportClient::GetWorld() const
 	return GEngine ? GEngine->GetWorld() : nullptr;
 }
 
+// Application Client 좌표의 Viewport 이미지 영역을 입력 좌표 변환에 사용하도록 저장한다.
+void FEditorViewportClient::SetInputRect(const FVector2& Position, const FVector2& Size)
+{
+	InputRectPosition = Position;
+	InputRectSize = Size;
+}
+
+// Application Client 좌표를 Offscreen Render Target의 Pixel 좌표로 변환한다.
+bool FEditorViewportClient::GetViewportPixelPosition(const FVector2& InputPosition, FVector2& OutPixelPosition) const
+{
+	if (InputRectSize.X <= 0.0f || InputRectSize.Y <= 0.0f || !Viewport.IsValid())
+	{
+		return false;
+	}
+
+	const FVector2 LocalPosition = InputPosition - InputRectPosition;
+	if (LocalPosition.X < 0.0f || LocalPosition.Y < 0.0f || LocalPosition.X >= InputRectSize.X || LocalPosition.Y >= InputRectSize.Y)
+	{
+		return false;
+	}
+
+	OutPixelPosition.X = LocalPosition.X * static_cast<float>(Viewport.GetWidth()) / InputRectSize.X;
+	OutPixelPosition.Y = LocalPosition.Y * static_cast<float>(Viewport.GetHeight()) / InputRectSize.Y;
+	return true;
+}
+
 FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 {
 	if (const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event))
