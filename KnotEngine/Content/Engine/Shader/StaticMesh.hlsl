@@ -25,8 +25,6 @@ cbuffer ViewConstants : register(b0)
 cbuffer DrawConstants : register(b3)
 {
 	row_major float4x4 Model;
-	float Opacity;
-	float3 DrawPadding;
 };
 
 // b2는 Material Asset 값이 Shader Reflection Layout에 따라 패킹되는 상수 슬롯이다.
@@ -57,22 +55,17 @@ float4 GetBaseColor(PS_INPUT input)
 
 float4 OpaquePS(PS_INPUT input) : SV_TARGET
 {
-	float4 Color = GetBaseColor(input);
-	Color.a *= Opacity;
-	return Color;
+	return GetBaseColor(input);
 }
 
 float4 MaskedPS(PS_INPUT input) : SV_TARGET
 {
 	float4 Color = GetBaseColor(input);
 	clip(Color.a - AlphaCutoff);
-	Color.a *= Opacity;
 	return Color;
 }
 
 float4 TranslucentPS(PS_INPUT input) : SV_TARGET
 {
-	float4 Color = GetBaseColor(input);
-	Color.a *= Opacity;
-	return Color;
+	return GetBaseColor(input);
 }

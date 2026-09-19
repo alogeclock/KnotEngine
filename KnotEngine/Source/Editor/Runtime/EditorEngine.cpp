@@ -22,7 +22,8 @@ UEditorEngine::UEditorEngine(FWindowsApplication& Application)
 		  AssetImportManager,
 		  RenderBackend->GetRenderDevice(),
 		  RenderBackend->GetImGuiRenderBackend(),
-		  InputRouter)
+		  InputRouter,
+		  EditorSelection)
 {
 }
 
@@ -141,11 +142,6 @@ void UEditorEngine::Render()
 	Renderer.EndFrame();
 }
 
-UWorld* UEditorEngine::GetWorld() const
-{
-	return FindWorld(EditorContextId);
-}
-
 void UEditorEngine::RegisterViewportClient(FEditorViewportClient& ViewportClient)
 {
 	if (std::find(AllViewportClients.begin(), AllViewportClients.end(), &ViewportClient) == AllViewportClients.end())
@@ -161,6 +157,7 @@ void UEditorEngine::UnregisterViewportClient(FEditorViewportClient& ViewportClie
 
 void UEditorEngine::Shutdown()
 {
+	EditorSelection.Clear();
 	if (UWorld* World = GetWorld())
 	{
 		World->EndPlay();

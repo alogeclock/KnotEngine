@@ -45,14 +45,11 @@ private:
 		TArray<FTextureBinding> Textures;
 
 		uint32 SortKey = 0;
-		bool bSelected = false;
 	};
 
 	struct alignas(16) FDrawConstants
 	{
 		FMatrix Model;
-		float Opacity = 1.0f;
-		float Padding[3] = {};
 	};
 	static_assert(sizeof(FDrawConstants) % 16 == 0);
 
@@ -65,5 +62,4 @@ private:
 
 	static constexpr uint32 ViewConstantsSlot = 0;
 	static constexpr uint32 DrawConstantsSlot = 3;
-	static constexpr float SelectedOpacity = 0.5f;
 };

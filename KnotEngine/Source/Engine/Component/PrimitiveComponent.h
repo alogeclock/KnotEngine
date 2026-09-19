@@ -14,6 +14,7 @@ public:
 	bool IsVisible() const { return bVisible; }
 	void SetVisible(bool bInVisible);
 	void MarkPrimitiveSceneProxy();
+	void PushSelection(bool bSelected);
 	void PostEditProperty(const FProperty& Property) override;
 
 protected:

@@ -20,30 +20,37 @@ public:
 		FRenderGraph& Graph,
 		URenderer& Renderer,
 		const FSceneView& View,
-		const FShowFlags& ShowFlags);
+		const FShowFlags& ShowFlags,
+		FTextureHandle ColorTarget,
+		FTextureHandle DepthTarget,
+		FTextureHandle SelectionDepth,
+		bool bHasSelection);
 
 private:
-	struct alignas(16) FGridConstants
+	struct alignas(16) FOverlayConstants
 	{
+		uint32 HasSelection;
 		float GridSpacing;
 		float MajorGridInterval;
-		float Padding0;
-		float Padding1;
+		uint32 Padding;
 		FVector4 MinorColor;
 		FVector4 MajorColor;
 	};
-	static_assert(sizeof(FGridConstants) == 48);
+	static_assert(sizeof(FOverlayConstants) == 48);
 
 	struct FPassParameters
 	{
 		FPipelineStateHandle GridPipeline;
 		FPipelineStateHandle AxisPipeline;
-		FGridConstants GridConstants{};
+		FOverlayConstants OverlayConstants{};
 	};
 
 	static void ExecutePass(
 		IRenderDevice& RenderDevice,
 		FCommandListHandle CommandList,
+		FTextureHandle ColorTarget,
+		FTextureHandle DepthTarget,
+		FTextureHandle SelectionDepth,
 		const FRenderViewport& Viewport,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);
@@ -61,5 +68,5 @@ private:
 		const FPassParameters& Parameters);
 
 	static constexpr uint32 ViewConstantsSlot = 0;
-	static constexpr uint32 PassConstantsSlot = 1;
+	static constexpr uint32 OverlayConstantsSlot = 1;
 };

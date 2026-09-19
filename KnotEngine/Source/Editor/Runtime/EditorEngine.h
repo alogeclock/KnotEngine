@@ -29,9 +29,12 @@ public:
 	void Tick(float DeltaTime) override;
 	void Shutdown() override;
 
-	UWorld* GetWorld() const override;
 	void RegisterViewportClient(FEditorViewportClient& ViewportClient);
 	void UnregisterViewportClient(FEditorViewportClient& ViewportClient);
+
+	UWorld* GetWorld() const override { return FindWorld(EditorContextId); }
+	FEditorSelection& GetEditorSelection() { return EditorSelection; }
+	const FEditorSelection& GetEditorSelection() const { return EditorSelection; }
 
 private:
 	void ProcessAssetImports();
@@ -44,6 +47,7 @@ private:
 
 	FAssetImportManager AssetImportManager;
 	FInputRouter InputRouter;
+	FEditorSelection EditorSelection;
 	FImGuiSystem ImGuiSystem;
 
 	uint64 EditorContextId = 0;

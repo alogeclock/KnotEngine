@@ -32,7 +32,8 @@ public:
 		FAssetImportManager& InAssetImportManager,
 		IRenderDevice& InRenderDevice,
 		IImGuiRenderBackend& InRenderBackend,
-		FInputRouter& InInputRouter);
+		FInputRouter& InInputRouter,
+		FEditorSelection& InSelection);
 	~FImGuiSystem();
 
 	void Startup();
@@ -50,7 +51,7 @@ private:
 	FAssetImportManager& AssetImportManager;
 	IImGuiRenderBackend& RenderBackend;
 	FInputRouter& InputRouter;
-	FEditorSelection Selection;
+	FEditorSelection& Selection;
 
 	ImFont* MediumFont = nullptr;
 	ImFont* SemiBoldFont = nullptr;

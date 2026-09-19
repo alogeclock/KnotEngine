@@ -68,7 +68,14 @@ std::optional<FSceneViewFamily> FEditorViewportClient::BuildSceneViewFamily()
 	}
 	FSceneViewFamily Family;
 	Family.Scene = Scene;
-	Family.RenderTarget = { Viewport.GetSceneColorTarget(), Viewport.GetDisplayColorTarget(), Viewport.GetDepthTarget(), Viewport.GetWidth(), Viewport.GetHeight() };
+	Family.RenderTarget = {
+		Viewport.GetSceneColorTarget(),
+		Viewport.GetDisplayColorTarget(),
+		Viewport.GetSelectionDepthTarget(),
+		Viewport.GetDepthTarget(),
+		Viewport.GetWidth(),
+		Viewport.GetHeight()
+	};
 	Family.ShowFlags = ShowFlags;
 	Family.Views.push_back(BuildSceneView());
 	return Family;

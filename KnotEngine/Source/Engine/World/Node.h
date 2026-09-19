@@ -10,6 +10,7 @@ class UTransformComponent;
 class UComponent;
 class UClass;
 class URenderer;
+struct FEditorSelection;
 
 // Level에 배치되는 최소 단위 객체로, Component의 합성을 통해 기능을 구현한다.
 // 모든 Node는 생성과 함께 정확히 하나의 TransformComponent를 소유하며, 이를 제거하거나 추가할 수 없다.
@@ -47,17 +48,23 @@ public:
 	UComponent& AddComponent(const UClass& ComponentClass);
 	void RemoveComponent(UComponent& Component);
 
+	bool IsSelected() const { return bSelected; }
+
 private:
 	friend class ULevel;
+	friend struct FEditorSelection;
 
 	static constexpr SIZE_T InvalidLevelIndex = static_cast<SIZE_T>(-1);
 
 	void AttachComponent(UComponent& Component);
+	void SetSelected(bool bSelected);
 
-	SIZE_T LevelIndex = InvalidLevelIndex; // Level의 밀집 Node 배열에서 현재 위치. 외부 식별자로 사용하지 않는다.
 	UPROPERTY(Category = "Node") FName Name;
 
 	UPROPERTY(NoEdit, Transient) TObjectPtr<ULevel> OwningLevel;
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UTransformComponent> Transform;
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<UComponent>> Components;
+
+	SIZE_T LevelIndex = InvalidLevelIndex; // Level의 밀집 Node 배열에서 현재 위치. 외부 식별자로 사용하지 않는다.
+	bool bSelected = false; // Editor 선택 원본은 FEditorSelection이 관리하며 Proxy 생성 시 초기 상태로 사용한다.
 };

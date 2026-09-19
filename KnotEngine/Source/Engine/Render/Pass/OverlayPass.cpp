@@ -9,8 +9,13 @@ uint32 FOverlayPass::AddPass(
 	FRenderGraph& Graph,
 	URenderer& Renderer,
 	const FSceneView& View,
-	const FShowFlags& ShowFlags)
+	const FShowFlags& ShowFlags,
+	FTextureHandle ColorTarget,
+	FTextureHandle DepthTarget,
+	FTextureHandle SelectionDepth,
+	bool bHasSelection)
 {
+	check(ColorTarget.IsValid() && DepthTarget.IsValid() && SelectionDepth.IsValid());
 	IRenderDevice* RenderDevice = &Renderer.GetRenderDevice();
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	check(CommandList.IsValid());
@@ -18,6 +23,7 @@ uint32 FOverlayPass::AddPass(
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
 	FPassParameters Parameters;
+	Parameters.OverlayConstants.HasSelection = bHasSelection ? 1u : 0u;
 	if (ShowFlags.bGrid)
 	{
 		const FShaderHandle VertexShader = ShaderRegistry.GetOrCreate({ "/Engine/Shader/Grid.hlsl", "VS", EShaderStage::Vertex });
@@ -33,7 +39,10 @@ uint32 FOverlayPass::AddPass(
 		PipelineStateDesc.BlendState.RenderTarget.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 		PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 		Parameters.GridPipeline = PipelineStateCache.GetOrCreate(PipelineStateDesc);
-		Parameters.GridConstants = { 20.0f, 5.0f, 0.0f, 0.0f, FVector4(0.30f, 0.33f, 0.38f, 0.65f), FVector4(0.42f, 0.46f, 0.52f, 0.80f), };
+		Parameters.OverlayConstants.GridSpacing = 20.0f;
+		Parameters.OverlayConstants.MajorGridInterval = 5.0f;
+		Parameters.OverlayConstants.MinorColor = FVector4(0.30f, 0.33f, 0.38f, 0.3f);
+		Parameters.OverlayConstants.MajorColor = FVector4(0.42f, 0.46f, 0.52f, 0.5f);
 	}
 
 	if (ShowFlags.bAxis)
@@ -62,20 +71,32 @@ uint32 FOverlayPass::AddPass(
 		View.FarClip,
 	};
 	const FRenderViewport Viewport = View.Viewport;
-	return Graph.AddPass("Overlay", [RenderDevice, CommandList, Viewport, ViewConstants, Parameters = std::move(Parameters)]()
+	return Graph.AddPass("Overlay", [RenderDevice, CommandList, ColorTarget, DepthTarget, SelectionDepth, Viewport, ViewConstants,
+		Parameters = std::move(Parameters)]()
 	{
-		ExecutePass(*RenderDevice, CommandList, Viewport, ViewConstants, Parameters);
+		ExecutePass(*RenderDevice, CommandList, ColorTarget, DepthTarget, SelectionDepth, Viewport, ViewConstants, Parameters);
 	});
 }
 
 void FOverlayPass::ExecutePass(
 	IRenderDevice& RenderDevice,
 	FCommandListHandle CommandList,
+	FTextureHandle ColorTarget,
+	FTextureHandle DepthTarget,
+	FTextureHandle SelectionDepth,
 	const FRenderViewport& Viewport,
 	const FViewConstants& ViewConstants,
 	const FPassParameters& Parameters)
 {
+	RenderDevice.SetRenderTargets(CommandList, ColorTarget, DepthTarget);
 	RenderDevice.SetViewport(CommandList, Viewport);
+	RenderDevice.SetTexture(CommandList, EShaderStage::Pixel, 0, SelectionDepth);
+	const auto* OverlayBytes = reinterpret_cast<const uint8*>(&Parameters.OverlayConstants);
+	RenderDevice.SetConstantData(
+		CommandList,
+		EShaderStage::Pixel,
+		OverlayConstantsSlot,
+		std::span<const uint8>(OverlayBytes, sizeof(Parameters.OverlayConstants)));
 	if (Parameters.GridPipeline.IsValid())
 	{
 		DrawGrid(RenderDevice, CommandList, ViewConstants, Parameters);
@@ -84,6 +105,7 @@ void FOverlayPass::ExecutePass(
 	{
 		DrawAxis(RenderDevice, CommandList, ViewConstants, Parameters);
 	}
+	RenderDevice.SetTexture(CommandList, EShaderStage::Pixel, 0, {});
 }
 
 void FOverlayPass::DrawGrid(
@@ -95,8 +117,6 @@ void FOverlayPass::DrawGrid(
 	RenderDevice.SetPipelineState(CommandList, Parameters.GridPipeline);
 	const auto* ViewBytes = reinterpret_cast<const uint8*>(&ViewConstants);
 	RenderDevice.SetConstantData(CommandList, EShaderStage::Pixel, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
-	const auto* GridBytes = reinterpret_cast<const uint8*>(&Parameters.GridConstants);
-	RenderDevice.SetConstantData(CommandList, EShaderStage::Pixel, PassConstantsSlot, std::span<const uint8>(GridBytes, sizeof(Parameters.GridConstants)));
 	RenderDevice.Draw(CommandList, 3);
 }
 

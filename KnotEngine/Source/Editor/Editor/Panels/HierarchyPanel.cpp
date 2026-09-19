@@ -25,7 +25,7 @@ bool FHierarchyPanel::DrawNode(UWorld& World, FEditorSelection& Selection, const
 
 	UNode& Node = CreateNode(World, DisplayName);
 	Node.AddComponent(ComponentClass);
-	Selection.SelectedNode = &Node;
+	Selection.SelectNode(&Node);
 	return true;
 }
 
@@ -48,11 +48,11 @@ void FHierarchyPanel::DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex,
 			const bool bSelected = Selection.SelectedNode == Node;
 			if (ImGui::Selectable(NodeName.c_str(), bSelected))
 			{
-				Selection.SelectedNode = Node;
+				Selection.SelectNode(Node);
 			}
 			if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
 			{
-				Selection.SelectedNode = Node;
+				Selection.SelectNode(Node);
 			}
 			ImGui::PopID();
 		}
@@ -74,7 +74,7 @@ bool FHierarchyPanel::DrawContextMenu(UWorld& World, FEditorSelection& Selection
 		// Empty는 TransformComponent만 가진 기본 Node를 생성한다.
 		if (ImGui::MenuItem("Empty"))
 		{
-			Selection.SelectedNode = &CreateNode(World, "Node");
+			Selection.SelectNode(&CreateNode(World, "Node"));
 		}
 		// Registry가 등록 시점에 정렬한 EditorSpawnable Class 목록을 참조한다.
 		check(GReflectionRegistry);
@@ -148,7 +148,7 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection)
 	if (DrawContextMenu(World, Selection))
 	{
 		UNode* NodeToRemove = Selection.SelectedNode;
-		Selection.SelectedNode = nullptr;
+		Selection.Clear();
 		NodeToRemove->GetLevel().RemoveNode(*NodeToRemove);
 	}
 	ImGui::End();

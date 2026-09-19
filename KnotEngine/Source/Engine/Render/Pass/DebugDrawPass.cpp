@@ -14,8 +14,11 @@ uint32 FDebugDrawPass::AddPass(
 	FRenderGraph& Graph,
 	URenderer& Renderer,
 	const FSceneView& View,
-	std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives)
+	std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives,
+	FTextureHandle ColorTarget,
+	FTextureHandle DepthTarget)
 {
+	check(ColorTarget.IsValid() && DepthTarget.IsValid());
 	IRenderDevice* RenderDevice = &Renderer.GetRenderDevice();
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	check(CommandList.IsValid());
@@ -81,19 +84,22 @@ uint32 FDebugDrawPass::AddPass(
 		View.FarClip,
 	};
 	const FRenderViewport Viewport = View.Viewport;
-	return Graph.AddPass("DebugDraw", [RenderDevice, CommandList, Viewport, ViewConstants, Parameters = std::move(Parameters)]()
+	return Graph.AddPass("DebugDraw", [RenderDevice, CommandList, ColorTarget, DepthTarget, Viewport, ViewConstants, Parameters = std::move(Parameters)]()
 	{
-		ExecutePass(*RenderDevice, CommandList, Viewport, ViewConstants, Parameters);
+		ExecutePass(*RenderDevice, CommandList, ColorTarget, DepthTarget, Viewport, ViewConstants, Parameters);
 	});
 }
 
 void FDebugDrawPass::ExecutePass(
 	IRenderDevice& RenderDevice,
 	FCommandListHandle CommandList,
+	FTextureHandle ColorTarget,
+	FTextureHandle DepthTarget,
 	const FRenderViewport& Viewport,
 	const FViewConstants& ViewConstants,
 	const FPassParameters& Parameters)
 {
+	RenderDevice.SetRenderTargets(CommandList, ColorTarget, DepthTarget);
 	RenderDevice.SetViewport(CommandList, Viewport);
 	DrawLines(RenderDevice, CommandList, ViewConstants, Parameters);
 	DrawShapes(RenderDevice, CommandList, ViewConstants, Parameters);

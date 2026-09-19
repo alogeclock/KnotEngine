@@ -51,6 +51,8 @@ public:
 	virtual void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) = 0;
 	virtual void SetTexture(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FTextureHandle Texture) = 0;
 	virtual void SetSampler(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FSamplerHandle Sampler) = 0;
+
+	// Color Target이 유효하지 않으면 Depth 전용 Pass로 바인딩한다.
 	virtual void SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget) = 0;
 	virtual void SetViewport(FCommandListHandle CommandList, const FRenderViewport& Viewport) = 0;
 	virtual void ClearRenderTarget(FCommandListHandle CommandList, FTextureHandle Target, const float Color[4]) = 0;

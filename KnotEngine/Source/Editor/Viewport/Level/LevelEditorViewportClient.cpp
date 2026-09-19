@@ -19,19 +19,12 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport, FE
 {
 }
 
-FSceneView FLevelEditorViewportClient::BuildSceneView()
-{
-	FSceneView View = FEditorViewportClient::BuildSceneView();
-	View.SelectedNode = Selection.SelectedNode;
-	return View;
-}
-
 FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 {
 	const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
-		Selection.SelectedNode = Raycast(PointerEvent->Position);
+		Selection.SelectNode(Raycast(PointerEvent->Position));
 		return FInputReply::Handled().SetKeyboardFocus();
 	}
 	return FEditorViewportClient::OnInputEvent(Event);

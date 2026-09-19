@@ -32,6 +32,8 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 	DepthDesc.Width = InWidth;
 	DepthDesc.Height = InHeight;
 	DepthDesc.Format = ETextureFormat::D32Float;
+	DepthDesc.Usage = ETextureUsage::DepthStencil | ETextureUsage::ShaderResource;
+	SelectionDepthTarget = RenderDevice.CreateTexture(DepthDesc);
 	DepthDesc.Usage = ETextureUsage::DepthStencil;
 	DepthTarget = RenderDevice.CreateTexture(DepthDesc);
 	Width = InWidth;
@@ -41,6 +43,7 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 void FViewport::Release()
 {
 	RenderDevice.DestroyTexture(DepthTarget);
+	RenderDevice.DestroyTexture(SelectionDepthTarget);
 	RenderDevice.DestroyTexture(DisplayColorTarget);
 	RenderDevice.DestroyTexture(SceneColorTarget);
 	Width = 0;

@@ -5,7 +5,6 @@
 #include "Render/RHI/RenderTypes.h"
 
 class FScene;
-class UNode;
 
 struct FSceneView
 {
@@ -14,7 +13,6 @@ struct FSceneView
 	FMatrix ViewProjectionMatrix;
 	FVector ViewOrigin;
 	float FarClip = 0.0f;
-	const UNode* SelectedNode = nullptr;
 	FFrustum Frustum;
 	FRenderViewport Viewport;
 };
@@ -41,6 +39,7 @@ struct FSceneRenderTarget
 {
 	FTextureHandle SceneColor;   // Gamma Correction 이전 Linear Color를 저장하며, Post Process Pass가 SRV로 읽는 Target이다.
 	FTextureHandle DisplayColor; // Post Process 결과를 저장하며, Viewport Panel이 표시하는 최종 Target이다.
+	FTextureHandle SelectionDepth; // 선택된 Primitive의 실루엣과 Depth를 함께 저장하는 Editor 전용 Target이다.
 	FTextureHandle Depth;
 	uint32 Width = 0;
 	uint32 Height = 0;

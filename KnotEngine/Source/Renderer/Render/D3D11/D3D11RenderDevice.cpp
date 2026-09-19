@@ -66,8 +66,8 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 		"잘못된 Texture 크기. Width={}, Height={}, MipCount={}", Desc.Width, Desc.Height, Desc.MipCount);
 	panicf(InitialData.empty() || InitialData.size() == Desc.MipCount,
 		"Texture 초기 Subresource 수가 MipCount와 일치하지 않는다. Subresources={}, MipCount={}", InitialData.size(), Desc.MipCount);
-	const bool bDepthFormat =
-		Desc.Format == ETextureFormat::D24UNormS8UInt || Desc.Format == ETextureFormat::D32Float;
+	const bool bDepthFormat = Desc.Format == ETextureFormat::D24UNormS8UInt || Desc.Format == ETextureFormat::D32Float;
+	const bool bDepthShaderResource = bDepthFormat && HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource);
 	panicf(!bDepthFormat || (!Desc.bSRGB && Desc.MipCount == 1 && InitialData.empty()),
 		"Depth Texture는 sRGB, Mip 및 초기 데이터를 지원하지 않는다.");
 
@@ -97,8 +97,8 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 		NativeDesc.Format = DXGI_FORMAT_BC5_UNORM;
 		break;
 	case ETextureFormat::BC7UNorm: NativeDesc.Format = Desc.bSRGB ? DXGI_FORMAT_BC7_UNORM_SRGB : DXGI_FORMAT_BC7_UNORM; break;
-	case ETextureFormat::D24UNormS8UInt: NativeDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; break;
-	case ETextureFormat::D32Float: NativeDesc.Format = DXGI_FORMAT_D32_FLOAT; break;
+	case ETextureFormat::D24UNormS8UInt: NativeDesc.Format = bDepthShaderResource ? DXGI_FORMAT_R24G8_TYPELESS : DXGI_FORMAT_D24_UNORM_S8_UINT; break;
+	case ETextureFormat::D32Float: NativeDesc.Format = bDepthShaderResource ? DXGI_FORMAT_R32_TYPELESS : DXGI_FORMAT_D32_FLOAT; break;
 	}
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
 	{
@@ -133,7 +133,17 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 	panicf(SUCCEEDED(Result) && Slot.Texture, "ID3D11Device::CreateTexture2D 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::ShaderResource))
 	{
-		Result = NativeDevice.GetDevice()->CreateShaderResourceView(Slot.Texture.Get(), nullptr, Slot.ShaderResourceView.GetAddressOf());
+		D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceDesc = {};
+		D3D11_SHADER_RESOURCE_VIEW_DESC* ShaderResourceDescPtr = nullptr;
+		if (bDepthShaderResource)
+		{
+			ShaderResourceDesc.Format = Desc.Format == ETextureFormat::D32Float ? DXGI_FORMAT_R32_FLOAT : DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+			ShaderResourceDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			ShaderResourceDesc.Texture2D.MipLevels = 1;
+			ShaderResourceDescPtr = &ShaderResourceDesc;
+		}
+		Result = NativeDevice.GetDevice()->CreateShaderResourceView(
+			Slot.Texture.Get(), ShaderResourceDescPtr, Slot.ShaderResourceView.GetAddressOf());
 		panicf(SUCCEEDED(Result) && Slot.ShaderResourceView, "ID3D11Device::CreateShaderResourceView 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	}
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::RenderTarget))
@@ -143,7 +153,16 @@ FTextureHandle FD3D11RenderDevice::CreateTexture(const FTextureDesc& Desc, std::
 	}
 	if (HasAnyTextureUsage(Desc.Usage, ETextureUsage::DepthStencil))
 	{
-		Result = NativeDevice.GetDevice()->CreateDepthStencilView(Slot.Texture.Get(), nullptr, Slot.DepthStencilView.GetAddressOf());
+		D3D11_DEPTH_STENCIL_VIEW_DESC DepthStencilDesc = {};
+		D3D11_DEPTH_STENCIL_VIEW_DESC* DepthStencilDescPtr = nullptr;
+		if (bDepthShaderResource)
+		{
+			DepthStencilDesc.Format = Desc.Format == ETextureFormat::D32Float ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_D24_UNORM_S8_UINT;
+			DepthStencilDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			DepthStencilDescPtr = &DepthStencilDesc;
+		}
+		Result = NativeDevice.GetDevice()->CreateDepthStencilView(
+			Slot.Texture.Get(), DepthStencilDescPtr, Slot.DepthStencilView.GetAddressOf());
 		panicf(SUCCEEDED(Result) && Slot.DepthStencilView, "ID3D11Device::CreateDepthStencilView 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
 	}
 
@@ -284,8 +303,8 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	panicf(PixelShader && PixelShader->Stage == EShaderStage::Pixel && PixelShader->PixelShader, "Pipeline State에 유효한 Pixel Shader가 필요하다.");
 	panicf(Desc.VertexLayout.Elements.empty() == (Desc.VertexLayout.Stride == 0), "Pipeline State의 Vertex Layout 요소와 Stride가 일치하지 않는다.");
 	// TODO: Render Target 선택 API가 추가되면 현재 출력 대상의 Format과 Sample Count를 Pipeline 계약과 비교한다.
-	panicf(Desc.RenderTargetFormat == ETextureFormat::BGRA8UNorm,
-		"D3D11 Pipeline State는 BGRA8UNorm Render Target만 지원한다. Value={}", static_cast<uint8>(Desc.RenderTargetFormat));
+	panicf(Desc.RenderTargetFormat == ETextureFormat::BGRA8UNorm || Desc.RenderTargetFormat == ETextureFormat::R8UNorm,
+		"지원하지 않는 D3D11 Pipeline State Render Target 형식. Value={}", static_cast<uint8>(Desc.RenderTargetFormat));
 	panicf(Desc.DepthStencilFormat == ETextureFormat::D32Float,
 		"지원하지 않는 Pipeline State Depth Stencil Format. Value={}", static_cast<uint8>(Desc.DepthStencilFormat));
 	panicf(Desc.SampleCount == 1, "D3D11 Pipeline State는 Sample Count 1만 지원한다. Value={}", Desc.SampleCount);
@@ -628,10 +647,16 @@ void FD3D11RenderDevice::SetSampler(FCommandListHandle CommandList, EShaderStage
 void FD3D11RenderDevice::SetRenderTargets(FCommandListHandle CommandList, FTextureHandle ColorTarget, FTextureHandle DepthTarget)
 {
 	ValidateCommandList(CommandList);
-	FTextureSlot* ColorSlot = ResolveTexture(ColorTarget);
 	FTextureSlot* DepthSlot = ResolveTexture(DepthTarget);
-	panic(ColorSlot && ColorSlot->RenderTargetView);
 	panic(DepthSlot && DepthSlot->DepthStencilView);
+	if (!ColorTarget.IsValid())
+	{
+		NativeDevice.GetContext()->OMSetRenderTargets(0, nullptr, DepthSlot->DepthStencilView.Get());
+		return;
+	}
+
+	FTextureSlot* ColorSlot = ResolveTexture(ColorTarget);
+	panic(ColorSlot && ColorSlot->RenderTargetView);
 	ID3D11RenderTargetView* RenderTargetView = ColorSlot->RenderTargetView.Get();
 	NativeDevice.GetContext()->OMSetRenderTargets(1, &RenderTargetView, DepthSlot->DepthStencilView.Get());
 }

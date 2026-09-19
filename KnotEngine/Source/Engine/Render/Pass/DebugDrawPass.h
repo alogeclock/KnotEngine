@@ -21,7 +21,9 @@ public:
 		FRenderGraph& Graph,
 		URenderer& Renderer,
 		const FSceneView& View,
-		std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives);
+		std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives,
+		FTextureHandle ColorTarget,
+		FTextureHandle DepthTarget);
 
 private:
 	struct FShapeBatch
@@ -42,6 +44,8 @@ private:
 	static void ExecutePass(
 		IRenderDevice& RenderDevice,
 		FCommandListHandle CommandList,
+		FTextureHandle ColorTarget,
+		FTextureHandle DepthTarget,
 		const FRenderViewport& Viewport,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);

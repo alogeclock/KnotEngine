@@ -1,4 +1,5 @@
 Texture2D SceneColor : register(t0);
+Texture2D<float> SelectionDepth : register(t1);
 
 struct VS_OUTPUT
 {
@@ -22,8 +23,37 @@ float3 LinearToSRGB(float3 Color)
 	return lerp(Upper, Lower, step(Color, 0.0031308f));
 }
 
-float4 PSGammaCorrection(VS_OUTPUT Input) : SV_TARGET
+float4 PS(VS_OUTPUT Input) : SV_TARGET
 {
-	float4 Color = SceneColor.Load(int3(uint2(Input.Position.xy), 0));
+	// Selection Outline
+	uint Width;
+	uint Height;
+	SelectionDepth.GetDimensions(Width, Height);
+
+	const int2 Pixel = int2(Input.Position.xy);
+	const int2 MaxPixel = int2(Width, Height) - 1;
+	const float CenterMask = SelectionDepth.Load(int3(clamp(Pixel, 0, MaxPixel), 0)) > 0.0f ? 1.0f : 0.0f;
+	static const int2 NeighborOffsets[8] =
+	{
+		int2(-1, -1), int2(0, -1), int2(1, -1),
+		int2(-1, 0),               int2(1, 0),
+		int2(-1, 1),  int2(0, 1),  int2(1, 1),
+	};
+
+	float NeighborMask = 0.0f;
+	[unroll]
+	for (uint Index = 0; Index < 8; ++Index)
+	{
+		const int2 SamplePixel = clamp(Pixel + NeighborOffsets[Index] * 2, 0, MaxPixel);
+		const float NeighborDepth = SelectionDepth.Load(int3(SamplePixel, 0));
+		NeighborMask = max(NeighborMask, NeighborDepth > 0.0f ? 1.0f : 0.0f);
+	}
+
+	float4 Color = SceneColor.Load(int3(Pixel, 0));
+	static const float3 SelectionColor = float3(1.0f, 0.35f, 0.0f);
+	const float OuterOutline = saturate(NeighborMask - CenterMask);
+	Color.rgb = lerp(Color.rgb, SelectionColor, OuterOutline);
+
+	// Gamma Correction
 	return float4(LinearToSRGB(Color.rgb), Color.a);
 }

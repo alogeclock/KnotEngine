@@ -8,7 +8,7 @@
 class IRenderDevice;
 class URenderer;
 
-// 선형 Scene Color를 화면 표시용 sRGB 색으로 변환하는 전체 화면 Post Process Pass다.
+// 선형 Scene Color에 선택 Outline을 합성하고 화면 표시용 sRGB 색으로 변환하는 전체 화면 Post Process Pass다.
 class ENGINE_API FPostProcessPass
 {
 public:
@@ -17,6 +17,7 @@ public:
 		URenderer& Renderer,
 		FTextureHandle SceneColor,
 		FTextureHandle DisplayColor,
+		FTextureHandle SelectionDepth,
 		FTextureHandle DepthTarget,
 		const FRenderViewport& Viewport);
 
@@ -27,6 +28,7 @@ private:
 		FPipelineStateHandle PipelineState,
 		FTextureHandle SceneColor,
 		FTextureHandle DisplayColor,
+		FTextureHandle SelectionDepth,
 		FTextureHandle DepthTarget,
 		const FRenderViewport& Viewport);
 };

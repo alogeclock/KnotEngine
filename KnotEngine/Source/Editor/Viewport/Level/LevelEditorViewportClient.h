@@ -11,7 +11,6 @@ class FLevelEditorViewportClient : public FEditorViewportClient
 public:
 	FLevelEditorViewportClient(FViewport& InViewport, FEditorSelection& InSelection);
 
-	FSceneView BuildSceneView() override;
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
 
 private:

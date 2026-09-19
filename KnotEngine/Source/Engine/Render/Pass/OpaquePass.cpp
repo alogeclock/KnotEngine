@@ -40,7 +40,6 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
 	{
 		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
-		const bool bSelected = View.SelectedNode == &Primitive->GetOwner();
 		check(StaticMeshProxy.Mesh);
 		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(0);
 		const FMeshBuffer* MeshBuffer = &LOD.GetMeshBuffer();
@@ -63,11 +62,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 			PipelineStateDesc.RasterizerState.CullMode = MaterialDefinition.GetCullMode();
 			PipelineStateDesc.DepthMode = MaterialDefinition.GetDepthMode();
 
-			if (bSelected)
-			{
-				PipelineStateDesc.DepthMode = EDepthMode::ReadOnly;
-			}
-			if (bSelected || MaterialDefinition.GetBlendMode() == EMaterialBlendMode::Translucent)
+			if (MaterialDefinition.GetBlendMode() == EMaterialBlendMode::Translucent)
 			{
 				FRenderTargetBlendDesc& Blend = PipelineStateDesc.BlendState.RenderTarget;
 				Blend.bBlendEnabled = true;
@@ -84,7 +79,6 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 			Command.IndexCount = Section.IndexCount;
 			Command.PipelineState = PipelineStateCache.GetOrCreate(PipelineStateDesc);
 			Command.SortKey = SortKey;
-			Command.bSelected = bSelected;
 			const FMaterialParameterLayout& Layout = MaterialDefinition.GetOrCreateParameterLayout(ShaderRegistry);
 			Command.MaterialConstantBuffers = Layout.ConstantBuffers;
 
@@ -135,11 +129,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 
 	std::stable_sort(OpaqueCommands.begin(), OpaqueCommands.end(), [](const FMeshDrawCommand& Left, const FMeshDrawCommand& Right)
 	{
-		if (Left.bSelected != Right.bSelected)
-		{
-			return !Left.bSelected;
-		}
-		return Left.bSelected ? Left.SortKey > Right.SortKey : Left.SortKey < Right.SortKey;
+		return Left.SortKey < Right.SortKey;
 	});
 
 	const FViewConstants ViewConstants = {
@@ -191,10 +181,9 @@ void FOpaquePass::ExecutePass(
 		checkf(MeshBuffer.IsValid(), "유효하지 않은 FMeshBuffer가 Opaque Pass에 전달되었다.");
 		checkf(MeshBuffer.GetLayout() == FStaticMeshVertex::GetVertexLayout(), "Opaque Pipeline State와 호환되지 않는 Vertex Layout이다.");
 
-		const FDrawConstants DrawConstants = { Command.Primitive->WorldMatrix, Command.bSelected ? SelectedOpacity : 1.0f };
+		const FDrawConstants DrawConstants = { Command.Primitive->WorldMatrix };
 		const auto* DrawBytes = reinterpret_cast<const uint8*>(&DrawConstants);
 		RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, DrawConstantsSlot, std::span<const uint8>(DrawBytes, sizeof(DrawConstants)));
-		RenderDevice.SetConstantData(CommandList, EShaderStage::Pixel, DrawConstantsSlot, std::span<const uint8>(DrawBytes, sizeof(DrawConstants)));
 		RenderDevice.SetVertexBuffer(CommandList, MeshBuffer.GetVertexBuffer().GetHandle(), MeshBuffer.GetStride());
 		if (MeshBuffer.GetIndexCount() > 0)
 		{

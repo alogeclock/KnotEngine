@@ -9,14 +9,16 @@
 #include "Render/Pass/OverlayPass.h"
 #include "Render/Pass/OpaquePass.h"
 #include "Render/Pass/PostProcessPass.h"
+#include "Render/Pass/SelectionPass.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
 #include "Render/Resource/Material/Material.h"
 #include "Render/Resource/Mesh/Mesh.h"
+#include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/Scene.h"
 
 FSceneRenderer::FSceneRenderer(const FSceneViewFamily& InViewFamily)
-	: ViewFamily(InViewFamily)
+    : ViewFamily(InViewFamily)
 {
 	check(ViewFamily.Scene);
 }
@@ -28,11 +30,12 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	const FSceneRenderTarget& Target = ViewFamily.RenderTarget;
 
-	check(CommandList.IsValid() && Target.SceneColor.IsValid() && Target.DisplayColor.IsValid() && Target.Depth.IsValid() && Target.Width > 0 && Target.Height > 0);
+	check(CommandList.IsValid() && Target.SceneColor.IsValid() && Target.DisplayColor.IsValid() && Target.SelectionDepth.IsValid() && Target.Depth.IsValid() && Target.Width > 0 && Target.Height > 0);
 	const FRenderViewport TargetViewport = { 0.0f, 0.0f, static_cast<float>(Target.Width), static_cast<float>(Target.Height), 0.0f, 1.0f };
 
 	// Family 전체를 한 번 Clear한다. 여러 View가 같은 타깃의 서로 다른 영역을 사용할 수 있다.
 	Renderer.BeginRenderTarget(Target.SceneColor, Target.Depth, TargetViewport);
+	Renderer.GetRenderDevice().ClearDepthStencil(CommandList, Target.SelectionDepth, 0.0f, 0);
 	if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
 	{
 		Renderer.GetDebugDraw().Prepare(Renderer.GetRenderDevice());
@@ -43,6 +46,7 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	TArray<uint32> OverlayNodes;
 	for (const FSceneView& View : ViewFamily.Views)
 	{
+		bool bHasSelection = false;
 		check(View.Viewport.Width > 0.0f && View.Viewport.Height > 0.0f);
 		check(View.Viewport.TopLeftX >= 0.0f && View.Viewport.TopLeftY >= 0.0f);
 		check(View.Viewport.TopLeftX + View.Viewport.Width <= Target.Width);
@@ -62,10 +66,18 @@ void FSceneRenderer::Render(URenderer& Renderer)
 				RenderGraph.AddDependency(OpaqueNode, PreviousNode);
 			}
 			PreviousNode = OpaqueNode;
+
+			const uint32 SelectionNode = FSelectionPass::AddPass(RenderGraph, Renderer, View, VisiblePrimitives, Target.SelectionDepth);
+			bHasSelection = SelectionNode != FRenderGraph::InvalidIndex;
+			if (SelectionNode != FRenderGraph::InvalidIndex)
+			{
+				RenderGraph.AddDependency(SelectionNode, PreviousNode);
+				PreviousNode = SelectionNode;
+			}
 		}
 		if (ViewFamily.ShowFlags.bGrid || ViewFamily.ShowFlags.bAxis)
 		{
-			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags));
+			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, Target.DisplayColor, Target.Depth, Target.SelectionDepth, bHasSelection));
 		}
 		if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
 		{
@@ -74,10 +86,10 @@ void FSceneRenderer::Render(URenderer& Renderer)
 			{
 				BoundsPrimitives = VisiblePrimitives;
 			}
-			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives));
+			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives, Target.DisplayColor, Target.Depth));
 		}
 	}
-	const uint32 PostProcessNode = FPostProcessPass::AddPass(RenderGraph, Renderer, Target.SceneColor, Target.DisplayColor, Target.Depth, TargetViewport);
+	const uint32 PostProcessNode = FPostProcessPass::AddPass(RenderGraph, Renderer, Target.SceneColor, Target.DisplayColor, Target.SelectionDepth, Target.Depth, TargetViewport);
 	if (PreviousNode != FRenderGraph::InvalidIndex)
 	{
 		RenderGraph.AddDependency(PostProcessNode, PreviousNode);
@@ -138,8 +150,7 @@ void FSceneRenderer::CullView(const FSceneView& View)
 	for (const auto& Entry : ViewFamily.Scene->GetProxies())
 	{
 		const FPrimitiveSceneProxy& Primitive = *Entry;
-		if (Primitive.bVisible && Primitive.WorldBounds.IsValid()
-			&& View.Frustum.Intersects(Primitive.WorldBounds) != FFrustum::EFrustumIntersectResult::Outside)
+		if (Primitive.bVisible && Primitive.WorldBounds.IsValid() && View.Frustum.Intersects(Primitive.WorldBounds) != FFrustum::EFrustumIntersectResult::Outside)
 		{
 			VisiblePrimitives.push_back(&Primitive);
 		}

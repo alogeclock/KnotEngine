@@ -30,9 +30,10 @@ FImGuiSystem::FImGuiSystem(
 	FAssetImportManager& InAssetImportManager,
 	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
-	FInputRouter& InInputRouter)
+	FInputRouter& InInputRouter,
+	FEditorSelection& InSelection)
 	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
-	  RenderBackend(InRenderBackend), InputRouter(InInputRouter),
+	  RenderBackend(InRenderBackend), InputRouter(InInputRouter), Selection(InSelection),
 	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
 	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend)
 {

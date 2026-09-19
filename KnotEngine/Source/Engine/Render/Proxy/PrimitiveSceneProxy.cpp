@@ -3,9 +3,10 @@
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
 #include "Render/Resource/Mesh/Mesh.h"
+#include "World/Node.h"
 
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent)
-	: Component(InComponent)
+	: Component(InComponent), bSelected(InComponent.GetOwner().IsSelected())
 {
 }
 

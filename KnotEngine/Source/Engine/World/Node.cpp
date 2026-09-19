@@ -1,5 +1,6 @@
 #include "World/Node.h"
 #include "Component/Component.h"
+#include "Component/PrimitiveComponent.h"
 #include "Object/Class.h"
 #include "World/Level.h"
 #include "World/World.h"
@@ -64,6 +65,24 @@ void UNode::Tick(float DeltaTime)
 		if (Component->IsActive() && Component->IsTickEnabled())
 		{
 			Component->TickComponent(DeltaTime);
+		}
+	}
+}
+
+// Node가 직접 소유하는 Primitive Component의 Scene Proxy에 선택 상태를 Push한다.
+void UNode::SetSelected(bool bInSelected)
+{
+	if (bSelected == bInSelected)
+	{
+		return;
+	}
+
+	bSelected = bInSelected;
+	for (const TObjectPtr<UComponent>& Component : Components)
+	{
+		if (Component && Component->IsA(UPrimitiveComponent::StaticClass()))
+		{
+			static_cast<UPrimitiveComponent*>(Component.Get())->PushSelection(bInSelected);
 		}
 	}
 }
