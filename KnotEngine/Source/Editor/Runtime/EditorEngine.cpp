@@ -157,7 +157,7 @@ void UEditorEngine::UnregisterViewportClient(FEditorViewportClient& ViewportClie
 
 void UEditorEngine::Shutdown()
 {
-	EditorSelection.Clear();
+	EditorSelection.Deselect();
 	if (UWorld* World = GetWorld())
 	{
 		World->EndPlay();

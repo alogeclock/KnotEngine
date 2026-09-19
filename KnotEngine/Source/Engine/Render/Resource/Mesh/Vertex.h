@@ -17,7 +17,7 @@ constexpr uint32 PackRGBA(uint8 R, uint8 G, uint8 B, uint8 A = 255)
 struct ENGINE_API FGeometryVertex
 {
 	FVector Position;
-	uint32 Color;
+	uint32 Color = 0;
 
 	static const FVertexLayout& GetVertexLayout();
 };

@@ -24,7 +24,7 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
-		Selection.SelectNode(Raycast(PointerEvent->Position));
+		Selection.Select(Raycast(PointerEvent->Position));
 		return FInputReply::Handled().SetKeyboardFocus();
 	}
 	return FEditorViewportClient::OnInputEvent(Event);

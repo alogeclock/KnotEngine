@@ -21,11 +21,11 @@ struct ENGINE_API FAssetFileHeader
 	inline static constexpr char MagicValue[4] = { 'K', 'A', 'S', 'T' };
 	inline static constexpr uint32 CurrentVersion = 2;
 
-	char Magic[4];
-	uint32 ContainerVersion;
-	EAssetType AssetType;
-	uint32 PayloadVersion;
-	uint64 PayloadSize;
+	char Magic[4] = {};
+	uint32 ContainerVersion = 0;
+	EAssetType AssetType = EAssetType::Unknown;
+	uint32 PayloadVersion = 0;
+	uint64 PayloadSize = 0;
 	FAssetId AssetId;
 };
 static_assert(sizeof(FAssetFileHeader) == 40);
