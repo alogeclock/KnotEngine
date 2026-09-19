@@ -64,6 +64,11 @@ void FConsolePanel::Draw()
 	ImGui::End();
 }
 
+void FConsolePanel::OnOpened()
+{
+	bFocusCommandInput = true;
+}
+
 // Console 필터와 전체 로그 삭제 UI를 그린다.
 void FConsolePanel::DrawToolbar()
 {

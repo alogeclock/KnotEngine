@@ -17,7 +17,8 @@ public:
 	void Startup();
 	void Shutdown();
 	void Draw();
-	void RequestCommandInputFocus() { bFocusCommandInput = true; }
+
+	void OnOpened();
 
 private:
 	FViewportStatState& ViewportStatState;

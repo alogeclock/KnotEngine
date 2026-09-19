@@ -179,13 +179,18 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		return FInputReply::Unhandled();
 	}
 
-	if (KeyEvent->Key == EKeyboardKey::Tilde)
+	if (KeyEvent->Key == EKeyboardKey::Tilde && KeyEvent->Modifiers == EModifierKeyMask::Control)
 	{
-		bShowConsole = !bShowConsole;
-		bFocusConsoleRequested = bShowConsole;
 		if (bShowConsole)
 		{
-			ConsolePanel.RequestCommandInputFocus();
+			bShowConsole = false;
+			bFocusConsoleRequested = false;
+		}
+		else
+		{
+			bShowConsole = true;
+			bFocusConsoleRequested = true;
+			ConsolePanel.OnOpened();
 		}
 		return FInputReply::Handled();
 	}

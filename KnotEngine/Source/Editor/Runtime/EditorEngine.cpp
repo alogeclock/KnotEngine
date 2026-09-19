@@ -79,6 +79,7 @@ void UEditorEngine::Tick(float DeltaTime)
 	}
 
 	ImGuiSystem.EndFrame();
+
 	Render();
 }
 
