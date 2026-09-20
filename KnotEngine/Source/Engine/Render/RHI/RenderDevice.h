@@ -43,6 +43,9 @@ public:
 	virtual void EndCommandList(FCommandListHandle CommandList) = 0;
 
 	virtual void Submit(FCommandListHandle& CommandList) = 0;
+	virtual void BeginFrameStatistics(FCommandListHandle CommandList) = 0;
+	virtual void EndFrameStatistics(FCommandListHandle CommandList) = 0;
+	virtual const FGPUFrameStatistics& GetLastFrameStatistics() const = 0;
 
 	// 아래 함수는 열린 Command List에 Graphics 상태 및 Draw 명령을 기록한다.
 	virtual void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) = 0;

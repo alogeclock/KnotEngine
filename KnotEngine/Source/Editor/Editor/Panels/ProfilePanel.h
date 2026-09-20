@@ -1,11 +1,15 @@
 #pragma once
 
 #include "Core/Profiling/CPUProfiler.h"
+#include "Render/RHI/RenderTypes.h"
+
+class IRenderDevice;
 
 // 완료된 CPU Profile Frame을 주기적으로 집계하고 CPU 통계를 ImGui 표로 표시한다.
 class FProfilePanel
 {
 public:
+	explicit FProfilePanel(const IRenderDevice& InRenderDevice);
 	void Draw(float DeltaTime);
 
 private:
@@ -30,13 +34,17 @@ private:
 	TArray<FCPUHistoryStat> HistoryStats;
 	TArray<FCPUHistoryStat> DisplayedStats;
 	FCPUProfileFrame DisplayedFrame;
+	FGPUFrameStatistics DisplayedGPUStats;
+	const IRenderDevice& RenderDevice;
 
 	float RefreshTimer = 0.0f;
 
 	uint64 LastSampledFrameNumber = 0;
+	uint64 LastSampledGPUFrameNumber = 0;
 	bool bPaused = false;
 
 	void Sample(const FCPUProfileFrame& Frame);
 	void Refresh(const FCPUProfileFrame& Frame);
+	void DrawGPUStats() const;
 	void DrawCPUStats() const;
 };

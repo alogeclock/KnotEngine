@@ -40,6 +40,9 @@ FImGuiSystem::FImGuiSystem(
 	  RenderBackend(InRenderBackend), InputRouter(InInputRouter), Selection(InSelection),
 	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
 	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend), SettingsPanel(InEditorSettings)
+#if KNOT_CPU_PROFILER_ENABLED
+	  , ProfilePanel(InRenderDevice)
+#endif
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
 }

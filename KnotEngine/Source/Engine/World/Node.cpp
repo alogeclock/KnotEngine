@@ -54,21 +54,6 @@ void UNode::EndPlay()
 	}
 }
 
-void UNode::Tick(float DeltaTime)
-{
-	for (const TObjectPtr<UComponent>& Component : Components)
-	{
-		if (GetWorld().GetPlayState() != EPlayState::Playing)
-		{
-			break;
-		}
-		if (Component->IsActive() && Component->IsTickEnable())
-		{
-			Component->TickComponent(DeltaTime);
-		}
-	}
-}
-
 // Node가 직접 소유하는 Primitive Component의 Scene Proxy에 선택 상태를 Push한다.
 void UNode::SetSelected(bool bInSelected)
 {

@@ -115,6 +115,7 @@ void URenderer::BeginFrame()
 
 	checkf(!CommandList.IsValid(), "Renderer Frame이 이미 시작되었다.");
 	CommandList = RenderDevice.BeginCommandList();
+	RenderDevice.BeginFrameStatistics(CommandList);
 	RenderContext.BeginFrame(CommandList);
 }
 
@@ -124,6 +125,7 @@ void URenderer::EndFrame()
 
 	checkf(CommandList.IsValid(), "Renderer Frame이 시작되지 않았다.");
 	RenderContext.EndFrame(CommandList);
+	RenderDevice.EndFrameStatistics(CommandList);
 	RenderDevice.EndCommandList(CommandList);
 	RenderDevice.Submit(CommandList);
 	RenderContext.Present();

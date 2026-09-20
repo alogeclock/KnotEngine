@@ -1,13 +1,21 @@
 #include "Editor/Panels/ProfilePanel.h"
 
+#include "Render/RHI/RenderDevice.h"
+
 #include <algorithm>
 #include <imgui.h>
+
+FProfilePanel::FProfilePanel(const IRenderDevice& InRenderDevice)
+	: RenderDevice(InRenderDevice)
+{
+}
 
 // 최신 완료 프레임을 샘플링하고 갱신 주기에 맞춰 Profile Panel을 그린다.
 void FProfilePanel::Draw(float DeltaTime)
 {
 	RefreshTimer -= DeltaTime;
 	const FCPUProfileFrame& LastFrame = FCPUProfiler::GetLastFrame();
+	bool bRefreshed = false;
 	if (!bPaused && LastFrame.FrameNumber != 0 && LastFrame.FrameNumber != LastSampledFrameNumber)
 	{
 		Sample(LastFrame);
@@ -15,6 +23,20 @@ void FProfilePanel::Draw(float DeltaTime)
 		if (DisplayedFrame.FrameNumber == 0 || RefreshTimer <= 0.0f)
 		{
 			Refresh(LastFrame);
+			bRefreshed = true;
+		}
+	}
+	const FGPUFrameStatistics& LastGPUStatistics = RenderDevice.GetLastFrameStatistics();
+	if (!bPaused && LastGPUStatistics.bValid && LastGPUStatistics.FrameNumber != LastSampledGPUFrameNumber)
+	{
+		LastSampledGPUFrameNumber = LastGPUStatistics.FrameNumber;
+		if (DisplayedGPUStats.FrameNumber == 0 || RefreshTimer <= 0.0f || bRefreshed)
+		{
+			DisplayedGPUStats = LastGPUStatistics;
+			if (!bRefreshed)
+			{
+				RefreshTimer = RefreshInterval;
+			}
 		}
 	}
 
@@ -30,18 +52,57 @@ void FProfilePanel::Draw(float DeltaTime)
 		RefreshTimer = 0.0f;
 	}
 	ImGui::SameLine();
-	ImGui::TextDisabled(bPaused ? "CPU sampling paused" : "CPU sampling active");
+	ImGui::TextDisabled(bPaused ? "CPU/GPU sampling paused" : "CPU/GPU sampling active");
 	ImGui::Separator();
 
-	if (DisplayedFrame.FrameNumber == 0)
+	if (DisplayedFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid)
 	{
-		ImGui::TextDisabled("Waiting for CPU profile data...");
+		ImGui::TextDisabled("Waiting for CPU/GPU profile data...");
 		ImGui::End();
 		return;
 	}
 
-	DrawCPUStats();
+	DrawGPUStats();
+	if (DisplayedFrame.FrameNumber != 0)
+	{
+		DrawCPUStats();
+	}
 	ImGui::End();
+}
+
+// 가장 최근에 완료된 비동기 GPU 프레임 시간과 Pipeline 호출 수를 표시한다.
+void FProfilePanel::DrawGPUStats() const
+{
+	if (!ImGui::CollapsingHeader("GPU Stats", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		return;
+	}
+	if (!DisplayedGPUStats.bValid)
+	{
+		ImGui::TextDisabled("Waiting for GPU query data...");
+		return;
+	}
+
+	if (ImGui::BeginTable("GPUProfileStats", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
+	{
+		ImGui::TableSetupColumn("Statistic");
+		ImGui::TableSetupColumn("Value");
+		ImGui::TableHeadersRow();
+		const auto DrawRow = [](const char* Name, const char* Format, auto Value)
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::TextUnformatted(Name);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Text(Format, Value);
+		};
+		DrawRow("GPU Frame Time", "%.3f ms", DisplayedGPUStats.GPUTimeMs);
+		DrawRow("IA Vertices", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.IAVertices));
+		DrawRow("IA Primitives", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.IAPrimitives));
+		DrawRow("VS Invocations", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.VSInvocations));
+		DrawRow("PS Invocations", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.PSInvocations));
+		ImGui::EndTable();
+	}
 }
 
 // Profile ID를 배열 인덱스로 사용하여 완료 프레임 값을 누적 통계에 반영한다.

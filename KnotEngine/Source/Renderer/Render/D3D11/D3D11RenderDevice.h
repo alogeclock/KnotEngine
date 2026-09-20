@@ -6,6 +6,7 @@
 #include "Render/D3D11/D3D11Device.h"
 #include "Render/RHI/RenderDevice.h"
 
+#include <array>
 #include <vector>
 #include <wrl/client.h>
 
@@ -14,6 +15,7 @@ struct ID3D11BlendState;
 struct ID3D11Buffer;
 struct ID3D11InputLayout;
 struct ID3D11PixelShader;
+struct ID3D11Query;
 struct ID3D11RasterizerState;
 struct ID3D11DepthStencilView;
 struct ID3D11RenderTargetView;
@@ -51,6 +53,10 @@ public:
 	FCommandListHandle BeginCommandList() override;
 	void EndCommandList(FCommandListHandle CommandList) override;
 	void Submit(FCommandListHandle& CommandList) override;
+
+	void BeginFrameStatistics(FCommandListHandle CommandList) override;
+	void EndFrameStatistics(FCommandListHandle CommandList) override;
+	const FGPUFrameStatistics& GetLastFrameStatistics() const override { return LastFrameStatistics; }
 
 	void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) override;
 	
@@ -125,6 +131,16 @@ private:
 		uint32 Size = 0;
 	};
 
+	struct FFrameStatisticsQuery
+	{
+		Microsoft::WRL::ComPtr<ID3D11Query> Disjoint;
+		Microsoft::WRL::ComPtr<ID3D11Query> BeginTimestamp;
+		Microsoft::WRL::ComPtr<ID3D11Query> EndTimestamp;
+		Microsoft::WRL::ComPtr<ID3D11Query> PipelineStatistics;
+		uint64 FrameNumber = 0;
+		bool bPending = false;
+	};
+
 	// D3D11에서는 하나의 Immediate Context를 세대가 있는 논리 Command List로 감싼다.
 	void ValidateCommandList(FCommandListHandle CommandList) const;
 	FShaderSlot* ResolveShader(FShaderHandle Handle);
@@ -144,6 +160,15 @@ private:
 	std::vector<FShaderSlot> ShaderSlots;
 	std::vector<FPipelineStateSlot> PipelineStateSlots;
 	std::vector<FConstantBufferSlot> ConstantBufferSlots;
+
+	// GPU 통계를 동기화 없이 읽기 위해 4중 버퍼로 완료된 이전 프레임의 시간을 기록한다.
+	static constexpr SIZE_T FrameStatisticsQueryCount = 4;
+	std::array<FFrameStatisticsQuery, FrameStatisticsQueryCount> FrameStatisticsQueries;
+	FFrameStatisticsQuery* ActiveFrameStatisticsQuery = nullptr;
+	FGPUFrameStatistics LastFrameStatistics;
+	uint64 StatisticsFrameNumber = 0;
+	SIZE_T NextFrameStatisticsQuery = 0;
+
 	uint32 CommandListGeneration = 1;
 	bool bCommandListOpen = false;
 };

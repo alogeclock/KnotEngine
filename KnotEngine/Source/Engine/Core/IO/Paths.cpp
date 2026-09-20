@@ -24,7 +24,7 @@ FWString FPaths::ConvertToWide(const FString& Source, UINT CodePage, DWORD Flags
 	return Result;
 }
 
-// 배포 환경과 개발 환경을 구분하여 루트 디렉토리를 반환한다.
+// 프로젝트 구조가 있으면 원본 루트를, 패키징된 실행 환경이면 실행 파일 디렉터리를 반환한다.
 FWString FPaths::RootDir()
 {
 	static FWString Cached;
@@ -34,9 +34,6 @@ FWString FPaths::RootDir()
 		GetModuleFileNameW(nullptr, Buffer, MAX_PATH);
 		std::filesystem::path ExeDir = std::filesystem::path(Buffer).parent_path();
 
-#if defined(KNOT_BUILD_SHIPPING)
-		Cached = ExeDir.generic_wstring() + L"/";
-#else
 		bool bFound = false;
 		std::filesystem::path SearchDir = ExeDir;
 		while (true)
@@ -56,9 +53,8 @@ FWString FPaths::RootDir()
 		}
 		if (!bFound)
 		{
-			Cached = std::filesystem::current_path().generic_wstring() + L"/";
+			Cached = ExeDir.generic_wstring() + L"/";
 		}
-#endif
 	}
 	return Cached;
 }

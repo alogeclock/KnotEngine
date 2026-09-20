@@ -21,7 +21,11 @@ Knot Engine은 기존 Unreal Tick Scheduler와 호환할 필요가 없다. 전�
 
 ## 현재 구현과 목표의 경계
 
-현재는 소유 배열 순서로 World → Level → Node → Component Tick을 전달한다. 여섯 Phase, Tick Registry와 dependency graph는 아직 없다. `UWorld::Tick()` 마지막에 Scene을 갱신하며, Stopped·Paused에서도 이 단계는 실행한다.
+현재는 World가 Level을 순회하고, 각 Level이 실행 가능한 Component만 담은 `TickComponents` 비소유 밀집 배열을 직접 실행한다. 기본 Tick Registry는 구현되어 있지만 여섯 Phase, World 단위 Registry와 dependency graph는 아직 없다. `UWorld::Tick()` 마지막에 `Scene.Update()`를 호출하며, Stopped·Paused에서도 이 단계는 실행한다.
+
+현재 Tick Component는 `bCanEverTick`, `bTickEnable`, Registered, BegunPlay와 Active 조건을 모두 만족할 때 Level 배열에 즉시 등록된다. 해제는 Component가 가진 인덱스를 이용한 swap-pop이며 callback 도중 배열 변경도 현재 순회가 직접 처리한다. Pending Add/Remove가 없으므로 Tick 중 추가된 Component의 첫 실행 시점을 다음 프레임으로 고정하지는 않는다.
+
+플레이 상태 전환 함수는 `UWorld`의 private API이며 friend인 `UEditorEngine`이 World Tick 바깥에서 즉시 호출한다. 현재 요구에는 Component 발신 전환이 없으므로 Requested/Apply queue를 두지 않는다. 향후 실행기도 한 프레임 실행 중 PlayState가 안정적이라는 이 계약을 유지한다.
 
 Scene은 Proxy 배열만 소유하고 Proxy가 자신의 Dirty 플래그와 원본 Component 참조로 상태를 갱신한다. Component의 가상 Update나 World의 Dirty Component 대기 목록은 사용하지 않는다. 이 문서의 실행기 PendingAdds/PendingRemoves는 미래 Tick 등록 변경용이며 현재 Proxy 갱신 구조를 대체한 구현이 아니다.
 
@@ -41,6 +45,7 @@ Scene은 Proxy 배열만 소유하고 Proxy가 자신의 Dirty 플래그와 원�
 - Component와 실행 node의 메모리 소유권을 구분한다.
 - 직렬 DAG의 의미를 먼저 검증한 뒤 executor만 Task Graph로 교체한다.
 - 실제 두 번째 종류가 생기기 전에는 범용 실행 node 계층을 만들지 않는다.
+- PlayState는 World 실행 전에 외부 수명 관리자가 확정하며 Phase 실행 도중에는 바꾸지 않는다.
 
 ## 목표 구조
 
@@ -94,9 +99,9 @@ Component 생명주기는 Unreal 방식의 등록과 플레이 상태를 따른�
 
 Owned는 `Owner != nullptr`에서, Tick Registered는 향후 Tick Manager 연결 상태에서 파생한다. 나머지 개념도 의미는 분리하되 중복 bool은 저장하지 않는다.
 
-현재 `RegisterComponent()`, `UnregisterComponent()`, `Activate()`, `Deactivate()`와 대응하는 네 개의 protected virtual 훅은 구현되어 있다. `bIsRegistered`, `bHasBegunPlay`, `bIsActive`도 분리되어 있으며 Node 부착과 파괴 경로에 연결되어 있다.
+현재 `RegisterComponent()`, `UnregisterComponent()`, `Activate()`, `Deactivate()`와 대응하는 네 개의 protected virtual 훅은 구현되어 있다. `bIsRegistered`, `bHasBegunPlay`, `bIsActive`도 분리되어 있으며 Node 부착과 파괴 경로에 연결되어 있다. `bCanEverTick`과 `bTickEnable`을 포함한 모든 실행 조건이 참이면 Level의 `TickComponents`에 등록하고, 조건이 해제되면 즉시 제거한다.
 
-Render 등록은 FScene에 연결되어 있다. 향후 작업은 Register 훅을 Physics와 Tick Registry에 연결하고 Level 재연결 시 일괄 등록 상태를 전환하는 것이다. `UnregisterComponent()`는 Component 파괴와 별개이며 Tick 비활성화도 Render 및 Physics 등록을 제거하지 않는다.
+Render 등록은 FScene에, 기본 Tick 등록은 ULevel에 연결되어 있다. 향후 작업은 Physics Registry를 추가하고 현재 Level별 밀집 배열을 World 실행기로 교체하며 Level 재연결 시 일괄 등록 상태를 전환하는 것이다. `UnregisterComponent()`는 Component 파괴와 별개이며 Tick 비활성화도 Render 및 Physics 등록을 제거하지 않는다.
 
 ### 등록 순서
 
@@ -116,7 +121,7 @@ BeginPlay
 
 `RegisterComponent()`는 public non-virtual 함수로 상태 검증과 공통 순서를 고정한다. 파생 Component의 `OnRegister()`와 `OnUnregister()`는 Editor property 변경과 Level 재연결 때문에 여러 번 호출될 수 있어야 한다.
 
-Tick 등록은 BeginPlay와 분리한다. Component가 World에 등록될 때 TickFunction도 등록하고 실행기가 PlayState와 enable 상태로 실제 실행 여부를 결정한다.
+현재 밀집 배열은 실행 가능한 callback만 담기 때문에 BeginPlay와 Active 상태에 따라 물리적으로 등록·해제한다. 목표 실행기에서는 Component가 World에 등록될 때 TickFunction을 등록하고 실행기가 PlayState, BeginPlay, Active와 enable 상태로 실제 실행 여부를 결정한다. 이렇게 하면 dependency graph의 node 수명을 플레이 상태 전환과 분리할 수 있다.
 
 ### 등록 해제 순서
 
@@ -353,6 +358,7 @@ Level 파괴
 
 ```text
 UWorld::Tick
+	↓ PlayState는 호출 전에 확정되며 프레임 동안 고정
     ↓
 FWorldExecutionManager::StartFrame
     ├─ 이전 프레임 Pending 변경 반영
@@ -380,7 +386,7 @@ FWorldExecutionManager::EndFrame
     └─ 지연 파괴 가능 상태 확정
 ```
 
-모든 활성 Level의 같은 Phase 작업을 하나의 World graph에서 실행한다. Level A의 여섯 Phase를 끝낸 뒤 Level B를 실행하지 않는다.
+모든 활성 Level의 같은 Phase 작업을 하나의 World graph에서 실행한다. Level A의 여섯 Phase를 끝낸 뒤 Level B를 실행하지 않는다. 현재 EditorEngine과 같은 외부 수명 관리자는 BeginPlay, Pause, Resume과 EndPlay를 `UWorld::Tick()` 전후 경계에서만 호출한다. Component가 Phase 실행 중 PlayState 변경을 요청하는 queue는 실제 요구가 생기기 전에는 추가하지 않는다.
 
 ## Signal propagation
 
@@ -481,7 +487,7 @@ Stopped·Paused에서도 에디터 변경을 렌더링에 반영할 수 있도�
 | 단계 | 완료 조건 |
 |---|---|
 | Component Registration | 재등록과 Level 분리 후 subsystem 및 Tick 참조가 남지 않음 |
-| 직렬 Registry | 직접 소유 계층 Tick 없이 기존 Component가 같은 동작을 수행 |
+| 직렬 Registry | 현재 Level별 밀집 배열을 World 실행기 Registry로 교체해 기존 Component가 같은 동작을 수행 |
 | 동적 변경 | Tick 중 Spawn과 Destroy가 다음 프레임 규칙을 안정적으로 따름 |
 | Phase DAG | 명시적인 dependency가 지켜지고 cycle이 진단됨 |
 | Interval과 Signal | 실행 조건이 dependency 순서와 독립적으로 검증됨 |

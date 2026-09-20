@@ -52,6 +52,18 @@ using FShaderHandle = TRenderHandle<FShaderHandleTag>;
 using FPipelineStateHandle = TRenderHandle<FPipelineStateHandleTag>;
 using FCommandListHandle = TRenderHandle<FCommandListHandleTag>;
 
+// 비동기 GPU Query에서 완료된 한 프레임의 실행 시간과 Pipeline 호출 수다.
+struct ENGINE_API FGPUFrameStatistics
+{
+	uint64 FrameNumber = 0;
+	double GPUTimeMs = 0.0;
+	uint64 IAVertices = 0;
+	uint64 IAPrimitives = 0;
+	uint64 VSInvocations = 0;
+	uint64 PSInvocations = 0;
+	bool bValid = false;
+};
+
 // Buffer가 GPU Pipeline에서 사용되는 용도를 정의한다.
 enum class EBufferUsage : uint8
 {

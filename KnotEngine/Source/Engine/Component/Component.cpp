@@ -1,6 +1,8 @@
 #include "Component/Component.h"
 
 #include "Core/Assert.h"
+#include "Object/Property.h"
+#include "World/Level.h"
 #include "World/Node.h"
 #include "World/World.h"
 
@@ -25,6 +27,7 @@ void UComponent::RegisterComponent()
 	check(Owner && !bIsRegistered && !bHasBegunPlay && !bIsActive);
 	bIsRegistered = true;
 	OnRegister();
+	UpdateTickRegistration();
 }
 
 void UComponent::UnregisterComponent()
@@ -40,6 +43,7 @@ void UComponent::UnregisterComponent()
 	}
 
 	check(!bIsActive);
+	UpdateTickRegistration();
 	OnUnregister();
 	bIsRegistered = false;
 }
@@ -53,6 +57,7 @@ void UComponent::Activate()
 	}
 
 	bIsActive = true;
+	UpdateTickRegistration();
 	OnActivated();
 }
 
@@ -64,6 +69,7 @@ void UComponent::Deactivate()
 	}
 
 	bIsActive = false;
+	UpdateTickRegistration();
 	OnDeactivated();
 }
 
@@ -82,4 +88,35 @@ void UComponent::EndPlay()
 	check(bHasBegunPlay);
 	Deactivate();
 	bHasBegunPlay = false;
+}
+
+// Inspector에서 Tick 활성화가 변경되면 Level의 밀집 Tick 배열을 즉시 동기화한다.
+void UComponent::PostEditProperty(const FProperty& Property)
+{
+	Super::PostEditProperty(Property);
+	static const FName TickEnablePropertyName("bTickEnable");
+	if (Property.GetFName() == TickEnablePropertyName)
+	{
+		UpdateTickRegistration();
+	}
+}
+
+// 실제로 이번 Play Session에서 Tick할 수 있는 Component만 Level에 등록한다.
+void UComponent::UpdateTickRegistration()
+{
+	if (!Owner)
+	{
+		check(TickComponentIndex == InvalidIndex);
+		return;
+	}
+
+	ULevel& Level = Owner->GetLevel();
+	if (bCanEverTick && bTickEnable && bIsRegistered && bHasBegunPlay && bIsActive)
+	{
+		Level.RegisterTickComponent(*this);
+	}
+	else
+	{
+		Level.UnregisterTickComponent(*this);
+	}
 }

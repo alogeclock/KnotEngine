@@ -33,7 +33,6 @@ public:
 
 	void BeginPlay();
 	void EndPlay();
-	void Tick(float DeltaTime);
 
 	template <typename T, typename... Args>
 	T& AddComponent(Args&&... Arguments)

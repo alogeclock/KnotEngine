@@ -7,6 +7,7 @@
 
 class URenderer;
 class FMapSerializer;
+class UEditorEngine;
 
 UENUM()
 enum class EPlayState : uint8
@@ -33,11 +34,6 @@ public:
 	void RemoveLevel(ULevel& Level);
 	void Reset();
 
-	void BeginPlay();
-	void PausePlay();
-	void ResumePlay();
-	void EndPlay();
-
 	void Tick(float DeltaTime);
 	FScene& GetScene() { return Scene; }
 	const FScene& GetScene() const { return Scene; }
@@ -49,6 +45,12 @@ public:
 
 private:
 	friend class FMapSerializer;
+	friend class UEditorEngine;
+
+	void BeginPlay();
+	void PausePlay();
+	void ResumePlay();
+	void EndPlay();
 
 	FScene Scene;
 	TMap<FString, uint64> NameCounters;

@@ -1,4 +1,5 @@
 #include "World/Level.h"
+#include "Component/Component.h"
 #include "World/World.h"
 
 ULevel::ULevel(UWorld& World) : OwningWorld(&World)
@@ -11,6 +12,7 @@ ULevel::~ULevel()
 	{
 		GUObjectManager.Destroy(Node.Get());
 	}
+	check(TickComponents.empty());
 }
 
 UWorld& ULevel::GetWorld() const
@@ -69,8 +71,47 @@ void ULevel::EndPlay()
 
 void ULevel::Tick(float DeltaTime)
 {
-	for (const TObjectPtr<UNode>& Node : Nodes)
+	for (SIZE_T TickIndex = 0; TickIndex < TickComponents.size();)
 	{
-		Node->Tick(DeltaTime);
+		UComponent* Component = TickComponents[TickIndex];
+		Component->TickComponent(DeltaTime);
+		if (TickIndex < TickComponents.size() && TickComponents[TickIndex] == Component)
+		{
+			++TickIndex;
+		}
 	}
+}
+
+// 활성화된 Tick Component를 밀집 배열 끝에 한 번만 등록한다.
+void ULevel::RegisterTickComponent(UComponent& Component)
+{
+	check(&Component.GetOwner().GetLevel() == this);
+	if (Component.TickComponentIndex != UComponent::InvalidIndex)
+	{
+		return;
+	}
+
+	Component.TickComponentIndex = TickComponents.size();
+	TickComponents.push_back(&Component);
+}
+
+// Tick Component를 swap-pop으로 제거하고 이동한 Component의 Index를 갱신한다.
+void ULevel::UnregisterTickComponent(UComponent& Component)
+{
+	if (Component.TickComponentIndex == UComponent::InvalidIndex)
+	{
+		return;
+	}
+
+	const SIZE_T RemoveIndex = Component.TickComponentIndex;
+	const SIZE_T LastIndex = TickComponents.size() - 1;
+	check(RemoveIndex < TickComponents.size() && TickComponents[RemoveIndex] == &Component);
+	if (RemoveIndex != LastIndex)
+	{
+		TickComponents[RemoveIndex] = TickComponents[LastIndex];
+		TickComponents[RemoveIndex]->TickComponentIndex = RemoveIndex;
+	}
+
+	TickComponents.pop_back();
+	Component.TickComponentIndex = UComponent::InvalidIndex;
 }

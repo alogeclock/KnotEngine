@@ -21,6 +21,23 @@ void FD3D11RenderDevice::Create()
 	// 재초기화 시 이전 Device와 그에 종속된 모든 자원을 먼저 정리한다.
 	Release();
 	NativeDevice.Create();
+
+	for (FFrameStatisticsQuery& Query : FrameStatisticsQueries)
+	{
+		D3D11_QUERY_DESC QueryDesc = { D3D11_QUERY_TIMESTAMP_DISJOINT, 0 };
+		HRESULT Result = NativeDevice.GetDevice()->CreateQuery(&QueryDesc, Query.Disjoint.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Query.Disjoint, "D3D11 Timestamp Disjoint Query 생성 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+
+		QueryDesc.Query = D3D11_QUERY_TIMESTAMP;
+		Result = NativeDevice.GetDevice()->CreateQuery(&QueryDesc, Query.BeginTimestamp.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Query.BeginTimestamp, "D3D11 Begin Timestamp Query 생성 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		Result = NativeDevice.GetDevice()->CreateQuery(&QueryDesc, Query.EndTimestamp.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Query.EndTimestamp, "D3D11 End Timestamp Query 생성 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+
+		QueryDesc.Query = D3D11_QUERY_PIPELINE_STATISTICS;
+		Result = NativeDevice.GetDevice()->CreateQuery(&QueryDesc, Query.PipelineStatistics.GetAddressOf());
+		panicf(SUCCEEDED(Result) && Query.PipelineStatistics, "D3D11 Pipeline Statistics Query 생성 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	}
 }
 
 // 모든 RHI Handle을 무효화하고 GPU 자원, Context, Device 순서로 해제한다.
@@ -35,6 +52,14 @@ void FD3D11RenderDevice::Release()
 	SamplerSlots.clear();
 	TextureSlots.clear();
 	ConstantBufferSlots.clear();
+	for (FFrameStatisticsQuery& Query : FrameStatisticsQueries)
+	{
+		Query = {};
+	}
+	ActiveFrameStatisticsQuery = nullptr;
+	LastFrameStatistics = {};
+	StatisticsFrameNumber = 0;
+	NextFrameStatisticsQuery = 0;
 	BufferPool.Release();
 	NativeDevice.FlushAndUnbindTargets();
 	NativeDevice.Release();
@@ -493,6 +518,80 @@ void FD3D11RenderDevice::Submit(FCommandListHandle& CommandList)
 		"종료되지 않았거나 유효하지 않은 D3D11 Command List 제출.");
 	CommandList.Reset();
 	AdvanceGeneration(CommandListGeneration);
+}
+
+// 완료된 이전 Query만 읽고 현재 GPU 프레임의 Timestamp 및 Pipeline 통계 범위를 시작한다.
+void FD3D11RenderDevice::BeginFrameStatistics(FCommandListHandle CommandList)
+{
+	ValidateCommandList(CommandList);
+	ID3D11DeviceContext* Context = NativeDevice.GetContext();
+	static constexpr uint32 QueryFlags = D3D11_ASYNC_GETDATA_DONOTFLUSH;
+	for (FFrameStatisticsQuery& Query : FrameStatisticsQueries)
+	{
+		if (!Query.bPending)
+		{
+			continue;
+		}
+
+		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT Disjoint = {};
+		uint64 BeginTimestamp = 0;
+		uint64 EndTimestamp = 0;
+		D3D11_QUERY_DATA_PIPELINE_STATISTICS PipelineStatistics = {};
+		const HRESULT DisjointResult = Context->GetData(Query.Disjoint.Get(), &Disjoint, sizeof(Disjoint), QueryFlags);
+		const HRESULT BeginResult = Context->GetData(Query.BeginTimestamp.Get(), &BeginTimestamp, sizeof(BeginTimestamp), QueryFlags);
+		const HRESULT EndResult = Context->GetData(Query.EndTimestamp.Get(), &EndTimestamp, sizeof(EndTimestamp), QueryFlags);
+		const HRESULT PipelineResult = Context->GetData(Query.PipelineStatistics.Get(), &PipelineStatistics, sizeof(PipelineStatistics), QueryFlags);
+		panicf(SUCCEEDED(DisjointResult) && SUCCEEDED(BeginResult) && SUCCEEDED(EndResult) && SUCCEEDED(PipelineResult),
+			"D3D11 GPU 통계 Query 읽기 실패. Disjoint=0x{:08X}, Begin=0x{:08X}, End=0x{:08X}, Pipeline=0x{:08X}",
+			static_cast<uint32>(DisjointResult), static_cast<uint32>(BeginResult), static_cast<uint32>(EndResult), static_cast<uint32>(PipelineResult));
+		if (DisjointResult != S_OK || BeginResult != S_OK || EndResult != S_OK || PipelineResult != S_OK)
+		{
+			continue;
+		}
+
+		if (!Disjoint.Disjoint && Disjoint.Frequency > 0 && EndTimestamp >= BeginTimestamp && Query.FrameNumber > LastFrameStatistics.FrameNumber)
+		{
+			LastFrameStatistics.FrameNumber = Query.FrameNumber;
+			LastFrameStatistics.GPUTimeMs = static_cast<double>(EndTimestamp - BeginTimestamp) / static_cast<double>(Disjoint.Frequency) * 1000.0;
+			LastFrameStatistics.IAVertices = PipelineStatistics.IAVertices;
+			LastFrameStatistics.IAPrimitives = PipelineStatistics.IAPrimitives;
+			LastFrameStatistics.VSInvocations = PipelineStatistics.VSInvocations;
+			LastFrameStatistics.PSInvocations = PipelineStatistics.PSInvocations;
+			LastFrameStatistics.bValid = true;
+		}
+		Query.bPending = false;
+	}
+
+	++StatisticsFrameNumber;
+	FFrameStatisticsQuery& Query = FrameStatisticsQueries[NextFrameStatisticsQuery];
+	if (Query.bPending)
+	{
+		ActiveFrameStatisticsQuery = nullptr;
+		return;
+	}
+	NextFrameStatisticsQuery = (NextFrameStatisticsQuery + 1) % FrameStatisticsQueryCount;
+	Query.FrameNumber = StatisticsFrameNumber;
+	Context->Begin(Query.Disjoint.Get());
+	Context->End(Query.BeginTimestamp.Get());
+	Context->Begin(Query.PipelineStatistics.Get());
+	ActiveFrameStatisticsQuery = &Query;
+}
+
+// 현재 GPU 프레임의 Pipeline 통계와 종료 Timestamp를 기록하되 결과를 즉시 기다리지 않는다.
+void FD3D11RenderDevice::EndFrameStatistics(FCommandListHandle CommandList)
+{
+	ValidateCommandList(CommandList);
+	if (!ActiveFrameStatisticsQuery)
+	{
+		return;
+	}
+
+	ID3D11DeviceContext* Context = NativeDevice.GetContext();
+	Context->End(ActiveFrameStatisticsQuery->PipelineStatistics.Get());
+	Context->End(ActiveFrameStatisticsQuery->EndTimestamp.Get());
+	Context->End(ActiveFrameStatisticsQuery->Disjoint.Get());
+	ActiveFrameStatisticsQuery->bPending = true;
+	ActiveFrameStatisticsQuery = nullptr;
 }
 
 // Pipeline Handle에 묶인 Shader, Input Layout 및 고정 기능 상태를 Immediate Context에 설정한다.
