@@ -33,7 +33,7 @@ int32 FEngineLoop::Run(UEngine& Engine)
 		}
 
 #if KNOT_CPU_PROFILER_ENABLED
-		FCPUProfiler::BeginFrame(FrameTimer.GetDeltaTime());
+		FCPUProfiler::BeginFrame(ECPUProfileThread::Game, FrameTimer.GetDeltaTime());
 #endif
 		Engine.ProcessInput(Application.GetInputSnapshot());
 		Engine.Tick(FrameTimer.GetDeltaTime());

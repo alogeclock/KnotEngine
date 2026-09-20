@@ -146,7 +146,7 @@ for (const FSceneViewFamily& Family : ViewFamilies)
     FSceneRenderer SceneRenderer(Family);
     SceneRenderer.Render(Renderer);
 }
-ImGuiSystem.Render(Renderer.GetCommandList());
+ImGuiBackend.Render(Renderer.GetCommandList(), ImGuiDrawDataCopy);
 Renderer.EndFrame();
 ```
 
@@ -154,9 +154,9 @@ World와 Scene 갱신은 Viewport 수에 따라 반복하지 않는다. 현재 S
 
 Native 출력 크기가 0이면 GPU 프레임을 생략한다. World Tick과 Scene 갱신은 그보다 앞서 수행된다. 유효한 Family가 없어도 Native 출력이 유효하면 ImGui 합성과 Present를 수행한다.
 
-### 목표 실행 순서
+### GT/RT 중첩 실행
 
-Render Thread 도입 후의 목표 경계는 다음과 같다. 아래 전달 데이터와 스레드 실행 경로는 아직 구현하지 않았다.
+현재 전달 데이터와 스레드 실행 경계는 다음과 같다.
 
 ```text
 Game Thread
@@ -171,7 +171,7 @@ Render Thread
     → 준비된 UI 출력 합성 → Submit / Present
 ```
 
-현재 `FRenderSystem::Render()`는 Render Thread 명령의 완료를 기다려 한 프레임을 직렬 실행한다. GT/RT 프레임 중첩은 ImGui 데이터의 깊은 복사와 프레임 수명 제한을 구현한 뒤 활성화한다.
+`FRenderSystem::Render()`는 프레임을 FIFO에 제출하고 즉시 반환한다. ImGui Draw List는 `FImGuiDrawDataCopy`로 깊은 복사하며 최대 미완료 프레임 수를 2로 제한한다. 제한에 도달한 경우에만 Game Thread가 다음 프레임 제출을 기다린다.
 
 ## Scene 렌더 데이터
 
@@ -342,7 +342,7 @@ Buffer·Texture·Shader·Pipeline State 생성과 제거, Command List 시작·�
 
 ### D3D11 백엔드
 
-현재 D3D11 Immediate Context를 메인 스레드에서 사용한다. Command List 계약이 있다는 사실이 현재 명령을 다중 스레드에서 병행 기록한다는 의미는 아니다. 현재에는 Render Thread와 별도 RHI Thread가 없다.
+현재 D3D11 Immediate Context는 Render Thread에서만 사용한다. Command List 계약이 있다는 사실이 명령을 여러 스레드에서 병행 기록한다는 의미는 아니며 별도 RHI Thread는 없다.
 
 ### 목표 D3D12 백엔드
 
@@ -393,9 +393,11 @@ Component의 OnUnregister는 Remove 명령을 제출하고 PrimitiveId를 초기
 
 ImGuiSystem은 Application을 비소유 참조로 보관하며 Startup에서 메시지 콜백을 등록하고 Shutdown에서 해제한다. Launch와 EditorEngine은 메시지를 ImGui로 중계하지 않는다. EditorEngine의 FImGuiSystem 직접 소유는 유지한다.
 
-### 향후 GT/RT 중첩 경계
+### GT/RT 중첩 경계
 
-현재 Render Thread는 별도 Worker이지만 Frame Render는 `EnqueueAndWait()`로 완료를 기다린다. 향후 비동기 중첩 시에는 ViewFamily, ImGui Draw Data와 CPU Mesh/Texture 스냅샷이 RT 소비 완료까지 유지되어야 한다. Resize·World 종료·Asset 재임포트는 대기 중인 명령과 조율하고 CPU Command 완료와 GPU Fence 완료를 구분한다.
+ViewFamily, Scene Command, Resource Command와 `FImGuiDrawDataCopy`는 Render Command가 소유한다. ImGui DX11 Backend는 ImGui Context를 읽지 않고 복사된 정점·인덱스·Draw Command만 소비한다. CPU Profiler는 Thread별로 수집하고 완료 Snapshot만 발행하며 GPU 통계도 Render Thread가 완료 값을 발행한다.
+
+Window와 Viewport Resize는 FIFO의 단일 동기 명령으로 처리한다. World 파괴 시 Component 제거 명령을 적용한 뒤 Scene을 파괴하고, Asset 종료 시 Renderer Resource Cache를 비운 뒤 Asset UObject를 제거한다. CPU Command 완료와 GPU Fence 완료는 같은 의미로 사용하지 않는다.
 
 ### GPU 자원 수명
 
@@ -419,6 +421,9 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 - `FAssetId`와 Revision으로 관리되는 Static Mesh/Texture/Material Resource Cache
 - Pipeline·Material·Mesh·Depth 64비트 키 기반 Opaque 정렬과 중복 상태 바인딩 생략
 - D3D11 RHI, ImGui 출력 합성과 Submit·Present
+- 최대 2개 프레임의 GT/RT 비동기 실행
+- ImGui Draw Data 깊은 복사와 Context를 읽지 않는 RT DX11 Backend
+- Thread별 CPU Profile 및 RT 발행 GPU 통계 Snapshot
 
 ### 미구현과 목표 순서
 
@@ -426,7 +431,6 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 |---|---|---|
 | Pass 확장 | Shadow 등 상태 없는 Node Builder와 Index 의존성 추가 | 현재 Opaque·Grid·Axis 출력 유지, Pass별 입력·출력·정렬 명확화 |
 | Material·Light 확장 | Material 변경 무효화, 패스 참여 분리, Shadow·투명 등 추가 | View와 Pass별 명령 선택 및 정렬 검증 |
-| GT/RT 프레임 중첩 | 현재 직렬 Render Thread 실행을 비동기 제출로 확장 | ImGui 깊은 복사와 최대 미완료 프레임 제한 |
 | D3D12 | backend 및 GPU 완료 기반 자원 관리 | 자원 전이·재사용·지연 해제 검증 |
 | Graph Resource 추적 | 자원 read/write, 상태 전이와 임시 타깃 관리 | 명시적 Node Index 의존성 위에서 자원 위험을 검증·해결 |
 

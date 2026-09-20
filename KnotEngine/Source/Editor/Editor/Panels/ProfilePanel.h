@@ -16,6 +16,7 @@ private:
 	// 동일한 Profile ID의 Scope를 프레임에 걸쳐 누적하여 표시용 평균과 최대·최소를 보관한다.
 	struct FCPUHistoryStat
 	{
+		ECPUProfileThread Thread = ECPUProfileThread::Game;
 		FString Category;
 		FString Name;
 
@@ -33,19 +34,21 @@ private:
 
 	TArray<FCPUHistoryStat> HistoryStats;
 	TArray<FCPUHistoryStat> DisplayedStats;
-	FCPUProfileFrame DisplayedFrame;
+	FCPUProfileFrame DisplayedGameFrame;
+	FCPUProfileFrame DisplayedRenderFrame;
 	FGPUFrameStatistics DisplayedGPUStats;
 
 	FRenderSystem& RenderSystem;
 
 	float RefreshTimer = 0.0f;
 
-	uint64 LastSampledFrameNumber = 0;
+	uint64 LastSampledGameFrameNumber = 0;
+	uint64 LastSampledRenderFrameNumber = 0;
 	uint64 LastSampledGPUFrameNumber = 0;
 	bool bPaused = false;
 
 	void Sample(const FCPUProfileFrame& Frame);
-	void Refresh(const FCPUProfileFrame& Frame);
+	void Refresh(const FCPUProfileFrame& GameFrame, const FCPUProfileFrame& RenderFrame);
 	void DrawGPUStats() const;
-	void DrawCPUStats() const;
+	void DrawCPUStats(ECPUProfileThread Thread, const char* HeaderName, const char* TableName) const;
 };

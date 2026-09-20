@@ -118,6 +118,7 @@ void FContentPanel::Startup()
 	{
 		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
 		FolderIcon = RenderSystem.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
+		FolderIconTextureId = RenderSystem.GetImGuiTextureID(FolderIcon);
 	}
 	else
 	{
@@ -127,6 +128,7 @@ void FContentPanel::Startup()
 	{
 		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
 		FileIcon = RenderSystem.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
+		FileIconTextureId = RenderSystem.GetImGuiTextureID(FileIcon);
 	}
 	else
 	{
@@ -276,6 +278,8 @@ void FContentPanel::Shutdown()
 {
 	RenderSystem.DestroyTexture(FileIcon);
 	RenderSystem.DestroyTexture(FolderIcon);
+	FileIconTextureId = {};
+	FolderIconTextureId = {};
 }
 
 // 폴더 검색창과 계층 트리를 표시한다.
@@ -547,7 +551,7 @@ void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, f
 	const ImVec2 IconMax(IconMin.x + 48.0f, IconMin.y + 48.0f);
 	if (FolderIcon.IsValid())
 	{
-		DrawList->AddImage(ImTextureRef(RenderSystem.GetImGuiTextureID(FolderIcon)), IconMin, IconMax);
+		DrawList->AddImage(ImTextureRef(FolderIconTextureId), IconMin, IconMax);
 	}
 	const FString FolderName = GetFolderName(FolderPath);
 	ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 0.90f);
@@ -610,7 +614,7 @@ void FContentPanel::DrawAssetTile(const FAssetData& Asset, float TileWidth, floa
 	const ImVec2 IconMaximum(IconMinimum.x + 48.0f, IconMinimum.y + 48.0f);
 	if (FileIcon.IsValid())
 	{
-		DrawList->AddImage(ImTextureRef(RenderSystem.GetImGuiTextureID(FileIcon)), IconMinimum, IconMaximum);
+		DrawList->AddImage(ImTextureRef(FileIconTextureId), IconMinimum, IconMaximum);
 	}
 	ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 0.82f);
 	ImFont* TileFont = ImGui::GetFont();

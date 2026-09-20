@@ -103,8 +103,8 @@ Application은 EditorEngine과 ImGui System보다 오래 살아야 한다. 종�
 4. `FInputRouter`가 현재 프레임 입력을 대상별로 전달한다.
 5. WorldContext마다 World를 한 번 Tick한다.
 6. 등록된 ViewportClient를 Tick하고 ViewFamily를 구성한다.
-7. ViewFamily별로 Scene을 offscreen target에 렌더링한다.
-8. ImGui draw data를 Back Buffer에 합성하고 프레임을 제출한다.
+7. ImGui draw data를 `FImGuiDrawDataCopy`로 복사하고 ViewFamily와 함께 Render Thread에 제출한다.
+8. Render Thread가 Scene을 offscreen target에 렌더링하고 복사된 ImGui draw data를 Back Buffer에 합성한다.
 
 UI 구성을 먼저 수행해야 현재 Viewport의 크기와 hover 상태를 알 수 있다. World 렌더링은 Viewport texture를 완성한 뒤 ImGui 합성보다 먼저 수행한다.
 
@@ -175,7 +175,7 @@ Viewport 입력은 실제 Scene 이미지 영역만 대상으로 한다. Camera,
 
 Console은 Engine log sink가 전달한 메시지를 보관하고 표시한다. 로그 생산자는 Editor Panel을 알지 않으며, 다른 스레드에서 들어오는 메시지는 공유 저장소를 보호한 뒤 UI 스레드에서 읽는다.
 
-Profile Panel은 Engine CPU Profiler가 완성한 frame snapshot을 읽는다. 수집 중인 profiler 상태를 UI가 직접 순회하지 않는다.
+Profile Panel은 Game Thread와 Render Thread별 CPU Profiler 완료 Snapshot 및 Render Thread가 발행한 GPU 통계를 읽는다. 수집 중인 profiler 상태나 Render Device를 UI가 직접 조회하지 않는다.
 
 Viewport Overlay는 Viewport에 종속된 간단한 정보를 표시한다. Console은 표시 상태를 변경할 수 있지만 Overlay의 렌더링 자체를 담당하지 않는다. 통계 수집은 Engine/Core에 남고 Editor는 결과만 표현한다.
 
@@ -192,9 +192,9 @@ Editor는 플랫폼 메시지를 직접 처리하지 않는다. `FWindowsApplica
 현재 UI 구성, Editor 입력 라우팅, World Tick과 Scene 제출은 메인 스레드에서 실행한다.
 
 - Panel은 메인 스레드에서만 ImGui API를 호출한다.
-- SceneRenderer는 World의 확정된 Scene proxy 상태를 읽는다.
+- SceneRenderer는 Render Thread의 확정된 Scene proxy 상태를 읽는다.
 - Worker thread에서 생성된 로그는 동기화된 경로를 통해 Console에 전달한다.
-- Render Thread를 분리할 경우 ViewFamily, Render Target과 ImGui draw data의 수명을 명시적으로 보장해야 한다.
+- ViewFamily와 ImGui draw data는 Render Command가 값을 소유하고 Render Target의 생성·교체·제거는 Render Thread FIFO에서 수행한다.
 
 Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 필요한 데이터 수집과 runtime 기능은 Engine에 두고, 선택·도킹·위젯·편집 정책은 Editor에 둔다.
 
@@ -220,7 +220,9 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - Console log sink와 명령 입력
 - CPU Profile 표시와 Viewport 통계 Overlay
 - Content 스캔과 Asset Registry 기반 Content Panel
-- 메인 스레드의 ViewFamily별 Scene 렌더링과 ImGui 합성
+- 최대 2개 프레임의 비동기 Render Thread 제출
+- ImGui draw data 깊은 복사와 Context를 읽지 않는 RT 합성
+- Thread별 CPU Profile과 RT 발행 GPU 통계 표시
 
 ### 미구현
 
@@ -228,7 +230,6 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - Component 단위 선택과 기즈모
 - Undo/Redo와 범용 Editor command
 - PIE Game Viewport
-- Render Thread 분리
 
 ## 관련 문서
 

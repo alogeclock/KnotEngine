@@ -5,6 +5,7 @@
 #include "Render/RHI/RenderTypes.h"
 
 #include <array>
+#include <imgui.h>
 #include <string_view>
 
 class FRenderSystem;
@@ -78,6 +79,9 @@ private:
 
 	FTextureHandle FolderIcon;
 	FTextureHandle FileIcon;
+
+	ImTextureID FolderIconTextureId = {};
+	ImTextureID FileIconTextureId = {};
 
 	FString SelectedFolderPath = "/";
 	FString SelectedAssetPath;

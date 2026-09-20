@@ -27,20 +27,21 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
 FImGuiSystem::FImGuiSystem(
-	FWindowsApplication& InApplication,
-	UEditorEngine& InEditorEngine,
-	FAssetRegistry& InAssetRegistry,
-	FAssetImportManager& InAssetImportManager,
-	FEditorSettings& InEditorSettings,
-	FRenderSystem& InRenderSystem,
-	FInputRouter& InInputRouter,
-	FEditorSelection& InSelection)
-	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
-	  RenderSystem(InRenderSystem), InputRouter(InInputRouter), Selection(InSelection),
-	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderSystem, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
-	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderSystem), SettingsPanel(InEditorSettings)
+    FWindowsApplication& InApplication,
+    UEditorEngine& InEditorEngine,
+    FAssetRegistry& InAssetRegistry,
+    FAssetImportManager& InAssetImportManager,
+    FEditorSettings& InEditorSettings,
+    FRenderSystem& InRenderSystem,
+    FInputRouter& InInputRouter,
+    FEditorSelection& InSelection)
+    : Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
+      RenderSystem(InRenderSystem), InputRouter(InInputRouter), Selection(InSelection),
+      InspectorPanel(InAssetRegistry), ViewportPanel(InRenderSystem, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
+      ContentPanel(InAssetRegistry, InAssetImportManager, InRenderSystem), SettingsPanel(InEditorSettings)
 #if KNOT_CPU_PROFILER_ENABLED
-	  , ProfilePanel(InRenderSystem)
+      ,
+      ProfilePanel(InRenderSystem)
 #endif
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
@@ -85,7 +86,8 @@ void FImGuiSystem::Startup()
 	const std::span<const uint8> MediumFontBytes = LoadResourceBytes(IDR_PRETENDARD_MEDIUM);
 	const std::span<const uint8> SemiBoldFontBytes = LoadResourceBytes(IDR_PRETENDARD_SEMIBOLD);
 	panicf(MediumFontBytes.size() <= static_cast<size_t>((std::numeric_limits<int>::max)()) &&
-		SemiBoldFontBytes.size() <= static_cast<size_t>((std::numeric_limits<int>::max)()), "내장 폰트 데이터가 너무 큽니다.");
+	           SemiBoldFontBytes.size() <= static_cast<size_t>((std::numeric_limits<int>::max)()),
+	       "내장 폰트 데이터가 너무 큽니다.");
 
 	ImFontConfig FontConfig;
 	FontConfig.FontDataOwnedByAtlas = false;
@@ -98,7 +100,16 @@ void FImGuiSystem::Startup()
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 
-	RenderSystem.StartupImGui(ImGui::GetCurrentContext());
+	unsigned char* FontPixels = nullptr;
+	int FontWidth = 0;
+	int FontHeight = 0;
+	IO.Fonts->GetTexDataAsRGBA32(&FontPixels, &FontWidth, &FontHeight);
+	check(FontPixels && FontWidth > 0 && FontHeight > 0);
+	const SIZE_T FontDataSize = static_cast<SIZE_T>(FontWidth) * static_cast<SIZE_T>(FontHeight) * 4;
+	const ImTextureID FontTextureId = RenderSystem.StartupImGui(std::span<const uint8>(FontPixels, FontDataSize), static_cast<uint32>(FontWidth), static_cast<uint32>(FontHeight));
+	IO.Fonts->SetTexID(FontTextureId);
+	IO.BackendRendererName = "KnotEngine_D3D11";
+	IO.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 	ConsolePanel.Startup();
 	ContentPanel.Startup();
 	bStarted = true;
@@ -108,7 +119,6 @@ void FImGuiSystem::Startup()
 void FImGuiSystem::BeginFrame()
 {
 	ProcessLevelDialogs();
-	RenderSystem.BeginImGuiFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
@@ -187,7 +197,7 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		return FInputReply::Unhandled();
 	}
 
-	if (KeyEvent->Key == EKeyboardKey::Tilde && KeyEvent->Modifiers == EModifierKeyMask::Control)
+	if (KeyEvent->Key == EKeyboardKey::Tilde && HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control))
 	{
 		if (bShowConsole)
 		{
@@ -253,7 +263,7 @@ void FImGuiSystem::DrawBottomToolbar()
 			{
 				const FString FileName = FPaths::ToUtf8(Status.SourceFilePath.filename().wstring());
 				StatusText = "Importing " + FileName + "..." + "  |  " + std::to_string(static_cast<uint32>(Status.ElapsedSeconds)) + "s" +
-					(Status.QueuedCount > 0 ? "  |  " + std::to_string(Status.QueuedCount) + " queued" : "");
+				             (Status.QueuedCount > 0 ? "  |  " + std::to_string(Status.QueuedCount) + " queued" : "");
 				ImportStatusWidth = ImGui::GetFontSize() * 0.8f + ImGui::GetStyle().ItemSpacing.x + ImGui::CalcTextSize(StatusText.c_str()).x;
 			}
 
@@ -347,8 +357,7 @@ void FImGuiSystem::DrawBottomPanelDockspace()
 	ImGui::SetNextWindowPos(ImVec2(MainViewport->WorkPos.x, MainViewport->WorkPos.y + MainViewport->WorkSize.y - DrawerHeight));
 	ImGui::SetNextWindowSize(ImVec2(MainViewport->WorkSize.x, DrawerHeight));
 	ImGui::SetNextWindowViewport(MainViewport->ID);
-	constexpr ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
-		| ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+	constexpr ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 	if (ImGui::Begin("##BottomPanelDrawer", nullptr, WindowFlags))
@@ -375,11 +384,12 @@ void FImGuiSystem::DrawBottomPanelDockspace()
 void FImGuiSystem::EndFrame()
 {
 	ImGui::Render();
+	DrawData.Copy(ImGui::GetDrawData());
 }
 
-ImDrawData* FImGuiSystem::GetDrawData() const
+FImGuiDrawDataCopy FImGuiSystem::Consume()
 {
-	return ImGui::GetDrawData();
+	return std::move(DrawData);
 }
 
 void FImGuiSystem::Shutdown()
@@ -391,6 +401,9 @@ void FImGuiSystem::Shutdown()
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
 	RenderSystem.ShutdownImGui();
+	ImGuiIO& IO = ImGui::GetIO();
+	IO.BackendRendererName = nullptr;
+	IO.BackendFlags &= ~ImGuiBackendFlags_RendererHasVtxOffset;
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 	MediumFont = nullptr;
@@ -527,7 +540,7 @@ std::optional<std::filesystem::path> FImGuiSystem::OpenLevelDialog(bool bSave) c
 	if (FileSystemError)
 	{
 		KE_LOG(LogMapSerializer, Error, "Level 디렉터리를 만들지 못했다. Path={}, Error={}",
-			FPaths::ToUtf8(LevelDirectory.generic_wstring()), FileSystemError.message());
+		       FPaths::ToUtf8(LevelDirectory.generic_wstring()), FileSystemError.message());
 		return std::nullopt;
 	}
 

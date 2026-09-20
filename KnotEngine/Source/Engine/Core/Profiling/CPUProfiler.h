@@ -11,6 +11,12 @@
 // 등록된 Category와 Name 조합을 배열에서 직접 찾기 위한 CPU Profile ID다.
 using FCPUProfileId = uint32;
 
+enum class ECPUProfileThread : uint8
+{
+	Game,
+	Render,
+};
+
 // 완료된 한 프레임에서 동일한 Category와 Name으로 실행된 CPU Scope의 합산 결과다.
 struct ENGINE_API FCPUProfile
 {
@@ -30,6 +36,7 @@ struct ENGINE_API FCPUProfileFrame
 	double CPUTimeMs = 0.0;
 	float FrameTimeMs = 0.0f;
 	uint64 FrameNumber = 0;
+	ECPUProfileThread Thread = ECPUProfileThread::Game;
 };
 
 // 메인 스레드에서 한 프레임의 CPU Scope를 수집하고 다음 프레임이 끝날 때까지 유효한 완료 Snapshot을 제공한다.
@@ -37,15 +44,17 @@ class ENGINE_API FCPUProfiler final
 {
 public:
 	static FCPUProfileId RegisterProfile(std::string_view Category, std::string_view Name);
-	static void BeginFrame(float DeltaTime);
+	static void BeginFrame(ECPUProfileThread Thread, float DeltaTime);
 	static void EndFrame();
-	static const FCPUProfileFrame& GetLastFrame();
+	static FCPUProfileFrame GetLastFrame(ECPUProfileThread Thread);
 
 private:
 	friend class FCPUProfilerScope;
 
 	struct FState;
-	static FState& GetState();
+	struct FGlobalState;
+	static FState& GetThreadState();
+	static FGlobalState& GetGlobalState();
 	static bool BeginScope(FCPUProfileId ProfileId);
 	static void EndScope();
 };

@@ -414,7 +414,7 @@ World는 Level과 Component를 먼저 파괴하여 Proxy 등록을 해제하고 
 
 ## 현재 구현의 경계
 
-현재 World Tick은 Game/Editor Thread에서, Scene 갱신과 GPU 렌더링은 Render Thread에서 직렬 실행하며 다음 기능은 아직 제공하지 않는다.
+현재 World Tick과 Render Command 생성은 Game/Editor Thread에서 실행하고, Scene 갱신과 GPU 렌더링은 최대 2개 미완료 프레임으로 제한된 Render Thread에서 실행한다. 다음 기능은 아직 제공하지 않는다.
 
 - Register 훅과 Physics Registry의 실제 연결
 - Level visibility와 load 상태에 따른 Component 일괄 재등록
@@ -423,7 +423,7 @@ World는 Level과 Component를 먼저 파괴하여 Proxy 등록을 해제하고 
 - Level, Node와 Component 지연 파괴
 - Tick interval과 Paused Tick
 - Task Graph와 worker thread 실행
-- Render Thread 분리, 비동기 Scene 변경 전달과 GPU Fence 기반 자원 지연 해제
+- GPU Fence 기반 자원 지연 해제
 
 World 실행 목표는 [World-Architecture-Roadmap.md](World-Architecture-Roadmap.md)에, Render Thread와 Render Pass 목표는 [Rendering-Architecture.md](Rendering-Architecture.md)에 정의한다.
 

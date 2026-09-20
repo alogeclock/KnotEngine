@@ -5,9 +5,9 @@
 #include "Render/RHI/RenderTypes.h"
 
 #include <imgui.h>
+#include <span>
 
-struct ImDrawData;
-struct ImGuiContext;
+struct FImGuiDrawDataCopy;
 
 class RENDERER_API IImGuiRenderBackend
 {
@@ -21,9 +21,8 @@ public:
 	IImGuiRenderBackend& operator=(IImGuiRenderBackend&&) = delete;
 
 	// 성공하면 완전히 초기화된 상태로 반환하며, 필수 초기화 실패는 구현부에서 종료한다.
-	virtual void Startup(ImGuiContext* Context) = 0;
-	virtual void BeginFrame() = 0;
-	virtual void Render(FCommandListHandle CommandList, ImDrawData* DrawData) = 0;
+	virtual ImTextureID Startup(std::span<const uint8> FontPixels, uint32 FontWidth, uint32 FontHeight) = 0;
+	virtual void Render(FCommandListHandle CommandList, const FImGuiDrawDataCopy& DrawData) = 0;
 	virtual void Shutdown() = 0;
 
 	virtual ImTextureID GetImGuiTextureID(FTextureHandle Texture) const = 0;

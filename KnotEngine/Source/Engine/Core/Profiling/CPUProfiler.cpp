@@ -3,15 +3,15 @@
 #include "Core/Assert.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <limits>
+#include <mutex>
 
-// 함수 지역 static으로 유지되는 메인 스레드 전용 수집 상태다.
 struct FCPUProfiler::FState
 {
 	using FClock = std::chrono::steady_clock;
 
-	// 아직 종료되지 않은 중첩 Scope의 시작 시각과 누적 자식 시간을 보관하는 스택 항목이다.
 	struct FActiveScope
 	{
 		FCPUProfileId ProfileId = 0;
@@ -21,30 +21,48 @@ struct FCPUProfiler::FState
 
 	TArray<FActiveScope> ScopeStack;
 	TArray<FCPUProfile> Profiles;
-	TMap<FString, TMap<FString, FCPUProfileId>> ProfileIds;
-
-	FCPUProfileFrame LastFrame;
 	FClock::time_point FrameStartTime = {};
-
+	ECPUProfileThread Thread = ECPUProfileThread::Game;
 	float FrameTimeMs = 0.0f;
 	uint64 FrameNumber = 0;
 	bool bFrameActive = false;
 };
 
-// 프로파일러가 사용하는 메인 스레드 전용 상태의 단일 인스턴스를 반환한다.
-FCPUProfiler::FState& FCPUProfiler::GetState()
+struct FCPUProfiler::FGlobalState
 {
-	static FState State;
+	struct FProfileDefinition
+	{
+		FString Category;
+		FString Name;
+	};
+
+	std::mutex RegistryMutex;
+	TMap<FString, TMap<FString, FCPUProfileId>> ProfileIds;
+	TArray<FProfileDefinition> ProfileDefinitions;
+
+	std::mutex SnapshotMutex;
+	std::array<FCPUProfileFrame, 2> LastFrames;
+};
+
+FCPUProfiler::FState& FCPUProfiler::GetThreadState()
+{
+	thread_local FState State;
 	return State;
 }
 
-// Category와 Name 조합을 안정적인 Profile ID로 등록하거나 기존 ID를 반환한다.
+FCPUProfiler::FGlobalState& FCPUProfiler::GetGlobalState()
+{
+	static FGlobalState State;
+	return State;
+}
+
 FCPUProfileId FCPUProfiler::RegisterProfile(std::string_view Category, std::string_view Name)
 {
 	checkf(!Category.empty(), "CPU Profiler Category 이름이 비어 있다.");
 	checkf(!Name.empty(), "CPU Profiler Scope 이름이 비어 있다.");
 
-	FState& State = GetState();
+	FGlobalState& State = GetGlobalState();
+	std::lock_guard Lock(State.RegistryMutex);
 	TMap<FString, FCPUProfileId>& CategoryProfiles = State.ProfileIds[FString(Category)];
 	const auto ProfileIterator = CategoryProfiles.find(FString(Name));
 	if (ProfileIterator != CategoryProfiles.end())
@@ -52,20 +70,17 @@ FCPUProfileId FCPUProfiler::RegisterProfile(std::string_view Category, std::stri
 		return ProfileIterator->second;
 	}
 
-	checkf(State.Profiles.size() < static_cast<SIZE_T>((std::numeric_limits<FCPUProfileId>::max)()), "CPU Profile 수가 FCPUProfileId 범위를 초과했다.");
-	const FCPUProfileId ProfileId = static_cast<FCPUProfileId>(State.Profiles.size());
-	FCPUProfile& Profile = State.Profiles.emplace_back();
-	Profile.ProfileId = ProfileId;
-	Profile.Category = Category;
-	Profile.Name = Name;
-	CategoryProfiles.emplace(Profile.Name, ProfileId);
+	checkf(State.ProfileDefinitions.size() < static_cast<SIZE_T>((std::numeric_limits<FCPUProfileId>::max)()),
+	       "CPU Profile 수가 FCPUProfileId 범위를 초과했다.");
+	const FCPUProfileId ProfileId = static_cast<FCPUProfileId>(State.ProfileDefinitions.size());
+	State.ProfileDefinitions.push_back({ FString(Category), FString(Name) });
+	CategoryProfiles.emplace(State.ProfileDefinitions.back().Name, ProfileId);
 	return ProfileId;
 }
 
-// 새 프레임의 시간 정보를 기록하고 등록된 모든 Profile 측정값을 초기화한다.
-void FCPUProfiler::BeginFrame(float DeltaTime)
+void FCPUProfiler::BeginFrame(ECPUProfileThread Thread, float DeltaTime)
 {
-	FState& State = GetState();
+	FState& State = GetThreadState();
 	checkf(!State.bFrameActive && State.ScopeStack.empty(), "CPU Profiler Frame이 이미 시작되었다.");
 	for (FCPUProfile& Profile : State.Profiles)
 	{
@@ -74,57 +89,76 @@ void FCPUProfiler::BeginFrame(float DeltaTime)
 		Profile.MaxTimeMs = 0.0;
 		Profile.CallCount = 0;
 	}
+	State.Thread = Thread;
 	State.FrameTimeMs = DeltaTime * 1000.0f;
 	State.FrameStartTime = FState::FClock::now();
 	State.bFrameActive = true;
 }
 
-// 호출된 Profile만 프레임 Snapshot으로 복사하고 전체 CPU 측정 시간을 확정한다.
 void FCPUProfiler::EndFrame()
 {
-	FState& State = GetState();
+	FState& State = GetThreadState();
 	checkf(State.bFrameActive && State.ScopeStack.empty(), "CPU Profiler Scope가 종료되기 전에 Frame을 종료할 수 없다.");
 	const FState::FClock::time_point EndTime = FState::FClock::now();
 	State.bFrameActive = false;
 
-	State.LastFrame.Profiles.clear();
-	State.LastFrame.Profiles.reserve(State.Profiles.size());
+	FCPUProfileFrame Frame;
+	Frame.Profiles.reserve(State.Profiles.size());
 	for (const FCPUProfile& Profile : State.Profiles)
 	{
 		if (Profile.CallCount > 0)
 		{
-			State.LastFrame.Profiles.push_back(Profile);
+			Frame.Profiles.push_back(Profile);
 		}
 	}
-	State.LastFrame.CPUTimeMs = std::chrono::duration<double, std::milli>(EndTime - State.FrameStartTime).count();
-	State.LastFrame.FrameTimeMs = State.FrameTimeMs;
-	State.LastFrame.FrameNumber = ++State.FrameNumber;
+	Frame.CPUTimeMs = std::chrono::duration<double, std::milli>(EndTime - State.FrameStartTime).count();
+	Frame.FrameTimeMs = State.FrameTimeMs;
+	Frame.FrameNumber = ++State.FrameNumber;
+	Frame.Thread = State.Thread;
+
+	FGlobalState& GlobalState = GetGlobalState();
+	std::lock_guard Lock(GlobalState.SnapshotMutex);
+	GlobalState.LastFrames[static_cast<SIZE_T>(State.Thread)] = std::move(Frame);
 }
 
-// 가장 최근에 완료된 CPU Profile Frame Snapshot을 반환한다.
-const FCPUProfileFrame& FCPUProfiler::GetLastFrame()
+FCPUProfileFrame FCPUProfiler::GetLastFrame(ECPUProfileThread Thread)
 {
-	return GetState().LastFrame;
+	FGlobalState& State = GetGlobalState();
+	std::lock_guard Lock(State.SnapshotMutex);
+	return State.LastFrames[static_cast<SIZE_T>(Thread)];
 }
 
-// 등록된 Profile ID의 Scope를 중첩 스택에 추가하고 시작 시각을 기록한다.
 bool FCPUProfiler::BeginScope(FCPUProfileId ProfileId)
 {
-	FState& State = GetState();
+	FState& State = GetThreadState();
 	if (!State.bFrameActive)
 	{
 		return false;
 	}
 
-	checkf(ProfileId < State.Profiles.size(), "등록되지 않은 CPU Profile ID가 전달되었다.");
+	if (State.Profiles.size() <= ProfileId)
+	{
+		FGlobalState& GlobalState = GetGlobalState();
+		std::lock_guard Lock(GlobalState.RegistryMutex);
+		checkf(ProfileId < GlobalState.ProfileDefinitions.size(), "등록되지 않은 CPU Profile ID가 전달되었다.");
+		const SIZE_T PreviousSize = State.Profiles.size();
+		State.Profiles.resize(static_cast<SIZE_T>(ProfileId) + 1);
+		for (SIZE_T Index = PreviousSize; Index < State.Profiles.size(); ++Index)
+		{
+			const FGlobalState::FProfileDefinition& Definition = GlobalState.ProfileDefinitions[Index];
+			State.Profiles[Index].ProfileId = static_cast<FCPUProfileId>(Index);
+			State.Profiles[Index].Category = Definition.Category;
+			State.Profiles[Index].Name = Definition.Name;
+		}
+	}
+
 	State.ScopeStack.push_back({ ProfileId, FState::FClock::now(), 0.0 });
 	return true;
 }
 
-// 마지막 Scope의 Inclusive와 Exclusive 시간을 ID로 지정된 프레임 통계에 누적한다.
 void FCPUProfiler::EndScope()
 {
-	FState& State = GetState();
+	FState& State = GetThreadState();
 	checkf(State.bFrameActive && !State.ScopeStack.empty(), "시작되지 않은 CPU Profiler Scope를 종료할 수 없다.");
 	const FState::FClock::time_point EndTime = FState::FClock::now();
 	const FState::FActiveScope ActiveScope = State.ScopeStack.back();
@@ -144,13 +178,11 @@ void FCPUProfiler::EndScope()
 	++Profile.CallCount;
 }
 
-// 등록된 Profile ID의 CPU Scope를 시작한다.
 FCPUProfilerScope::FCPUProfilerScope(FCPUProfileId ProfileId)
 	: bActive(FCPUProfiler::BeginScope(ProfileId))
 {
 }
 
-// 활성 Scope가 수명 범위를 벗어나면 측정을 종료하고 결과를 누적한다.
 FCPUProfilerScope::~FCPUProfilerScope()
 {
 	if (bActive)

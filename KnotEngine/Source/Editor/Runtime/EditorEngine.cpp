@@ -16,16 +16,8 @@
 #include <algorithm>
 
 UEditorEngine::UEditorEngine(FWindowsApplication& Application, FRenderSystem& InRenderSystem)
-	: RenderSystem(InRenderSystem),
-	  ImGuiSystem(
-		  Application,
-		  *this,
-		  GetAssetManager().GetAssetRegistry(),
-		  AssetImportManager,
-		  EditorSettings,
-		  InRenderSystem,
-		  InputRouter,
-		  EditorSelection)
+    : RenderSystem(InRenderSystem),
+      ImGuiSystem(Application, *this, GetAssetManager().GetAssetRegistry(), AssetImportManager, EditorSettings, InRenderSystem, InputRouter, EditorSelection)
 {
 }
 
@@ -180,7 +172,7 @@ void UEditorEngine::Render()
 		}
 	}
 
-	RenderSystem.Render(std::move(Scenes), std::move(ViewFamilies), ImGuiSystem.GetDrawData());
+	RenderSystem.Render(std::move(Scenes), std::move(ViewFamilies), ImGuiSystem.Consume());
 }
 
 void UEditorEngine::RegisterViewportClient(FEditorViewportClient& ViewportClient)
@@ -258,12 +250,14 @@ void UEditorEngine::Shutdown()
 	AssetImportManager.Shutdown();
 	InputRouter.Reset();
 	ImGuiSystem.Shutdown();
+
 	if (UWorld* World = GetWorld())
 	{
 		World->EndPlay();
-		TArray<FScene*> Scenes = { &World->GetScene() };
-		RenderSystem.Render(std::move(Scenes), {}, nullptr);
+		World->Reset();
+		RenderSystem.Flush(World->GetScene());
 	}
+
 	DestroyWorldContext(EditorContextId);
 	EditorContextId = 0;
 

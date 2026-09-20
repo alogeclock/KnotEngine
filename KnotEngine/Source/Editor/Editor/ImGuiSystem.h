@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Render/RHI/RenderTypes.h"
+#include "Render/ImGui/ImGuiDrawDataCopy.h"
 #include "Editor/EditorSelection.h"
 #include "Input/InputRouter.h"
 #include "Editor/Panels/ConsolePanel.h"
@@ -44,8 +45,9 @@ public:
 	void BeginFrame();
 	void Draw(float DeltaTime);
 	void EndFrame();
-	ImDrawData* GetDrawData() const;
 	void Shutdown();
+
+	FImGuiDrawDataCopy Consume();
 
 private:
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
@@ -64,6 +66,7 @@ private:
 
 	ImFont* MediumFont = nullptr;
 	ImFont* SemiBoldFont = nullptr;
+	FImGuiDrawDataCopy DrawData;
 
 	FViewportStatState ViewportStatState;
 

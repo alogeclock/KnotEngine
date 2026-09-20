@@ -14,17 +14,24 @@ FProfilePanel::FProfilePanel(FRenderSystem& InRenderSystem)
 void FProfilePanel::Draw(float DeltaTime)
 {
 	RefreshTimer -= DeltaTime;
-	const FCPUProfileFrame& LastFrame = FCPUProfiler::GetLastFrame();
+	const FCPUProfileFrame GameFrame = FCPUProfiler::GetLastFrame(ECPUProfileThread::Game);
+	const FCPUProfileFrame RenderFrame = FCPUProfiler::GetLastFrame(ECPUProfileThread::Render);
 	bool bRefreshed = false;
-	if (!bPaused && LastFrame.FrameNumber != 0 && LastFrame.FrameNumber != LastSampledFrameNumber)
+	if (!bPaused && GameFrame.FrameNumber != 0 && GameFrame.FrameNumber != LastSampledGameFrameNumber)
 	{
-		Sample(LastFrame);
-		LastSampledFrameNumber = LastFrame.FrameNumber;
-		if (DisplayedFrame.FrameNumber == 0 || RefreshTimer <= 0.0f)
-		{
-			Refresh(LastFrame);
-			bRefreshed = true;
-		}
+		Sample(GameFrame);
+		LastSampledGameFrameNumber = GameFrame.FrameNumber;
+	}
+	if (!bPaused && RenderFrame.FrameNumber != 0 && RenderFrame.FrameNumber != LastSampledRenderFrameNumber)
+	{
+		Sample(RenderFrame);
+		LastSampledRenderFrameNumber = RenderFrame.FrameNumber;
+	}
+	if (!bPaused && (LastSampledGameFrameNumber != 0 || LastSampledRenderFrameNumber != 0) &&
+		(DisplayedGameFrame.FrameNumber == 0 || RefreshTimer <= 0.0f))
+	{
+		Refresh(GameFrame, RenderFrame);
+		bRefreshed = true;
 	}
 	const FGPUFrameStatistics LastGPUStatistics = RenderSystem.GetLastGPUFrameStatistics();
 	if (!bPaused && LastGPUStatistics.bValid && LastGPUStatistics.FrameNumber != LastSampledGPUFrameNumber)
@@ -40,7 +47,7 @@ void FProfilePanel::Draw(float DeltaTime)
 		}
 	}
 
-	if (!ImGui::Begin("Profile"))
+	if (!ImGui::Begin("Profile", nullptr, ImGuiWindowFlags_HorizontalScrollbar))
 	{
 		ImGui::End();
 		return;
@@ -55,7 +62,7 @@ void FProfilePanel::Draw(float DeltaTime)
 	ImGui::TextDisabled(bPaused ? "CPU/GPU sampling paused" : "CPU/GPU sampling active");
 	ImGui::Separator();
 
-	if (DisplayedFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid)
+	if (DisplayedGameFrame.FrameNumber == 0 && DisplayedRenderFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid)
 	{
 		ImGui::TextDisabled("Waiting for CPU/GPU profile data...");
 		ImGui::End();
@@ -63,9 +70,15 @@ void FProfilePanel::Draw(float DeltaTime)
 	}
 
 	DrawGPUStats();
-	if (DisplayedFrame.FrameNumber != 0)
+	const bool bHasGameStats = DisplayedGameFrame.FrameNumber != 0;
+	const bool bHasRenderStats = DisplayedRenderFrame.FrameNumber != 0;
+	if (bHasGameStats)
 	{
-		DrawCPUStats();
+		DrawCPUStats(ECPUProfileThread::Game, "CPU Stats (Game Thread)", "GameThreadCPUProfileStats");
+	}
+	if (bHasRenderStats)
+	{
+		DrawCPUStats(ECPUProfileThread::Render, "CPU Stats (Render Thread)", "RenderThreadCPUProfileStats");
 	}
 	ImGui::End();
 }
@@ -83,24 +96,28 @@ void FProfilePanel::DrawGPUStats() const
 		return;
 	}
 
-	if (ImGui::BeginTable("GPUProfileStats", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
+	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame
+		| ImGuiTableFlags_NoSavedSettings;
+	const float TableWidth = std::max(800.0f, ImGui::GetContentRegionAvail().x);
+	if (ImGui::BeginTable("GPUProfileStats", 5, TableFlags, ImVec2(TableWidth, 0.0f)))
 	{
-		ImGui::TableSetupColumn("Statistic");
-		ImGui::TableSetupColumn("Value");
+		ImGui::TableSetupColumn("GPU Frame Time");
+		ImGui::TableSetupColumn("IA Vertices");
+		ImGui::TableSetupColumn("IA Primitives");
+		ImGui::TableSetupColumn("VS Invocations");
+		ImGui::TableSetupColumn("PS Invocations");
 		ImGui::TableHeadersRow();
-		const auto DrawRow = [](const char* Name, const char* Format, auto Value)
-		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImGui::TextUnformatted(Name);
-			ImGui::TableSetColumnIndex(1);
-			ImGui::Text(Format, Value);
-		};
-		DrawRow("GPU Frame Time", "%.3f ms", DisplayedGPUStats.GPUTimeMs);
-		DrawRow("IA Vertices", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.IAVertices));
-		DrawRow("IA Primitives", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.IAPrimitives));
-		DrawRow("VS Invocations", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.VSInvocations));
-		DrawRow("PS Invocations", "%llu", static_cast<unsigned long long>(DisplayedGPUStats.PSInvocations));
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::Text("%.3f ms", DisplayedGPUStats.GPUTimeMs);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedGPUStats.IAVertices));
+		ImGui::TableSetColumnIndex(2);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedGPUStats.IAPrimitives));
+		ImGui::TableSetColumnIndex(3);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedGPUStats.VSInvocations));
+		ImGui::TableSetColumnIndex(4);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedGPUStats.PSInvocations));
 		ImGui::EndTable();
 	}
 }
@@ -110,14 +127,16 @@ void FProfilePanel::Sample(const FCPUProfileFrame& Frame)
 {
 	for (const FCPUProfile& FrameProfile : Frame.Profiles)
 	{
-		if (HistoryStats.size() <= FrameProfile.ProfileId)
+		const SIZE_T HistoryIndex = static_cast<SIZE_T>(FrameProfile.ProfileId) * 2 + static_cast<SIZE_T>(Frame.Thread);
+		if (HistoryStats.size() <= HistoryIndex)
 		{
-			HistoryStats.resize(static_cast<SIZE_T>(FrameProfile.ProfileId) + 1);
+			HistoryStats.resize(HistoryIndex + 1);
 		}
 
-		FCPUHistoryStat& HistoryStat = HistoryStats[FrameProfile.ProfileId];
+		FCPUHistoryStat& HistoryStat = HistoryStats[HistoryIndex];
 		if (HistoryStat.SampleCount == 0)
 		{
+			HistoryStat.Thread = Frame.Thread;
 			HistoryStat.Category = FrameProfile.Category;
 			HistoryStat.Name = FrameProfile.Name;
 			HistoryStat.MinTimeMs = FrameProfile.InclusiveTimeMs;
@@ -133,41 +152,46 @@ void FProfilePanel::Sample(const FCPUProfileFrame& Frame)
 }
 
 // 관측된 Scope 통계를 표시용 Snapshot으로 갱신하고 정렬한다.
-void FProfilePanel::Refresh(const FCPUProfileFrame& Frame)
+void FProfilePanel::Refresh(const FCPUProfileFrame& GameFrame, const FCPUProfileFrame& RenderFrame)
 {
-	DisplayedFrame = Frame;
+	DisplayedGameFrame = GameFrame;
+	DisplayedRenderFrame = RenderFrame;
 
 	DisplayedStats.clear();
-	for (const FCPUHistoryStat& HistoryStat : HistoryStats)
+	for (FCPUHistoryStat& HistoryStat : HistoryStats)
 	{
 		if (HistoryStat.SampleCount > 0)
 		{
 			DisplayedStats.push_back(HistoryStat);
+			HistoryStat = {};
 		}
 	}
 	std::stable_sort(DisplayedStats.begin(), DisplayedStats.end(), [](const FCPUHistoryStat& Left, const FCPUHistoryStat& Right)
 	{
+		if (Left.Thread != Right.Thread)
+		{
+			return Left.Thread < Right.Thread;
+		}
 		return Left.Category != Right.Category ? Left.Category < Right.Category : Left.TotalTimeMs > Right.TotalTimeMs;
 	});
 	RefreshTimer = RefreshInterval;
 }
 
-// 표시용 CPU Scope 통계를 Category별 행과 고정 열로 구성한다.
-void FProfilePanel::DrawCPUStats() const
+// 지정한 Thread의 CPU Scope 통계를 고정 열로 구성한다.
+void FProfilePanel::DrawCPUStats(ECPUProfileThread Thread, const char* HeaderName, const char* TableName) const
 {
-	if (!ImGui::CollapsingHeader("CPU Stats", ImGuiTreeNodeFlags_DefaultOpen))
+	if (!ImGui::CollapsingHeader(HeaderName, ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		return;
 	}
 
 	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable
-		| ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
-	const float TableHeight = std::max(1.0f, ImGui::GetContentRegionAvail().y);
-	if (ImGui::BeginTable("CPUProfileStats", 7, TableFlags, ImVec2(0.0f, TableHeight)))
+		| ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings;
+	const float TableWidth = std::max(800.0f, ImGui::GetContentRegionAvail().x);
+	if (ImGui::BeginTable(TableName, 7, TableFlags, ImVec2(TableWidth, 0.0f)))
 	{
-		ImGui::TableSetupScrollFreeze(0, 1);
 		ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 180.0f);
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 260.0f);
 		ImGui::TableSetupColumn("Calls", ImGuiTableColumnFlags_WidthFixed, 55.0f);
 		ImGui::TableSetupColumn("Total(ms)", ImGuiTableColumnFlags_WidthFixed, 75.0f);
 		ImGui::TableSetupColumn("Avg(ms)", ImGuiTableColumnFlags_WidthFixed, 75.0f);
@@ -175,20 +199,11 @@ void FProfilePanel::DrawCPUStats() const
 		ImGui::TableSetupColumn("Min(ms)", ImGuiTableColumnFlags_WidthFixed, 75.0f);
 		ImGui::TableHeadersRow();
 
-		FString PreviousCategory;
 		for (const FCPUHistoryStat& Stat : DisplayedStats)
 		{
-			if (Stat.Category != PreviousCategory)
+			if (Stat.Thread != Thread)
 			{
-				ImGui::TableNextRow();
-				ImGui::TableSetColumnIndex(0);
-				ImGui::TextUnformatted(Stat.Category.c_str());
-				for (int ColumnIndex = 1; ColumnIndex < 7; ++ColumnIndex)
-				{
-					ImGui::TableSetColumnIndex(ColumnIndex);
-					ImGui::TextDisabled("---");
-				}
-				PreviousCategory = Stat.Category;
+				continue;
 			}
 
 			ImGui::TableNextRow();

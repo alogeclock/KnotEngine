@@ -244,8 +244,7 @@ void FViewportPanel::DrawViewport()
 	Viewport.Resize(Width, Height);
 	if (Viewport.IsValid())
 	{
-		const ImTextureID TextureId = RenderSystem.GetImGuiTextureID(Viewport.GetDisplayColorTarget());
-		ImGui::Image(ImTextureRef(TextureId), ImageSize);
+		ImGui::Image(ImTextureRef(Viewport.GetDisplayTextureId()), ImageSize);
 		const ImVec2 ImagePosition = ImGui::GetItemRectMin();
 		ViewportClient.SetInputRect(FVector2(ImagePosition.x, ImagePosition.y), FVector2(ImageSize.x, ImageSize.y));
 		const bool bImageHovered = ImGui::IsItemHovered();
