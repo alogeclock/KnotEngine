@@ -127,7 +127,7 @@ void FSceneRenderer::CullView(const FSceneView& View)
 	for (const auto& Entry : ViewFamily.Scene->GetProxies())
 	{
 		const FPrimitiveSceneProxy& Primitive = *Entry;
-		if (Primitive.bVisible && Primitive.WorldBounds.IsValid() && View.Frustum.Intersects(Primitive.WorldBounds) != FFrustum::EFrustumIntersectResult::Outside)
+		if (Primitive.bVisible && Primitive.WorldBounds.IsValid() && !View.Frustum.IsOutside(Primitive.WorldBounds))
 		{
 			VisiblePrimitives.push_back(&Primitive);
 		}

@@ -46,9 +46,11 @@ void FFrustum::UpdateFromCamera(const FMatrix& ViewProjection)
 		}
 	}
 
-	for (const FPlane& Plane : Planes)
+	for (int32 Index = 0; Index < 6; ++Index)
 	{
+		const FPlane& Plane = Planes[Index];
 		check(Plane.GetSignedDistance(TestPoint) >= -KMath::Epsilon);
+		AbsoluteNormals[Index] = FVector(std::fabs(Plane.Normal.X), std::fabs(Plane.Normal.Y), std::fabs(Plane.Normal.Z));
 	}
 }
 
@@ -58,11 +60,10 @@ FFrustum::EFrustumIntersectResult FFrustum::Intersects(const FAABB& Box) const
 	const FVector Center = Box.GetCenter();
 	const FVector Extent = Box.GetExtent();
 	bool bAllInside = true;
-	for (const FPlane& Plane : Planes)
+	for (int32 Index = 0; Index < 6; ++Index)
 	{
-		const float Radius = std::fabs(Plane.Normal.X * Extent.X) +
-		                     std::fabs(Plane.Normal.Y * Extent.Y) +
-		                     std::fabs(Plane.Normal.Z * Extent.Z);
+		const FPlane& Plane = Planes[Index];
+		const float Radius = AbsoluteNormals[Index] | Extent;
 		const float Distance = Plane.GetSignedDistance(Center);
 		if (Distance + Radius < 0.0f)
 		{
@@ -75,6 +76,23 @@ FFrustum::EFrustumIntersectResult FFrustum::Intersects(const FAABB& Box) const
 	}
 
 	return bAllInside ? EFrustumIntersectResult::Inside : EFrustumIntersectResult::Intersect;
+}
+
+// Frustum 밖에 완전히 놓인 Bounds인지 컬링에 필요한 최소 계산만 수행합니다.
+bool FFrustum::IsOutside(const FAABB& Box) const
+{
+	const FVector Center = Box.GetCenter();
+	const FVector Extent = Box.GetExtent();
+	for (int32 Index = 0; Index < 6; ++Index)
+	{
+		const FPlane& Plane = Planes[Index];
+		const float Radius = AbsoluteNormals[Index] | Extent;
+		if (Plane.GetSignedDistance(Center) + Radius < 0.0f)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 // Contains 조건을 검사합니다.

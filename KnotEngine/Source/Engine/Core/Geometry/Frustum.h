@@ -24,5 +24,9 @@ struct ENGINE_API FFrustum
 	void UpdateFromCamera(const FMatrix& View, const FMatrix& Projection);
 	void UpdateFromCamera(const FMatrix& ViewProjection);
 	EFrustumIntersectResult Intersects(const FAABB& Box) const;
+	bool IsOutside(const FAABB& Box) const;
 	bool Contains(const FVector& Point) const;
+
+private:
+	FVector AbsoluteNormals[6];
 };
