@@ -31,8 +31,10 @@ FAssetManager Cache
 Asset을 사용하는 Component 또는 System
         ↓
 CPU 데이터
-        ↓ 최초 사용
-GPU Resource 생성
+        ↓ Render Command
+Renderer Resource Cache
+        ↓ 최초 사용 또는 Revision 변경
+GPU Resource 생성·교체
 ```
 
 Asset은 다음 세 계층으로 나뉜다.
@@ -73,7 +75,7 @@ Load 요청
    UObject 생성 및 Cache 등록
 ```
 
-동일한 Asset을 사용하는 여러 Component는 하나의 UObject와 Render Data를 공유한다. Manager는 보관 중인 `TObjectPtr`를 GC 참조 수집에 전달하고, 종료할 때 GPU Resource를 포함한 Asset을 Renderer보다 먼저 정리한다.
+동일한 Asset을 사용하는 여러 Component는 하나의 UObject와 CPU 데이터를 공유한다. Manager는 보관 중인 `TObjectPtr`를 GC 참조 수집에 전달한다. 종료할 때는 Render Thread에서 Renderer의 Asset Resource Cache를 먼저 비운 뒤 Asset UObject를 파괴한다.
 
 현재 `FAssetManager`와 `FAssetBinaryLoader`는 Static Mesh, Material, Texture2D를 지원하며 Asset별 Cache와 타입별 Payload 검증을 제공한다.
 
@@ -86,19 +88,27 @@ FAssetManager
 └─ TObjectPtr<UStaticMesh>
    ├─ AssetPath
    ├─ AssetId
-   └─ FStaticMesh
+	├─ Revision
+	└─ FStaticMesh CPU Data
       ├─ FStaticMeshLOD[0]
       │  ├─ Vertex 배열
       │  ├─ Index 배열
-      │  ├─ Local Bounds
-      │  └─ FMeshBuffer
+	  │  ├─ Section 배열
+	  │  └─ Local Bounds
       ├─ FStaticMeshLOD[1..]
       └─ 전체 Local Bounds
+
+URenderer
+└─ Static Mesh Resource Cache
+   └─ FStaticMeshResource
+	  └─ FStaticMeshLODResource[]
+	     ├─ FMeshBuffer
+	     └─ Section 복사본
 ```
 
-`UStaticMesh`는 Asset의 식별과 UObject 수명을 담당한다. `FStaticMesh`와 `FStaticMeshLOD`는 LOD별 CPU Render Data를 소유하고, `FMeshBuffer`는 대응하는 GPU Vertex/Index Buffer를 관리한다.
+`UStaticMesh`는 Asset 식별, CPU Mesh 데이터와 Revision을 소유한다. `FStaticMeshResource`는 Renderer Cache에서 CPU LOD에 대응하는 GPU `FMeshBuffer`와 Draw Section 복사본을 소유한다. 재임포트로 Revision이 변경되면 다음 Mesh Render Command에서 기존 Resource를 제자리에서 재생성한다.
 
-`UStaticMeshComponent`는 `UStaticMesh`를 참조한다. `FStaticMeshSceneProxy`는 렌더링 중 Asset의 `FStaticMesh`를 사용하지만 데이터를 복제하지 않는다.
+`UStaticMeshComponent`는 `UStaticMesh`를 참조한다. Render Command 적용 시 CPU Mesh를 Resource로 변환한 뒤 `FStaticMeshSceneProxy`에는 Renderer 소유 `FStaticMeshResource`의 비소유 참조만 남는다. Draw Pass와 LOD 선택은 CPU Asset을 다시 조회하지 않는다.
 
 현재 `.kasset`에는 Static Mesh Header와 LOD별 Vertex/Index Payload가 저장된다. Loader는 Magic, Version, Vertex Stride, 배열 범위와 Index 유효성을 검사한 뒤 `UStaticMesh`를 생성한다.
 
@@ -118,15 +128,24 @@ UMaterialInterface
 UTexture
 └─ UTexture2D
    ├─ 크기, Format과 sRGB 정보
-   ├─ CPU Mip Payload
-   └─ FTexture GPU Resource
+	└─ CPU Mip Payload
+
+URenderer
+└─ Texture Resource Cache
+	└─ FTextureResource
+
+URenderer
+└─ Material Resource Cache
+	└─ FMaterialResource
+	   ├─ Pipeline과 Material Constant
+	   └─ FTextureResource 참조와 Sampler
 ```
 
 `UMaterial`은 Shader와 고정 Pipeline State의 실행 계약을 정의하고, `FMaterial`은 Content 소스 경로·Entry Point·Stage·Permutation ID로 구성된 `FShaderKey`를 저장한다. Shader Registry는 같은 Key의 GPU Shader를 최초 사용 시 생성하여 공유한다. `UMaterialInstance`는 Import된 색상, 수치와 Texture를 보관하며 부모 `UMaterial`의 Parameter를 이름으로 조회하고 Override가 없으면 기본값으로 돌아간다.
 
 Texture는 다음 계층으로 관리한다.
 
-Texture의 원본 PNG 같은 Source 파일은 Editor Import 입력이다. Runtime은 플랫폼에 맞게 변환된 `.kasset` Mip Payload를 읽는다. GPU Texture는 최초 사용 시 생성하고 Material은 Texture UObject를 참조한다.
+Texture의 원본 PNG 같은 Source 파일은 Editor Import 입력이다. Runtime은 플랫폼에 맞게 변환된 `.kasset` Mip Payload를 읽는다. `UTexture2D`는 CPU Mip과 Revision을 소유하고 Renderer가 최초 Material Resource 생성 시 GPU `FTextureResource`를 생성한다. Material은 Texture UObject나 복사된 GPU Handle 대신 Renderer가 안정적으로 소유하는 `FTextureResource`를 참조한다.
 
 ## Skeletal Mesh와 Skeleton
 
@@ -192,21 +211,23 @@ Skeleton 호환성, Material Parameter 타입과 Texture 용도처럼 참조가 
 
 ## CPU와 GPU Resource 수명
 
-바이너리 로드는 UObject와 CPU 데이터까지만 생성한다. GPU Resource는 Render Device가 준비된 뒤 최초 렌더링 시 초기화한다.
+바이너리 로드는 UObject와 CPU 데이터까지만 생성한다. GPU Resource는 Render Thread에서 Renderer Cache가 최초 사용 시 초기화한다.
 
 ```text
 .kasset Load
     ↓
 UObject + CPU Data
-    ↓ 최초 가시 Draw
-InitResources(RenderDevice)
-    ↓
+	↓ Render Command
+Renderer::GetOrCreate Resource
+	↓
 GPU Resource
 ```
 
-현재 Static Mesh는 `FStaticMesh::InitResources()`에서 LOD별 `FMeshBuffer`를 만든다. 이미 초기화된 Resource는 다시 만들지 않으며, 일부 생성이 실패하면 해당 Asset에서 생성한 Resource를 정리한다.
+Static Mesh, Texture, Material의 GPU 대응 객체는 각각 `FStaticMeshResource`, `FTextureResource`, `FMaterialResource`로 통일한다. 세 Cache는 모두 영속 `FAssetId`를 Key로 사용하고 Resource가 기록한 `SourceRevision`과 Asset Revision이 다를 때 같은 Resource 인스턴스를 갱신한다. GPU Resource의 생성과 해제는 Render Thread에서만 수행한다.
 
-GPU Handle은 Asset UObject의 생존만으로 안전해지는 것이 아니다. Asset Resource는 Render Device보다 먼저 해제해야 하며, Render Thread 또는 D3D12가 도입되면 GPU 작업 완료를 확인한 뒤 지연 해제해야 한다.
+Resource Cache는 Asset 주소를 Key로 사용하지 않으며 Resource도 UObject를 장기 소유하지 않는다. 현재 최초 생성·갱신 명령을 적용하는 순간에는 `FAssetManager`가 수명을 보장하는 CPU Asset을 읽지만, Scene Proxy와 이후 Draw Pass에는 Renderer Resource 참조만 유지한다. 기본 Material과 White Texture는 유효하지 않은 Asset ID를 Cache Key로 사용하는 대신 Renderer의 명시적인 기본 Resource로 소유한다.
+
+GPU Handle은 Asset UObject의 생존만으로 안전해지는 것이 아니다. Renderer Cache는 Asset UObject와 Render Device보다 먼저 비워야 하며, D3D12 도입 후에는 GPU 작업 완료를 확인한 뒤 지연 해제해야 한다.
 
 CPU 데이터를 GPU 업로드 뒤 유지할지는 Asset 타입과 Editor 기능에 따라 결정한다. 충돌 생성, 재업로드 또는 Editor 미리보기에 필요하면 유지하고, 큰 Runtime Asset에서 필요하지 않다면 Cook 설정으로 제거할 수 있다.
 
@@ -239,9 +260,11 @@ CPU 데이터를 GPU 업로드 뒤 유지할지는 Asset 타입과 Editor 기능
 - [AssetId.h](../KnotEngine/Source/Engine/Asset/Asset/AssetId.h)
 - [AssetBinaryLoader.h](../KnotEngine/Source/Engine/Asset/AssetBinaryLoader.h)
 - [StaticMesh.h](../KnotEngine/Source/Engine/Asset/Mesh/StaticMesh.h)
-- [Mesh.h](../KnotEngine/Source/Engine/Render/Resource/Mesh.h)
+- [StaticMeshResource.h](../KnotEngine/Source/Engine/Render/Resource/Mesh/StaticMeshResource.h)
+- [GeometryMesh.h](../KnotEngine/Source/Engine/Render/Resource/Mesh/GeometryMesh.h)
 - [MaterialInterface.h](../KnotEngine/Source/Engine/Asset/Material/MaterialInterface.h)
 - [Texture2D.h](../KnotEngine/Source/Engine/Asset/Texture/Texture2D.h)
-- [Material.h](../KnotEngine/Source/Engine/Render/Resource/Material.h)
-- [Texture.h](../KnotEngine/Source/Engine/Render/Resource/Texture.h)
+- [Material.h](../KnotEngine/Source/Engine/Asset/Material/Material.h)
+- [MaterialResource.h](../KnotEngine/Source/Engine/Render/Resource/MaterialResource.h)
+- [TextureResource.h](../KnotEngine/Source/Engine/Render/Resource/TextureResource.h)
 - [AssetRegistry.h](../KnotEngine/Source/Engine/Asset/AssetRegistry.h)

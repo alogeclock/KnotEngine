@@ -3,13 +3,13 @@
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/RHI/RenderTypes.h"
 
-class IRenderDevice;
+class FRenderSystem;
 
 // 완료된 CPU Profile Frame을 주기적으로 집계하고 CPU 통계를 ImGui 표로 표시한다.
 class FProfilePanel
 {
 public:
-	explicit FProfilePanel(const IRenderDevice& InRenderDevice);
+	explicit FProfilePanel(FRenderSystem& InRenderSystem);
 	void Draw(float DeltaTime);
 
 private:
@@ -35,7 +35,8 @@ private:
 	TArray<FCPUHistoryStat> DisplayedStats;
 	FCPUProfileFrame DisplayedFrame;
 	FGPUFrameStatistics DisplayedGPUStats;
-	const IRenderDevice& RenderDevice;
+
+	FRenderSystem& RenderSystem;
 
 	float RefreshTimer = 0.0f;
 

@@ -2,12 +2,12 @@
 
 #include "Render/RHI/RenderTypes.h"
 
-class IRenderDevice;
+class FRenderSystem;
 
 class FViewport
 {
 public:
-	explicit FViewport(IRenderDevice& InRenderDevice);
+	explicit FViewport(FRenderSystem& InRenderSystem);
 	~FViewport();
 
 	FViewport(const FViewport&) = delete;
@@ -31,7 +31,7 @@ public:
 	}
 
 private:
-	IRenderDevice& RenderDevice;
+	FRenderSystem& RenderSystem;
 
 	FTextureHandle SceneColorTarget; // Gamma Correction 이전 Linear Color를 저장하며, Post Process Pass가 SRV로 읽는 Target이다.
 	FTextureHandle DisplayColorTarget; // Post Process 결과를 저장하며, Viewport Panel이 표시하는 최종 Target이다.

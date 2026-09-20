@@ -1,12 +1,12 @@
 #include "Editor/Panels/ProfilePanel.h"
 
-#include "Render/RHI/RenderDevice.h"
+#include "Render/RenderSystem.h"
 
 #include <algorithm>
 #include <imgui.h>
 
-FProfilePanel::FProfilePanel(const IRenderDevice& InRenderDevice)
-	: RenderDevice(InRenderDevice)
+FProfilePanel::FProfilePanel(FRenderSystem& InRenderSystem)
+	: RenderSystem(InRenderSystem)
 {
 }
 
@@ -26,7 +26,7 @@ void FProfilePanel::Draw(float DeltaTime)
 			bRefreshed = true;
 		}
 	}
-	const FGPUFrameStatistics& LastGPUStatistics = RenderDevice.GetLastFrameStatistics();
+	const FGPUFrameStatistics LastGPUStatistics = RenderSystem.GetLastGPUFrameStatistics();
 	if (!bPaused && LastGPUStatistics.bValid && LastGPUStatistics.FrameNumber != LastSampledGPUFrameNumber)
 	{
 		LastSampledGPUFrameNumber = LastGPUStatistics.FrameNumber;

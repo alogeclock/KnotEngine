@@ -34,7 +34,7 @@ void UTransformComponent::OnTransformChanged()
 		{
 			if (Component->IsA(UPrimitiveComponent::StaticClass()))
 			{
-				static_cast<UPrimitiveComponent*>(Component.Get())->MarkPrimitiveSceneProxy();
+				static_cast<UPrimitiveComponent*>(Component.Get())->EnqueueRenderCommand(ERenderCommandType::Transform);
 			}
 		}
 	}

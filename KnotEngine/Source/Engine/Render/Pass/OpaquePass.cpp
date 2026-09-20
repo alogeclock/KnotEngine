@@ -1,11 +1,13 @@
 #include "Render/Pass/OpaquePass.h"
 
 #include "Core/Assert.h"
-#include "Render/Proxy/MaterialRenderProxy.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
+#include "Render/Resource/MaterialResource.h"
 #include "Render/Resource/Mesh/MeshBuffer.h"
-#include "Render/Resource/Mesh/Mesh.h"
+#include "Asset/Mesh/StaticMesh.h"
+#include "Render/Resource/Mesh/StaticMeshResource.h"
+#include "Render/Resource/TextureResource.h"
 #include "Render/Resource/Mesh/Vertex.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
@@ -14,7 +16,7 @@
 #include <cmath>
 
 // Pipeline, Material, Mesh와 View Depth를 상태 변경 우선순위에 맞춰 64비트 정렬 키로 패킹한다.
-uint64 FOpaquePass::GenerateSortKey(const FMaterialRenderProxy& Material, const FMeshBuffer& MeshBuffer, float Depth, float FarClip)
+uint64 FOpaquePass::GenerateSortKey(const FMaterialResource& Material, const FMeshBuffer& MeshBuffer, float Depth, float FarClip)
 {
 	static constexpr uint32 PipelineSortBitCount = 12;
 	static constexpr uint32 MaterialSortBitCount = 20;
@@ -53,16 +55,16 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
 	{
 		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
-		check(StaticMeshProxy.Mesh);
-		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(StaticMeshProxy.SelectLOD(View));
+		check(StaticMeshProxy.MeshResource);
+		const SIZE_T LODIndex = StaticMeshProxy.SelectLOD(View);
+		const FStaticMeshLODResource& LOD = StaticMeshProxy.MeshResource->GetLOD(LODIndex);
 		const FMeshBuffer* MeshBuffer = &LOD.GetMeshBuffer();
 		checkf(MeshBuffer->IsValid(), "준비되지 않은 Static Mesh가 Opaque Pass에 전달되었다.");
 		const float Depth = View.ViewMatrix.TransformPosition(Primitive->WorldBounds.GetCenter()).Z;
 
-		for (const FStaticMeshSection& Section : LOD.GetSections())
+		for (const FStaticMeshSectionResource& Section : LOD.GetSections())
 		{
-			const UMaterialInterface* MaterialInterface = StaticMeshProxy.GetMaterial(Section.MaterialIndex);
-			const FMaterialRenderProxy* Material = &Renderer.RegisterMaterial(MaterialInterface);
+			const FMaterialResource* Material = &StaticMeshProxy.GetMaterial(Section.MaterialIndex);
 
 			FMeshDrawCommand Command;
 			Command.Primitive = Primitive;
@@ -106,12 +108,12 @@ void FOpaquePass::ExecutePass(
 	const auto* ViewBytes = reinterpret_cast<const uint8*>(&ViewConstants);
 	RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
 	FPipelineStateHandle CurrentPipelineState;
-	const FMaterialRenderProxy* CurrentMaterial = nullptr;
+	const FMaterialResource* CurrentMaterial = nullptr;
 	const FMeshBuffer* CurrentMeshBuffer = nullptr;
 
 	for (const FMeshDrawCommand& Command : OpaqueCommands)
 	{
-		check(Command.Material && Command.Material->IsRegistered());
+		check(Command.Material && Command.Material->IsValid());
 		const FPipelineStateHandle PipelineState = Command.Material->GetPipelineState();
 		if (CurrentPipelineState != PipelineState)
 		{
@@ -127,9 +129,10 @@ void FOpaquePass::ExecutePass(
 					RenderDevice.SetConstantData(CommandList, Binding.Stage, Binding.Slot, Command.Material->GetConstants());
 				}
 			}
-			for (const FMaterialRenderProxy::FTextureBinding& Binding : Command.Material->GetTextures())
+			for (const FMaterialResource::FTextureBinding& Binding : Command.Material->GetTextures())
 			{
-				RenderDevice.SetTexture(CommandList, Binding.Stage, Binding.TextureSlot, Binding.Texture);
+				check(Binding.TextureResource && Binding.TextureResource->IsValid());
+				RenderDevice.SetTexture(CommandList, Binding.Stage, Binding.TextureSlot, Binding.TextureResource->GetHandle());
 				if (Binding.SamplerSlot != FSamplerHandle::InvalidIndex)
 				{
 					RenderDevice.SetSampler(CommandList, Binding.Stage, Binding.SamplerSlot, Binding.Sampler);

@@ -1,7 +1,7 @@
 #include "Editor/Panels/ViewportPanel.h"
 
 #include "Input/InputRouter.h"
-#include "Render/ImGui/ImGuiRenderBackend.h"
+#include "Render/RenderSystem.h"
 #include "Viewport/Level/LevelEditorViewportClient.h"
 #include "Viewport/Viewport.h"
 
@@ -10,12 +10,11 @@
 #include <iterator>
 
 FViewportPanel::FViewportPanel(
-	IRenderDevice& InRenderDevice,
-	IImGuiRenderBackend& InRenderBackend,
+	FRenderSystem& InRenderSystem,
 	FInputRouter& InInputRouter,
 	const FViewportStatState& InStatState,
 	FEditorSelection& InSelection)
-	: Viewport(InRenderDevice), ViewportClient(Viewport, InSelection), StatOverlay(InStatState), RenderBackend(InRenderBackend), InputRouter(InInputRouter)
+	: Viewport(InRenderSystem), ViewportClient(Viewport, InSelection), StatOverlay(InStatState), RenderSystem(InRenderSystem), InputRouter(InInputRouter)
 {
 }
 
@@ -245,7 +244,7 @@ void FViewportPanel::DrawViewport()
 	Viewport.Resize(Width, Height);
 	if (Viewport.IsValid())
 	{
-		const ImTextureID TextureId = RenderBackend.GetImGuiTextureID(Viewport.GetDisplayColorTarget());
+		const ImTextureID TextureId = RenderSystem.GetImGuiTextureID(Viewport.GetDisplayColorTarget());
 		ImGui::Image(ImTextureRef(TextureId), ImageSize);
 		const ImVec2 ImagePosition = ImGui::GetItemRectMin();
 		ViewportClient.SetInputRect(FVector2(ImagePosition.x, ImagePosition.y), FVector2(ImageSize.x, ImageSize.y));

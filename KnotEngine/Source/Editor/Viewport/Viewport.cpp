@@ -1,9 +1,9 @@
 #include "Viewport.h"
 
-#include "Render/RHI/RenderDevice.h"
+#include "Render/RenderSystem.h"
 
-FViewport::FViewport(IRenderDevice& InRenderDevice)
-	: RenderDevice(InRenderDevice)
+FViewport::FViewport(FRenderSystem& InRenderSystem)
+	: RenderSystem(InRenderSystem)
 {
 }
 
@@ -25,27 +25,27 @@ void FViewport::Resize(uint32 InWidth, uint32 InHeight)
 	ColorDesc.Height = InHeight;
 	ColorDesc.Format = ETextureFormat::BGRA8UNorm;
 	ColorDesc.Usage = ETextureUsage::RenderTarget | ETextureUsage::ShaderResource;
-	SceneColorTarget = RenderDevice.CreateTexture(ColorDesc);
-	DisplayColorTarget = RenderDevice.CreateTexture(ColorDesc);
+	SceneColorTarget = RenderSystem.CreateTexture(ColorDesc);
+	DisplayColorTarget = RenderSystem.CreateTexture(ColorDesc);
 
 	FTextureDesc DepthDesc;
 	DepthDesc.Width = InWidth;
 	DepthDesc.Height = InHeight;
 	DepthDesc.Format = ETextureFormat::D32Float;
 	DepthDesc.Usage = ETextureUsage::DepthStencil | ETextureUsage::ShaderResource;
-	SelectionDepthTarget = RenderDevice.CreateTexture(DepthDesc);
+	SelectionDepthTarget = RenderSystem.CreateTexture(DepthDesc);
 	DepthDesc.Usage = ETextureUsage::DepthStencil;
-	DepthTarget = RenderDevice.CreateTexture(DepthDesc);
+	DepthTarget = RenderSystem.CreateTexture(DepthDesc);
 	Width = InWidth;
 	Height = InHeight;
 }
 
 void FViewport::Release()
 {
-	RenderDevice.DestroyTexture(DepthTarget);
-	RenderDevice.DestroyTexture(SelectionDepthTarget);
-	RenderDevice.DestroyTexture(DisplayColorTarget);
-	RenderDevice.DestroyTexture(SceneColorTarget);
+	RenderSystem.DestroyTexture(DepthTarget);
+	RenderSystem.DestroyTexture(SelectionDepthTarget);
+	RenderSystem.DestroyTexture(DisplayColorTarget);
+	RenderSystem.DestroyTexture(SceneColorTarget);
 	Width = 0;
 	Height = 0;
 }

@@ -5,8 +5,7 @@
 #include "Viewport/Viewport.h"
 
 class FInputRouter;
-class IImGuiRenderBackend;
-class IRenderDevice;
+class FRenderSystem;
 struct FEditorSelection;
 
 // ViewportPanel은 Level Editor의 Viewport를 ImGui Window로 감싸서 렌더링하고, InputRouter에 ViewportClient를 등록한다.
@@ -14,8 +13,7 @@ class FViewportPanel
 {
 public:
 	FViewportPanel(
-		IRenderDevice& InRenderDevice,
-		IImGuiRenderBackend& InRenderBackend,
+		FRenderSystem& InRenderSystem,
 		FInputRouter& InInputRouter,
 		const FViewportStatState& InStatState,
 		FEditorSelection& InSelection);
@@ -32,6 +30,7 @@ private:
 	FViewport Viewport;
 	FLevelEditorViewportClient ViewportClient;
 	FViewportStatOverlay StatOverlay;
-	IImGuiRenderBackend& RenderBackend;
+	
+	FRenderSystem& RenderSystem;
 	FInputRouter& InputRouter;
 };

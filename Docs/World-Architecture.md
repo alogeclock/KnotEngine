@@ -391,30 +391,30 @@ World가 `Playing`일 때만 Level 순회를 시작한다. Level 배열에는 ca
 
 Tick callback이 자신 또는 다른 Component를 비활성화해 swap-pop이 발생할 수 있으므로 Level은 현재 인덱스에 같은 Component가 남아 있을 때만 인덱스를 증가시킨다. 현재 구현에는 Pending Add/Remove 안전 지점이 없어서 Tick 중 새로 등록된 Component가 같은 프레임 배열 뒤쪽에서 실행될 수 있다. 이러한 동적 변경 규칙의 고정은 Roadmap의 World 실행기 책임이다.
 
-Level Tick이 끝난 뒤 World는 PlayState와 무관하게 `Scene.Update()`를 호출한다. 따라서 Stopped·Paused에서 생략되는 것은 게임플레이 Tick이며 Scene 갱신은 계속 수행한다.
+Scene 갱신은 World Tick 마지막 순회가 아니라 Component 변경 시점에 Render Command를 제출하는 방식으로 분리된다. 따라서 Stopped·Paused 상태에서도 Inspector 편집은 변경 명령을 생성해 다음 렌더 요청에 반영된다.
 
 현재 실행 순서는 Level 배열과 `TickComponents` 등록 순서의 결과다. swap-pop 해제로 순서가 바뀔 수 있으며 명시적인 dependency 계약이 아니다.
 
 ## 현재 렌더 전달
 
-World/Level/Node/Component의 직접 Render 순회와 전체 Snapshot은 사용하지 않는다. FScene은 Component 포인터 대신 지속적인 Proxy를 소유한다.
+World/Level/Node/Component의 직접 Render 순회와 전체 Snapshot은 사용하지 않는다. FScene은 PrimitiveId 명령 큐와 Render Thread Proxy를 관리한다.
 
 ```text
-PrimitiveComponent.OnRegister → Proxy 생성 → Scene.AddPrimitive
-Transform/Mesh/Visibility 변경 → MarkPrimitiveSceneProxy → Proxy.bDirty = true
-World.Tick 끝 → Scene.Update → Proxy.Update (Dirty일 때만 복사)
-PrimitiveComponent.OnUnregister → Scene.RemovePrimitive → Proxy 파괴
+PrimitiveComponent.OnRegister → PrimitiveId 할당 → Add + All Render Command
+Transform/Mesh/Material/Visibility 변경 → 부분 Render Command 제출·병합
+FRenderSystem.Render → Render Thread에서 Scene Command 적용
+PrimitiveComponent.OnUnregister → Remove Render Command → PrimitiveId 초기화
 ```
 
-메인 스레드에서 상태 변경과 렌더링을 순서대로 실행한다. 부모 Transform 변경·연결·해제·파괴는 자식의 World Transform과 Proxy에 전파된다. Stopped/Paused 상태의 Inspector 편집도 PostEditProperty에서 Dirty로 표시되어 다음 World.Tick 끝에서 반영된다.
+Game/Editor Thread에서 상태 변경 값을 명령으로 복사하고 Render Thread에서 Proxy에 적용한다. 부모 Transform 변경·연결·해제·파괴는 자식 Primitive에 Transform 명령을 전파한다.
 
-Proxy가 원본 StaticMeshComponent 참조로 데이터를 읽으며 FScene은 Component를 알지 않는다. 별도 FPrimitiveSceneRegistration과 Component의 가상 Update는 없다. SceneRenderer는 GetProxies로 렌더 상태만 읽는다.
+Proxy는 Component를 참조하지 않고 Render Command가 소유한 값만 읽는다. SceneRenderer는 Render Thread에서 GetProxies로 렌더 상태만 읽는다.
 
 World는 Level과 Component를 먼저 파괴하여 Proxy 등록을 해제하고 마지막에 Scene을 소멸시킨다. 상세 수명 계약은 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 
 ## 현재 구현의 경계
 
-현재 World Tick과 렌더링은 메인 스레드에서 순서대로 실행하며 다음 기능은 아직 제공하지 않는다.
+현재 World Tick은 Game/Editor Thread에서, Scene 갱신과 GPU 렌더링은 Render Thread에서 직렬 실행하며 다음 기능은 아직 제공하지 않는다.
 
 - Register 훅과 Physics Registry의 실제 연결
 - Level visibility와 load 상태에 따른 Component 일괄 재등록

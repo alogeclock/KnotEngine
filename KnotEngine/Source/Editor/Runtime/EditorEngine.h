@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Render/RenderBackend.h"
-#include "Render/Renderer.h"
 #include "Runtime/Engine.h"
 #include "Asset/AssetImportManager.h"
 #include "Asset/AssetRegistry.h"
@@ -12,6 +10,7 @@
 #include <filesystem>
 
 class FEditorViewportClient;
+class FRenderSystem;
 
 UCLASS()
 class UEditorEngine : public UEngine
@@ -19,7 +18,7 @@ class UEditorEngine : public UEngine
 	GENERATED_CLASS(UEditorEngine, UEngine)
 
 public:
-	explicit UEditorEngine(FWindowsApplication& Application);
+	UEditorEngine(FWindowsApplication& Application, FRenderSystem& InRenderSystem);
 	~UEditorEngine() override = default;
 
 	// Editor 모듈 전체의 리플렉션 등록/해제 진입점. 구현은 Reflection.gen.cpp에서 생성한다.
@@ -47,8 +46,7 @@ private:
 	void ProcessAssetImports();
 	void Render();
 
-	std::unique_ptr<IRenderBackend> RenderBackend;
-	URenderer Renderer;
+	FRenderSystem& RenderSystem;
 
 	TArray<FEditorViewportClient*> AllViewportClients;
 

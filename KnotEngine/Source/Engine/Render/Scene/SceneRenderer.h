@@ -13,7 +13,6 @@ public:
 	void Render(URenderer& Renderer);
 
 private:
-	void Prepare(URenderer& Renderer);
 	void CullView(const FSceneView& View);
 
 	const FSceneViewFamily& ViewFamily;

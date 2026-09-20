@@ -437,7 +437,6 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 		KE_LOG(LogMapSerializer, Error, "Map 객체 또는 프로퍼티 복원에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
 	}
-	World.GetScene().Update();
 	KE_LOG(LogMapSerializer, Log, "Map 불러오기 완료. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 	return true;
 }

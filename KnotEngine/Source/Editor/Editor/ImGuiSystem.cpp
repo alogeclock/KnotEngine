@@ -9,7 +9,7 @@
 #include "Input/InputRouter.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Platform/WindowsApplication.h"
-#include "Render/ImGui/ImGuiRenderBackend.h"
+#include "Render/RenderSystem.h"
 #include "Runtime/EditorEngine.h"
 #include "Asset/Resource/resource.h"
 #include "World/World.h"
@@ -32,16 +32,15 @@ FImGuiSystem::FImGuiSystem(
 	FAssetRegistry& InAssetRegistry,
 	FAssetImportManager& InAssetImportManager,
 	FEditorSettings& InEditorSettings,
-	IRenderDevice& InRenderDevice,
-	IImGuiRenderBackend& InRenderBackend,
+	FRenderSystem& InRenderSystem,
 	FInputRouter& InInputRouter,
 	FEditorSelection& InSelection)
 	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
-	  RenderBackend(InRenderBackend), InputRouter(InInputRouter), Selection(InSelection),
-	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
-	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend), SettingsPanel(InEditorSettings)
+	  RenderSystem(InRenderSystem), InputRouter(InInputRouter), Selection(InSelection),
+	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderSystem, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
+	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderSystem), SettingsPanel(InEditorSettings)
 #if KNOT_CPU_PROFILER_ENABLED
-	  , ProfilePanel(InRenderDevice)
+	  , ProfilePanel(InRenderSystem)
 #endif
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
@@ -99,7 +98,7 @@ void FImGuiSystem::Startup()
 
 	panicf(ImGui_ImplWin32_Init(WindowHandle), "ImGui Win32 플랫폼 백엔드 초기화 실패.");
 
-	RenderBackend.Startup(ImGui::GetCurrentContext());
+	RenderSystem.StartupImGui(ImGui::GetCurrentContext());
 	ConsolePanel.Startup();
 	ContentPanel.Startup();
 	bStarted = true;
@@ -109,7 +108,7 @@ void FImGuiSystem::Startup()
 void FImGuiSystem::BeginFrame()
 {
 	ProcessLevelDialogs();
-	RenderBackend.BeginFrame();
+	RenderSystem.BeginImGuiFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
@@ -378,10 +377,9 @@ void FImGuiSystem::EndFrame()
 	ImGui::Render();
 }
 
-void FImGuiSystem::Render(FCommandListHandle CommandList)
+ImDrawData* FImGuiSystem::GetDrawData() const
 {
-	// World 렌더링이 끝난 Viewport Texture를 포함한 ImGui Draw Data를 Back Buffer에 렌더링한다.
-	RenderBackend.Render(CommandList, ImGui::GetDrawData());
+	return ImGui::GetDrawData();
 }
 
 void FImGuiSystem::Shutdown()
@@ -392,7 +390,7 @@ void FImGuiSystem::Shutdown()
 	ContentPanel.Shutdown();
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
-	RenderBackend.Shutdown();
+	RenderSystem.ShutdownImGui();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 	MediumFont = nullptr;

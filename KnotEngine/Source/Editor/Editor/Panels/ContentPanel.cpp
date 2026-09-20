@@ -3,8 +3,7 @@
 #include "Asset/AssetImportManager.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
-#include "Render/ImGui/ImGuiRenderBackend.h"
-#include "Render/RHI/RenderDevice.h"
+#include "Render/RenderSystem.h"
 
 #include <Windows.h>
 #include <Shellapi.h>
@@ -101,9 +100,8 @@ FString FContentPanel::MakeTileLabel(const FString& Label, float Width)
 FContentPanel::FContentPanel(
 	FAssetRegistry& InAssetRegistry,
 	FAssetImportManager& InAssetImportManager,
-	IRenderDevice& InRenderDevice,
-	IImGuiRenderBackend& InRenderBackend)
-    : AssetRegistry(InAssetRegistry), AssetImportManager(InAssetImportManager), RenderDevice(InRenderDevice), RenderBackend(InRenderBackend)
+	FRenderSystem& InRenderSystem)
+    : AssetRegistry(InAssetRegistry), AssetImportManager(InAssetImportManager), RenderSystem(InRenderSystem)
 {
 }
 
@@ -119,7 +117,7 @@ void FContentPanel::Startup()
 	if (DecodeIcon(IconDirectory / L"ContentFolder.png", Pixels))
 	{
 		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
-		FolderIcon = RenderDevice.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
+		FolderIcon = RenderSystem.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
 	}
 	else
 	{
@@ -128,7 +126,7 @@ void FContentPanel::Startup()
 	if (DecodeIcon(IconDirectory / L"ContentFile.png", Pixels))
 	{
 		const FTextureSubresourceData IconData = { Pixels, ContentIconSize * 4, static_cast<uint32>(Pixels.size()) };
-		FileIcon = RenderDevice.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
+		FileIcon = RenderSystem.CreateTexture(IconDesc, std::span<const FTextureSubresourceData>(&IconData, 1));
 	}
 	else
 	{
@@ -276,8 +274,8 @@ void FContentPanel::DrawImportOptions()
 // Content Browser가 소유한 썸네일 Texture를 해제한다.
 void FContentPanel::Shutdown()
 {
-	RenderDevice.DestroyTexture(FileIcon);
-	RenderDevice.DestroyTexture(FolderIcon);
+	RenderSystem.DestroyTexture(FileIcon);
+	RenderSystem.DestroyTexture(FolderIcon);
 }
 
 // 폴더 검색창과 계층 트리를 표시한다.
@@ -549,7 +547,7 @@ void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, f
 	const ImVec2 IconMax(IconMin.x + 48.0f, IconMin.y + 48.0f);
 	if (FolderIcon.IsValid())
 	{
-		DrawList->AddImage(ImTextureRef(RenderBackend.GetImGuiTextureID(FolderIcon)), IconMin, IconMax);
+		DrawList->AddImage(ImTextureRef(RenderSystem.GetImGuiTextureID(FolderIcon)), IconMin, IconMax);
 	}
 	const FString FolderName = GetFolderName(FolderPath);
 	ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 0.90f);
@@ -612,7 +610,7 @@ void FContentPanel::DrawAssetTile(const FAssetData& Asset, float TileWidth, floa
 	const ImVec2 IconMaximum(IconMinimum.x + 48.0f, IconMinimum.y + 48.0f);
 	if (FileIcon.IsValid())
 	{
-		DrawList->AddImage(ImTextureRef(RenderBackend.GetImGuiTextureID(FileIcon)), IconMinimum, IconMaximum);
+		DrawList->AddImage(ImTextureRef(RenderSystem.GetImGuiTextureID(FileIcon)), IconMinimum, IconMaximum);
 	}
 	ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 0.82f);
 	ImFont* TileFont = ImGui::GetFont();

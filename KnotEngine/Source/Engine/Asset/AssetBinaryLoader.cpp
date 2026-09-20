@@ -242,7 +242,7 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FAssetData& Asset, FAssetM
 		Materials.push_back({ FName(SlotName), Material });
 	}
 
-	FStaticMesh RenderData;
+	FStaticMesh MeshData;
 	for (uint32 LODIndex = 0; LODIndex < Header.LODCount; ++LODIndex)
 	{
 		FStaticMeshLODPayloadHeader LODHeader = {};
@@ -284,7 +284,7 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FAssetData& Asset, FAssetM
 				return nullptr;
 			}
 		}
-		if (!RenderData.AddLOD(Vertices, Indices, Sections))
+		if (!MeshData.AddLOD(Vertices, Indices, Sections))
 		{
 			return nullptr;
 		}
@@ -295,7 +295,7 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FAssetData& Asset, FAssetM
 	}
 
 	UStaticMesh* Mesh = GUObjectManager.Create<UStaticMesh>();
-	if (!Mesh->Initialize(AssetHeader.AssetId, AssetPath, std::move(RenderData), std::move(Materials)))
+	if (!Mesh->Initialize(AssetHeader.AssetId, AssetPath, std::move(MeshData), std::move(Materials)))
 	{
 		GUObjectManager.Destroy(Mesh);
 		return nullptr;

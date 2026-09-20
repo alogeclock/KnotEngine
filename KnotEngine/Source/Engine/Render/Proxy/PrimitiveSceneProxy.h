@@ -1,26 +1,43 @@
 #pragma once
 
 #include "EngineAPI.h"
+#include "Asset/Asset/AssetId.h"
 #include "Core/Geometry/AABB.h"
 #include "Core/Math/Matrix.h"
+#include "Render/Scene/RenderCommand.h"
 
 class FStaticMesh;
+class FStaticMeshResource;
+class FMaterialResource;
 struct FSceneView;
 class FScene;
-class UPrimitiveComponent;
-class UStaticMeshComponent;
 class UMaterialInterface;
-class UNode;
+class URenderer;
 
-// Scene이 소유하는 렌더 상태. 등록 기간 동안 Component를 참조하고 Dirty일 때만 데이터를 복사한다.
+// Component가 Game Thread에서 추출해 제출하는 데이터다. Asset 포인터는 명령 적용 동안만 읽고 Proxy에 보관하지 않는다.
+struct ENGINE_API FPrimitiveRenderData
+{
+	FMatrix WorldMatrix;
+	FAABB LocalBounds;
+
+	FStaticMesh* Mesh = nullptr;
+	FAssetId MeshAssetId;
+	TArray<UMaterialInterface*> Materials;
+	uint64 MeshRevision = 0;
+
+	bool bVisible = false;
+	bool bSelected = false;
+	bool bLODEnable = true;
+};
+
+// Render Thread의 Scene이 소유하며 UObject나 Component를 직접 조회하지 않는 렌더 상태다.
 struct ENGINE_API FPrimitiveSceneProxy
 {
 	virtual ~FPrimitiveSceneProxy() = default;
 	FPrimitiveSceneProxy(const FPrimitiveSceneProxy&) = delete;
 	FPrimitiveSceneProxy& operator=(const FPrimitiveSceneProxy&) = delete;
 
-	virtual void Update() = 0;
-	UNode& GetOwner() const;
+	virtual void Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, URenderer& Renderer) = 0;
 
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;
@@ -28,35 +45,31 @@ struct ENGINE_API FPrimitiveSceneProxy
 	float WorldBoundsRadius = 0.0f;
 	bool bVisible = false;
 	bool bSelected = false; // 선택 변경 시 Component가 갱신하며 렌더 경로는 UObject Owner를 조회하지 않는다.
-	bool bDirty = true;
 
 protected:
-	explicit FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent);
-	void UpdateBounds(const FAABB& InLocalBounds);
+	FPrimitiveSceneProxy() = default;
+
+	void ApplyPrimitiveData(ERenderCommandType Type, const FPrimitiveRenderData& RenderData);
 
 private:
 	friend class FScene;
-	friend class UPrimitiveComponent;
 
 	static constexpr SIZE_T InvalidSceneIndex = static_cast<SIZE_T>(-1);
 	SIZE_T SceneIndex = InvalidSceneIndex; // Scene의 밀집 Proxy 배열에서 현재 위치. 외부 식별자로 사용하지 않는다.
-	const UPrimitiveComponent& Component; // 비소유. Component 등록 해제 시 이 Proxy를 먼저 제거한다.
 };
 
 // FStaticMeshVertex 기반 Static Mesh의 렌더 상태를 보관한다.
 struct ENGINE_API FStaticMeshSceneProxy final : FPrimitiveSceneProxy
 {
-	explicit FStaticMeshSceneProxy(const UStaticMeshComponent& InComponent);
-	void Update() override;
+	explicit FStaticMeshSceneProxy(const FPrimitiveRenderData& RenderData);
+	void Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, URenderer& Renderer) override;
 
-	FStaticMesh* Mesh = nullptr; // Component의 UStaticMesh 참조가 Proxy 등록 기간 동안 Asset 수명을 유지한다.
-	TArray<UMaterialInterface*> Materials; // Component Override를 적용한 Slot별 비소유 Material 참조다.
-	UMaterialInterface* GetMaterial(SIZE_T MaterialIndex) const { return MaterialIndex < Materials.size() ? Materials[MaterialIndex] : nullptr; }
+	FStaticMeshResource* MeshResource = nullptr; // Renderer의 Static Mesh Resource Cache가 소유한다.
+	TArray<const FMaterialResource*> Materials;
+	const FMaterialResource& GetMaterial(SIZE_T MaterialIndex) const;
 	SIZE_T SelectLOD(const FSceneView& View) const;
 	
-	bool bLODEnabled = true;
-	uint64 MeshRevision = 0; // UStaticMesh가 최초 초기화되거나 재임포트되어 Render Data가 교체되면 반영한다.
+	bool bLODEnable = true;
+	const FMaterialResource* DefaultMaterial = nullptr;
 
-private:
-	const UStaticMeshComponent& MeshComponent;
 };

@@ -10,7 +10,6 @@
 #include "Render/Pass/SelectionPass.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
-#include "Render/Resource/Mesh/Mesh.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/Scene.h"
 
@@ -54,7 +53,6 @@ void FSceneRenderer::Render(URenderer& Renderer)
 		{
 			CullView(View);
 		}
-		Prepare(Renderer);
 		if (ViewFamily.ShowFlags.bPrimitive)
 		{
 			const uint32 OpaqueNode = FOpaquePass::AddPass(RenderGraph, Renderer, View, VisiblePrimitives);
@@ -100,24 +98,6 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	Renderer.Execute(RenderGraph);
 
 	Renderer.EndRenderTarget();
-}
-
-// 현재 View에서 사용할 Mesh의 GPU 리소스를 Render Pass 구성 전에 준비한다.
-void FSceneRenderer::Prepare(URenderer& Renderer)
-{
-	IRenderDevice& RenderDevice = Renderer.GetRenderDevice();
-	if (!ViewFamily.ShowFlags.bPrimitive)
-	{
-		return;
-	}
-
-	for (const FPrimitiveSceneProxy* Primitive : VisiblePrimitives)
-	{
-		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
-		check(StaticMeshProxy.Mesh);
-		panicf(StaticMeshProxy.Mesh->InitResources(RenderDevice), "Static Mesh의 GPU Buffer 생성에 실패했다.");
-
-	}
 }
 
 // Frustum Culling을 수행하여 실제 그릴 프록시들을 수집한다.

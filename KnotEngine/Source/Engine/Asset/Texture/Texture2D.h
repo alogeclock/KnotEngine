@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Asset/Texture/Texture.h"
-#include "Render/Resource/Texture.h"
 
 class FAssetBinaryLoader;
 
@@ -12,7 +11,7 @@ struct ENGINE_API FTextureMipData
 	uint32 RowPitch = 0;
 };
 
-// 2차원 Texture의 CPU Mip 데이터와 대응하는 GPU FTexture 리소스를 소유한다.
+// 2차원 Texture의 CPU Mip 데이터를 소유한다. GPU Resource는 Renderer가 별도로 관리한다.
 UCLASS()
 class ENGINE_API UTexture2D final : public UTexture
 {
@@ -20,12 +19,6 @@ class ENGINE_API UTexture2D final : public UTexture
 
 public:
 	EAssetType GetAssetType() const override { return EAssetType::Texture2D; }
-	bool InitResources(IRenderDevice& RenderDevice) override;
-	void ReleaseResources() override;
-
-	FTexture* GetResource() override { return &TextureResource; }
-	const FTexture* GetResource() const override { return &TextureResource; }
-
 	const TArray<FTextureMipData>& GetMips() const { return Mips; }
 
 private:
@@ -40,5 +33,4 @@ private:
 		TArray<FTextureMipData>&& InMips);
 
 	TArray<FTextureMipData> Mips;
-	FTexture TextureResource;
 };

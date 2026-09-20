@@ -2,8 +2,9 @@
 
 #include "Core/Assert.h"
 #include "Core/Profiling/CPUProfiler.h"
+#include "Asset/Material/MaterialInterface.h"
+#include "Asset/Texture/Texture2D.h"
 #include "Render/Graph/RenderGraph.h"
-#include "Render/Proxy/MaterialRenderProxy.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
 
@@ -69,16 +70,18 @@ void URenderer::Create(void* NativeWindowHandle)
 	WhiteTextureDesc.Height = 1;
 	WhiteTextureDesc.bSRGB = true;
 	const FTextureSubresourceData WhiteTextureData = { WhitePixel, sizeof(WhitePixel), sizeof(WhitePixel) };
-	panicf(DefaultTexture.Initialize(RenderDevice, WhiteTextureDesc, std::span(&WhiteTextureData, 1)), "기본 White Texture 생성에 실패했다.");
+	panicf(DefaultTextureResource.Initialize(RenderDevice, WhiteTextureDesc, std::span(&WhiteTextureData, 1), 1), "기본 White Texture 생성에 실패했다.");
+	panicf(DefaultMaterialResource.Initialize(*this, nullptr, 0, 1), "기본 Material Resource 생성에 실패했다.");
 	DebugDraw.Create();
 }
 
 void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
-	MaterialRenderProxies.clear();
+	ReleaseAssetReferences();
+	DefaultMaterialResource.Release();
 	DebugDraw.Release();
-	DefaultTexture.Release();
+	DefaultTextureResource.Release();
 	SamplerStateCache.Release();
 	PipelineStateCache.Release();
 	ShaderRegistry.Release();
@@ -86,21 +89,78 @@ void URenderer::Release()
 	RenderDevice.Release();
 }
 
-// 같은 Material Interface는 Renderer 수명 동안 하나의 Render Proxy로 등록해 재사용한다. nullptr는 기본 Material을 나타낸다.
-FMaterialRenderProxy& URenderer::RegisterMaterial(const UMaterialInterface* MaterialInterface)
+void URenderer::ReleaseAssetReferences()
 {
-	const auto Existing = MaterialRenderProxies.find(MaterialInterface);
-	if (Existing != MaterialRenderProxies.end())
+	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Asset 참조를 해제할 수 없다.");
+	MaterialResources.clear();
+	TextureResources.clear();
+	StaticMeshResources.clear();
+}
+
+// 같은 Asset ID의 Material은 하나의 Resource를 유지하고 Revision이 바뀌면 제자리에서 갱신한다.
+FMaterialResource& URenderer::GetOrCreateMaterialResource(const UMaterialInterface& MaterialInterface)
+{
+	const FAssetId& AssetId = MaterialInterface.GetAssetId();
+	check(AssetId.IsValid());
+	std::unique_ptr<FMaterialResource>& Resource = MaterialResources[AssetId];
+	if (!Resource)
 	{
-		return *Existing->second;
+		Resource = std::make_unique<FMaterialResource>();
+	}
+	if (Resource->GetSourceRevision() != MaterialInterface.GetRevision())
+	{
+		panicf(MaterialResources.size() < (std::numeric_limits<uint32>::max)(), "Material Resource Sort ID가 uint32 범위를 초과했다.");
+		const uint32 SortId = Resource->IsValid() ? Resource->GetSortId() : static_cast<uint32>(MaterialResources.size());
+		panicf(Resource->Initialize(*this, &MaterialInterface, SortId, MaterialInterface.GetRevision()),
+		       "Material Resource 생성에 실패했다. AssetPath={}", MaterialInterface.GetAssetPath());
+	}
+	return *Resource;
+}
+
+FStaticMeshResource& URenderer::GetOrCreateStaticMeshResource(const FAssetId& AssetId, const FStaticMesh& StaticMesh, uint64 Revision)
+{
+	check(AssetId.IsValid());
+	std::unique_ptr<FStaticMeshResource>& Resource = StaticMeshResources[AssetId];
+	if (!Resource)
+	{
+		Resource = std::make_unique<FStaticMeshResource>();
+	}
+	if (Resource->GetSourceRevision() != Revision)
+	{
+		panicf(Resource->Initialize(RenderDevice, StaticMesh, Revision), "Static Mesh Resource 생성에 실패했다. Revision={}", Revision);
+	}
+	return *Resource;
+}
+
+FTextureResource& URenderer::GetOrCreateTextureResource(const UTexture2D& Texture)
+{
+	const FAssetId& AssetId = Texture.GetAssetId();
+	check(AssetId.IsValid());
+	std::unique_ptr<FTextureResource>& Resource = TextureResources[AssetId];
+	if (!Resource)
+	{
+		Resource = std::make_unique<FTextureResource>();
+	}
+	if (Resource->GetSourceRevision() == Texture.GetRevision())
+	{
+		return *Resource;
 	}
 
-	panicf(MaterialRenderProxies.size() < (std::numeric_limits<uint32>::max)(), "Material Render Proxy Sort ID가 uint32 범위를 초과했다.");
-	auto Proxy = std::make_unique<FMaterialRenderProxy>(MaterialInterface, static_cast<uint32>(MaterialRenderProxies.size()));
-	Proxy->Register(*this);
-	FMaterialRenderProxy& Result = *Proxy;
-	MaterialRenderProxies.emplace(MaterialInterface, std::move(Proxy));
-	return Result;
+	TArray<FTextureSubresourceData> Subresources;
+	Subresources.reserve(Texture.GetMips().size());
+	for (const FTextureMipData& Mip : Texture.GetMips())
+	{
+		Subresources.push_back({ Mip.Bytes, Mip.RowPitch, static_cast<uint32>(Mip.Bytes.size()) });
+	}
+	FTextureDesc Desc;
+	Desc.Width = Texture.GetWidth();
+	Desc.Height = Texture.GetHeight();
+	Desc.MipCount = Texture.GetMipCount();
+	Desc.Format = Texture.GetFormat();
+	Desc.Usage = ETextureUsage::ShaderResource;
+	Desc.bSRGB = Texture.IsSRGB();
+	panicf(Resource->Initialize(RenderDevice, Desc, Subresources, Texture.GetRevision()), "Texture Resource 생성에 실패했다. AssetPath={}", Texture.GetAssetPath());
+	return *Resource;
 }
 
 void URenderer::Resize(uint32 Width, uint32 Height)

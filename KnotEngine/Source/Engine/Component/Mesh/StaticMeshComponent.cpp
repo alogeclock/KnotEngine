@@ -4,6 +4,8 @@
 #include "Core/Assert.h"
 #include "Object/Property.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
+#include "Component/TransformComponent.h"
+#include "World/Node.h"
 
 #include <algorithm>
 
@@ -24,7 +26,7 @@ void UStaticMeshComponent::SetStaticMesh(UStaticMesh* InStaticMesh)
 
 	StaticMesh = InStaticMesh;
 	OverrideMaterials.clear();
-	MarkPrimitiveSceneProxy();
+	EnqueueRenderCommand(ERenderCommandType::Mesh | ERenderCommandType::Material);
 }
 
 // Inspector에서 Static Mesh가 교체되면 이전 Mesh의 Material Override를 제거한다.
@@ -57,7 +59,7 @@ void UStaticMeshComponent::SetMaterial(SIZE_T MaterialIndex, UMaterialInterface*
 	{
 		OverrideMaterials.pop_back();
 	}
-	MarkPrimitiveSceneProxy();
+	EnqueueRenderCommand(ERenderCommandType::Material);
 }
 
 UMaterialInterface* UStaticMeshComponent::GetMaterial(SIZE_T MaterialIndex) const
@@ -74,7 +76,44 @@ SIZE_T UStaticMeshComponent::GetMaterialCount() const
 	return std::max(OverrideMaterials.size(), StaticMesh ? StaticMesh->GetMaterialCount() : SIZE_T{ 0 });
 }
 
-std::unique_ptr<FPrimitiveSceneProxy> UStaticMeshComponent::CreatePrimitiveSceneProxy() const
+FPrimitiveRenderData UStaticMeshComponent::BuildPrimitiveRenderData(ERenderCommandType Type) const
 {
-	return std::make_unique<FStaticMeshSceneProxy>(*this);
+	FPrimitiveRenderData RenderData;
+	if (HasRenderCommand(Type, ERenderCommandType::Transform) || HasRenderCommand(Type, ERenderCommandType::Mesh))
+	{
+		RenderData.WorldMatrix = GetTransform().GetWorldMatrix();
+	}
+
+	if (HasRenderCommand(Type, ERenderCommandType::Visibility))
+	{
+		RenderData.bVisible = IsVisible();
+		RenderData.bSelected = GetOwner().IsSelected();
+	}
+
+	UStaticMesh* MeshAsset = StaticMesh.Get();
+	if (HasRenderCommand(Type, ERenderCommandType::Mesh) && MeshAsset)
+	{
+		RenderData.Mesh = &MeshAsset->GetMeshData();
+		RenderData.MeshAssetId = MeshAsset->GetAssetId();
+		RenderData.MeshRevision = MeshAsset->GetRevision();
+		RenderData.LocalBounds = RenderData.Mesh->GetLocalBounds();
+		RenderData.bLODEnable = bLODEnable;
+	}
+
+	if (HasRenderCommand(Type, ERenderCommandType::Material))
+	{
+		const SIZE_T MaterialCount = std::max<SIZE_T>(GetMaterialCount(), 1);
+		RenderData.Materials.reserve(MaterialCount);
+		for (SIZE_T MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+		{
+			RenderData.Materials.push_back(GetMaterial(MaterialIndex));
+		}
+	}
+
+	return RenderData;
+}
+
+std::unique_ptr<FPrimitiveSceneProxy> UStaticMeshComponent::CreatePrimitiveSceneProxy(const FPrimitiveRenderData& RenderData) const
+{
+	return std::make_unique<FStaticMeshSceneProxy>(RenderData);
 }

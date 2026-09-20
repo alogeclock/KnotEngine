@@ -11,7 +11,7 @@
 class URenderer;
 class IRenderDevice;
 class FMeshBuffer;
-class FMaterialRenderProxy;
+class FMaterialResource;
 struct FPrimitiveSceneProxy;
 struct FSceneView;
 struct FViewConstants;
@@ -27,7 +27,7 @@ private:
 	{
 		const FPrimitiveSceneProxy* Primitive = nullptr;
 		const FMeshBuffer* MeshBuffer = nullptr;
-		const FMaterialRenderProxy* Material = nullptr;
+		const FMaterialResource* Material = nullptr;
 		uint32 FirstIndex = 0;
 		uint32 IndexCount = 0;
 
@@ -40,7 +40,7 @@ private:
 	};
 	static_assert(sizeof(FDrawConstants) % 16 == 0);
 
-	static uint64 GenerateSortKey(const FMaterialRenderProxy& Material, const FMeshBuffer& MeshBuffer, float Depth, float FarClip);
+	static uint64 GenerateSortKey(const FMaterialResource& Material, const FMeshBuffer& MeshBuffer, float Depth, float FarClip);
 
 	static void ExecutePass(
 		IRenderDevice& RenderDevice,

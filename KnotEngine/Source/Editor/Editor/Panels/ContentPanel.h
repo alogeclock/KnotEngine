@@ -7,8 +7,7 @@
 #include <array>
 #include <string_view>
 
-class IImGuiRenderBackend;
-class IRenderDevice;
+class FRenderSystem;
 class FAssetImportManager;
 struct ImVec2;
 
@@ -16,7 +15,7 @@ struct ImVec2;
 class FContentPanel final
 {
 public:
-	FContentPanel(FAssetRegistry& InAssetRegistry, FAssetImportManager& InAssetImportManager, IRenderDevice& InRenderDevice, IImGuiRenderBackend& InRenderBackend);
+	FContentPanel(FAssetRegistry& InAssetRegistry, FAssetImportManager& InAssetImportManager, FRenderSystem& InRenderSystem);
 
 	void Startup();
 	void Draw();
@@ -75,8 +74,7 @@ private:
 
 	FAssetRegistry& AssetRegistry;
 	FAssetImportManager& AssetImportManager;
-	IRenderDevice& RenderDevice;
-	IImGuiRenderBackend& RenderBackend;
+	FRenderSystem& RenderSystem;
 
 	FTextureHandle FolderIcon;
 	FTextureHandle FileIcon;

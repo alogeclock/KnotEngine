@@ -61,7 +61,6 @@ void UWorld::Reset()
 		RemoveLevel(*Levels.back());
 	}
 	NameCounters.clear();
-	Scene.Update();
 }
 
 // BaseName별로 증가하는 숫자 접미사를 붙여 새 Node 이름을 생성한다.
@@ -126,7 +125,4 @@ void UWorld::Tick(float DeltaTime)
 			Level->Tick(DeltaTime);
 		}
 	}
-
-	// Component 갱신이 끝난 뒤 렌더 상태를 반영한다. 정지와 일시정지 중의 편집도 처리한다.
-	Scene.Update();
 }

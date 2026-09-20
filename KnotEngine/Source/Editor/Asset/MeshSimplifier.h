@@ -2,7 +2,7 @@
 
 #include "Core/CoreTypes.h"
 #include "Core/Geometry/Edge.h"
-#include "Render/Resource/Mesh/Mesh.h"
+#include "Asset/Mesh/StaticMesh.h"
 
 #include <limits>
 

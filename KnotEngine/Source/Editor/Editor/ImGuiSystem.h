@@ -16,12 +16,12 @@
 #include <filesystem>
 #include <optional>
 
-class IImGuiRenderBackend;
-class IRenderDevice;
+class FRenderSystem;
 class FAssetImportManager;
 class FAssetRegistry;
 class FEditorSettings;
 struct ImFont;
+struct ImDrawData;
 class UEditorEngine;
 class FWindowsApplication;
 
@@ -35,8 +35,7 @@ public:
 		FAssetRegistry& InAssetRegistry,
 		FAssetImportManager& InAssetImportManager,
 		FEditorSettings& InEditorSettings,
-		IRenderDevice& InRenderDevice,
-		IImGuiRenderBackend& InRenderBackend,
+		FRenderSystem& InRenderSystem,
 		FInputRouter& InInputRouter,
 		FEditorSelection& InSelection);
 	~FImGuiSystem();
@@ -45,7 +44,7 @@ public:
 	void BeginFrame();
 	void Draw(float DeltaTime);
 	void EndFrame();
-	void Render(FCommandListHandle CommandList);
+	ImDrawData* GetDrawData() const;
 	void Shutdown();
 
 private:
@@ -59,7 +58,7 @@ private:
 	FWindowsApplication& Application;
 	UEditorEngine& EditorEngine;
 	FAssetImportManager& AssetImportManager;
-	IImGuiRenderBackend& RenderBackend;
+	FRenderSystem& RenderSystem;
 	FInputRouter& InputRouter;
 	FEditorSelection& Selection;
 

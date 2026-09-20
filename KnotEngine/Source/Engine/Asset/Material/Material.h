@@ -3,10 +3,47 @@
 #include "Asset/Material/MaterialInterface.h"
 #include "Asset/Material/MaterialParameters.h"
 #include "Core/Archive/Archive.h"
-#include "Render/Resource/Material/Material.h"
+#include "Render/Shader/ShaderTypes.h"
 
 class FAssetBinaryLoader;
 class FReferenceCollector;
+
+// Surface Material이 Frame Buffer에 색을 합성하는 방식을 정의한다.
+enum class EMaterialBlendMode : uint8
+{
+	Opaque,
+	Masked,
+	Translucent
+};
+
+// Material Asset이 제공하는 Shader Key와 고정 Pipeline 상태의 CPU 렌더 정의다.
+class ENGINE_API FMaterial final
+{
+public:
+	FMaterial() = default;
+
+	bool Initialize(
+		FShaderKey InVertexShader,
+		FShaderKey InPixelShader,
+		EMaterialBlendMode InBlendMode = EMaterialBlendMode::Opaque,
+		EDepthMode InDepthMode = EDepthMode::ReadWrite,
+		ECullMode InCullMode = ECullMode::Back);
+
+	const FShaderKey& GetVertexShader() const { return VertexShader; }
+	const FShaderKey& GetPixelShader() const { return PixelShader; }
+
+	EMaterialBlendMode GetBlendMode() const { return BlendMode; }
+	EDepthMode GetDepthMode() const { return DepthMode; }
+	ECullMode GetCullMode() const { return CullMode; }
+	bool IsValid() const { return !VertexShader.SourcePath.empty() && !PixelShader.SourcePath.empty(); }
+
+private:
+	FShaderKey VertexShader;
+	FShaderKey PixelShader;
+	EMaterialBlendMode BlendMode = EMaterialBlendMode::Opaque;
+	EDepthMode DepthMode = EDepthMode::ReadWrite;
+	ECullMode CullMode = ECullMode::Back;
+};
 
 // Material .kasset Payload의 Render State와 Parameter 배열 크기를 저장한다.
 struct FMaterialPayloadHeader

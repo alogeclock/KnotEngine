@@ -2,21 +2,21 @@
 
 ## 문서 목적
 
-이 문서는 Knot Engine의 World 렌더 상태, ViewFamily 구성, 가시성 판정, Draw Command 생성과 GPU 실행의 책임을 정의한다. 현재 구현은 메인 스레드에서 동기 실행하는 D3D11 렌더링 경로다.
+이 문서는 Knot Engine의 World 렌더 상태, ViewFamily 구성, 가시성 판정, Draw Command 생성과 GPU 실행의 책임을 정의한다. 현재 D3D11 렌더링은 전용 `FRenderThread`에서 실행하며 Game/Editor Thread는 Render Command를 제출한다.
 
-현재 Opaque, Gamma Correction Post Process와 Overlay는 매 프레임 생성되는 Render Graph Node로 구성한다. Shader와 Pipeline State는 공용 Cache가, Material의 Pipeline·상수·Texture/Sampler 바인딩은 `FMaterialRenderProxy`가 장기 소유한다. Render Thread 분리와 Graph Resource 추적은 향후 목표다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
+현재 Opaque, Gamma Correction Post Process와 Overlay는 매 프레임 생성되는 Render Graph Node로 구성한다. Shader와 Pipeline State는 공용 Cache가, Static Mesh·Texture·Material의 GPU 대응 객체는 각각 `FStaticMeshResource`, `FTextureResource`, `FMaterialResource`가 소유한다. Asset은 CPU 데이터와 Revision만 소유한다.
 
 ## 설계 원칙
 
-- World는 게임 상태와 Scene의 수명을 관리하고 World 갱신 끝에서 Scene을 갱신한다.
-- FScene은 Proxy를 직접 소유하며 Component 목록이나 별도 등록 정보 구조체를 보관하지 않는다.
-- Component는 자신의 Proxy를 Dirty로 표시하고, Proxy가 필요한 데이터를 원본 Component에서 읽는다.
-- 현재 Component와 Proxy의 상호 참조는 단일 스레드와 등록 수명 안에서만 유효하다.
+- World는 게임 상태와 Scene의 수명을 관리하고 Component 변경은 값을 소유한 Render Command로 전달한다.
+- FScene은 PrimitiveId로 식별되는 Proxy를 Render Thread에서 소유하고 Component를 참조하지 않는다.
+- Component는 Proxy 주소 대신 PrimitiveId만 보관하며 Transform, Mesh, Material, Visibility 변경 명령을 제출한다.
+- Game Thread 제출 큐는 같은 PrimitiveId의 부분 갱신을 병합하고 Render Thread는 Proxy 상태와 GPU Resource만 변경한다.
 - ViewportClient는 카메라와 출력 영역으로 View 및 ViewFamily를 구성한다.
-- EditorEngine은 프레임을 조율하고 ViewFamily마다 SceneRenderer를 생성한다.
+- EditorEngine은 World와 ViewFamily를 수집해 `FRenderSystem`에 프레임 렌더를 요청한다.
 - SceneRenderer는 가시성·명령 선택·패스 순서를 결정하고 Renderer는 렌더 명령을 실행한다.
 - 가시 Primitive 수집과 패스별 Draw Command 생성은 별도 단계다.
-- Material UObject의 렌더 바인딩은 Renderer가 소유하는 Material Render Proxy로 한 번 변환해 Draw Command에서 재사용한다.
+- Material UObject의 렌더 바인딩은 Renderer가 소유하는 `FMaterialResource`로 변환해 Draw Command에서 재사용한다.
 - 패스마다 목적에 맞는 Sort Key를 사용한다. Scene 전체를 하나의 정렬 순서로 고정하지 않는다.
 - RHI 계약은 Engine.dll에, D3D11 구현은 Renderer.dll에 둔다.
 - ImGui 화면 구성은 Editor, ImGui GPU 백엔드는 Renderer 모듈의 책임이다.
@@ -27,38 +27,31 @@
 ```text
 UEditorEngine
     ├─ WorldContext별 UWorld::Tick
-    │      ├─ Playing: Level → Node → Component::TickComponent
-    │      └─ 모든 PlayState: FScene::UpdatePrimitiveSceneProxies
-    │             └─ FPrimitiveSceneProxy::Update
-    │                    └─ Dirty이면 Component 상태 복사
+	│      └─ Playing: Level → Node → Component::TickComponent
     ├─ ViewportClient Tick / BuildSceneViewFamily
-    │      └─ BuildSceneView
-    └─ Render
-           ├─ URenderer::BeginFrame
-           ├─ Family별 FSceneRenderer 생성
-           │      └─ Render(Renderer)
-		   │             ├─ View별 CullView
-		   │             ├─ FOpaquePass::AddPass
-		   │             ├─ FPostProcessPass::AddPass
-		   │             ├─ FOverlayPass::AddPass
-		   │             └─ URenderer::Execute
-           ├─ FImGuiSystem::Render
-           └─ URenderer::EndFrame → Submit → Present
+	└─ FRenderSystem::Render
+	       ├─ Scene의 병합된 Render Command Drain
+	       └─ FRenderThread FIFO에 Frame 명령 제출
+	              ├─ FScene::ApplyRenderCommands
+	              ├─ URenderer::BeginFrame
+	              ├─ Family별 FSceneRenderer 생성·실행
+	              ├─ ImGui 합성
+	              └─ URenderer::EndFrame → Submit → Present
 ```
 
 ```text
-UWorld ──소유──> FScene ──소유──> FPrimitiveSceneProxy[]
-                                   ↕ 비소유 참조
-			       UPrimitiveComponent
+UPrimitiveComponent [GT] ──PrimitiveId + Render Command──> FScene [RT]
+                                                              └─ FPrimitiveSceneProxy[]
 
 FSceneViewFamily ──참조──> FScene
                 ├─ FSceneView[]
                 ├─ FSceneRenderTarget
                 └─ FShowFlags
 
-URenderer ──소유──> FMaterialRenderProxy[]
-                       ↑ 비소유 참조
-                 FMeshDrawCommand
+URenderer ──소유──> FMaterialResource[]
+	├─ FStaticMeshResource[] → FStaticMeshLODResource[] → FMeshBuffer
+	├─ FTextureResource[]
+	└─ Shader / Pipeline / Sampler Cache
 ```
 
 ## 디렉터리와 책임
@@ -89,21 +82,24 @@ KnotEngine/Source/
 │     │  ├─ SceneView.h
 │     │  └─ SceneRenderer.h/.cpp
 │     ├─ Proxy/
-│     │  ├─ PrimitiveSceneProxy.h/.cpp
-│     │  └─ MaterialRenderProxy.h/.cpp
+│     │  └─ PrimitiveSceneProxy.h/.cpp
 │     ├─ Resource/
 │     │  ├─ Buffer.h/.cpp
-│     │  ├─ Mesh.h/.cpp
-│     │  ├─ MeshResources.h/.cpp
-│     │  ├─ ShaderRegistry.h/.cpp
-│     │  ├─ PipelineStateCache.h/.cpp
-│     │  └─ VertexTypes.h/.cpp
+│     │  ├─ MaterialResource.h/.cpp
+│     │  ├─ TextureResource.h/.cpp
+│     │  ├─ Mesh/GeometryMesh.h/.cpp
+│     │  ├─ Mesh/MeshBuffer.h/.cpp
+│     │  ├─ Mesh/StaticMeshResource.h/.cpp
+│     │  └─ State/
+│     ├─ Shader/
 │     └─ RHI/
 │        ├─ RenderDevice.h
 │        ├─ RenderContext.h
 │        ├─ RenderTypes.h
 │        └─ VertexLayout.h
 ├─ Renderer/Render/
+│  ├─ RenderSystem.h/.cpp
+│  ├─ RenderThread.h/.cpp
 │  ├─ D3D11/
 │  └─ ImGui/
 └─ Editor/
@@ -117,17 +113,18 @@ KnotEngine/Source/
 
 | 계층 | 책임 | 포함하지 않는 것 |
 |---|---|---|
-| `UWorld` | Level·Component 수명, Tick, Scene 소유와 갱신 시점 | Dirty Component 목록, 패스 선택 |
-| `UPrimitiveComponent` | Proxy 생성 계약, 등록·해제, Dirty 표시 | GPU 명령 실행 |
-| `FPrimitiveSceneProxy` | 원본 상태 복사, WorldMatrix·Bounds·Mesh 보관 | View별 컬링, 명령 정렬 |
-| `FScene` | Proxy 소유·순회·제거, `GetProxies()` 제공 | Component 데이터 접근 |
+| `UWorld` | Level·Component 수명, Tick, Scene 소유 | Render Proxy 직접 변경 |
+| `UPrimitiveComponent` | PrimitiveId 보관, 등록·해제·부분 갱신 명령 제출 | Proxy 주소, GPU Resource 소유 |
+| `FPrimitiveSceneProxy` | Render Command로 받은 WorldMatrix·Bounds·Mesh 상태 보관 | Component/UObject 역참조 |
+| `FScene` | GT 명령 병합과 RT Proxy 소유·적용 | GPU Resource 소유 |
 | `FEditorViewportClient` | 카메라 입력, View·ViewFamily 구성 | SceneRenderer 생성, Draw 실행 |
 | `FSceneRenderer` | View별 가시성, 임시 Pass Node 구성과 실행 의존성 선언 | World Tick, Proxy 갱신, Present |
-| `URenderer` | 공용 Shader·Pipeline State와 Material Render Proxy 수명, 프레임·타깃·Graph 실행 | 구체 Pass, SceneRenderer 생성, 가시성 정책 |
-| `FMaterialRenderProxy` | Material별 Pipeline·상수·Texture/Sampler binding 캐시 | Material UObject와 Texture GPU Resource 소유 |
+| `URenderer` | Shader·Pipeline Cache와 Asset ID 기반 Mesh/Texture/Material Resource Cache, 프레임·Graph 실행 | Asset UObject 수명, Component 접근 |
+| `FMaterialResource` | Material별 Pipeline·상수·Texture Resource/Sampler binding 캐시 | Material UObject 소유, Primitive 공간 상태 |
 | `IRenderDevice` | GPU 자원과 Command List 연산 | World·Editor 정책 |
 | `IRenderContext` | 네이티브 창 출력, Swap Chain, Resize·Present | Scene 순회 |
-| `UEditorEngine` | 렌더 작업 생성과 UI 합성 순서 | 패스 내부 컬링·정렬 |
+| `FRenderSystem` | Renderer·Backend·Render Thread 소유, 명령 직렬화 | World·Asset 로드 정책 |
+| `UEditorEngine` | World·ViewFamily·UI 렌더 요청 구성 | GPU API 직접 호출 |
 
 `URenderer`는 이름에 U 접두사가 있지만 현재 UObject를 상속하지 않는 일반 C++ 객체다. `FSceneInterface`, `IRendererModule` 등의 추가 추상 계층은 없다.
 
@@ -135,15 +132,12 @@ KnotEngine/Source/
 
 ### 현재 구현
 
-1. ImGui 프레임과 패널을 구성하고 입력을 라우팅한다.
-2. EditorEngine이 각 WorldContext의 World를 한 번 Tick한다.
-3. World는 Playing 상태에서 Level과 Component를 Tick하고, 모든 PlayState에서 마지막에 Scene을 갱신한다.
-4. 각 Proxy는 Dirty 여부를 검사한다. Dirty가 아니면 반환하고, Dirty이면 원본 상태를 복사한 뒤 플래그를 해제한다.
-5. ViewportClient의 카메라를 Tick하고 ImGui draw data를 확정한다.
-6. 출력 가능한 Client에서 ViewFamily를 구성한다.
-7. Renderer 프레임을 시작하고 Family마다 지역 SceneRenderer가 Render Graph를 구성하며 Renderer가 Graph를 실행한다.
-8. 모든 offscreen 결과를 포함한 ImGui draw data를 Back Buffer에 합성한다.
-9. Command List를 종료·제출하고 Present한다.
+1. Game/Editor Thread에서 UI, World Tick과 ViewFamily 구성을 마친다.
+2. Component 변경 시점에 제출한 Transform, Mesh, Material, Visibility 명령을 PrimitiveId별로 병합한다.
+3. `FRenderSystem::Render()`가 Scene 명령과 ViewFamily를 Render Thread FIFO에 제출한다.
+4. Render Thread가 Scene Proxy 추가·갱신·제거 명령을 적용한다.
+5. Renderer 프레임을 시작하고 Family마다 지역 SceneRenderer가 Render Graph를 구성·실행한다.
+6. ImGui draw data를 Back Buffer에 합성한 뒤 Command List를 제출하고 Present한다.
 
 ```cpp
 Renderer.BeginFrame();
@@ -177,75 +171,72 @@ Render Thread
     → 준비된 UI 출력 합성 → Submit / Present
 ```
 
-상위 엔진이 렌더 요청을 조율하는 책임은 유지한다. 비동기 작업의 구체적인 SceneRenderer 생성 위치와 프레임 데이터 소유 타입은 Render Thread 구현 시 정한다. 현재의 스택 객체와 ViewFamily 참조를 그대로 다른 스레드에 넘기지 않는다.
+현재 `FRenderSystem::Render()`는 Render Thread 명령의 완료를 기다려 한 프레임을 직렬 실행한다. GT/RT 프레임 중첩은 ImGui 데이터의 깊은 복사와 프레임 수명 제한을 구현한 뒤 활성화한다.
 
 ## Scene 렌더 데이터
 
 ### FScene
 
-`FScene`은 `TArray<std::unique_ptr<FPrimitiveSceneProxy>>`를 소유한다. `AddPrimitive()`는 소유권을 받고 안정적인 Proxy 참조를 반환한다. Proxy는 비공개 배열 인덱스를 보관하며 `RemovePrimitive()`는 swap-pop으로 즉시 파괴한다. 배열 순서는 안정적이지 않지만 unique_ptr 이동 후에도 Proxy의 힙 주소는 유지된다.
+`FScene`은 Game Thread 제출 큐와 Render Thread Proxy 저장소를 함께 관리한다. Component는 `PrimitiveId`로 Add, Update, Remove 명령을 제출하고 같은 Primitive의 부분 갱신은 프레임 렌더 전에 병합된다. Render Thread는 FIFO 순서로 명령을 적용해 Proxy를 생성·갱신·제거한다.
 
-`UpdatePrimitiveSceneProxies()`는 각 Proxy의 `Update()`를 호출한다. Component를 조회하거나 원본 데이터를 읽는 코드는 Scene에 없다. SceneRenderer도 `GetProxies()`로 갱신된 렌더 상태만 조회한다.
+Proxy는 Component 포인터를 보관하지 않고 Render Command가 소유한 값만 `Apply()`로 받는다. SceneRenderer는 Render Thread에서 `GetProxies()`로 갱신이 완료된 렌더 상태만 조회한다.
 
 ### Component와 Proxy
 
 ```text
 OnRegister
-  → 가상 CreatePrimitiveSceneProxy()
-  → StaticMeshComponent가 Proxy 생성 및 초기 상태 구성
-  → FScene.AddPrimitive
+  → PrimitiveId 할당
+  → Add + All Render Command 제출
 
 Transform / Mesh / Visibility / Inspector 변경
-  → MarkPrimitiveSceneProxy()
-  → SceneProxy->bDirty = true
-
-World.Tick 끝
-  → Scene.UpdatePrimitiveSceneProxies()
-  → Proxy.Update()
-  → Dirty이면 Component 상태 복사 및 Bounds 계산
+  → 현재 값을 FPrimitiveRenderData로 추출
+  → PrimitiveId + 부분 Render Command 제출
+  → 같은 PrimitiveId의 명령 병합
 
 OnUnregister
-  → Scene.RemovePrimitive
-  → Component의 SceneProxy = nullptr
+  → Remove Render Command 제출
+  → PrimitiveId 초기화
 ```
 
-`UComponent`에는 가상 `Update()`가 없다. `CreatePrimitiveSceneProxy()`는 PrimitiveComponent의 순수 가상 함수이고 현재 StaticMeshComponent에서 구현한다. 매 갱신마다 Proxy를 새로 만들지 않는다.
+`CreatePrimitiveSceneProxy()`는 PrimitiveComponent의 순수 가상 함수이고 현재 StaticMeshComponent에서 구현한다. Proxy 생성 후에는 `Transform`, `Mesh`, `Material`, `Visibility`, `All` 명령으로 필요한 부분만 교체한다.
 
-`FPrimitiveSceneProxy`는 공통 Primitive 상태를, `FStaticMeshSceneProxy`는 Static Mesh 참조를 보관한다. Proxy는 Dirty일 때 Component의 Mesh와 Visibility를 읽고 Transform의 World Matrix를 조회한다.
+`FPrimitiveSceneProxy`는 공통 Primitive 상태를, `FStaticMeshSceneProxy`는 Renderer가 소유한 `FStaticMeshResource`와 `FMaterialResource`의 비소유 참조를 보관한다. CPU Static Mesh와 Material UObject는 명령 적용 뒤 Proxy에 남기지 않는다.
 
 | Proxy 데이터 | 의미 |
 |---|---|
-| `Mesh` | 렌더링에 사용할 Static Mesh 공유 참조 |
+| `MeshResource` | LOD별 GPU Buffer와 Section을 가진 Static Mesh Resource 참조 |
 | `WorldMatrix` | 로컬 공간에서 월드 공간으로 변환 |
 | `LocalBounds` | Mesh의 로컬 AABB |
 | `WorldBounds` | WorldMatrix를 적용한 AABB |
 | `bVisible` | View와 무관한 표시 상태 |
-| `bDirty` | 원본 Component에서 다시 복사할 필요 여부 |
-| `Component` | 등록 수명 안에서 유효한 비소유 원본 참조 |
+| `MeshResource` | Renderer Cache가 소유하는 GPU LOD Resource |
+| `bLODEnable` | 화면 비율 기반 LOD 선택 사용 여부 |
 
-Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mesh 참조와 Bounds를 비운다. Mesh가 없는 Component도 Proxy 등록은 유지한다. 기본 Geometry Component는 생성자에서 미리 로드된 Static Mesh Asset을 선택하며 SceneRenderer가 처음 사용하기 전에 GPU Mesh Buffer를 업로드한다. 공유 Mesh 데이터를 직접 수정한 경우 관련 Component를 명시적으로 Mark해야 하며 Asset 변경 구독은 아직 없다.
+Mesh가 없거나 CPU Bounds가 유효하지 않으면 Proxy의 Mesh Resource를 비운다. Static Mesh 재임포트는 UObject와 AssetId를 유지하고 CPU Mesh Revision을 증가시킨다. 해당 Mesh를 사용하는 등록 Component에 Mesh/Material 명령을 제출하면 Renderer Cache가 Revision 변경을 감지해 GPU Buffer를 재생성한다.
 
-부모 Transform 변경은 자손까지 Dirty를 전파한다. Stopped·Paused에서도 Scene 갱신을 실행하므로 Inspector 편집 결과가 반영된다. World Tick 이후 변경한 값은 다음 Scene 갱신에서 반영된다.
+부모 Transform 변경은 자손 Primitive에 Transform 명령을 제출한다. Stopped·Paused 상태의 Inspector 편집도 변경 시점에 명령을 생성하므로 다음 렌더 요청에 반영된다.
 
-### Material Render Proxy
+### Material Resource
 
-`FMaterialRenderProxy`는 Primitive의 공간 상태를 나타내는 `FPrimitiveSceneProxy`와 별개의 Renderer 소유 캐시다. `UMaterialInterface` 하나를 Pipeline State, Material Constant bytes, Constant Buffer binding과 Texture/Sampler binding으로 변환해 보관한다. `nullptr` Material Interface는 기본 Material을 나타내는 유효한 캐시 키다.
+`FMaterialResource`는 Primitive의 공간 상태를 나타내는 `FPrimitiveSceneProxy`와 별개의 Renderer 소유 Asset Resource다. `UMaterialInterface` 하나를 Pipeline State, Material Constant bytes, Constant Buffer binding과 Texture Resource/Sampler binding으로 변환해 보관한다. Resource는 원본 Material UObject를 보관하지 않는다.
 
 ```text
 UMaterialInterface
-  → URenderer::RegisterMaterial
-      ├─ 이미 등록됨: 기존 FMaterialRenderProxy 반환
-      └─ 최초 등록: FMaterialRenderProxy 생성
+  → URenderer::GetOrCreateMaterialResource
+      ├─ 같은 AssetId와 Revision: 기존 FMaterialResource 반환
+      └─ 최초 등록 또는 Revision 변경: FMaterialResource 생성·갱신
           ├─ ShaderRegistry에서 Shader 조회·생성
           ├─ PipelineStateCache에서 Pipeline 조회·생성
           ├─ Reflection Layout에 맞춰 Material Constant 패킹
-          ├─ Texture GPU Resource 준비
-          └─ Texture/Sampler Binding 저장
+          ├─ FTextureResource 준비
+          └─ Texture Resource/Sampler Binding 저장
 ```
 
-`URenderer`는 `UMaterialInterface*`를 키로 하는 Map에서 Proxy를 `unique_ptr`로 소유한다. 따라서 Map 재해시 이후에도 Proxy 주소는 유지되고, Draw Command는 Renderer가 해제되기 전까지 안정적인 비소유 포인터를 사용할 수 있다. Renderer는 Shader·Pipeline·Sampler Cache와 Render Device를 해제하기 전에 Material Render Proxy를 먼저 제거한다. Proxy의 `UMaterialInterface*`와 Texture Handle은 비소유 참조이며 UObject나 Texture GPU Resource의 수명을 연장하지 않는다.
+기본 Material과 White Texture는 Cache의 `nullptr` Key가 아니라 `URenderer`가 명시적인 `DefaultMaterialResource`, `DefaultTextureResource`로 소유한다.
 
-각 Proxy에는 Opaque Sort Key에 사용하는 Renderer 수명 범위의 `SortId`가 있다. 현재 Material 파라미터나 Texture가 실행 중 변경됐을 때 Proxy를 다시 등록하는 Revision·Dirty 경로는 없다. 등록 이후 Material이 바뀌면 기존 Constant와 Binding이 자동 갱신되지 않으므로 이 기능은 Material 편집을 도입할 때 추가한다.
+`URenderer`는 `FAssetId`를 키로 하는 Map에서 Material Resource를 `unique_ptr`로 소유한다. 따라서 Map 재해시 이후에도 Resource 주소는 유지되고, Draw Command는 Renderer가 해제되기 전까지 안정적인 비소유 포인터를 사용할 수 있다. Renderer는 Shader·Pipeline·Sampler Cache와 Render Device를 해제하기 전에 Material Resource를 먼저 제거한다. Material Resource는 UObject를 보관하지 않고 Renderer가 소유하는 `FTextureResource`를 비소유 참조한다.
+
+각 Material Resource에는 Opaque Sort Key에 사용하는 Renderer 수명 범위의 `SortId`와 원본의 `SourceRevision`이 있다. Renderer는 Asset Revision이 달라지면 같은 Resource 인스턴스를 제자리에서 갱신한다. 현재 Material과 Texture Asset은 최초 로드 시 Revision 1을 부여하지만 실행 중 편집·재임포트 API는 아직 없으므로, 실제 Revision 증가 경로는 해당 기능을 도입할 때 추가한다.
 
 ### View와 ViewFamily
 
@@ -267,14 +258,14 @@ UMaterialInterface
 
 ## Draw Command
 
-현재 `FMeshDrawCommand`는 Primitive Proxy, Mesh Buffer와 Material Render Proxy의 비소유 포인터, Section index 범위와 `uint64` Sort Key를 담는다. Material Constant·Texture 배열을 Draw Command마다 복사하지 않는다. GPU 명령 버퍼 자체가 아니라 불투명 패스 실행에 필요한 임시 선택 정보다.
+현재 `FMeshDrawCommand`는 Primitive Proxy, Mesh Buffer와 Material Resource의 비소유 포인터, Section index 범위와 `uint64` Sort Key를 담는다. Material Constant·Texture 배열을 Draw Command마다 복사하지 않는다. GPU 명령 버퍼 자체가 아니라 불투명 패스 실행에 필요한 임시 선택 정보다.
 
 `VisiblePrimitives`는 SceneRenderer 멤버이며 View마다 다시 구성한다. `OpaqueCommands`는 `FOpaquePass::AddPass()`에서 생성되어 Opaque Node가 실행될 때까지 보관된다. 가시 Primitive 수만큼 reserve한 뒤 명령을 추가·정렬하며 View나 프레임 간 Draw Command 캐시는 없다.
 
 ```text
 GetProxies → CullView → VisiblePrimitives
   → FOpaquePass::AddPass
-      ├─ Renderer에서 Material Render Proxy 등록·조회
+      ├─ Renderer에서 Material Resource 생성·조회
       ├─ OpaqueCommands와 64비트 Sort Key 생성
       └─ Pipeline → Material → Mesh → Depth 정렬
   → Opaque Node 실행
@@ -323,7 +314,7 @@ Shadow → 필요 시 Depth Prepass → Base/GBuffer → Light → Translucency 
 
 ## Pass별 정렬
 
-현재 불투명 패스는 Draw Command 생성 시 `[Pipeline 12bit | Material 20bit | Mesh 20bit | Depth 12bit]`의 64비트 Sort Key를 만든다. Pipeline에는 Pipeline State Handle Index, Material에는 Material Render Proxy Sort ID, Mesh에는 Vertex Buffer Handle Index를 사용한다. Depth는 WorldBounds 중심의 View 공간 Z를 Far Clip 범위로 정규화한다. 키는 `std::sort`로 오름차순 정렬하며, 실행 중 직전 상태를 추적해 동일한 Pipeline, Material binding과 Mesh Buffer를 다시 설정하지 않는다.
+현재 불투명 패스는 Draw Command 생성 시 `[Pipeline 12bit | Material 20bit | Mesh 20bit | Depth 12bit]`의 64비트 Sort Key를 만든다. Pipeline에는 Pipeline State Handle Index, Material에는 Material Resource Sort ID, Mesh에는 Vertex Buffer Handle Index를 사용한다. Depth는 WorldBounds 중심의 View 공간 Z를 Far Clip 범위로 정규화한다. 키는 `std::sort`로 오름차순 정렬하며, 실행 중 직전 상태를 추적해 동일한 Pipeline, Material binding과 Mesh Buffer를 다시 설정하지 않는다.
 
 | 패스 | 현재 또는 목표 정렬 기준 |
 |---|---|
@@ -361,7 +352,7 @@ Command allocator/list 재사용, descriptor 관리, resource state transition, 
 
 Viewport의 offscreen Scene Color는 선형 색을 저장하는 Render Target이자 Post Process 입력 Shader Resource다. 화면 표시용 Color는 Post Process 출력 Render Target이면서 ImGui에서 읽는 Shader Resource이고, Depth는 두 렌더 단계가 공유하는 DepthStencil 용도다. 현재 바인딩과 Clear는 Renderer가 수행하며 ImGui texture ID 변환은 GPU backend를 통해 처리한다.
 
-Pipeline State는 Shader, Vertex Layout, Primitive Topology, Blend와 Depth 설정을 묶는다. Static Mesh는 `FStaticMeshVertex`와 Material이 선택한 Shader를 사용하며 ViewProjection은 View 상수 `b0`, Material Parameter는 Reflection이 지정한 슬롯, Model은 Draw 상수 `b3`으로 전달한다. `FPipelineStateCache`가 동일한 Description의 생성을 중복하지 않고, `FMaterialRenderProxy`가 해당 Pipeline과 Texture·Sampler·상수 바인딩을 재사용한다.
+Pipeline State는 Shader, Vertex Layout, Primitive Topology, Blend와 Depth 설정을 묶는다. Static Mesh는 `FStaticMeshVertex`와 Material이 선택한 Shader를 사용하며 ViewProjection은 View 상수 `b0`, Material Parameter는 Reflection이 지정한 슬롯, Model은 Draw 상수 `b3`으로 전달한다. `FPipelineStateCache`가 동일한 Description의 생성을 중복하지 않고, `FMaterialResource`가 해당 Pipeline과 Texture Resource·Sampler·상수 바인딩을 재사용한다.
 
 ### 상수 버퍼 슬롯 계약
 
@@ -378,9 +369,9 @@ Shader Stage별 상수 버퍼 슬롯은 데이터의 의미와 갱신 빈도에 
 
 ## Material과 Pipeline 선택
 
-`FStaticMeshSceneProxy`는 Mesh Section의 Material Slot과 Component Override를 반영한 `UMaterialInterface*` 배열을 보관한다. Opaque Pass는 Section별 Material Interface를 `URenderer::RegisterMaterial()`에 전달하고 반환된 `FMaterialRenderProxy`를 Draw Command에 기록한다.
+Mesh/Material Render Command를 적용할 때 `FStaticMeshSceneProxy`가 Component Override와 Static Mesh Material Slot을 `FMaterialResource*` 배열로 변환한다. Opaque Pass는 Resource에 복사된 Section의 Material Index로 준비된 Material Resource를 조회하고 없으면 Renderer의 기본 Material Resource를 사용한다.
 
-Material Render Proxy는 Material의 Vertex/Pixel Shader, Cull·Depth·Blend 상태로 Pipeline State를 선택한다. Reflection Layout에 따라 상수를 패킹하고 Texture Resource와 Sampler Handle을 준비한다. Material이 없거나 유효하지 않으면 기본 Static Mesh Shader와 Magenta Base Color, 기본 White Texture를 사용한다.
+Material Resource는 Material의 Vertex/Pixel Shader, Cull·Depth·Blend 상태로 Pipeline State를 선택한다. Reflection Layout에 따라 상수를 패킹하고 Texture Resource와 Sampler Handle을 준비한다. Material이 없거나 유효하지 않으면 기본 Static Mesh Shader와 Magenta Base Color, 기본 White Texture를 사용한다.
 
 현재는 Blend Mode가 Translucent인 Material도 별도 Translucency Pass가 아니라 Opaque Pass의 Pipeline State로 제출된다. Material 변경 무효화, 패스 참여 분리와 투명 객체의 back-to-front 정렬은 아직 구현하지 않았다.
 
@@ -394,28 +385,17 @@ Primitive 외의 Light나 다른 렌더 대상이 실제로 추가되면 해당 
 
 ## 스레딩과 수명
 
-### 현재 단일 스레드 계약
+### 현재 Render Thread 계약
 
-World 변경, Proxy 복사, UI 구성과 GPU 호출은 같은 메인 스레드에서 순서대로 진행한다. Proxy는 원본 Component를 직접 읽을 수 있지만 SceneRenderer 실행 중에는 Component나 Proxy를 변경·제거하지 않는다.
+`FRenderThread`는 Renderer, Backend과 GPU Resource 생성·해제, Scene Command 적용, Draw·Submit·Present를 직렬 FIFO에서 실행한다. Game/Editor Thread는 Component에서 추출한 값과 ViewFamily만 제출하고 RT Proxy나 GPU Resource를 직접 수정하지 않는다.
 
-Component의 OnUnregister가 Scene에서 Proxy를 제거한 뒤 Component를 파괴한다. World는 Level·Component를 먼저 파괴하고 마지막에 Scene을 소멸시킨다. ViewFamily와 Draw Command의 비소유 참조는 동기 Render 호출이 끝날 때까지 유효해야 한다.
+Component의 OnUnregister는 Remove 명령을 제출하고 PrimitiveId를 초기화한다. World·Asset 종료 전에 Render Thread의 관련 명령을 완료하고 Renderer Asset Cache를 비운다.
 
 ImGuiSystem은 Application을 비소유 참조로 보관하며 Startup에서 메시지 콜백을 등록하고 Shutdown에서 해제한다. Launch와 EditorEngine은 메시지를 ImGui로 중계하지 않는다. EditorEngine의 FImGuiSystem 직접 소유는 유지한다.
 
-### 목표 Render Thread 경계
+### 향후 GT/RT 중첩 경계
 
-현재의 friend 관계는 스레드 동기화를 제공하지 않는다. Render Thread가 현재 Proxy.Update()를 그대로 실행하여 게임 스레드의 Component를 읽게 해서는 안 된다.
-
-Render Thread 분리 시 다음 계약을 먼저 구현한다.
-
-1. World 갱신 끝에서 Game Thread가 Dirty Component의 렌더 데이터를 복사한다.
-2. 전달 데이터는 스레드 간 읽기 중 변경되지 않으며 원본 Component 수명에 의존하지 않는다.
-3. Render Thread가 자신의 Scene 상태에 등록·갱신·제거를 순서대로 적용한다.
-4. Render Thread의 Proxy는 Component를 역참조하지 않는다. 현재 원본 참조와 Dirty 처리 경계는 이때 재설계한다.
-5. ViewFamily·Render Target·Mesh 자원과 ImGui draw data를 소비 완료까지 유지한다. 다음 UI 프레임과의 중첩에는 draw data 복사 또는 명시적 동기화가 필요하다.
-6. Resize·World 종료·타깃 제거는 대기 중인 렌더 작업과 조율한다. CPU 작업 완료와 GPU Fence 완료를 구분한다.
-
-먼저 단일 Render Thread를 분리하고 동기 버전과 결과를 비교한다. 다중 워커의 병렬 컬링·Draw Command 생성·패스 기록과 별도 RHI Thread는 현재 목표 구현 범위에 포함하지 않는다.
+현재 Render Thread는 별도 Worker이지만 Frame Render는 `EnqueueAndWait()`로 완료를 기다린다. 향후 비동기 중첩 시에는 ViewFamily, ImGui Draw Data와 CPU Mesh/Texture 스냅샷이 RT 소비 완료까지 유지되어야 한다. Resize·World 종료·Asset 재임포트는 대기 중인 명령과 조율하고 CPU Command 완료와 GPU Fence 완료를 구분한다.
 
 ### GPU 자원 수명
 
@@ -426,16 +406,17 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 ### 구현됨
 
 - World 소유 FScene과 지속적인 PrimitiveSceneProxy
-- Component와 Proxy의 friend 접근 및 비소유 참조
-- Proxy 자체 Dirty 표시, World.Tick 끝의 조건부 데이터 갱신
+- Component와 Proxy의 상호 참조를 제거한 PrimitiveId 기반 갱신
 - Mesh·Visibility·Transform·부모 변경과 Inspector 편집 반영
+- PrimitiveId별 Render Command 병합과 Render Thread Proxy 갱신
 - Scene.GetProxies 기반 View별 Frustum Culling
 - ViewFamily와 offscreen Color·Depth 타깃
 - EditorEngine의 SceneRenderer 생성 및 Render(Renderer) 호출
 - ViewFamily마다 생성되고 실행 뒤 폐기되는 raw Node Index 기반 Dependency Render Graph
 - 임시 Opaque/Grid/Axis Node를 등록하는 상태 없는 Pass Builder
 - Render Device 수명 동안 Shader와 PSO를 소유하는 `FShaderRegistry`, `FPipelineStateCache`
-- Renderer 수명 동안 Material별 Pipeline·상수·Texture/Sampler binding을 재사용하는 `FMaterialRenderProxy`
+- Renderer 수명 동안 Material별 Pipeline·상수·Texture/Sampler binding을 재사용하는 `FMaterialResource`
+- `FAssetId`와 Revision으로 관리되는 Static Mesh/Texture/Material Resource Cache
 - Pipeline·Material·Mesh·Depth 64비트 키 기반 Opaque 정렬과 중복 상태 바인딩 생략
 - D3D11 RHI, ImGui 출력 합성과 Submit·Present
 
@@ -445,7 +426,7 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 |---|---|---|
 | Pass 확장 | Shadow 등 상태 없는 Node Builder와 Index 의존성 추가 | 현재 Opaque·Grid·Axis 출력 유지, Pass별 입력·출력·정렬 명확화 |
 | Material·Light 확장 | Material 변경 무효화, 패스 참여 분리, Shadow·투명 등 추가 | View와 Pass별 명령 선택 및 정렬 검증 |
-| Render Thread | 전달 데이터와 렌더 상태 소유 분리 | Component 파괴·Resize·UI 수명과 프레임 순서 검증 |
+| GT/RT 프레임 중첩 | 현재 직렬 Render Thread 실행을 비동기 제출로 확장 | ImGui 깊은 복사와 최대 미완료 프레임 제한 |
 | D3D12 | backend 및 GPU 완료 기반 자원 관리 | 자원 전이·재사용·지연 해제 검증 |
 | Graph Resource 추적 | 자원 read/write, 상태 전이와 임시 타깃 관리 | 명시적 Node Index 의존성 위에서 자원 위험을 검증·해결 |
 
@@ -453,11 +434,11 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 
 ## 검증 기준
 
-- Clean Proxy는 상태를 다시 복사하지 않고 여러 Mark는 다음 갱신 한 번으로 합쳐진다.
+- 같은 PrimitiveId의 여러 부분 갱신은 다음 Render 전에 하나의 Command로 병합된다.
 - Stopped·Paused·Playing의 World.Tick 뒤에 Scene 상태가 일관된다.
-- 갱신 전후 Proxy 주소는 유지되고 Mesh 해제 시 Bounds도 비워진다.
+- 갱신 전후 PrimitiveId는 유지되고 Mesh Revision 변경 시 GPU Resource가 재생성된다.
 - 부모 Transform 변경과 부모 삭제가 자손 Proxy에 반영된다.
-- Dirty 상태에서 등록 해제·재등록·World 종료해도 원본 참조가 남지 않는다.
+- Add, Update, Remove 명령이 FIFO 순서로 적용되고 World 종료 후 Proxy와 Asset 참조가 남지 않는다.
 - 여러 View는 독립적으로 컬링하고 Family 타깃은 한 번만 Clear한다.
 - World 상태 갱신 횟수는 ViewFamily 개수와 무관하다.
 - 불투명 정렬·Draw와 ImGui 합성 결과를 실제 D3D11 출력으로 확인한다.
@@ -469,16 +450,21 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 - [World.cpp](../KnotEngine/Source/Engine/World/World.cpp)
 - [PrimitiveComponent.h](../KnotEngine/Source/Engine/Component/PrimitiveComponent.h)
 - [StaticMeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/StaticMeshComponent.cpp)
-- [Mesh.cpp](../KnotEngine/Source/Engine/Render/Resource/Mesh.cpp)
+- [StaticMesh.cpp](../KnotEngine/Source/Engine/Asset/Mesh/StaticMesh.cpp)
+- [GeometryMesh.cpp](../KnotEngine/Source/Engine/Render/Resource/Mesh/GeometryMesh.cpp)
+- [StaticMeshResource.cpp](../KnotEngine/Source/Engine/Render/Resource/Mesh/StaticMeshResource.cpp)
 - [PrimitiveSceneProxy.h](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.h)
 - [PrimitiveSceneProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.cpp)
-- [MaterialRenderProxy.h](../KnotEngine/Source/Engine/Render/Proxy/MaterialRenderProxy.h)
-- [MaterialRenderProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/MaterialRenderProxy.cpp)
+- [MaterialResource.h](../KnotEngine/Source/Engine/Render/Resource/MaterialResource.h)
+- [MaterialResource.cpp](../KnotEngine/Source/Engine/Render/Resource/MaterialResource.cpp)
+- [TextureResource.h](../KnotEngine/Source/Engine/Render/Resource/TextureResource.h)
 - [Scene.h](../KnotEngine/Source/Engine/Render/Scene/Scene.h)
 - [SceneView.h](../KnotEngine/Source/Engine/Render/Scene/SceneView.h)
 - [SceneRenderer.cpp](../KnotEngine/Source/Engine/Render/Scene/SceneRenderer.cpp)
 - [OpaquePass.cpp](../KnotEngine/Source/Engine/Render/Pass/OpaquePass.cpp)
 - [Renderer.cpp](../KnotEngine/Source/Engine/Render/Renderer.cpp)
+- [RenderSystem.cpp](../KnotEngine/Source/Renderer/Render/RenderSystem.cpp)
+- [RenderThread.cpp](../KnotEngine/Source/Renderer/Render/RenderThread.cpp)
 - [RenderDevice.h](../KnotEngine/Source/Engine/Render/RHI/RenderDevice.h)
 - [RenderContext.h](../KnotEngine/Source/Engine/Render/RHI/RenderContext.h)
 - [EditorViewportCamera.h](../KnotEngine/Source/Editor/Viewport/EditorViewportCamera.h)

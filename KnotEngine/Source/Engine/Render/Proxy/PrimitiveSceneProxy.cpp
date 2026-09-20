@@ -1,76 +1,86 @@
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 
-#include "Component/Mesh/StaticMeshComponent.h"
-#include "Component/TransformComponent.h"
-#include "Render/Resource/Mesh/Mesh.h"
+#include "Render/Renderer.h"
+#include "Asset/Mesh/StaticMesh.h"
+#include "Render/Resource/MaterialResource.h"
+#include "Render/Resource/Mesh/StaticMeshResource.h"
 #include "Render/Scene/SceneView.h"
-#include "World/Node.h"
 
 #include <algorithm>
 #include <cmath>
 
-FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent)
-	: Component(InComponent), bSelected(InComponent.GetOwner().IsSelected())
+void FPrimitiveSceneProxy::ApplyPrimitiveData(ERenderCommandType Type, const FPrimitiveRenderData& RenderData)
 {
+	if (HasRenderCommand(Type, ERenderCommandType::Transform) || HasRenderCommand(Type, ERenderCommandType::Mesh))
+	{
+		WorldMatrix = RenderData.WorldMatrix;
+		LocalBounds = RenderData.LocalBounds;
+		WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
+		WorldBoundsRadius = WorldBounds.IsValid() ? WorldBounds.GetExtent().Size() : 0.0f;
+	}
+	if (HasRenderCommand(Type, ERenderCommandType::Visibility))
+	{
+		bVisible = RenderData.bVisible;
+		bSelected = RenderData.bSelected;
+	}
 }
 
-UNode& FPrimitiveSceneProxy::GetOwner() const
+FStaticMeshSceneProxy::FStaticMeshSceneProxy(const FPrimitiveRenderData& RenderData)
 {
-	return Component.GetOwner();
-}
-
-void FPrimitiveSceneProxy::UpdateBounds(const FAABB& InLocalBounds)
-{
-	// Component와의 friend 관계로 현재 상태를 읽는다. 갱신 중 임시 Proxy를 생성하지 않는다.
-	WorldMatrix = Component.GetTransform().GetWorldMatrix();
-	bVisible = Component.bVisible;
-	LocalBounds = InLocalBounds;
+	WorldMatrix = RenderData.WorldMatrix;
+	LocalBounds = RenderData.LocalBounds;
+	bVisible = RenderData.bVisible;
+	bSelected = RenderData.bSelected;
+	bLODEnable = RenderData.bLODEnable;
 	WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
 	WorldBoundsRadius = WorldBounds.IsValid() ? WorldBounds.GetExtent().Size() : 0.0f;
-	bDirty = false;
 }
 
-FStaticMeshSceneProxy::FStaticMeshSceneProxy(const UStaticMeshComponent& InComponent)
-	: FPrimitiveSceneProxy(InComponent), MeshComponent(InComponent)
+void FStaticMeshSceneProxy::Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, URenderer& Renderer)
 {
-	Update();
-}
-
-void FStaticMeshSceneProxy::Update()
-{
-	UStaticMesh* StaticMesh = MeshComponent.GetStaticMesh();
-	if (!bDirty && MeshRevision == (StaticMesh ? StaticMesh->GetRevision() : 0))
+	ApplyPrimitiveData(Type, RenderData);
+	if (HasRenderCommand(Type, ERenderCommandType::Mesh))
 	{
-		return;
-	}
-
-	Mesh = StaticMesh ? &StaticMesh->GetRenderData() : nullptr;
-	MeshRevision = StaticMesh ? StaticMesh->GetRevision() : 0;
-	bLODEnabled = MeshComponent.IsLODEnable();
-	Materials.clear();
-	if (Mesh && !Mesh->IsValid())
-	{
-		Mesh = nullptr;
-	}
-	if (Mesh)
-	{
-		Materials.resize(MeshComponent.GetMaterialCount());
-		for (SIZE_T MaterialIndex = 0; MaterialIndex < Materials.size(); ++MaterialIndex)
+		bLODEnable = RenderData.bLODEnable;
+		if (RenderData.Mesh && !RenderData.Mesh->IsValid())
 		{
-			Materials[MaterialIndex] = MeshComponent.GetMaterial(MaterialIndex);
+			MeshResource = nullptr;
+		}
+		else if (RenderData.Mesh)
+		{
+			MeshResource = &Renderer.GetOrCreateStaticMeshResource(RenderData.MeshAssetId, *RenderData.Mesh, RenderData.MeshRevision);
+		}
+		else
+		{
+			MeshResource = nullptr;
 		}
 	}
-	UpdateBounds(Mesh ? Mesh->GetLocalBounds() : FAABB());
+	if (HasRenderCommand(Type, ERenderCommandType::Material))
+	{
+		DefaultMaterial = &Renderer.GetDefaultMaterialResource();
+		Materials.clear();
+		Materials.reserve(RenderData.Materials.size());
+		for (const UMaterialInterface* Material : RenderData.Materials)
+		{
+			Materials.push_back(Material ? &Renderer.GetOrCreateMaterialResource(*Material) : DefaultMaterial);
+		}
+	}
+}
+
+const FMaterialResource& FStaticMeshSceneProxy::GetMaterial(SIZE_T MaterialIndex) const
+{
+	check(DefaultMaterial);
+	return MaterialIndex < Materials.size() ? *Materials[MaterialIndex] : *DefaultMaterial;
 }
 
 SIZE_T FStaticMeshSceneProxy::SelectLOD(const FSceneView& View) const
 {
-	check(Mesh && Mesh->GetLODCount() > 0);
-	if (!bLODEnabled)
+	check(MeshResource && MeshResource->GetLODCount() > 0);
+	if (!bLODEnable)
 	{
 		return 0;
 	}
-	if (Mesh->GetLODCount() == 1 || std::fabs(View.ProjectionMatrix.M[2][3]) <= KMath::Epsilon)
+	if (MeshResource->GetLODCount() == 1 || std::fabs(View.ProjectionMatrix.M[2][3]) <= KMath::Epsilon)
 	{
 		return 0;
 	}
@@ -79,7 +89,7 @@ SIZE_T FStaticMeshSceneProxy::SelectLOD(const FSceneView& View) const
 	const float ProjectedRadiusScale = WorldBoundsRadius * std::fabs(View.ProjectionMatrix.M[1][1]);
 	const float ProjectedRadiusScaleSquared = ProjectedRadiusScale * ProjectedRadiusScale;
 	static constexpr SIZE_T MaximumLODCount = 5;
-	const SIZE_T LODCount = std::min(Mesh->GetLODCount(), MaximumLODCount);
+	const SIZE_T LODCount = std::min(MeshResource->GetLODCount(), MaximumLODCount);
 	SIZE_T LODIndex = 0;
 	while (LODIndex + 1 < LODCount)
 	{

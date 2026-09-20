@@ -3,8 +3,10 @@
 
 #include "World/MapSerializer.h"
 #include "World/World.h"
-#include "Render/RHI/RenderTypes.h"
-#include "Render/Scene/SceneRenderer.h"
+#include "World/Level.h"
+#include "World/Node.h"
+#include "Component/Mesh/StaticMeshComponent.h"
+#include "Render/RenderSystem.h"
 #include "Viewport/EditorViewportClient.h"
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
@@ -13,17 +15,15 @@
 
 #include <algorithm>
 
-UEditorEngine::UEditorEngine(FWindowsApplication& Application)
-	: RenderBackend(CreateRenderBackend()),
-	  Renderer(RenderBackend->GetRenderDevice(), RenderBackend->GetRenderContext(), RenderBackend->GetShaderFormat()),
+UEditorEngine::UEditorEngine(FWindowsApplication& Application, FRenderSystem& InRenderSystem)
+	: RenderSystem(InRenderSystem),
 	  ImGuiSystem(
 		  Application,
 		  *this,
 		  GetAssetManager().GetAssetRegistry(),
 		  AssetImportManager,
 		  EditorSettings,
-		  RenderBackend->GetRenderDevice(),
-		  RenderBackend->GetImGuiRenderBackend(),
+		  InRenderSystem,
 		  InputRouter,
 		  EditorSelection)
 {
@@ -34,7 +34,6 @@ void UEditorEngine::Startup(FWindowsApplication& Application)
 	check(EditorContextId == 0);
 	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 
-	Renderer.Create(Application.GetWindow().GetHwnd());
 	if (!EditorSettings.Load())
 	{
 		KE_LOG(LogEditor, Error, "Editor Settings를 불러오거나 저장하지 못했다. Path={}", FPaths::ToUtf8(FPaths::EditorSettingsPath()));
@@ -56,7 +55,7 @@ void UEditorEngine::ProcessInput(const FInputSnapshot& InputSnapshot)
 
 void UEditorEngine::OnWindowResized(FWindowSize Size)
 {
-	Renderer.Resize(Size.Width, Size.Height);
+	RenderSystem.ResizeWindow(Size.Width, Size.Height);
 }
 
 void UEditorEngine::Tick(float DeltaTime)
@@ -109,16 +108,44 @@ void UEditorEngine::ProcessAssetImports()
 			KE_LOG(LogAssetImporter, Error, "GLB Import 실패. Source={}, Error={}", SourcePath, Result.Error);
 			continue;
 		}
+
 		for (const FString& Warning : Result.Warnings)
 		{
 			KE_LOG(LogAssetImporter, Warning, "GLB Import 경고. Source={}, Warning={}", SourcePath, Warning);
 		}
+
 		for (const FImportedAsset& ImportedAsset : Result.ImportedAssets)
 		{
-			if (ImportedAsset.Type == EAssetType::StaticMesh && !GetAssetManager().ReloadStaticMesh(ImportedAsset.AssetId))
+			if (ImportedAsset.Type != EAssetType::StaticMesh)
 			{
-				KE_LOG(LogAssetImporter, Error, "Static Mesh Reload 실패. AssetPath={}, AssetId={}",
-				       ImportedAsset.AssetPath, ImportedAsset.AssetId.ToString());
+				continue;
+			}
+
+			UStaticMesh* ExistingMesh = GetAssetManager().FindStaticMesh(ImportedAsset.AssetId);
+			if (!GetAssetManager().ReloadStaticMesh(ImportedAsset.AssetId))
+			{
+				KE_LOG(LogAssetImporter, Error, "Static Mesh Reload 실패. AssetPath={}, AssetId={}", ImportedAsset.AssetPath, ImportedAsset.AssetId.ToString());
+				continue;
+			}
+			if (!ExistingMesh)
+			{
+				continue;
+			}
+
+			for (UObject* Object : GUObjectArray)
+			{
+				if (!Object || !Object->IsA(UStaticMeshComponent::StaticClass()))
+				{
+					continue;
+				}
+
+				auto* MeshComponent = static_cast<UStaticMeshComponent*>(Object);
+				if (!MeshComponent->IsRegistered() || MeshComponent->GetStaticMesh() != ExistingMesh)
+				{
+					continue;
+				}
+
+				MeshComponent->EnqueueRenderCommand(ERenderCommandType::Mesh | ERenderCommandType::Material);
 			}
 		}
 		KE_LOG(LogAssetImporter, Display, "GLB Import 완료. Source={}, AssetCount={}", SourcePath, Result.ImportedAssets.size());
@@ -129,12 +156,14 @@ void UEditorEngine::Render()
 {
 	KNOT_PROFILE_SCOPE("Render", "UEditorEngine::Render");
 
-	const FRenderViewport OutputViewport = Renderer.GetViewport();
-	if (OutputViewport.Width <= 0.0f || OutputViewport.Height <= 0.0f)
+	TArray<FScene*> Scenes;
+	for (FWorldContext& Context : WorldContexts)
 	{
-		return;
+		if (UWorld* World = Context.World.Get())
+		{
+			Scenes.push_back(&World->GetScene());
+		}
 	}
-
 	TArray<FSceneViewFamily> ViewFamilies;
 	for (FEditorViewportClient* ViewportClient : AllViewportClients)
 	{
@@ -151,14 +180,7 @@ void UEditorEngine::Render()
 		}
 	}
 
-	Renderer.BeginFrame();
-	for (const FSceneViewFamily& Family : ViewFamilies)
-	{
-		FSceneRenderer SceneRenderer(Family);
-		SceneRenderer.Render(Renderer);
-	}
-	ImGuiSystem.Render(Renderer.GetCommandList());
-	Renderer.EndFrame();
+	RenderSystem.Render(std::move(Scenes), std::move(ViewFamilies), ImGuiSystem.GetDrawData());
 }
 
 void UEditorEngine::RegisterViewportClient(FEditorViewportClient& ViewportClient)
@@ -233,16 +255,18 @@ bool UEditorEngine::SaveLevel(const std::filesystem::path& FilePath)
 void UEditorEngine::Shutdown()
 {
 	EditorSelection.Deselect();
+	AssetImportManager.Shutdown();
+	InputRouter.Reset();
+	ImGuiSystem.Shutdown();
 	if (UWorld* World = GetWorld())
 	{
 		World->EndPlay();
+		TArray<FScene*> Scenes = { &World->GetScene() };
+		RenderSystem.Render(std::move(Scenes), {}, nullptr);
 	}
 	DestroyWorldContext(EditorContextId);
 	EditorContextId = 0;
 
-	AssetImportManager.Shutdown();
-	InputRouter.Reset();
-	ImGuiSystem.Shutdown();
+	RenderSystem.ReleaseAssetResources();
 	Super::Shutdown();
-	Renderer.Release();
 }

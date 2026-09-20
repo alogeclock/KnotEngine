@@ -36,8 +36,7 @@ bool FMeshBuffer::Initialize(IRenderDevice& RenderDevice, const FMeshDataView& I
 {
 	Release();
 
-	// 현재 유일한 데이터 공급자는 코드에 하드코딩된 정점 배열이므로 검증 실패는 곧 코드 버그다.
-	// 애셋 로더가 붙으면 이 지점은 assert가 아니라 애셋 오류로 다시 분류해야 한다.
+	// Asset Loader와 내부 Geometry 생성 경로가 CPU 데이터를 미리 검증하므로 여기서의 실패는 업로드 계약 위반이다.
 	if (!Validate(InDataView))
 	{
 		checkf(false, "FMeshDataView 검증 실패. VertexCount={}, Bytes={}, IndexCount={}, Stride={}",

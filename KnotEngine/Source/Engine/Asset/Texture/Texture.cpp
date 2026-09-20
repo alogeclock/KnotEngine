@@ -25,5 +25,6 @@ bool UTexture::Initialize(
 	MipCount = InMipCount;
 	Format = InFormat;
 	ColorSpace = InColorSpace;
+	Revision = 1;
 	return true;
 }

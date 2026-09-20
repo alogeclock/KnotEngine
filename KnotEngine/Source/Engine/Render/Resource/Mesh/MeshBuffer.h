@@ -20,7 +20,7 @@ struct ENGINE_API FMeshDataView
 };
 
 // 하나의 Draw/DrawIndexed 호출에 필요한 GPU Mesh Buffer 묶음.
-// CPU Mesh 또는 LOD가 값으로 소유하며, 빈 상태와 GPU resident 상태를 구분한다.
+// FStaticMeshResource와 Renderer 내부 Geometry가 소유하며 빈 상태와 GPU resident 상태를 구분한다.
 class ENGINE_API FMeshBuffer final : public FRenderResource
 {
 public:

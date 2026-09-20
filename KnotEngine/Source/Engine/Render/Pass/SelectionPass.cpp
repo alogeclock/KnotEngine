@@ -3,8 +3,9 @@
 #include "Core/Assert.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
-#include "Render/Resource/Mesh/Mesh.h"
+#include "Asset/Mesh/StaticMesh.h"
 #include "Render/Resource/Mesh/MeshBuffer.h"
+#include "Render/Resource/Mesh/StaticMeshResource.h"
 #include "Render/Resource/Mesh/Vertex.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
@@ -27,11 +28,12 @@ uint32 FSelectionPass::AddPass(
 		}
 
 		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
-		check(StaticMeshProxy.Mesh && StaticMeshProxy.Mesh->GetLODCount() > 0);
-		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(StaticMeshProxy.SelectLOD(View));
+		check(StaticMeshProxy.MeshResource && StaticMeshProxy.MeshResource->GetLODCount() > 0);
+		const SIZE_T LODIndex = StaticMeshProxy.SelectLOD(View);
+		const FStaticMeshLODResource& LOD = StaticMeshProxy.MeshResource->GetLOD(LODIndex);
 		const FMeshBuffer* MeshBuffer = &LOD.GetMeshBuffer();
 		checkf(MeshBuffer->IsValid(), "준비되지 않은 Static Mesh가 Selection Pass에 전달되었다.");
-		for (const FStaticMeshSection& Section : LOD.GetSections())
+		for (const FStaticMeshSectionResource& Section : LOD.GetSections())
 		{
 			DrawCommands.push_back({ Primitive, MeshBuffer, Section.FirstIndex, Section.IndexCount });
 		}

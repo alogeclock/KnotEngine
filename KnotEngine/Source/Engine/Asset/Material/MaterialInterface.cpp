@@ -1,21 +1,25 @@
 #include "Asset/Material/MaterialInterface.h"
 
 #include "Core/Assert.h"
-#include "Render/Resource/Material/Material.h"
 
 #include <cstring>
 
 // Material Interface를 식별하는 논리 Asset 경로를 검증해 저장한다.
 bool UMaterialInterface::Initialize(const FAssetId& InAssetId, FString InAssetPath)
 {
-	return InitializeAsset(InAssetId, std::move(InAssetPath));
+	if (!InitializeAsset(InAssetId, std::move(InAssetPath)))
+	{
+		return false;
+	}
+	Revision = 1;
+	return true;
 }
 
 // Reflection Layout의 Offset/Size에 맞춰 Material 및 Instance Parameter 값을 연속 Constant Buffer 데이터로 패킹한다.
-void UMaterialInterface::PackMaterialConstants(const FMaterialParameterLayout& Layout, TArray<uint8>& OutData) const
+void UMaterialInterface::PackMaterialConstants(std::span<const FMaterialParameterDesc> Parameters, uint32 ConstantBufferSize, TArray<uint8>& OutData) const
 {
-	OutData.assign(Layout.ConstantBufferSize, 0);
-	for (const FMaterialParameterDesc& Parameter : Layout.Parameters)
+	OutData.assign(ConstantBufferSize, 0);
+	for (const FMaterialParameterDesc& Parameter : Parameters)
 	{
 		checkf(Parameter.Offset + Parameter.Size <= OutData.size(), "Material Parameter Layout이 Constant Buffer 범위를 벗어났다.");
 		uint8* Destination = OutData.data() + Parameter.Offset;

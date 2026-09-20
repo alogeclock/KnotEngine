@@ -25,17 +25,16 @@ public:
 	SIZE_T GetMaterialCount() const;
 	const TArray<TObjectPtr<UMaterialInterface>>& GetOverrideMaterials() const { return OverrideMaterials; }
 	bool IsLODEnable() const { return bLODEnable; }
+	FPrimitiveRenderData BuildPrimitiveRenderData(ERenderCommandType Type) const override;
 
 protected:
 	explicit UStaticMeshComponent(const FAssetId& DefaultAssetId);
-	std::unique_ptr<FPrimitiveSceneProxy> CreatePrimitiveSceneProxy() const override;
+	std::unique_ptr<FPrimitiveSceneProxy> CreatePrimitiveSceneProxy(const FPrimitiveRenderData& RenderData) const override;
 
 private:
-	UPROPERTY(Category = "Static Mesh")
-	TObjectPtr<UStaticMesh> StaticMesh;
+	UPROPERTY(Category = "Static Mesh") TObjectPtr<UStaticMesh> StaticMesh;
 
 	UPROPERTY(Category = "LOD") bool bLODEnable = true;
 
-	UPROPERTY(Category = "Material")
-	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
+	UPROPERTY(Category = "Material") TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
 };

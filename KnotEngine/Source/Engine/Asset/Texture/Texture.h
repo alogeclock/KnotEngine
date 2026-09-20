@@ -6,9 +6,6 @@
 #include "Core/Archive/Archive.h"
 #include "Render/RHI/RenderTypes.h"
 
-class FTexture;
-class IRenderDevice;
-
 enum class ETextureColorSpace : uint8
 {
 	Linear,
@@ -71,12 +68,7 @@ public:
 	ETextureFormat GetFormat() const { return Format; }
 	ETextureColorSpace GetColorSpace() const { return ColorSpace; }
 	bool IsSRGB() const { return ColorSpace == ETextureColorSpace::SRGB; }
-
-	virtual bool InitResources(IRenderDevice& RenderDevice) = 0;
-	virtual void ReleaseResources() = 0;
-
-	virtual FTexture* GetResource() = 0;
-	virtual const FTexture* GetResource() const = 0;
+	uint64 GetRevision() const { return Revision; }
 
 protected:
 	bool Initialize(
@@ -95,4 +87,5 @@ private:
 
 	ETextureFormat Format = ETextureFormat::RGBA8UNorm;
 	ETextureColorSpace ColorSpace = ETextureColorSpace::Linear;
+	uint64 Revision = 0;
 };

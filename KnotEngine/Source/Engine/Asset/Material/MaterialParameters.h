@@ -8,6 +8,24 @@
 #include "Object/ObjectPtr.h"
 #include "Render/RHI/RenderTypes.h"
 
+// Material Asset 값으로 채울 수 있는 MaterialConstants 변수 형태다.
+enum class EMaterialParameterType : uint8
+{
+	Scalar,
+	Vector2,
+	Vector3,
+	Vector4
+};
+
+// Shader Reflection이 만든 Material Parameter의 이름, 형식과 Constant Buffer 패킹 위치다.
+struct ENGINE_API FMaterialParameterDesc
+{
+	FName Name;
+	EMaterialParameterType Type = EMaterialParameterType::Scalar;
+	uint32 Offset = 0;
+	uint32 Size = 0;
+};
+
 // 이름으로 식별되는 단일 실수 Material Parameter 값이다.
 struct ENGINE_API FScalarMaterialParameter
 {

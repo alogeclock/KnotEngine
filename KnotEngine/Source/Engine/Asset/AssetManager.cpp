@@ -46,7 +46,6 @@ void FAssetManager::Release()
 	{
 		if (UTexture2D* Texture = Entry.second.Get())
 		{
-			Texture->ReleaseResources();
 			GUObjectManager.Destroy(Texture);
 		}
 	}
@@ -180,7 +179,7 @@ bool FAssetManager::ReloadStaticMesh(const FAssetId& AssetId)
 		return false;
 	}
 	check(ImportedMesh->GetAssetId() == ExistingMesh->GetAssetId());
-	const bool bReloaded = ExistingMesh->Reload(std::move(ImportedMesh->RenderData), std::move(ImportedMesh->StaticMaterials));
+	const bool bReloaded = ExistingMesh->Reload(std::move(ImportedMesh->MeshData), std::move(ImportedMesh->StaticMaterials));
 	if (bReloaded)
 	{
 		ExistingMesh->SetAssetPath(Asset->AssetPath);
