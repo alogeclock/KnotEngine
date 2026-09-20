@@ -3,6 +3,8 @@
 #include "Asset/Material/Material.h"
 #include "Object/ReferenceCollector.h"
 
+#include <algorithm>
+
 // Material Instance가 공유하는 부모 Material의 렌더 정의를 반환한다.
 const FMaterial* UMaterialInstance::GetMaterial() const
 {
@@ -48,6 +50,66 @@ const FTextureMaterialParameter* UMaterialInstance::FindTextureParameter(const F
 		}
 	}
 	return Parent ? Parent->FindTextureParameter(Name) : nullptr;
+}
+
+void UMaterialInstance::Copy(
+	TArray<FScalarMaterialParameter>& OutScalars,
+	TArray<FVectorMaterialParameter>& OutVectors,
+	TArray<FTextureMaterialParameter>& OutTextures) const
+{
+	OutScalars.clear();
+	OutVectors.clear();
+	OutTextures.clear();
+	if (Parent)
+	{
+		Parent->Copy(OutScalars, OutVectors, OutTextures);
+	}
+
+	for (const FScalarMaterialParameter& Parameter : ScalarParameters)
+	{
+		const auto Existing = std::find_if(OutScalars.begin(), OutScalars.end(), [&Parameter](const FScalarMaterialParameter& Candidate)
+		{
+			return Candidate.Name == Parameter.Name;
+		});
+		if (Existing != OutScalars.end())
+		{
+			*Existing = Parameter;
+		}
+		else
+		{
+			OutScalars.push_back(Parameter);
+		}
+	}
+	for (const FVectorMaterialParameter& Parameter : VectorParameters)
+	{
+		const auto Existing = std::find_if(OutVectors.begin(), OutVectors.end(), [&Parameter](const FVectorMaterialParameter& Candidate)
+		{
+			return Candidate.Name == Parameter.Name;
+		});
+		if (Existing != OutVectors.end())
+		{
+			*Existing = Parameter;
+		}
+		else
+		{
+			OutVectors.push_back(Parameter);
+		}
+	}
+	for (const FTextureMaterialParameter& Parameter : TextureParameters)
+	{
+		const auto Existing = std::find_if(OutTextures.begin(), OutTextures.end(), [&Parameter](const FTextureMaterialParameter& Candidate)
+		{
+			return Candidate.Name == Parameter.Name;
+		});
+		if (Existing != OutTextures.end())
+		{
+			*Existing = Parameter;
+		}
+		else
+		{
+			OutTextures.push_back(Parameter);
+		}
+	}
 }
 
 // 부모 Material과 Instance 전용 Parameter Override를 검증해 UObject Asset에 저장한다.

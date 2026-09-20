@@ -2,11 +2,10 @@
 
 #include "Core/Assert.h"
 #include "Core/Profiling/CPUProfiler.h"
-#include "Asset/Material/MaterialInterface.h"
-#include "Asset/Texture/Texture2D.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
+#include "Render/Resource/ResourceCommand.h"
 
 #include <limits>
 
@@ -71,7 +70,9 @@ void URenderer::Create(void* NativeWindowHandle)
 	WhiteTextureDesc.bSRGB = true;
 	const FTextureSubresourceData WhiteTextureData = { WhitePixel, sizeof(WhitePixel), sizeof(WhitePixel) };
 	panicf(DefaultTextureResource.Initialize(RenderDevice, WhiteTextureDesc, std::span(&WhiteTextureData, 1), 1), "기본 White Texture 생성에 실패했다.");
-	panicf(DefaultMaterialResource.Initialize(*this, nullptr, 0, 1), "기본 Material Resource 생성에 실패했다.");
+	FMaterialResourceCommand DefaultMaterialCommand;
+	DefaultMaterialCommand.Revision = 1;
+	panicf(DefaultMaterialResource.Initialize(*this, DefaultMaterialCommand, 0), "기본 Material Resource 생성에 실패했다.");
 	DebugDraw.Create();
 }
 
@@ -97,70 +98,76 @@ void URenderer::ReleaseAssetReferences()
 	StaticMeshResources.clear();
 }
 
-// 같은 Asset ID의 Material은 하나의 Resource를 유지하고 Revision이 바뀌면 제자리에서 갱신한다.
-FMaterialResource& URenderer::GetOrCreateMaterialResource(const UMaterialInterface& MaterialInterface)
+void URenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
 {
-	const FAssetId& AssetId = MaterialInterface.GetAssetId();
-	check(AssetId.IsValid());
-	std::unique_ptr<FMaterialResource>& Resource = MaterialResources[AssetId];
-	if (!Resource)
-	{
-		Resource = std::make_unique<FMaterialResource>();
-	}
-	if (Resource->GetSourceRevision() != MaterialInterface.GetRevision())
-	{
-		panicf(MaterialResources.size() < (std::numeric_limits<uint32>::max)(), "Material Resource Sort ID가 uint32 범위를 초과했다.");
-		const uint32 SortId = Resource->IsValid() ? Resource->GetSortId() : static_cast<uint32>(MaterialResources.size());
-		panicf(Resource->Initialize(*this, &MaterialInterface, SortId, MaterialInterface.GetRevision()),
-		       "Material Resource 생성에 실패했다. AssetPath={}", MaterialInterface.GetAssetPath());
-	}
-	return *Resource;
-}
-
-FStaticMeshResource& URenderer::GetOrCreateStaticMeshResource(const FAssetId& AssetId, const FStaticMesh& StaticMesh, uint64 Revision)
-{
-	check(AssetId.IsValid());
-	std::unique_ptr<FStaticMeshResource>& Resource = StaticMeshResources[AssetId];
-	if (!Resource)
-	{
-		Resource = std::make_unique<FStaticMeshResource>();
-	}
-	if (Resource->GetSourceRevision() != Revision)
-	{
-		panicf(Resource->Initialize(RenderDevice, StaticMesh, Revision), "Static Mesh Resource 생성에 실패했다. Revision={}", Revision);
-	}
-	return *Resource;
-}
-
-FTextureResource& URenderer::GetOrCreateTextureResource(const UTexture2D& Texture)
-{
-	const FAssetId& AssetId = Texture.GetAssetId();
-	check(AssetId.IsValid());
-	std::unique_ptr<FTextureResource>& Resource = TextureResources[AssetId];
+	check(Command.AssetId.IsValid() && Command.Revision != 0);
+	std::unique_ptr<FTextureResource>& Resource = TextureResources[Command.AssetId];
 	if (!Resource)
 	{
 		Resource = std::make_unique<FTextureResource>();
 	}
-	if (Resource->GetSourceRevision() == Texture.GetRevision())
+	if (Resource->GetSourceRevision() == Command.Revision)
 	{
-		return *Resource;
+		return;
 	}
 
 	TArray<FTextureSubresourceData> Subresources;
-	Subresources.reserve(Texture.GetMips().size());
-	for (const FTextureMipData& Mip : Texture.GetMips())
+	Subresources.reserve(Command.Mips.size());
+	for (const FTextureMipData& Mip : Command.Mips)
 	{
 		Subresources.push_back({ Mip.Bytes, Mip.RowPitch, static_cast<uint32>(Mip.Bytes.size()) });
 	}
-	FTextureDesc Desc;
-	Desc.Width = Texture.GetWidth();
-	Desc.Height = Texture.GetHeight();
-	Desc.MipCount = Texture.GetMipCount();
-	Desc.Format = Texture.GetFormat();
-	Desc.Usage = ETextureUsage::ShaderResource;
-	Desc.bSRGB = Texture.IsSRGB();
-	panicf(Resource->Initialize(RenderDevice, Desc, Subresources, Texture.GetRevision()), "Texture Resource 생성에 실패했다. AssetPath={}", Texture.GetAssetPath());
-	return *Resource;
+	panicf(Resource->Initialize(RenderDevice, Command.Desc, Subresources, Command.Revision),
+	       "Texture Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
+}
+
+void URenderer::UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command)
+{
+	check(Command.AssetId.IsValid() && Command.Revision != 0);
+	std::unique_ptr<FStaticMeshResource>& Resource = StaticMeshResources[Command.AssetId];
+	if (!Resource)
+	{
+		Resource = std::make_unique<FStaticMeshResource>();
+	}
+	if (Resource->GetSourceRevision() != Command.Revision)
+	{
+		panicf(Resource->Initialize(RenderDevice, Command.Mesh, Command.Revision),
+		       "Static Mesh Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
+	}
+}
+
+void URenderer::UpdateMaterialResource(const FMaterialResourceCommand& Command)
+{
+	check(Command.AssetId.IsValid() && Command.Revision != 0);
+	std::unique_ptr<FMaterialResource>& Resource = MaterialResources[Command.AssetId];
+	if (!Resource)
+	{
+		Resource = std::make_unique<FMaterialResource>();
+	}
+	if (Resource->GetSourceRevision() != Command.Revision)
+	{
+		panicf(MaterialResources.size() < (std::numeric_limits<uint32>::max)(), "Material Resource Sort ID가 uint32 범위를 초과했다.");
+		const uint32 SortId = Resource->IsValid() ? Resource->GetSortId() : static_cast<uint32>(MaterialResources.size());
+		panicf(Resource->Initialize(*this, Command, SortId), "Material Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
+	}
+}
+
+FTextureResource* URenderer::FindTextureResource(const FAssetId& AssetId) const
+{
+	const auto Iterator = TextureResources.find(AssetId);
+	return Iterator != TextureResources.end() ? Iterator->second.get() : nullptr;
+}
+
+FStaticMeshResource* URenderer::FindStaticMeshResource(const FAssetId& AssetId) const
+{
+	const auto Iterator = StaticMeshResources.find(AssetId);
+	return Iterator != StaticMeshResources.end() ? Iterator->second.get() : nullptr;
+}
+
+FMaterialResource* URenderer::FindMaterialResource(const FAssetId& AssetId) const
+{
+	const auto Iterator = MaterialResources.find(AssetId);
+	return Iterator != MaterialResources.end() ? Iterator->second.get() : nullptr;
 }
 
 void URenderer::Resize(uint32 Width, uint32 Height)

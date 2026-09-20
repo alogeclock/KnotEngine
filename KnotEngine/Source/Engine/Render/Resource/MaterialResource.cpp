@@ -1,11 +1,9 @@
 #include "Render/Resource/MaterialResource.h"
 
 #include "Asset/Material/Material.h"
-#include "Asset/Material/MaterialInterface.h"
-#include "Asset/Texture/Texture.h"
-#include "Asset/Texture/Texture2D.h"
 #include "Core/Assert.h"
 #include "Render/Renderer.h"
+#include "Render/Resource/ResourceCommand.h"
 #include "Render/Resource/Mesh/Vertex.h"
 #include "Render/Resource/TextureResource.h"
 
@@ -13,10 +11,13 @@
 #include <cstring>
 
 // Material의 고정 Pipeline, 상수 및 Texture/Sampler 바인딩을 Renderer Resource로 생성한다.
-bool FMaterialResource::Initialize(URenderer& Renderer, const UMaterialInterface* MaterialInterface, uint32 InSortId, uint64 InSourceRevision)
+bool FMaterialResource::Initialize(
+	URenderer& Renderer,
+	const FMaterialResourceCommand& Command,
+	uint32 InSortId)
 {
 	Release();
-	if (InSourceRevision == 0)
+	if (Command.Revision == 0)
 	{
 		return false;
 	}
@@ -26,9 +27,8 @@ bool FMaterialResource::Initialize(URenderer& Renderer, const UMaterialInterface
 	FMaterial DefaultMaterial;
 	verify(DefaultMaterial.Initialize(DefaultVertexShader, DefaultPixelShader));
 
-	const FMaterial* AssetMaterial = MaterialInterface ? MaterialInterface->GetMaterial() : nullptr;
-	const bool bHasMaterialAsset = AssetMaterial && AssetMaterial->IsValid();
-	const FMaterial& Material = bHasMaterialAsset ? *AssetMaterial : DefaultMaterial;
+	const bool bHasMaterialAsset = Command.Material.IsValid();
+	const FMaterial& Material = bHasMaterialAsset ? Command.Material : DefaultMaterial;
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 
 	FPipelineStateDesc PipelineStateDesc;
@@ -57,7 +57,37 @@ bool FMaterialResource::Initialize(URenderer& Renderer, const UMaterialInterface
 	ConstantBuffers = Layout.ConstantBuffers;
 	if (bHasMaterialAsset)
 	{
-		MaterialInterface->PackMaterialConstants(Layout.Parameters, Layout.ConstantBufferSize, Constants);
+		Constants.assign(Layout.ConstantBufferSize, 0);
+		for (const FMaterialParameterDesc& Parameter : Layout.Parameters)
+		{
+			check(Parameter.Offset + Parameter.Size <= Constants.size());
+			uint8* Destination = Constants.data() + Parameter.Offset;
+			if (Parameter.Type == EMaterialParameterType::Scalar)
+			{
+				for (const FScalarMaterialParameter& Value : Command.ScalarParameters)
+				{
+					if (Value.Name != Parameter.Name)
+					{
+						continue;
+					}
+					check(Parameter.Size == sizeof(float));
+					std::memcpy(Destination, &Value.Value, sizeof(float));
+					break;
+				}
+				continue;
+			}
+
+			for (const FVectorMaterialParameter& Value : Command.VectorParameters)
+			{
+				if (Value.Name != Parameter.Name)
+				{
+					continue;
+				}
+				check(Parameter.Size <= sizeof(FVector4));
+				std::memcpy(Destination, Value.Value.Data, Parameter.Size);
+				break;
+			}
+		}
 	}
 	else
 	{
@@ -84,12 +114,17 @@ bool FMaterialResource::Initialize(URenderer& Renderer, const UMaterialInterface
 		FSamplerDesc Sampler;
 		if (bHasMaterialAsset)
 		{
-			if (const FTextureMaterialParameter* Parameter = MaterialInterface->FindTextureParameter(Binding.Name); Parameter && Parameter->Texture)
+			for (const FMaterialTextureData& Texture : Command.Textures)
 			{
-				check(Parameter->Texture->IsA(UTexture2D::StaticClass()));
-				const UTexture2D& Texture = *static_cast<const UTexture2D*>(Parameter->Texture.Get());
-				TextureBinding.TextureResource = &Renderer.GetOrCreateTextureResource(Texture);
-				Sampler = Parameter->Sampler;
+				if (Texture.Name != Binding.Name)
+				{
+					continue;
+				}
+				FTextureResource* TextureResource = Renderer.FindTextureResource(Texture.AssetId);
+				check(TextureResource && TextureResource->IsValid());
+				TextureBinding.TextureResource = TextureResource;
+				Sampler = Texture.Sampler;
+				break;
 			}
 		}
 		if (Binding.SamplerSlot != FSamplerHandle::InvalidIndex)
@@ -100,7 +135,7 @@ bool FMaterialResource::Initialize(URenderer& Renderer, const UMaterialInterface
 	}
 
 	SortId = InSortId;
-	SourceRevision = InSourceRevision;
+	SourceRevision = Command.Revision;
 	return true;
 }
 

@@ -19,9 +19,9 @@ class FRenderGraph;
 class IRenderContext;
 class IRenderDevice;
 class IShaderFormat;
-class UMaterialInterface;
-class UTexture2D;
-class FStaticMesh;
+struct FMaterialResourceCommand;
+struct FStaticMeshResourceCommand;
+struct FTextureResourceCommand;
 
 class ENGINE_API URenderer
 {
@@ -51,9 +51,15 @@ public:
 	FPipelineStateCache& GetPipelineStateCache();
 	FSamplerStateCache& GetSamplerStateCache();
 	FDebugDraw& GetDebugDraw() { return DebugDraw; }
-	FMaterialResource& GetOrCreateMaterialResource(const UMaterialInterface& MaterialInterface);
-	FStaticMeshResource& GetOrCreateStaticMeshResource(const FAssetId& AssetId, const FStaticMesh& StaticMesh, uint64 Revision);
-	FTextureResource& GetOrCreateTextureResource(const UTexture2D& Texture);
+	
+	void UpdateMaterialResource(const FMaterialResourceCommand& Command);
+	void UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command);
+	void UpdateTextureResource(const FTextureResourceCommand& Command);
+
+	FMaterialResource* FindMaterialResource(const FAssetId& AssetId) const;
+	FStaticMeshResource* FindStaticMeshResource(const FAssetId& AssetId) const;
+	FTextureResource* FindTextureResource(const FAssetId& AssetId) const;
+
 	const FMaterialResource& GetDefaultMaterialResource() const { return DefaultMaterialResource; }
 	const FTextureResource& GetDefaultTextureResource() const { return DefaultTextureResource; }
 

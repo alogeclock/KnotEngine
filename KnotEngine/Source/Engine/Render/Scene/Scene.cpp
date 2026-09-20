@@ -114,15 +114,13 @@ void FScene::Merge(FPrimitiveRenderData& Destination, FPrimitiveRenderData&& Sou
 	{
 		Destination.WorldMatrix = Source.WorldMatrix;
 		Destination.LocalBounds = Source.LocalBounds;
-		Destination.Mesh = Source.Mesh;
 		Destination.MeshAssetId = Source.MeshAssetId;
-		Destination.MeshRevision = Source.MeshRevision;
 		Destination.bLODEnable = Source.bLODEnable;
 	}
 
 	if (HasRenderCommand(Type, ERenderCommandType::Material))
 	{
-		Destination.Materials = std::move(Source.Materials);
+		Destination.MaterialAssetIds = std::move(Source.MaterialAssetIds);
 	}
 
 	if (HasRenderCommand(Type, ERenderCommandType::Visibility))

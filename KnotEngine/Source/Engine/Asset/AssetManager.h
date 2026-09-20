@@ -8,6 +8,7 @@
 #include "Asset/Material/Material.h"
 #include "Asset/Texture/Texture2D.h"
 #include "Object/ObjectPtr.h"
+#include "Render/Resource/ResourceCommand.h"
 
 class FReferenceCollector;
 class UAsset;
@@ -48,12 +49,29 @@ public:
 	UTexture2D* LoadTexture2D(const FAssetId& AssetId);
 	UTexture2D* FindTexture2D(const FAssetId& AssetId) const;
 
+	void RequestStaticMeshResource(const UStaticMesh& StaticMesh);
+	void RequestMaterialResource(const UMaterialInterface& Material);
+	void DrainRenderResourceCommands(
+		TArray<FStaticMeshResourceCommand>& OutStaticMeshes,
+		TArray<FTextureResourceCommand>& OutTextures,
+		TArray<FMaterialResourceCommand>& OutMaterials);
+	void ResetRenderResourceRequests();
+
 private:
+	void RequestTextureResource(const UTexture2D& Texture);
+
 	FAssetRegistry AssetRegistry;
 	FAssetBinaryLoader BinaryLoader;
 	TMap<FAssetId, TObjectPtr<UStaticMesh>, FAssetIdHash> StaticMeshes;
 	TMap<FAssetId, TObjectPtr<UMaterial>, FAssetIdHash> Materials;
 	TMap<FAssetId, TObjectPtr<UTexture2D>, FAssetIdHash> Textures;
+
+	TMap<FAssetId, uint64, FAssetIdHash> RequestedStaticMeshRevisions;
+	TMap<FAssetId, uint64, FAssetIdHash> RequestedMaterialRevisions;
+	TMap<FAssetId, uint64, FAssetIdHash> RequestedTextureRevisions;
+	TArray<FStaticMeshResourceCommand> PendingStaticMeshResourceCommands;
+	TArray<FMaterialResourceCommand> PendingMaterialResourceCommands;
+	TArray<FTextureResourceCommand> PendingTextureResourceCommands;
 };
 
 extern ENGINE_API FAssetManager* GAssetManager;

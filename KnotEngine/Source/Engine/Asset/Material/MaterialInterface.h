@@ -20,6 +20,11 @@ public:
 	virtual const FMaterial* GetMaterial() const = 0;
 	uint64 GetRevision() const { return Revision; }
 
+	virtual void Copy(
+		TArray<FScalarMaterialParameter>& OutScalars,
+		TArray<FVectorMaterialParameter>& OutVectors,
+		TArray<FTextureMaterialParameter>& OutTextures) const = 0;
+
 	virtual bool GetScalarParameterValue(const FName& Name, float& OutValue) const = 0;
 	virtual bool GetVectorParameterValue(const FName& Name, FVector4& OutValue) const = 0;
 	virtual const FTextureMaterialParameter* FindTextureParameter(const FName& Name) const = 0;

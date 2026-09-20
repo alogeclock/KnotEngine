@@ -7,9 +7,9 @@
 
 class FMaterial;
 class FTextureResource;
-class UMaterialInterface;
 class URenderer;
 class FShaderRegistry;
+struct FMaterialResourceCommand;
 
 // MaterialConstants를 Shader Stage의 b Register에 바인딩하는 위치다.
 struct FMaterialConstantBufferBinding
@@ -49,7 +49,7 @@ public:
 		FSamplerHandle Sampler;
 	};
 
-	bool Initialize(URenderer& Renderer, const UMaterialInterface* MaterialInterface, uint32 InSortId, uint64 InSourceRevision);
+	bool Initialize(URenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId);
 	void Release();
 
 	FPipelineStateHandle GetPipelineState() const { return PipelineState; }

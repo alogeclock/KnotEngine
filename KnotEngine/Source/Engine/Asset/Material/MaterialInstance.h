@@ -16,9 +16,16 @@ class ENGINE_API UMaterialInstance final : public UMaterialInterface
 
 public:
 	const FMaterial* GetMaterial() const override;
+
+	void Copy(
+		TArray<FScalarMaterialParameter>& OutScalars,
+		TArray<FVectorMaterialParameter>& OutVectors,
+		TArray<FTextureMaterialParameter>& OutTextures) const override;
+
 	bool GetScalarParameterValue(const FName& Name, float& OutValue) const override;
 	bool GetVectorParameterValue(const FName& Name, FVector4& OutValue) const override;
 	const FTextureMaterialParameter* FindTextureParameter(const FName& Name) const override;
+
 	UMaterial* GetParent() const { return Parent.Get(); }
 	const TArray<FScalarMaterialParameter>& GetScalarParameters() const { return ScalarParameters; }
 	const TArray<FVectorMaterialParameter>& GetVectorParameters() const { return VectorParameters; }
@@ -29,12 +36,12 @@ public:
 private:
 	friend class FAssetBinaryLoader;
 	bool Initialize(
-		const FAssetId& InAssetId,
-		FString InAssetPath,
-		UMaterial* InParent,
-		TArray<FScalarMaterialParameter>&& InScalarParameters,
-		TArray<FVectorMaterialParameter>&& InVectorParameters,
-		TArray<FTextureMaterialParameter>&& InTextureParameters);
+	    const FAssetId& InAssetId,
+	    FString InAssetPath,
+	    UMaterial* InParent,
+	    TArray<FScalarMaterialParameter>&& InScalarParameters,
+	    TArray<FVectorMaterialParameter>&& InVectorParameters,
+	    TArray<FTextureMaterialParameter>&& InTextureParameters);
 
 	TObjectPtr<UMaterial> Parent;
 	TArray<FScalarMaterialParameter> ScalarParameters;

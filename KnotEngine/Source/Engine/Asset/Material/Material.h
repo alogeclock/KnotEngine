@@ -23,11 +23,11 @@ public:
 	FMaterial() = default;
 
 	bool Initialize(
-		FShaderKey InVertexShader,
-		FShaderKey InPixelShader,
-		EMaterialBlendMode InBlendMode = EMaterialBlendMode::Opaque,
-		EDepthMode InDepthMode = EDepthMode::ReadWrite,
-		ECullMode InCullMode = ECullMode::Back);
+	    FShaderKey InVertexShader,
+	    FShaderKey InPixelShader,
+	    EMaterialBlendMode InBlendMode = EMaterialBlendMode::Opaque,
+	    EDepthMode InDepthMode = EDepthMode::ReadWrite,
+	    ECullMode InCullMode = ECullMode::Back);
 
 	const FShaderKey& GetVertexShader() const { return VertexShader; }
 	const FShaderKey& GetPixelShader() const { return PixelShader; }
@@ -85,7 +85,11 @@ public:
 	bool GetScalarParameterValue(const FName& Name, float& OutValue) const override;
 	bool GetVectorParameterValue(const FName& Name, FVector4& OutValue) const override;
 
-	// TODO: 셰이더 리플렉션 및 Parameter 확장 구현 후 재검토
+	void Copy(
+		TArray<FScalarMaterialParameter>& OutScalars,
+		TArray<FVectorMaterialParameter>& OutVectors,
+		TArray<FTextureMaterialParameter>& OutTextures) const override;
+
 	const FTextureMaterialParameter* FindTextureParameter(const FName& Name) const override;
 	const TArray<FScalarMaterialParameter>& GetScalarParameters() const { return ScalarParameters; }
 	const TArray<FVectorMaterialParameter>& GetVectorParameters() const { return VectorParameters; }
@@ -96,12 +100,12 @@ public:
 private:
 	friend class FAssetBinaryLoader;
 	bool Initialize(
-		const FAssetId& InAssetId,
-		FString InAssetPath,
-		FMaterial&& InMaterial,
-		TArray<FScalarMaterialParameter>&& InScalarParameters,
-		TArray<FVectorMaterialParameter>&& InVectorParameters,
-		TArray<FTextureMaterialParameter>&& InTextureParameters);
+	    const FAssetId& InAssetId,
+	    FString InAssetPath,
+	    FMaterial&& InMaterial,
+	    TArray<FScalarMaterialParameter>&& InScalarParameters,
+	    TArray<FVectorMaterialParameter>&& InVectorParameters,
+	    TArray<FTextureMaterialParameter>&& InTextureParameters);
 
 	FMaterial Material;
 	TArray<FScalarMaterialParameter> ScalarParameters;

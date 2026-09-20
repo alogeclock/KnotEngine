@@ -6,24 +6,20 @@
 #include "Core/Math/Matrix.h"
 #include "Render/Scene/RenderCommand.h"
 
-class FStaticMesh;
 class FStaticMeshResource;
 class FMaterialResource;
 struct FSceneView;
 class FScene;
-class UMaterialInterface;
 class URenderer;
 
-// Component가 Game Thread에서 추출해 제출하는 데이터다. Asset 포인터는 명령 적용 동안만 읽고 Proxy에 보관하지 않는다.
+// Component가 Game Thread에서 추출해 제출하는 값 복사본이다. Render Thread는 Asset UObject를 조회하지 않는다.
 struct ENGINE_API FPrimitiveRenderData
 {
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;
 
-	FStaticMesh* Mesh = nullptr;
 	FAssetId MeshAssetId;
-	TArray<UMaterialInterface*> Materials;
-	uint64 MeshRevision = 0;
+	TArray<FAssetId> MaterialAssetIds;
 
 	bool bVisible = false;
 	bool bSelected = false;

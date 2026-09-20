@@ -1,7 +1,6 @@
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 
 #include "Render/Renderer.h"
-#include "Asset/Mesh/StaticMesh.h"
 #include "Render/Resource/MaterialResource.h"
 #include "Render/Resource/Mesh/StaticMeshResource.h"
 #include "Render/Scene/SceneView.h"
@@ -42,27 +41,19 @@ void FStaticMeshSceneProxy::Apply(ERenderCommandType Type, const FPrimitiveRende
 	if (HasRenderCommand(Type, ERenderCommandType::Mesh))
 	{
 		bLODEnable = RenderData.bLODEnable;
-		if (RenderData.Mesh && !RenderData.Mesh->IsValid())
-		{
-			MeshResource = nullptr;
-		}
-		else if (RenderData.Mesh)
-		{
-			MeshResource = &Renderer.GetOrCreateStaticMeshResource(RenderData.MeshAssetId, *RenderData.Mesh, RenderData.MeshRevision);
-		}
-		else
-		{
-			MeshResource = nullptr;
-		}
+		MeshResource = RenderData.MeshAssetId.IsValid() ? Renderer.FindStaticMeshResource(RenderData.MeshAssetId) : nullptr;
+		check(!RenderData.MeshAssetId.IsValid() || MeshResource);
 	}
 	if (HasRenderCommand(Type, ERenderCommandType::Material))
 	{
 		DefaultMaterial = &Renderer.GetDefaultMaterialResource();
 		Materials.clear();
-		Materials.reserve(RenderData.Materials.size());
-		for (const UMaterialInterface* Material : RenderData.Materials)
+		Materials.reserve(RenderData.MaterialAssetIds.size());
+		for (const FAssetId& MaterialAssetId : RenderData.MaterialAssetIds)
 		{
-			Materials.push_back(Material ? &Renderer.GetOrCreateMaterialResource(*Material) : DefaultMaterial);
+			const FMaterialResource* Material = MaterialAssetId.IsValid() ? Renderer.FindMaterialResource(MaterialAssetId) : DefaultMaterial;
+			check(Material);
+			Materials.push_back(Material);
 		}
 	}
 }

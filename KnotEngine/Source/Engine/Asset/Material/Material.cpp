@@ -62,6 +62,16 @@ const FTextureMaterialParameter* UMaterial::FindTextureParameter(const FName& Na
 	return nullptr;
 }
 
+void UMaterial::Copy(
+	TArray<FScalarMaterialParameter>& OutScalars,
+	TArray<FVectorMaterialParameter>& OutVectors,
+	TArray<FTextureMaterialParameter>& OutTextures) const
+{
+	OutScalars = ScalarParameters;
+	OutVectors = VectorParameters;
+	OutTextures = TextureParameters;
+}
+
 // Material 렌더 정의와 기본 Parameter를 검증해 UObject Asset에 저장한다.
 bool UMaterial::Initialize(
 	const FAssetId& InAssetId,

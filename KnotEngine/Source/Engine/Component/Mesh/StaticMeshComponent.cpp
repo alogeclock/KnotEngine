@@ -79,6 +79,7 @@ SIZE_T UStaticMeshComponent::GetMaterialCount() const
 FPrimitiveRenderData UStaticMeshComponent::BuildPrimitiveRenderData(ERenderCommandType Type) const
 {
 	FPrimitiveRenderData RenderData;
+
 	if (HasRenderCommand(Type, ERenderCommandType::Transform) || HasRenderCommand(Type, ERenderCommandType::Mesh))
 	{
 		RenderData.WorldMatrix = GetTransform().GetWorldMatrix();
@@ -93,20 +94,28 @@ FPrimitiveRenderData UStaticMeshComponent::BuildPrimitiveRenderData(ERenderComma
 	UStaticMesh* MeshAsset = StaticMesh.Get();
 	if (HasRenderCommand(Type, ERenderCommandType::Mesh) && MeshAsset)
 	{
-		RenderData.Mesh = &MeshAsset->GetMeshData();
+		check(GAssetManager);
+		GAssetManager->RequestStaticMeshResource(*MeshAsset);
 		RenderData.MeshAssetId = MeshAsset->GetAssetId();
-		RenderData.MeshRevision = MeshAsset->GetRevision();
-		RenderData.LocalBounds = RenderData.Mesh->GetLocalBounds();
+		RenderData.LocalBounds = MeshAsset->GetMeshData().GetLocalBounds();
 		RenderData.bLODEnable = bLODEnable;
 	}
 
 	if (HasRenderCommand(Type, ERenderCommandType::Material))
 	{
 		const SIZE_T MaterialCount = std::max<SIZE_T>(GetMaterialCount(), 1);
-		RenderData.Materials.reserve(MaterialCount);
+		RenderData.MaterialAssetIds.reserve(MaterialCount);
 		for (SIZE_T MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
-			RenderData.Materials.push_back(GetMaterial(MaterialIndex));
+			const UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
+			if (!MaterialInterface)
+			{
+				RenderData.MaterialAssetIds.emplace_back();
+				continue;
+			}
+			check(GAssetManager);
+			GAssetManager->RequestMaterialResource(*MaterialInterface);
+			RenderData.MaterialAssetIds.push_back(MaterialInterface->GetAssetId());
 		}
 	}
 

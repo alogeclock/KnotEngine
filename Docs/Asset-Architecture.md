@@ -106,9 +106,9 @@ URenderer
 	     └─ Section 복사본
 ```
 
-`UStaticMesh`는 Asset 식별, CPU Mesh 데이터와 Revision을 소유한다. `FStaticMeshResource`는 Renderer Cache에서 CPU LOD에 대응하는 GPU `FMeshBuffer`와 Draw Section 복사본을 소유한다. 재임포트로 Revision이 변경되면 다음 Mesh Render Command에서 기존 Resource를 제자리에서 재생성한다.
+`UStaticMesh`는 Asset 식별, CPU Mesh 데이터와 Revision을 소유한다. `FStaticMeshResource`는 Renderer Cache에서 CPU LOD에 대응하는 GPU `FMeshBuffer`와 Draw Section 복사본을 소유한다. 재임포트로 Revision이 변경되면 AssetManager가 다음 Static Mesh Resource Command를 한 번 제출해 기존 Resource를 제자리에서 재생성한다.
 
-`UStaticMeshComponent`는 `UStaticMesh`를 참조한다. Render Command 적용 시 CPU Mesh를 Resource로 변환한 뒤 `FStaticMeshSceneProxy`에는 Renderer 소유 `FStaticMeshResource`의 비소유 참조만 남는다. Draw Pass와 LOD 선택은 CPU Asset을 다시 조회하지 않는다.
+`UStaticMeshComponent`는 `UStaticMesh`를 참조한다. Primitive Command에는 Mesh Asset ID만 복사하고, Vertex/Index/LOD는 Asset별 Resource Command로 분리한다. `FStaticMeshSceneProxy`에는 Renderer 소유 `FStaticMeshResource`의 비소유 참조만 남는다. Draw Pass와 LOD 선택은 CPU Asset을 다시 조회하지 않는다.
 
 현재 `.kasset`에는 Static Mesh Header와 LOD별 Vertex/Index Payload가 저장된다. Loader는 Magic, Version, Vertex Stride, 배열 범위와 Index 유효성을 검사한 뒤 `UStaticMesh`를 생성한다.
 
@@ -225,7 +225,7 @@ GPU Resource
 
 Static Mesh, Texture, Material의 GPU 대응 객체는 각각 `FStaticMeshResource`, `FTextureResource`, `FMaterialResource`로 통일한다. 세 Cache는 모두 영속 `FAssetId`를 Key로 사용하고 Resource가 기록한 `SourceRevision`과 Asset Revision이 다를 때 같은 Resource 인스턴스를 갱신한다. GPU Resource의 생성과 해제는 Render Thread에서만 수행한다.
 
-Resource Cache는 Asset 주소를 Key로 사용하지 않으며 Resource도 UObject를 장기 소유하지 않는다. 현재 최초 생성·갱신 명령을 적용하는 순간에는 `FAssetManager`가 수명을 보장하는 CPU Asset을 읽지만, Scene Proxy와 이후 Draw Pass에는 Renderer Resource 참조만 유지한다. 기본 Material과 White Texture는 유효하지 않은 Asset ID를 Cache Key로 사용하는 대신 Renderer의 명시적인 기본 Resource로 소유한다.
+Resource Cache는 Asset 주소를 Key로 사용하지 않으며 Resource도 UObject를 소유하지 않는다. `FAssetManager`는 Asset ID와 Revision별 Resource Command를 한 번만 만들고, Mesh Vertex/Index와 Texture Mip은 이 명령에서만 복사한다. Primitive Command는 Mesh와 Material Asset ID만 전달한다. 기본 Material과 White Texture는 유효하지 않은 Asset ID를 Cache Key로 사용하는 대신 Renderer의 명시적인 기본 Resource로 소유한다.
 
 GPU Handle은 Asset UObject의 생존만으로 안전해지는 것이 아니다. Renderer Cache는 Asset UObject와 Render Device보다 먼저 비워야 하며, D3D12 도입 후에는 GPU 작업 완료를 확인한 뒤 지연 해제해야 한다.
 

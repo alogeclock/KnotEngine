@@ -1,10 +1,12 @@
 #include "Render/RenderSystem.h"
 
+#include "Asset/AssetManager.h"
 #include "Core/Assert.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
 #include "Render/RenderBackend.h"
 #include "Render/Renderer.h"
 #include "Render/RHI/RenderDevice.h"
+#include "Render/Resource/ResourceCommand.h"
 #include "Render/Scene/Scene.h"
 #include "Render/Scene/SceneRenderer.h"
 
@@ -53,6 +55,13 @@ void FRenderSystem::ResizeWindow(uint32 Width, uint32 Height)
 
 void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& ViewFamilies, ImDrawData* DrawData)
 {
+	auto StaticMeshCommands = std::make_shared<TArray<FStaticMeshResourceCommand>>();
+	auto TextureCommands = std::make_shared<TArray<FTextureResourceCommand>>();
+	auto MaterialCommands = std::make_shared<TArray<FMaterialResourceCommand>>();
+
+	check(GAssetManager);
+	GAssetManager->DrainRenderResourceCommands(*StaticMeshCommands, *TextureCommands, *MaterialCommands);
+
 	auto SceneBatches = std::make_shared<TArray<FSceneCommandBatch>>();
 	SceneBatches->reserve(Scenes.size());
 	for (FScene* Scene : Scenes)
@@ -61,8 +70,23 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 		SceneBatches->push_back({ Scene, Scene->DrainRenderCommands() });
 	}
 	auto Families = std::make_shared<TArray<FSceneViewFamily>>(std::move(ViewFamilies));
-	RenderThread.EnqueueAndWait([this, SceneBatches, Families, DrawData]
+	RenderThread.EnqueueAndWait([this, StaticMeshCommands, TextureCommands, MaterialCommands, SceneBatches, Families, DrawData]
 	{
+		for (const FTextureResourceCommand& Command : *TextureCommands)
+		{
+			Renderer->UpdateTextureResource(Command);
+		}
+
+		for (const FStaticMeshResourceCommand& Command : *StaticMeshCommands)
+		{
+			Renderer->UpdateStaticMeshResource(Command);
+		}
+
+		for (const FMaterialResourceCommand& Command : *MaterialCommands)
+		{
+			Renderer->UpdateMaterialResource(Command);
+		}
+
 		for (FSceneCommandBatch& Batch : *SceneBatches)
 		{
 			Batch.Scene->ApplyRenderCommands(*Renderer, std::move(Batch.Commands));
@@ -131,4 +155,8 @@ void FRenderSystem::ShutdownImGui()
 void FRenderSystem::ReleaseAssetResources()
 {
 	RenderThread.EnqueueAndWait([this] { Renderer->ReleaseAssetReferences(); });
+	if (GAssetManager)
+	{
+		GAssetManager->ResetRenderResourceRequests();
+	}
 }

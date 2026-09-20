@@ -30,8 +30,8 @@ public:
 	FStaticMeshLOD() = default;
 	~FStaticMeshLOD() = default;
 
-	FStaticMeshLOD(const FStaticMeshLOD&) = delete;
-	FStaticMeshLOD& operator=(const FStaticMeshLOD&) = delete;
+	FStaticMeshLOD(const FStaticMeshLOD&) = default;
+	FStaticMeshLOD& operator=(const FStaticMeshLOD&) = default;
 	FStaticMeshLOD(FStaticMeshLOD&&) noexcept = default;
 	FStaticMeshLOD& operator=(FStaticMeshLOD&&) noexcept = default;
 
@@ -57,8 +57,8 @@ public:
 	FStaticMesh() = default;
 	~FStaticMesh() = default;
 
-	FStaticMesh(const FStaticMesh&) = delete;
-	FStaticMesh& operator=(const FStaticMesh&) = delete;
+	FStaticMesh(const FStaticMesh&) = default;
+	FStaticMesh& operator=(const FStaticMesh&) = default;
 	FStaticMesh(FStaticMesh&&) noexcept = default;
 	FStaticMesh& operator=(FStaticMesh&&) noexcept = default;
 
