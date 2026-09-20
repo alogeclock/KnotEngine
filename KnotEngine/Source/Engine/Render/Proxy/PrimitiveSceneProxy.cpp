@@ -26,6 +26,7 @@ void FPrimitiveSceneProxy::UpdateBounds(const FAABB& InLocalBounds)
 	bVisible = Component.bVisible;
 	LocalBounds = InLocalBounds;
 	WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
+	WorldBoundsRadius = WorldBounds.IsValid() ? WorldBounds.GetExtent().Size() : 0.0f;
 	bDirty = false;
 }
 
@@ -74,15 +75,16 @@ SIZE_T FStaticMeshSceneProxy::SelectLOD(const FSceneView& View) const
 		return 0;
 	}
 
-	const float Distance = std::max(FVector::Dist(WorldBounds.GetCenter(), View.ViewOrigin), KMath::Epsilon);
-	const float ProjectedRadius = WorldBounds.GetExtent().Size() * std::fabs(View.ProjectionMatrix.M[1][1]) / Distance;
+	const float DistanceSquared = std::max(FVector::DistSquared(WorldBounds.GetCenter(), View.ViewOrigin), KMath::Epsilon * KMath::Epsilon);
+	const float ProjectedRadiusScale = WorldBoundsRadius * std::fabs(View.ProjectionMatrix.M[1][1]);
+	const float ProjectedRadiusScaleSquared = ProjectedRadiusScale * ProjectedRadiusScale;
 	static constexpr SIZE_T MaximumLODCount = 5;
 	const SIZE_T LODCount = std::min(Mesh->GetLODCount(), MaximumLODCount);
 	SIZE_T LODIndex = 0;
 	while (LODIndex + 1 < LODCount)
 	{
 		const float Threshold = View.LODSteps[LODIndex];
-		if (ProjectedRadius >= Threshold)
+		if (ProjectedRadiusScaleSquared >= Threshold * Threshold * DistanceSquared)
 		{
 			break;
 		}
