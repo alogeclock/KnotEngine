@@ -11,7 +11,7 @@
         "docking-experimental"
       ]
     },
-    "nlohmann-json",
+    "yaml-cpp",
     "cgltf",
     "directxtex"
   ]

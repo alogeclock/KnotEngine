@@ -8,6 +8,8 @@
 #include "Input/InputRouter.h"
 #include "Editor/ImGuiSystem.h"
 
+#include <filesystem>
+
 class FEditorViewportClient;
 
 UCLASS()
@@ -32,6 +34,10 @@ public:
 	void RegisterViewportClient(FEditorViewportClient& ViewportClient);
 	void UnregisterViewportClient(FEditorViewportClient& ViewportClient);
 
+	void NewLevel();
+	bool LoadLevel(const std::filesystem::path& FilePath);
+	bool SaveLevel(const std::filesystem::path& FilePath = {});
+
 	UWorld* GetWorld() const override { return FindWorld(EditorContextId); }
 	FEditorSelection& GetEditorSelection() { return EditorSelection; }
 	const FEditorSelection& GetEditorSelection() const { return EditorSelection; }
@@ -50,5 +56,6 @@ private:
 	FEditorSelection EditorSelection;
 	FImGuiSystem ImGuiSystem;
 
+	std::filesystem::path CurrentLevelPath;
 	uint64 EditorContextId = 0;
 };

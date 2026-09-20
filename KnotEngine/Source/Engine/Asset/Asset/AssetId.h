@@ -2,8 +2,10 @@
 
 #include "EngineAPI.h"
 
-#include "Core/Archive.h"
+#include "Core/Archive/Archive.h"
 #include "Core/CoreTypes.h"
+
+#include <string_view>
 
 // 경로와 독립적으로 Runtime Asset을 영속 식별하는 128-bit ID다.
 struct ENGINE_API FAssetId
@@ -12,6 +14,7 @@ struct ENGINE_API FAssetId
 	uint64 Low = 0;
 
 	static FAssetId New();
+	static bool TryParse(std::string_view Text, FAssetId& OutAssetId);
 
 	bool IsValid() const { return High != 0 || Low != 0; }
 	FString ToString() const;

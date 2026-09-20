@@ -2,11 +2,12 @@
 
 #include "EngineAPI.h"
 
-#include "Core/Archive.h"
+#include "Core/Archive/Archive.h"
 #include "Object/ReferenceCollector.h"
 #include "Object/Reflection/ReflectionMetadata.h"
 
 class UStruct;
+class FStructuredArchiveSlot;
 
 enum class EPropertyKind : uint8
 {
@@ -71,6 +72,7 @@ public:
 	void DestroyValue(void* Value) const;
 	void CopyValue(void* Dst, const void* Src) const;
 	void SerializeValue(FArchive& Ar, void* Value) const;
+	void SerializeValue(FStructuredArchiveSlot Slot, void* Value) const;
 	void VisitReferences(void* Value, FReferenceCollector& Collector) const;
 	void SerializeInContainer(FArchive& Ar, void* Container) const;
 	void VisitReferencesInContainer(void* Container, FReferenceCollector& Collector) const;
@@ -87,6 +89,7 @@ protected:
 	virtual void DestroyElement(void* Value) const = 0;
 	virtual void CopyElement(void* Dst, const void* Src) const = 0;
 	virtual void SerializeElement(FArchive& Ar, void* Value) const = 0;
+	virtual void SerializeElement(FStructuredArchiveSlot Slot, void* Value) const = 0;
 	virtual void VisitElementReferences(void* Value, FReferenceCollector& Collector) const {}
 
 private:

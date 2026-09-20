@@ -3,7 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Asset/Asset/AssetId.h"
-#include "Core/Archive.h"
+#include "Core/Archive/Archive.h"
 #include "Core/CoreTypes.h"
 
 // .kasset Payload가 표현하는 Runtime Asset의 종류다.

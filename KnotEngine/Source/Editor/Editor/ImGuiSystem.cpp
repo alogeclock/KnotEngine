@@ -2,10 +2,12 @@
 
 #include "Asset/AssetImportManager.h"
 #include "Core/Assert.h"
-#include "Platform/WindowsApplication.h"
 #include "Core/IO/Paths.h"
+#include "Core/Log.h"
+#include "Editor/EditorFileUtils.h"
 #include "Input/InputRouter.h"
 #include "Core/Profiling/CPUProfiler.h"
+#include "Platform/WindowsApplication.h"
 #include "Render/ImGui/ImGuiRenderBackend.h"
 #include "Runtime/EditorEngine.h"
 #include "Asset/Resource/resource.h"
@@ -403,22 +405,48 @@ void FImGuiSystem::DrawMenuBar()
 	Style.DisplaySafeAreaPadding.x = 0.0f;
 	const bool bMenuBarVisible = ImGui::BeginMainMenuBar();
 	Style.DisplaySafeAreaPadding.x = PreviousSafeAreaPaddingX;
-	ImGui::PopStyleVar();
+	ImGui::PopStyleVar(2);
 	if (!bMenuBarVisible)
 	{
-		ImGui::PopStyleVar();
 		ImGui::PopFont();
 		return;
 	}
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, MenuBarItemSpacing);
 	ImDrawList* MenuBarDrawList = ImGui::GetWindowDrawList();
 	const float MenuBarTop = ImGui::GetWindowPos().y;
 	const float MenuBarBottom = MenuBarTop + ImGui::GetWindowHeight();
-	const bool bWindowMenuOpen = ImGui::BeginMenu("Window");
-	const ImVec2 WindowMenuMinimum = ImGui::GetItemRectMin();
-	const ImVec2 WindowMenuMaximum = ImGui::GetItemRectMax();
 	const ImU32 BorderColor = ImGui::GetColorU32(ImGuiCol_Border);
-	MenuBarDrawList->AddLine(ImVec2(WindowMenuMinimum.x, MenuBarTop), ImVec2(WindowMenuMinimum.x, MenuBarBottom), BorderColor);
-	MenuBarDrawList->AddLine(ImVec2(WindowMenuMaximum.x, MenuBarTop), ImVec2(WindowMenuMaximum.x, MenuBarBottom), BorderColor);
+	const auto DrawMenuBorder = [MenuBarDrawList, MenuBarTop, MenuBarBottom, BorderColor]()
+	{
+		const ImVec2 Minimum = ImGui::GetItemRectMin();
+		const ImVec2 Maximum = ImGui::GetItemRectMax();
+		MenuBarDrawList->AddLine(ImVec2(Minimum.x, MenuBarTop), ImVec2(Minimum.x, MenuBarBottom), BorderColor);
+		MenuBarDrawList->AddLine(ImVec2(Maximum.x, MenuBarTop), ImVec2(Maximum.x, MenuBarBottom), BorderColor);
+	};
+	const bool bFileMenuOpen = ImGui::BeginMenu("File");
+	DrawMenuBorder();
+	if (bFileMenuOpen)
+	{
+		if (ImGui::MenuItem("New Level"))
+		{
+			EditorEngine.NewLevel();
+		}
+		if (ImGui::MenuItem("Load Level"))
+		{
+			LoadLevel();
+		}
+		if (ImGui::MenuItem("Save Level"))
+		{
+			SaveLevel(false);
+		}
+		if (ImGui::MenuItem("Save Level As"))
+		{
+			SaveLevel(true);
+		}
+		ImGui::EndMenu();
+	}
+	const bool bWindowMenuOpen = ImGui::BeginMenu("Window");
+	DrawMenuBorder();
 	if (bWindowMenuOpen)
 	{
 		ImGui::MenuItem("Hierarchy", nullptr, &bShowHierarchy);
@@ -434,6 +462,54 @@ void FImGuiSystem::DrawMenuBar()
 	ImGui::EndMainMenuBar();
 	ImGui::PopStyleVar();
 	ImGui::PopFont();
+}
+
+// 파일 대화상자에서 선택한 .kmap 경로를 Editor Engine에 전달한다.
+void FImGuiSystem::LoadLevel()
+{
+	if (const std::optional<std::filesystem::path> FilePath = OpenLevelDialog(false))
+	{
+		EditorEngine.LoadLevel(*FilePath);
+	}
+}
+
+// 현재 경로에 저장하거나 Save As 대화상자에서 선택한 경로를 Editor Engine에 전달한다.
+void FImGuiSystem::SaveLevel(bool bSaveAs)
+{
+	if (!bSaveAs && EditorEngine.SaveLevel())
+	{
+		return;
+	}
+	if (const std::optional<std::filesystem::path> FilePath = OpenLevelDialog(true))
+	{
+		EditorEngine.SaveLevel(*FilePath);
+	}
+}
+
+// Content/Level을 기본 위치로 사용하는 Level 파일 대화상자를 연다.
+std::optional<std::filesystem::path> FImGuiSystem::OpenLevelDialog(bool bSave) const
+{
+	const std::filesystem::path LevelDirectory = std::filesystem::path(FPaths::ContentDir()) / L"Level";
+	std::error_code FileSystemError;
+	std::filesystem::create_directories(LevelDirectory, FileSystemError);
+	if (FileSystemError)
+	{
+		KE_LOG(LogMapSerializer, Error, "Level 디렉터리를 만들지 못했다. Path={}, Error={}",
+			FPaths::ToUtf8(LevelDirectory.generic_wstring()), FileSystemError.message());
+		return std::nullopt;
+	}
+
+	FEditorFileDialogOptions Options;
+	Options.Filter = L"Knot Level (*.kmap)\0*.kmap\0All Files (*.*)\0*.*\0";
+	Options.Title = bSave ? L"Save Level As" : L"Load Level";
+	Options.DefaultExtension = L"kmap";
+	Options.InitialDirectory = LevelDirectory.c_str();
+	Options.DefaultFileName = bSave ? L"NewLevel.kmap" : nullptr;
+	Options.OwnerWindowHandle = Application.GetWindow().GetHwnd();
+	Options.bFileMustExist = !bSave;
+	Options.bPathMustExist = true;
+	Options.bPromptOverwrite = bSave;
+	return bSave ? FEditorFileUtils::SaveFileDialog(Options) : FEditorFileUtils::OpenFileDialog(Options);
 }
 
 void FImGuiSystem::BuildLayout(std::uint32_t DockspaceId)

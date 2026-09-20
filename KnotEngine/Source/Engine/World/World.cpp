@@ -45,6 +45,25 @@ void UWorld::RemoveLevel(ULevel& Level)
 	checkf(&Level.GetWorld() == this, "이 World에 속하지 않은 Level을 제거할 수 없다.");
 }
 
+// 정지된 World에서 Persistent Level은 유지하고 모든 Node와 추가 Level 및 이름 상태를 제거한다.
+void UWorld::Reset()
+{
+	check(PlayState == EPlayState::Stopped);
+	for (const TObjectPtr<ULevel>& Level : Levels)
+	{
+		while (!Level->GetNodes().empty())
+		{
+			Level->RemoveNode(*Level->GetNodes().back());
+		}
+	}
+	while (Levels.size() > 1)
+	{
+		RemoveLevel(*Levels.back());
+	}
+	NameCounters.clear();
+	Scene.Update();
+}
+
 // BaseName별로 증가하는 숫자 접미사를 붙여 새 Node 이름을 생성한다.
 FName UWorld::GetNodeName(const FString& BaseName)
 {

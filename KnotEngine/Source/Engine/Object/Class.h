@@ -12,6 +12,7 @@
 class FProperty;
 class UFunction;
 class FArchive;
+class FStructuredArchiveRecord;
 
 enum class EClassFlags : uint32
 {
@@ -84,6 +85,7 @@ public:
 	void GetAllProperties(TArray<const FProperty*>& OutProperties) const;
 	void GetEditorProperties(TArray<const FProperty*>& OutProperties) const;
 	void SerializeProperties(FArchive& Ar, void* Container) const;
+	void SerializeProperties(FStructuredArchiveRecord Record, void* Container) const;
 
 protected:
 	const UStruct* SuperStruct = nullptr;

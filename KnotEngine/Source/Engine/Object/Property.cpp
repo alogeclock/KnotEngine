@@ -1,5 +1,7 @@
 #include "Property.h"
 
+#include "Core/Archive/StructuredArchive.h"
+
 #include "Object/Class.h"
 
 #include <cstddef>
@@ -68,6 +70,29 @@ void FProperty::SerializeValue(FArchive& Ar, void* Value) const
 	for (uint32 Index = 0; Index < ArrayDimension; ++Index)
 	{
 		SerializeElement(Ar, static_cast<std::byte*>(Value) + static_cast<SIZE_T>(ElementSize) * Index);
+	}
+}
+
+// 구조화된 Slot 하나 또는 고정 배열에 프로퍼티 값을 저장하고 복원한다.
+void FProperty::SerializeValue(FStructuredArchiveSlot Slot, void* Value) const
+{
+	check(Value);
+	if (ArrayDimension == 1)
+	{
+		SerializeElement(Slot, Value);
+		return;
+	}
+
+	uint32 SerializedCount = ArrayDimension;
+	FStructuredArchiveArray Array = Slot.EnterArray(SerializedCount);
+	if (Slot.IsLoading() && SerializedCount != ArrayDimension)
+	{
+		Slot.GetArchive().SetError();
+		return;
+	}
+	for (uint32 Index = 0; Index < ArrayDimension; ++Index)
+	{
+		SerializeElement(Array.EnterElement(), static_cast<std::byte*>(Value) + static_cast<SIZE_T>(ElementSize) * Index);
 	}
 }
 

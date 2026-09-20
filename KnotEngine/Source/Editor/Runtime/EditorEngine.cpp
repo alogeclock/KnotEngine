@@ -1,6 +1,7 @@
 #include "EditorEngine.h"
 #include "Platform/WindowsApplication.h"
 
+#include "World/MapSerializer.h"
 #include "World/World.h"
 #include "Render/RHI/RenderTypes.h"
 #include "Render/Scene/SceneRenderer.h"
@@ -154,6 +155,62 @@ void UEditorEngine::RegisterViewportClient(FEditorViewportClient& ViewportClient
 void UEditorEngine::UnregisterViewportClient(FEditorViewportClient& ViewportClient)
 {
 	AllViewportClients.erase(std::remove(AllViewportClients.begin(), AllViewportClients.end(), &ViewportClient), AllViewportClients.end());
+}
+
+// 현재 World를 비우고 아직 저장 경로가 없는 새 Level 상태로 전환한다.
+void UEditorEngine::NewLevel()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	EditorSelection.Deselect();
+	World->EndPlay();
+	World->Reset();
+	World->BeginPlay();
+	CurrentLevelPath.clear();
+}
+
+// 지정한 .kmap을 현재 World에 불러오고 현재 Level 경로를 갱신한다.
+bool UEditorEngine::LoadLevel(const std::filesystem::path& FilePath)
+{
+	UWorld* World = GetWorld();
+	if (!World || FilePath.empty())
+	{
+		return false;
+	}
+
+	EditorSelection.Deselect();
+	World->EndPlay();
+	FMapSerializer Serializer;
+	const bool bLoaded = Serializer.Load(*World, FilePath);
+	if (bLoaded)
+	{
+		CurrentLevelPath = FilePath;
+	}
+	World->BeginPlay();
+	return bLoaded;
+}
+
+// 지정한 경로 또는 기존 Level 경로에 현재 World를 저장한다.
+bool UEditorEngine::SaveLevel(const std::filesystem::path& FilePath)
+{
+	UWorld* World = GetWorld();
+	const std::filesystem::path TargetPath = FilePath.empty() ? CurrentLevelPath : FilePath;
+	if (!World || TargetPath.empty())
+	{
+		return false;
+	}
+
+	FMapSerializer Serializer;
+	if (!Serializer.Save(*World, TargetPath))
+	{
+		return false;
+	}
+	CurrentLevelPath = TargetPath;
+	return true;
 }
 
 void UEditorEngine::Shutdown()

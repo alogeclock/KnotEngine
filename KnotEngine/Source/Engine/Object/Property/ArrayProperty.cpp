@@ -1,5 +1,7 @@
 #include "ArrayProperty.h"
 
+#include "Core/Archive/StructuredArchive.h"
+
 #include <limits>
 
 // 배열 컨테이너의 타입별 연산과 원소 프로퍼티의 소유권을 등록한다.
@@ -31,6 +33,13 @@ void* FArrayProperty::GetElement(void* Value, SIZE_T Index) const
 {
 	check(Value && Index < Num(Value));
 	return ArrayOps->GetElement(Value, Index);
+}
+
+// 리플렉션 배열의 원소 수를 바꾸고 타입별 생성과 소멸은 실제 TArray 구현에 맡긴다.
+void FArrayProperty::Resize(void* Value, SIZE_T Num) const
+{
+	check(Value);
+	ArrayOps->Resize(Value, Num);
 }
 
 // 등록된 배열 연산으로 빈 배열 컨테이너를 생성한다.
@@ -67,6 +76,24 @@ void FArrayProperty::SerializeElement(FArchive& Ar, void* Value) const
 	for (uint32 Index = 0; Index < SerializedCount; ++Index)
 	{
 		Inner->SerializeValue(Ar, ArrayOps->GetElement(Value, Index));
+	}
+}
+
+// 구조화된 Array Slot에 동적 배열의 각 원소를 내부 프로퍼티 형식으로 저장하고 복원한다.
+void FArrayProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	const SIZE_T ValueCount = ArrayOps->Num(Value);
+	check(ValueCount <= (std::numeric_limits<uint32>::max)());
+	uint32 SerializedCount = static_cast<uint32>(ValueCount);
+	FStructuredArchiveArray Array = Slot.EnterArray(SerializedCount);
+	if (Slot.IsLoading())
+	{
+		ArrayOps->Resize(Value, SerializedCount);
+	}
+
+	for (uint32 Index = 0; Index < SerializedCount; ++Index)
+	{
+		Inner->SerializeValue(Array.EnterElement(), ArrayOps->GetElement(Value, Index));
 	}
 }
 

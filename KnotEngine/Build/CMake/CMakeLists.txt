@@ -57,9 +57,9 @@ if(NOT WIN32)
     message(FATAL_ERROR "KnotEngine currently targets Windows and DirectX 11.")
 endif()
 
-# Config 패키지 모드로 ImGui, nlohmann-json을 찾는다.
+# Config 패키지 모드로 ImGui와 yaml-cpp를 찾는다.
 find_package(imgui CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 find_package(directxtex CONFIG REQUIRED)
 find_path(CGLTF_INCLUDE_DIR "cgltf.h" REQUIRED)
 
@@ -113,10 +113,10 @@ source_group("Source\\Asset\\Resource" FILES
 
 target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngine.manifest")
 
-target_link_libraries(Engine PRIVATE nlohmann_json::nlohmann_json ole32)
+target_link_libraries(Engine PRIVATE yaml-cpp::yaml-cpp ole32)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)
 target_include_directories(Editor PRIVATE "${CGLTF_INCLUDE_DIR}")
-target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui Microsoft::DirectXTex windowscodecs ole32 shell32)
+target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui Microsoft::DirectXTex windowscodecs ole32 shell32 comdlg32)
 
 # 전역 new/delete만 각 바이너리에 포함하고, 실제 할당과 통계는 Engine.dll에서 공유한다.
 target_sources(Renderer PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory/MemoryOperators.cpp")

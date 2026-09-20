@@ -1,5 +1,7 @@
 #include "StringProperty.h"
 
+#include "Core/Archive/StructuredArchive.h"
+
 #include <memory>
 
 // FString의 크기와 배열 차원을 사용하는 문자열 프로퍼티를 생성한다.
@@ -30,4 +32,10 @@ void FStringProperty::CopyElement(void* Dst, const void* Src) const
 void FStringProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
 	Ar << *static_cast<FString*>(Value);
+}
+
+// 문자열을 구조화된 Scalar Slot에 저장하거나 복원한다.
+void FStringProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	Slot << *static_cast<FString*>(Value);
 }

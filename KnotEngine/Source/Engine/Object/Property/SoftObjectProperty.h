@@ -28,6 +28,7 @@ protected:
 	void DestroyElement(void* Value) const override;
 	void CopyElement(void* Dst, const void* Src) const override;
 	void SerializeElement(FArchive& Ar, void* Value) const override;
+	void SerializeElement(FStructuredArchiveSlot Slot, void* Value) const override;
 
 private:
 	const UClass* PropertyClass = nullptr;

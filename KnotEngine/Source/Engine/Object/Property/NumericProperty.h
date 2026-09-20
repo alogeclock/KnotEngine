@@ -3,6 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Object/Property.h"
+#include "Core/Archive/StructuredArchive.h"
 
 #include <type_traits>
 
@@ -23,6 +24,7 @@ protected:
 	void DestroyElement(void* Value) const override {}
 	void CopyElement(void* Dst, const void* Src) const override { *static_cast<T*>(Dst) = *static_cast<const T*>(Src); }
 	void SerializeElement(FArchive& Ar, void* Value) const override { Ar << *static_cast<T*>(Value); }
+	void SerializeElement(FStructuredArchiveSlot Slot, void* Value) const override { Slot << *static_cast<T*>(Value); }
 };
 
 class ENGINE_API FIntProperty final : public TNumericProperty<int32>

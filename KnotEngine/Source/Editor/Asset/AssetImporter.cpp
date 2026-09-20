@@ -7,7 +7,7 @@
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Core/Math/Matrix.h"
-#include "Core/MemoryArchive.h"
+#include "Core/Archive/MemoryArchive.h"
 
 #include <DirectXTex.h>
 #define CGLTF_IMPLEMENTATION

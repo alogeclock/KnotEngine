@@ -2,6 +2,7 @@
 
 #include "Asset/Asset/Asset.h"
 #include "Asset/AssetManager.h"
+#include "Core/Archive/StructuredArchive.h"
 #include "Object/Class.h"
 #include "Object/Object.h"
 
@@ -107,6 +108,99 @@ void FObjectProperty::SerializeElement(FArchive& Ar, void* Value) const
 		}
 		ObjectPtrOps->SetObject(Value, Object && Object->IsA(PropertyClass) ? Object : nullptr);
 	}
+}
+
+// Asset은 영속 Asset ID로, Map 내부 객체는 외부 Resolver가 제공하는 UUID로 구조화해 저장하고 복원한다.
+void FObjectProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	if (Slot.IsSaving())
+	{
+		UObject* Object = ObjectPtrOps->GetObject(Value);
+		if (!Object)
+		{
+			Slot.SetNull();
+			return;
+		}
+
+		FStructuredArchiveRecord Record = Slot.EnterRecord();
+		FString Kind;
+		if (Object->IsA(UAsset::StaticClass()))
+		{
+			Kind = "Asset";
+			const FAssetId& AssetId = static_cast<UAsset*>(Object)->GetAssetId();
+			if (!AssetId.IsValid())
+			{
+				Slot.GetArchive().SetError();
+				return;
+			}
+			FString AssetIdText = AssetId.ToString();
+			Record.EnterField("Kind") << Kind;
+			Record.EnterField("AssetId") << AssetIdText;
+		}
+		else
+		{
+			uint32 UUID = 0;
+			FStructuredArchiveObjectResolver* Resolver = Slot.GetArchive().GetObjectResolver();
+			if (!Resolver || !Resolver->GetObjectUUID(*Object, UUID))
+			{
+				Slot.GetArchive().SetError();
+				return;
+			}
+			Kind = "Object";
+			Record.EnterField("Kind") << Kind;
+			Record.EnterField("UUID") << UUID;
+		}
+		return;
+	}
+
+	if (Slot.IsNull())
+	{
+		ObjectPtrOps->SetObject(Value, nullptr);
+		return;
+	}
+
+	FStructuredArchiveRecord Record = Slot.EnterRecord();
+	FString Kind;
+	Record.EnterField("Kind") << Kind;
+	if (Slot.GetArchive().HasError())
+	{
+		ObjectPtrOps->SetObject(Value, nullptr);
+		return;
+	}
+
+	UObject* Object = nullptr;
+	if (Kind == "Asset")
+	{
+		FString AssetIdText;
+		Record.EnterField("AssetId") << AssetIdText;
+		FAssetId AssetId;
+		if (!FAssetId::TryParse(AssetIdText, AssetId) || !AssetId.IsValid() || !GAssetManager || !(Object = GAssetManager->LoadAsset(AssetId)))
+		{
+			Slot.GetArchive().SetError();
+		}
+	}
+	else if (Kind == "Object")
+	{
+		uint32 UUID = 0;
+		Record.EnterField("UUID") << UUID;
+		FStructuredArchiveObjectResolver* Resolver = Slot.GetArchive().GetObjectResolver();
+		Object = Resolver ? Resolver->ResolveObject(UUID, *PropertyClass) : nullptr;
+		if (!Object)
+		{
+			Slot.GetArchive().SetError();
+		}
+	}
+	else
+	{
+		Slot.GetArchive().SetError();
+	}
+
+	if (Object && !Object->IsA(PropertyClass))
+	{
+		Slot.GetArchive().SetError();
+		Object = nullptr;
+	}
+	ObjectPtrOps->SetObject(Value, Object);
 }
 
 // 포인터 저장 형식에서 UObject를 꺼내 강한 참조 수집기에 전달한다.

@@ -1,5 +1,6 @@
 #include "EnumProperty.h"
 
+#include "Core/Archive/StructuredArchive.h"
 #include "Object/Class.h"
 
 #include <cstring>
@@ -27,4 +28,40 @@ void FEnumProperty::CopyElement(void* Dst, const void* Src) const
 void FEnumProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
 	Ar.Serialize(Value, Enum->GetSize());
+}
+
+// Enum의 정수 표현 대신 등록된 값 이름을 저장하고 복원한다.
+void FEnumProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	FString ValueName;
+	if (Slot.IsSaving())
+	{
+		uint64 RawValue = 0;
+		std::memcpy(&RawValue, Value, Enum->GetSize());
+		for (const FEnumValue& EnumValue : Enum->GetValues())
+		{
+			if (RawValue == static_cast<uint64>(EnumValue.Value))
+			{
+				ValueName = EnumValue.Name.ToString();
+				break;
+			}
+		}
+		if (ValueName.empty())
+		{
+			Slot.GetArchive().SetError();
+			return;
+		}
+	}
+
+	Slot << ValueName;
+	if (Slot.IsLoading() && !Slot.GetArchive().HasError())
+	{
+		const FEnumValue* EnumValue = Enum->FindValueByName(FName(ValueName));
+		if (!EnumValue)
+		{
+			Slot.GetArchive().SetError();
+			return;
+		}
+		std::memcpy(Value, &EnumValue->Value, Enum->GetSize());
+	}
 }

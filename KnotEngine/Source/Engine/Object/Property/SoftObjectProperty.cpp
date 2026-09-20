@@ -1,5 +1,6 @@
 #include "SoftObjectProperty.h"
 
+#include "Core/Archive/StructuredArchive.h"
 #include "Object/Class.h"
 
 // 참조할 클래스와 TSoftObjectPtr 저장 형식의 연산을 사용하는 소프트 객체 참조 프로퍼티를 생성한다.
@@ -45,4 +46,37 @@ void FSoftObjectProperty::SerializeElement(FArchive& Ar, void* Value) const
 	{
 		SoftObjectPtrOps->SetAssetId(Value, AssetId);
 	}
+}
+
+// 소프트 참조의 Asset ID를 null 또는 32자리 16진수 문자열로 저장하고 복원한다.
+void FSoftObjectProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	if (Slot.IsSaving())
+	{
+		const FAssetId& AssetId = SoftObjectPtrOps->GetAssetId(Value);
+		if (!AssetId.IsValid())
+		{
+			Slot.SetNull();
+			return;
+		}
+		FString Text = AssetId.ToString();
+		Slot << Text;
+		return;
+	}
+
+	if (Slot.IsNull())
+	{
+		SoftObjectPtrOps->SetAssetId(Value, {});
+		return;
+	}
+
+	FString Text;
+	Slot << Text;
+	FAssetId AssetId;
+	if (!FAssetId::TryParse(Text, AssetId))
+	{
+		Slot.GetArchive().SetError();
+		return;
+	}
+	SoftObjectPtrOps->SetAssetId(Value, AssetId);
 }

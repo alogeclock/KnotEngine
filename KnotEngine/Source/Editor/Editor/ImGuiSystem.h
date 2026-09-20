@@ -12,6 +12,8 @@
 
 #include <Windows.h>
 #include <cstdint>
+#include <filesystem>
+#include <optional>
 
 class IImGuiRenderBackend;
 class IRenderDevice;
@@ -45,6 +47,10 @@ public:
 
 private:
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
+
+	void LoadLevel();
+	void SaveLevel(bool bSaveAs);
+	std::optional<std::filesystem::path> OpenLevelDialog(bool bSave) const;
 
 	FWindowsApplication& Application;
 	UEditorEngine& EditorEngine;
@@ -86,5 +92,6 @@ private:
 	void DrawMenuBar();
 	void DrawBottomToolbar();
 	void DrawBottomPanelDockspace();
+
 	void BuildLayout(std::uint32_t DockspaceId);
 };

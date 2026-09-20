@@ -48,6 +48,7 @@ public:
 
 	SIZE_T Num(const void* Value) const;
 	void* GetElement(void* Value, SIZE_T Index) const;
+	void Resize(void* Value, SIZE_T Num) const;
 	const FProperty& GetInner() const { return *Inner; }
 	EPropertyKind GetKind() const override { return EPropertyKind::Array; }
 
@@ -56,6 +57,7 @@ protected:
 	void DestroyElement(void* Value) const override;
 	void CopyElement(void* Dst, const void* Src) const override;
 	void SerializeElement(FArchive& Ar, void* Value) const override;
+	void SerializeElement(FStructuredArchiveSlot Slot, void* Value) const override;
 	void VisitElementReferences(void* Value, FReferenceCollector& Collector) const override;
 
 private:

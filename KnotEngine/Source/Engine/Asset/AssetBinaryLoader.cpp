@@ -7,7 +7,7 @@
 #include "Asset/Mesh/StaticMesh.h"
 #include "Asset/Texture/Texture2D.h"
 #include "Core/Log.h"
-#include "Core/MemoryArchive.h"
+#include "Core/Archive/MemoryArchive.h"
 
 #include <cstring>
 #include <filesystem>

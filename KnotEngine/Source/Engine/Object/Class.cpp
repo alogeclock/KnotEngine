@@ -2,6 +2,7 @@
 
 #include "Object/Function.h"
 #include "Object/Property.h"
+#include "Core/Archive/StructuredArchive.h"
 
 // 필드의 이름과 자신을 포함하는 상위 필드를 저장한다.
 UField::UField(FName InName, UField* InOwner)
@@ -89,6 +90,29 @@ void UStruct::SerializeProperties(FArchive& Ar, void* Container) const
 	for (const FProperty* Property : AllProperties)
 	{
 		Property->SerializeInContainer(Ar, Container);
+	}
+}
+
+// 프로퍼티 이름을 Field로 사용해 구조화된 Record에 Transient가 아닌 값을 저장하고 복원한다.
+void UStruct::SerializeProperties(FStructuredArchiveRecord Record, void* Container) const
+{
+	TArray<const FProperty*> AllProperties;
+	GetAllProperties(AllProperties);
+	for (const FProperty* Property : AllProperties)
+	{
+		if (Property->HasAnyPropertyFlags(EPropertyFlags::Transient))
+		{
+			continue;
+		}
+
+		if (Record.IsSaving())
+		{
+			Property->SerializeValue(Record.EnterField(Property->GetName()), Property->ContainerPtrToValuePtr(Container));
+		}
+		else if (std::optional<FStructuredArchiveSlot> Slot = Record.TryEnterField(Property->GetName()))
+		{
+			Property->SerializeValue(*Slot, Property->ContainerPtrToValuePtr(Container));
+		}
 	}
 }
 

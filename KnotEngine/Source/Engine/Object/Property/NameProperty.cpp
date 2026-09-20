@@ -1,5 +1,7 @@
 #include "NameProperty.h"
 
+#include "Core/Archive/StructuredArchive.h"
+
 #include <memory>
 
 // FName의 크기와 배열 차원을 사용하는 이름 프로퍼티를 생성한다.
@@ -30,4 +32,16 @@ void FNameProperty::CopyElement(void* Dst, const void* Src) const
 void FNameProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
 	Ar << *static_cast<FName*>(Value);
+}
+
+// FName을 사람이 읽을 수 있는 문자열 Scalar로 저장하거나 복원한다.
+void FNameProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	FName& Name = *static_cast<FName*>(Value);
+	FString Text = Slot.IsSaving() ? Name.ToString() : FString();
+	Slot << Text;
+	if (Slot.IsLoading() && !Slot.GetArchive().HasError())
+	{
+		Name = FName(Text);
+	}
 }

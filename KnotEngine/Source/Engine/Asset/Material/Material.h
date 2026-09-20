@@ -2,7 +2,7 @@
 
 #include "Asset/Material/MaterialInterface.h"
 #include "Asset/Material/MaterialParameters.h"
-#include "Core/Archive.h"
+#include "Core/Archive/Archive.h"
 #include "Render/Resource/Material/Material.h"
 
 class FAssetBinaryLoader;

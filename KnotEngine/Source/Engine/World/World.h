@@ -6,6 +6,7 @@
 #include "Render/Scene/Scene.h"
 
 class URenderer;
+class FMapSerializer;
 
 UENUM()
 enum class EPlayState : uint8
@@ -30,6 +31,7 @@ public:
 	ULevel& CreateLevel();
 	ULevel& GetPersistentLevel() const;
 	void RemoveLevel(ULevel& Level);
+	void Reset();
 
 	void BeginPlay();
 	void PausePlay();
@@ -46,6 +48,8 @@ public:
 	const TArray<TObjectPtr<ULevel>>& GetLevels() const { return Levels; }
 
 private:
+	friend class FMapSerializer;
+
 	FScene Scene;
 	TMap<FString, uint64> NameCounters;
 

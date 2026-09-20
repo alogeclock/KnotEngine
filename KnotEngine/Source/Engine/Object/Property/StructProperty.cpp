@@ -1,5 +1,6 @@
 #include "StructProperty.h"
 
+#include "Core/Archive/StructuredArchive.h"
 #include "Object/Class.h"
 
 #include <limits>
@@ -42,6 +43,12 @@ void FStructProperty::CopyElement(void* Dst, const void* Src) const
 void FStructProperty::SerializeElement(FArchive& Ar, void* Value) const
 {
 	Struct->SerializeProperties(Ar, Value);
+}
+
+// 중첩 구조체를 이름이 붙은 Field의 Record로 저장하고 복원한다.
+void FStructProperty::SerializeElement(FStructuredArchiveSlot Slot, void* Value) const
+{
+	Struct->SerializeProperties(Slot.EnterRecord(), Value);
 }
 
 // 상속을 포함한 구조체 프로퍼티를 순회하며 모든 멤버의 객체 참조를 방문한다.
