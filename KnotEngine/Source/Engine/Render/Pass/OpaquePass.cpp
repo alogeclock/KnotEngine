@@ -79,12 +79,12 @@ void FOpaquePass::ExecutePass(
 {
 	RenderDevice.SetViewport(CommandList, Viewport);
 	const auto* ViewBytes = reinterpret_cast<const uint8*>(&ViewConstants);
+	RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
 
 	for (const FMeshDrawCommand& Command : OpaqueCommands)
 	{
 		check(Command.Material && Command.Material->IsRegistered());
 		RenderDevice.SetPipelineState(CommandList, Command.Material->GetPipelineState());
-		RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
 		if (!Command.Material->GetConstants().empty())
 		{
 			for (const FMaterialConstantBufferBinding& Binding : Command.Material->GetConstantBuffers())
