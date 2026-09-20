@@ -8,6 +8,7 @@
 #include "Editor/Panels/HierarchyPanel.h"
 #include "Editor/Panels/InspectorPanel.h"
 #include "Editor/Panels/ProfilePanel.h"
+#include "Editor/Panels/SettingsPanel.h"
 #include "Editor/Panels/ViewportPanel.h"
 
 #include <Windows.h>
@@ -19,6 +20,7 @@ class IImGuiRenderBackend;
 class IRenderDevice;
 class FAssetImportManager;
 class FAssetRegistry;
+class FEditorSettings;
 struct ImFont;
 class UEditorEngine;
 class FWindowsApplication;
@@ -32,6 +34,7 @@ public:
 		UEditorEngine& InEditorEngine,
 		FAssetRegistry& InAssetRegistry,
 		FAssetImportManager& InAssetImportManager,
+		FEditorSettings& InEditorSettings,
 		IRenderDevice& InRenderDevice,
 		IImGuiRenderBackend& InRenderBackend,
 		FInputRouter& InInputRouter,
@@ -70,6 +73,7 @@ private:
 	FViewportPanel ViewportPanel;
 	FConsolePanel ConsolePanel;
 	FContentPanel ContentPanel;
+	FSettingsPanel SettingsPanel;
 #if KNOT_CPU_PROFILER_ENABLED
 	FProfilePanel ProfilePanel;
 #endif

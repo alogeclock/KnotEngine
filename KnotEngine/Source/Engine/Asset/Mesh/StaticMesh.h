@@ -23,7 +23,7 @@ struct ENGINE_API FStaticMaterial
 struct FStaticMeshPayloadHeader
 {
 	inline static constexpr uint32 CurrentVersion = 2;
-	inline static constexpr uint32 MaxLODCount = 16;
+	inline static constexpr uint32 MaxLODCount = 5;
 
 	uint32 VertexStride;
 	uint32 LODCount;
@@ -66,6 +66,7 @@ public:
 	EAssetType GetAssetType() const override { return EAssetType::StaticMesh; }
 	FStaticMesh& GetRenderData() { return RenderData; }
 	const FStaticMesh& GetRenderData() const { return RenderData; }
+	uint64 GetRevision() const { return Revision; }
 
 	SIZE_T GetMaterialCount() const { return StaticMaterials.size(); }
 	UMaterialInterface* GetMaterial(SIZE_T MaterialIndex) const;
@@ -75,12 +76,15 @@ public:
 
 private:
 	friend class FAssetBinaryLoader;
+	friend class FAssetManager;
 	bool Initialize(
 		const FAssetId& InAssetId,
 		FString InAssetPath,
 		FStaticMesh&& InRenderData,
 		TArray<FStaticMaterial>&& InStaticMaterials = {});
+	bool Reload(FStaticMesh&& InRenderData, TArray<FStaticMaterial>&& InStaticMaterials);
 
 	FStaticMesh RenderData;
 	TArray<FStaticMaterial> StaticMaterials;
+	uint64 Revision = 0;
 };

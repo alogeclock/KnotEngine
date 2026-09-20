@@ -15,6 +15,7 @@ struct FSceneView
 	float FarClip = 0.0f;
 	FFrustum Frustum;
 	FRenderViewport Viewport;
+	TStaticArray<float, 4> LODSteps = { 0.15f, 0.08f, 0.05f, 0.02f };
 };
 
 // Shader Stage의 b0에 바인딩하는 View 단위 공용 상수다.

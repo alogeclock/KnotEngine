@@ -34,9 +34,11 @@ struct FAssetImportResult
 // GLB의 Static Mesh 생성 방식을 지정하는 Editor Import 설정.
 struct FGLBImportOptions
 {
+	inline static constexpr SIZE_T MaxGeneratedLODCount = 4;
+
 	float UniformScale = 1.0f;
+	TArray<float> LODTriangleRatios = { 0.5f, 0.2f, 0.1f, 0.05f };
 	bool bCombineMeshes = true;
-	bool bSkipUnchanged = false;
 };
 
 // GLB Source를 Runtime 전용 Mesh, Material, Texture .kasset으로 변환하는 Editor 전용 Importer.
@@ -44,17 +46,38 @@ class FAssetImporter final
 {
 public:
 	FAssetImportResult ImportGLB(
-		const std::filesystem::path& SourceFilePath,
-		const FString& DestinationAssetPath,
-		const FGLBImportOptions& ImportOptions = {}) const;
-
-	bool ImportAllGLB() const;
+	    const std::filesystem::path& SourceFilePath,
+	    const FString& DestinationAssetPath,
+	    const FGLBImportOptions& ImportOptions = {}) const;
 
 private:
 	struct FGLTFGuard
 	{
 		~FGLTFGuard();
 		cgltf_data* Data = nullptr;
+	};
+
+	struct FTextureImportDesc
+	{
+		const cgltf_data& GLTF;
+		const FString& AssetRoot;
+	};
+
+	struct FMaterialImportDesc
+	{
+		const cgltf_data& GLTF;
+		const FString& AssetRoot;
+		const TArray<FAssetId>& TextureAssetIds;
+	};
+
+	struct FStaticMeshImportDesc
+	{
+		bool bEngineGeometry;
+		const cgltf_data& GLTF;
+		const std::filesystem::path& SourceFilePath;
+		const FString& AssetRoot;
+		const FGLBImportOptions& Options;
+		const TArray<FAssetId>& MaterialAssetIds;
 	};
 
 	static FString Sanitize(const char* Name, const FString& Fallback);
@@ -67,12 +90,11 @@ private:
 	static const cgltf_accessor* FindAttribute(const cgltf_primitive& Primitive, int Type, int Index = 0);
 	static FSamplerDesc ConvertSampler(const cgltf_sampler* Sampler);
 
-	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& OutAssetId);
-	static bool IsAssetUpToDate(
-		const FString& AssetPath,
-		const std::filesystem::file_time_type& SourceTimestamp,
-		EAssetType ExpectedType,
-		uint32 ExpectedPayloadVersion);
+	static FAssetImportResult ImportTextures(const FTextureImportDesc& Desc);
+	static FAssetImportResult ImportMaterials(const FMaterialImportDesc& Desc);
+	static FAssetImportResult ImportStaticMeshes(const FStaticMeshImportDesc& Desc);
+
+	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& AssetId);
 
 	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
 	static void Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);

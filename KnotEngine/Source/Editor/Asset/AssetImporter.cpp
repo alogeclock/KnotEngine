@@ -1,4 +1,5 @@
 #include "Asset/AssetImporter.h"
+#include "Asset/MeshSimplifier.h"
 
 #include "Asset/Asset/EngineAssetIds.h"
 #include "Asset/Material/Material.h"
@@ -18,6 +19,7 @@
 #include <cstring>
 #include <fstream>
 #include <limits>
+#include <utility>
 
 // Scope를 벗어날 때 cgltf가 할당한 GLB 데이터를 해제한다.
 FAssetImporter::FGLTFGuard::~FGLTFGuard()
@@ -47,7 +49,7 @@ FString FAssetImporter::Combine(const FString& Left, const FString& Right)
 }
 
 // 공통 Header와 Payload를 임시 파일에 기록한 뒤 최종 .kasset으로 교체한다.
-bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& OutAssetId)
+bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& SavedAssetId)
 {
 	const std::filesystem::path FinalPath = FPaths::ResolveContentPath(AssetPath + ".kasset");
 	const std::filesystem::path TemporaryPath = FinalPath.wstring() + L".tmp";
@@ -121,49 +123,8 @@ bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32
 	{
 		return false;
 	}
-	OutAssetId = AssetId;
+	SavedAssetId = AssetId;
 	return true;
-}
-
-// 생성된 .kasset의 수정 시각과 Header가 현재 Source 및 Asset 형식과 일치하는지 확인한다.
-bool FAssetImporter::IsAssetUpToDate(
-    const FString& AssetPath,
-    const std::filesystem::file_time_type& SourceTimestamp,
-    EAssetType ExpectedType,
-    uint32 ExpectedPayloadVersion)
-{
-	std::error_code Error;
-	const std::filesystem::path FilePath = FPaths::ResolveContentPath(AssetPath + ".kasset");
-	if (!std::filesystem::exists(FilePath, Error) || Error || std::filesystem::last_write_time(FilePath, Error) < SourceTimestamp || Error)
-	{
-		return false;
-	}
-
-	std::ifstream Stream(FilePath, std::ios::binary | std::ios::ate);
-	std::streamoff FileSize = -1;
-	if (Stream)
-	{
-		FileSize = Stream.tellg();
-	}
-	TArray<uint8> HeaderBytes(sizeof(FAssetFileHeader));
-	if (FileSize < static_cast<std::streamoff>(HeaderBytes.size()))
-	{
-		return false;
-	}
-	Stream.seekg(0, std::ios::beg);
-	if (!Stream.read(reinterpret_cast<char*>(HeaderBytes.data()), static_cast<std::streamsize>(HeaderBytes.size())))
-	{
-		return false;
-	}
-
-	FMemoryReader HeaderArchive(HeaderBytes);
-	FAssetFileHeader Header = {};
-	HeaderArchive << Header;
-	return !HeaderArchive.HasError() && !HeaderArchive.CanSerialize(1) &&
-	       std::memcmp(Header.Magic, FAssetFileHeader::MagicValue, sizeof(Header.Magic)) == 0 &&
-	       Header.ContainerVersion == FAssetFileHeader::CurrentVersion && Header.AssetType == ExpectedType &&
-	       Header.PayloadVersion == ExpectedPayloadVersion && Header.AssetId.IsValid() &&
-	       Header.PayloadSize == static_cast<uint64>(FileSize) - HeaderBytes.size();
 }
 
 // glTF의 오른손 Y-Up 미터 좌표를 Knot Engine의 왼손 Z-Up 센티미터 좌표로 변환한다.
@@ -182,10 +143,10 @@ FVector FAssetImporter::ConvertDirection(const FVector& Value)
 FMatrix FAssetImporter::ConvertMatrix(const float Value[16])
 {
 	return FMatrix(
-		Value[0], Value[1], Value[2], Value[3],
-		Value[4], Value[5], Value[6], Value[7],
-		Value[8], Value[9], Value[10], Value[11],
-		Value[12], Value[13], Value[14], Value[15]);
+	    Value[0], Value[1], Value[2], Value[3],
+	    Value[4], Value[5], Value[6], Value[7],
+	    Value[8], Value[9], Value[10], Value[11],
+	    Value[12], Value[13], Value[14], Value[15]);
 }
 
 // Position과 UV로 정점 Tangent를 생성하고 Bitangent 방향을 Handedness에 기록한다.
@@ -313,92 +274,15 @@ FSamplerDesc FAssetImporter::ConvertSampler(const cgltf_sampler* Sampler)
 	return Result;
 }
 
-// 단일 GLB를 읽어 Mesh, Material, Texture .kasset으로 변환한다.
-FAssetImportResult FAssetImporter::ImportGLB(
-	const std::filesystem::path& SourceFilePath,
-	const FString& DestinationAssetPath,
-	const FGLBImportOptions& ImportOptions) const
+// GLB에 포함된 Image를 Texture2D .kasset으로 변환하고 Material 연결에 사용할 Asset ID를 반환한다.
+FAssetImportResult FAssetImporter::ImportTextures(const FTextureImportDesc& Desc)
 {
+	const cgltf_data& GLTF = Desc.GLTF;
+	const FString& TextureRoot = Desc.AssetRoot;
 	FAssetImportResult Result;
-	if (!std::isfinite(ImportOptions.UniformScale) || ImportOptions.UniformScale <= 0.0f)
+	for (cgltf_size ImageIndex = 0; ImageIndex < GLTF.images_count; ++ImageIndex)
 	{
-		Result.Error = "Uniform Scale은 0보다 큰 유한한 값이어야 한다.";
-		return Result;
-	}
-	const FString SourcePathUtf8 = FPaths::ToUtf8(SourceFilePath.wstring());
-	cgltf_options GLTFOptions = {};
-	FGLTFGuard GLTF;
-	if (cgltf_parse_file(&GLTFOptions, SourcePathUtf8.c_str(), &GLTF.Data) != cgltf_result_success)
-	{
-		Result.Error = "GLB 파싱에 실패했다: " + SourcePathUtf8;
-		return Result;
-	}
-	const bool bHasTextures = GLTF.Data->images_count > 0;
-	const bool bHasMaterials = GLTF.Data->materials_count > 0;
-	const bool bEngineGeometry = DestinationAssetPath.starts_with("/Engine/Model/");
-	const FString TextureRoot = bHasTextures ? Combine(DestinationAssetPath, "Texture") : DestinationAssetPath;
-	const FString MaterialRoot = bHasMaterials ? Combine(DestinationAssetPath, "Material") : DestinationAssetPath;
-	const FString MeshRoot = bHasTextures || bHasMaterials ? Combine(DestinationAssetPath, "Mesh") : DestinationAssetPath;
-
-	std::error_code TimestampError;
-	const auto SourceTimestamp = std::filesystem::last_write_time(SourceFilePath, TimestampError);
-	bool bCurrent = ImportOptions.bSkipUnchanged && !TimestampError && GLTF.Data->meshes_count > 0;
-	for (cgltf_size ImageIndex = 0; ImageIndex < GLTF.Data->images_count; ++ImageIndex)
-	{
-		bCurrent = bCurrent && IsAssetUpToDate(
-		                           Combine(TextureRoot, Sanitize(GLTF.Data->images[ImageIndex].name, "Texture_" + std::to_string(ImageIndex))),
-		                           SourceTimestamp,
-		                           EAssetType::Texture2D,
-		                           FTexture2DPayloadHeader::CurrentVersion);
-	}
-	for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
-	{
-		bCurrent = bCurrent && IsAssetUpToDate(
-		                           Combine(MaterialRoot, Sanitize(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex))),
-		                           SourceTimestamp,
-		                           EAssetType::Material,
-		                           FMaterialPayloadHeader::CurrentVersion);
-	}
-	if (ImportOptions.bCombineMeshes)
-	{
-		bCurrent = bCurrent && IsAssetUpToDate(
-		                           Combine(MeshRoot, Sanitize(nullptr, FPaths::ToUtf8(SourceFilePath.stem().wstring()))),
-		                           SourceTimestamp,
-		                           EAssetType::StaticMesh,
-		                           FStaticMeshPayloadHeader::CurrentVersion);
-	}
-	else
-	{
-		for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.Data->meshes_count; ++MeshIndex)
-		{
-			bCurrent = bCurrent && IsAssetUpToDate(
-			                           Combine(MeshRoot, Sanitize(GLTF.Data->meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()))),
-			                           SourceTimestamp,
-			                           EAssetType::StaticMesh,
-			                           FStaticMeshPayloadHeader::CurrentVersion);
-		}
-	}
-	if (bCurrent)
-	{
-		Result.bSucceeded = true;
-		return Result;
-	}
-	if (cgltf_load_buffers(&GLTFOptions, GLTF.Data, SourcePathUtf8.c_str()) != cgltf_result_success ||
-		cgltf_validate(GLTF.Data) != cgltf_result_success)
-	{
-		Result.Error = "GLB Buffer 로드 또는 검증에 실패했다: " + SourcePathUtf8;
-		return Result;
-	}
-	if (GLTF.Data->skins_count > 0 || GLTF.Data->animations_count > 0)
-	{
-		Result.Error = "Static Mesh Import는 Skin과 Animation을 지원하지 않는다.";
-		return Result;
-	}
-
-	TArray<FAssetId> ImageAssetIds(GLTF.Data->images_count);
-	for (cgltf_size ImageIndex = 0; ImageIndex < GLTF.Data->images_count; ++ImageIndex)
-	{
-		const cgltf_image& Image = GLTF.Data->images[ImageIndex];
+		const cgltf_image& Image = GLTF.images[ImageIndex];
 		if (!Image.buffer_view || !Image.buffer_view->buffer || !Image.buffer_view->buffer->data)
 		{
 			Result.Error = "외부 URI Image는 현재 지원하지 않는다.";
@@ -445,14 +329,22 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			Result.Error = "Texture .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
 		}
-		ImageAssetIds[ImageIndex] = TextureId;
 		Result.ImportedAssets.push_back({ AssetPath, EAssetType::Texture2D, TextureId });
 	}
+	Result.bSucceeded = true;
+	return Result;
+}
 
-	TArray<FAssetId> MaterialAssetIds(GLTF.Data->materials_count);
-	for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
+// GLB Material을 Material .kasset으로 변환하고 Static Mesh Slot 연결에 사용할 Asset ID를 반환한다.
+FAssetImportResult FAssetImporter::ImportMaterials(const FMaterialImportDesc& Desc)
+{
+	const cgltf_data& GLTF = Desc.GLTF;
+	const FString& MaterialRoot = Desc.AssetRoot;
+	const TArray<FAssetId>& TextureAssetIds = Desc.TextureAssetIds;
+	FAssetImportResult Result;
+	for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.materials_count; ++MaterialIndex)
 	{
-		const cgltf_material& Source = GLTF.Data->materials[MaterialIndex];
+		const cgltf_material& Source = GLTF.materials[MaterialIndex];
 		const bool bMasked = Source.alpha_mode == cgltf_alpha_mode_mask;
 		const bool bTranslucent = Source.alpha_mode == cgltf_alpha_mode_blend;
 		const FString MaterialName = Sanitize(Source.name, "Material_" + std::to_string(MaterialIndex));
@@ -489,9 +381,9 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		if (Header.TextureParameterCount > 0)
 		{
 			const cgltf_texture_view& View = Source.pbr_metallic_roughness.base_color_texture;
-			const SIZE_T ImageIndex = static_cast<SIZE_T>(View.texture->image - GLTF.Data->images);
+			const SIZE_T ImageIndex = static_cast<SIZE_T>(View.texture->image - GLTF.images);
 			FString BaseColorTextureName = "BaseColorTexture";
-			FAssetId TextureId = ImageAssetIds[ImageIndex];
+			FAssetId TextureId = TextureAssetIds[ImageIndex];
 			FSamplerDesc Sampler = ConvertSampler(View.texture->sampler);
 			Payload << BaseColorTextureName;
 			Payload << TextureId;
@@ -503,9 +395,22 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			Result.Error = "Material .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
 		}
-		MaterialAssetIds[MaterialIndex] = MaterialId;
 		Result.ImportedAssets.push_back({ AssetPath, EAssetType::Material, MaterialId });
 	}
+	Result.bSucceeded = true;
+	return Result;
+}
+
+// GLB Mesh와 Scene Transform을 Static Mesh .kasset으로 변환하고 요청한 하위 LOD를 함께 생성한다.
+FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDesc& Desc)
+{
+	const cgltf_data& GLTF = Desc.GLTF;
+	const std::filesystem::path& SourceFilePath = Desc.SourceFilePath;
+	const FString& MeshRoot = Desc.AssetRoot;
+	const FGLBImportOptions& ImportOptions = Desc.Options;
+	const TArray<FAssetId>& MaterialAssetIds = Desc.MaterialAssetIds;
+	FAssetImportResult Result;
+	const bool bEngineGeometry = Desc.bEngineGeometry;
 
 	struct FMeshBuildData
 	{
@@ -582,9 +487,9 @@ FAssetImportResult FAssetImporter::ImportGLB(
 				BuildData.Indices.push_back(bReverseWinding ? I2 : I1);
 				BuildData.Indices.push_back(bReverseWinding ? I1 : I2);
 			}
-			const uint32 MaterialIndex = Primitive.material ? static_cast<uint32>(Primitive.material - GLTF.Data->materials) : 0;
+			const uint32 MaterialIndex = Primitive.material ? static_cast<uint32>(Primitive.material - GLTF.materials) : 0;
 			if (!BuildData.Sections.empty() && BuildData.Sections.back().MaterialIndex == MaterialIndex &&
-				BuildData.Sections.back().FirstIndex + BuildData.Sections.back().IndexCount == FirstIndex)
+			    BuildData.Sections.back().FirstIndex + BuildData.Sections.back().IndexCount == FirstIndex)
 			{
 				BuildData.Sections.back().IndexCount += static_cast<uint32>(IndexCount);
 			}
@@ -626,7 +531,7 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			}
 			return true;
 		};
-		const cgltf_scene* Scene = GLTF.Data->scene ? GLTF.Data->scene : GLTF.Data->scenes_count > 0 ? &GLTF.Data->scenes[0] : nullptr;
+		const cgltf_scene* Scene = GLTF.scene ? GLTF.scene : GLTF.scenes_count > 0 ? &GLTF.scenes[0] : nullptr;
 		if (Scene)
 		{
 			for (cgltf_size RootIndex = 0; RootIndex < Scene->nodes_count; ++RootIndex)
@@ -639,9 +544,9 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		}
 		else
 		{
-			for (cgltf_size NodeIndex = 0; NodeIndex < GLTF.Data->nodes_count; ++NodeIndex)
+			for (cgltf_size NodeIndex = 0; NodeIndex < GLTF.nodes_count; ++NodeIndex)
 			{
-				const cgltf_node& Node = GLTF.Data->nodes[NodeIndex];
+				const cgltf_node& Node = GLTF.nodes[NodeIndex];
 				if (!Node.parent && !AppendNode(AppendNode, Node))
 				{
 					return Result;
@@ -651,10 +556,10 @@ FAssetImportResult FAssetImporter::ImportGLB(
 	}
 	else
 	{
-		Meshes.reserve(GLTF.Data->meshes_count);
-		for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.Data->meshes_count; ++MeshIndex)
+		Meshes.reserve(GLTF.meshes_count);
+		for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.meshes_count; ++MeshIndex)
 		{
-			const cgltf_mesh& SourceMesh = GLTF.Data->meshes[MeshIndex];
+			const cgltf_mesh& SourceMesh = GLTF.meshes[MeshIndex];
 			FMeshBuildData& Mesh = Meshes.emplace_back();
 			Mesh.Name = Sanitize(SourceMesh.name, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
 			if (!AppendMesh(SourceMesh, nullptr, Mesh))
@@ -676,12 +581,18 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			Normalize(Mesh.Vertices, 100.0f * ImportOptions.UniformScale);
 		}
 		GenerateTangents(Mesh.Vertices, Mesh.Indices);
+		TArray<FStaticMeshLODBuildData> GeneratedLODs = FMeshSimplifier::GenerateLODs(
+			{ Mesh.Vertices, Mesh.Indices, Mesh.Sections, ImportOptions.LODTriangleRatios });
+		for (FStaticMeshLODBuildData& LOD : GeneratedLODs)
+		{
+			GenerateTangents(LOD.Vertices, LOD.Indices);
+		}
 
 		TArray<uint8> PayloadBytes;
 		FMemoryWriter Payload(PayloadBytes);
 		FStaticMeshPayloadHeader Header = {};
 		Header.VertexStride = sizeof(FStaticMeshVertex);
-		Header.LODCount = 1;
+		Header.LODCount = 1 + static_cast<uint32>(GeneratedLODs.size());
 		Header.MaterialCount = MaterialAssetIds.empty() ? 1 : static_cast<uint32>(MaterialAssetIds.size());
 		Payload << Header;
 		if (MaterialAssetIds.empty())
@@ -691,20 +602,28 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			Payload << SlotName;
 			Payload << MaterialId;
 		}
-		for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.Data->materials_count; ++MaterialIndex)
+		for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.materials_count; ++MaterialIndex)
 		{
-			FString SlotName = Sanitize(GLTF.Data->materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex));
+			FString SlotName = Sanitize(GLTF.materials[MaterialIndex].name, "Material_" + std::to_string(MaterialIndex));
 			FAssetId MaterialId = MaterialAssetIds[MaterialIndex];
 			Payload << SlotName;
 			Payload << MaterialId;
 		}
-		FStaticMeshLODPayloadHeader LODHeader = {
-			static_cast<uint32>(Mesh.Vertices.size()), static_cast<uint32>(Mesh.Indices.size()), static_cast<uint32>(Mesh.Sections.size())
+		const auto SerializeLOD = [&Payload](TArray<FStaticMeshVertex>& Vertices, TArray<uint32>& Indices, TArray<FStaticMeshSection>& Sections)
+		{
+			FStaticMeshLODPayloadHeader LODHeader = {
+				static_cast<uint32>(Vertices.size()), static_cast<uint32>(Indices.size()), static_cast<uint32>(Sections.size())
+			};
+			Payload << LODHeader;
+			Payload.Serialize(Vertices.data(), static_cast<int64>(Vertices.size() * sizeof(FStaticMeshVertex)));
+			Payload.Serialize(Indices.data(), static_cast<int64>(Indices.size() * sizeof(uint32)));
+			Payload.Serialize(Sections.data(), static_cast<int64>(Sections.size() * sizeof(FStaticMeshSection)));
 		};
-		Payload << LODHeader;
-		Payload.Serialize(Mesh.Vertices.data(), static_cast<int64>(Mesh.Vertices.size() * sizeof(FStaticMeshVertex)));
-		Payload.Serialize(Mesh.Indices.data(), static_cast<int64>(Mesh.Indices.size() * sizeof(uint32)));
-		Payload.Serialize(Mesh.Sections.data(), static_cast<int64>(Mesh.Sections.size() * sizeof(FStaticMeshSection)));
+		SerializeLOD(Mesh.Vertices, Mesh.Indices, Mesh.Sections);
+		for (FStaticMeshLODBuildData& LOD : GeneratedLODs)
+		{
+			SerializeLOD(LOD.Vertices, LOD.Indices, LOD.Sections);
+		}
 		const FString AssetPath = Combine(MeshRoot, Mesh.Name);
 		FAssetId StaticMeshId;
 		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, PayloadBytes, StaticMeshId))
@@ -718,9 +637,9 @@ FAssetImportResult FAssetImporter::ImportGLB(
 	if (ImportOptions.bCombineMeshes)
 	{
 		const FString CombinedAssetPath = Combine(MeshRoot, Meshes.front().Name);
-		for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.Data->meshes_count; ++MeshIndex)
+		for (cgltf_size MeshIndex = 0; MeshIndex < GLTF.meshes_count; ++MeshIndex)
 		{
-			const FString OldMeshName = Sanitize(GLTF.Data->meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
+			const FString OldMeshName = Sanitize(GLTF.meshes[MeshIndex].name, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
 			const FString OldAssetPath = Combine(MeshRoot, OldMeshName);
 			if (OldAssetPath != CombinedAssetPath)
 			{
@@ -738,9 +657,7 @@ FAssetImportResult FAssetImporter::ImportGLB(
 	{
 		const FString CombinedName = Sanitize(nullptr, FPaths::ToUtf8(SourceFilePath.stem().wstring()));
 		const bool bCombinedPathReused = std::ranges::any_of(Meshes, [&CombinedName](const FMeshBuildData& Mesh)
-		{
-			return Mesh.Name == CombinedName;
-		});
+		                                                     { return Mesh.Name == CombinedName; });
 		if (!bCombinedPathReused)
 		{
 			std::error_code RemoveError;
@@ -753,41 +670,97 @@ FAssetImportResult FAssetImporter::ImportGLB(
 			}
 		}
 	}
-
 	Result.bSucceeded = true;
 	return Result;
 }
 
-// Content 아래의 모든 GLB를 탐색하여 변경된 Source Asset을 Import한다.
-bool FAssetImporter::ImportAllGLB() const
+// 단일 GLB를 읽어 Mesh, Material, Texture .kasset으로 변환한다.
+FAssetImportResult FAssetImporter::ImportGLB(
+    const std::filesystem::path& SourceFilePath,
+    const FString& DestinationAssetPath,
+    const FGLBImportOptions& ImportOptions) const
 {
-	const std::filesystem::path ContentRoot(FPaths::ContentDir());
-	std::error_code Error;
-	for (std::filesystem::recursive_directory_iterator It(ContentRoot, std::filesystem::directory_options::skip_permission_denied, Error), End;
-	     It != End; It.increment(Error))
+	FAssetImportResult Result;
+	if (!std::isfinite(ImportOptions.UniformScale) || ImportOptions.UniformScale <= 0.0f)
 	{
-		if (Error)
-		{
-			return false;
-		}
-		if (!It->is_regular_file() || It->path().extension() != L".glb")
-		{
-			continue;
-		}
-		const std::filesystem::path RelativeParent = std::filesystem::relative(It->path().parent_path(), ContentRoot);
-		const FString Destination = "/" + FPaths::ToUtf8(RelativeParent.generic_wstring());
-		FGLBImportOptions ImportOptions;
-		ImportOptions.bSkipUnchanged = true;
-		const FAssetImportResult Result = ImportGLB(It->path(), Destination, ImportOptions);
-		if (!Result.bSucceeded)
-		{
-			KE_LOG(LogAssetImporter, Error, "GLB Import 실패. Source={}, Error={}", FPaths::ToUtf8(It->path().wstring()), Result.Error);
-			return false;
-		}
-		for (const FString& Warning : Result.Warnings)
-		{
-			KE_LOG(LogAssetImporter, Warning, "{}: {}", FPaths::ToUtf8(It->path().filename().wstring()), Warning);
-		}
+		Result.Error = "Uniform Scale은 0보다 큰 유한한 값이어야 한다.";
+		return Result;
 	}
-	return true;
+	const FString SourcePathUtf8 = FPaths::ToUtf8(SourceFilePath.wstring());
+	cgltf_options GLTFOptions = {};
+	FGLTFGuard GLTF;
+	if (cgltf_parse_file(&GLTFOptions, SourcePathUtf8.c_str(), &GLTF.Data) != cgltf_result_success)
+	{
+		Result.Error = "GLB 파싱에 실패했다: " + SourcePathUtf8;
+		return Result;
+	}
+	const bool bHasTextures = GLTF.Data->images_count > 0;
+	const bool bHasMaterials = GLTF.Data->materials_count > 0;
+	const bool bEngineGeometry = DestinationAssetPath.starts_with("/Engine/Model/");
+	const FString TextureRoot = bHasTextures ? Combine(DestinationAssetPath, "Texture") : DestinationAssetPath;
+	const FString MaterialRoot = bHasMaterials ? Combine(DestinationAssetPath, "Material") : DestinationAssetPath;
+	const FString MeshRoot = bHasTextures || bHasMaterials ? Combine(DestinationAssetPath, "Mesh") : DestinationAssetPath;
+
+	if (cgltf_load_buffers(&GLTFOptions, GLTF.Data, SourcePathUtf8.c_str()) != cgltf_result_success ||
+	    cgltf_validate(GLTF.Data) != cgltf_result_success)
+	{
+		Result.Error = "GLB Buffer 로드 또는 검증에 실패했다: " + SourcePathUtf8;
+		return Result;
+	}
+	if (GLTF.Data->skins_count > 0 || GLTF.Data->animations_count > 0)
+	{
+		Result.Error = "Static Mesh Import는 Skin과 Animation을 지원하지 않는다.";
+		return Result;
+	}
+
+	const auto AppendResult = [&Result](FAssetImportResult&& ImportResult)
+	{
+		const bool bSucceeded = ImportResult.bSucceeded;
+		for (FImportedAsset& Asset : ImportResult.ImportedAssets)
+		{
+			Result.ImportedAssets.push_back(std::move(Asset));
+		}
+		for (FString& Warning : ImportResult.Warnings)
+		{
+			Result.Warnings.push_back(std::move(Warning));
+		}
+		if (!bSucceeded)
+		{
+			Result.Error = std::move(ImportResult.Error);
+		}
+		return bSucceeded;
+	};
+
+	FAssetImportResult TextureResult = ImportTextures({ *GLTF.Data, TextureRoot });
+	TArray<FAssetId> TextureAssetIds;
+	TextureAssetIds.reserve(TextureResult.ImportedAssets.size());
+	for (const FImportedAsset& Asset : TextureResult.ImportedAssets)
+	{
+		TextureAssetIds.push_back(Asset.AssetId);
+	}
+	if (!AppendResult(std::move(TextureResult)))
+	{
+		return Result;
+	}
+
+	FAssetImportResult MaterialResult = ImportMaterials({ *GLTF.Data, MaterialRoot, TextureAssetIds });
+	TArray<FAssetId> MaterialAssetIds;
+	MaterialAssetIds.reserve(MaterialResult.ImportedAssets.size());
+	for (const FImportedAsset& Asset : MaterialResult.ImportedAssets)
+	{
+		MaterialAssetIds.push_back(Asset.AssetId);
+	}
+	if (!AppendResult(std::move(MaterialResult)))
+	{
+		return Result;
+	}
+
+	FAssetImportResult StaticMeshResult = ImportStaticMeshes({ bEngineGeometry, *GLTF.Data, SourceFilePath, MeshRoot, ImportOptions, MaterialAssetIds });
+	if (!AppendResult(std::move(StaticMeshResult)))
+	{
+		return Result;
+	}
+
+	Result.bSucceeded = true;
+	return Result;
 }

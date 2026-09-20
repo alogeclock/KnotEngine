@@ -62,7 +62,7 @@ void UNode::Tick(float DeltaTime)
 		{
 			break;
 		}
-		if (Component->IsActive() && Component->IsTickEnabled())
+		if (Component->IsActive() && Component->IsTickEnable())
 		{
 			Component->TickComponent(DeltaTime);
 		}

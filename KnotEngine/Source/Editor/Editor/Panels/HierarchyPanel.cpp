@@ -10,6 +10,8 @@
 
 #include <imgui.h>
 
+#include <limits>
+
 UNode& FHierarchyPanel::CreateNode(UWorld& World, const FString& BaseName)
 {
 	return World.GetPersistentLevel().CreateNode(World.GetNodeName(BaseName));
@@ -35,26 +37,36 @@ void FHierarchyPanel::DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex,
 	const FString LevelLabel = &Level == &World.GetPersistentLevel() ? "Persistent Level" : "Level " + std::to_string(LevelIndex);
 	if (ImGui::TreeNodeEx(LevelLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		for (const TObjectPtr<UNode>& NodePointer : Level.GetNodes())
+		const TArray<TObjectPtr<UNode>>& Nodes = Level.GetNodes();
+		check(Nodes.size() <= static_cast<SIZE_T>((std::numeric_limits<int>::max)()));
+		
+		// 화면에 보이는 객체의 텍스트만 렌더링하도록 한다.
+		ImGuiListClipper Clipper;
+		Clipper.Begin(static_cast<int>(Nodes.size()));
+		while (Clipper.Step())
 		{
-			UNode* Node = NodePointer.Get();
-			if (!Node)
+			for (int NodeIndex = Clipper.DisplayStart; NodeIndex < Clipper.DisplayEnd; ++NodeIndex)
 			{
-				continue;
-			}
+				UNode* Node = Nodes[static_cast<SIZE_T>(NodeIndex)].Get();
+				if (!Node)
+				{
+					ImGui::Dummy({ 0.0f, ImGui::GetTextLineHeightWithSpacing() });
+					continue;
+				}
 
-			ImGui::PushID(Node);
-			const FString NodeName = Node->GetName().ToString();
-			const bool bSelected = Selection.SelectedNode == Node;
-			if (ImGui::Selectable(NodeName.c_str(), bSelected))
-			{
-				Selection.Select(Node);
+				ImGui::PushID(Node);
+				const FString NodeName = Node->GetName().ToString();
+				const bool bSelected = Selection.SelectedNode == Node;
+				if (ImGui::Selectable(NodeName.c_str(), bSelected))
+				{
+					Selection.Select(Node);
+				}
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+				{
+					Selection.Select(Node);
+				}
+				ImGui::PopID();
 			}
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-			{
-				Selection.Select(Node);
-			}
-			ImGui::PopID();
 		}
 		ImGui::TreePop();
 	}

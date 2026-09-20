@@ -41,7 +41,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	{
 		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
 		check(StaticMeshProxy.Mesh);
-		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(0);
+		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(StaticMeshProxy.SelectLOD(View));
 		const FMeshBuffer* MeshBuffer = &LOD.GetMeshBuffer();
 		checkf(MeshBuffer->IsValid(), "준비되지 않은 Static Mesh가 Opaque Pass에 전달되었다.");
 		const float Depth = View.ViewMatrix.TransformPosition(Primitive->WorldBounds.GetCenter()).Z;
@@ -148,11 +148,11 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 }
 
 void FOpaquePass::ExecutePass(
-	IRenderDevice& RenderDevice,
-	FCommandListHandle CommandList,
-	const FRenderViewport& Viewport,
-	const FViewConstants& ViewConstants,
-	const TArray<FMeshDrawCommand>& OpaqueCommands)
+    IRenderDevice& RenderDevice,
+    FCommandListHandle CommandList,
+    const FRenderViewport& Viewport,
+    const FViewConstants& ViewConstants,
+    const TArray<FMeshDrawCommand>& OpaqueCommands)
 {
 	RenderDevice.SetViewport(CommandList, Viewport);
 	const auto* ViewBytes = reinterpret_cast<const uint8*>(&ViewConstants);

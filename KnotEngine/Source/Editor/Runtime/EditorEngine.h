@@ -7,6 +7,7 @@
 #include "Asset/AssetRegistry.h"
 #include "Input/InputRouter.h"
 #include "Editor/ImGuiSystem.h"
+#include "Editor/Settings/EditorSettings.h"
 
 #include <filesystem>
 
@@ -54,6 +55,7 @@ private:
 	FAssetImportManager AssetImportManager;
 	FInputRouter InputRouter;
 	FEditorSelection EditorSelection;
+	FEditorSettings EditorSettings;
 	FImGuiSystem ImGuiSystem;
 
 	std::filesystem::path CurrentLevelPath;

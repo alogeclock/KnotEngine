@@ -18,6 +18,7 @@ public:
 	static FWString LogDir() { return SavedDir() + L"Logs/"; }
 
 	static FWString ImGuiSettingsPath() { return ConfigDir() + L"imgui.ini"; }
+	static FWString EditorSettingsPath() { return ConfigDir() + L"EditorSettings.ini"; }
 	static FString GetPath(const FString& Path);
 	static FString Combine(const FString& Left, const FString& Right);
 	static bool IsInside(const FString& Path, const FString& ParentPath);

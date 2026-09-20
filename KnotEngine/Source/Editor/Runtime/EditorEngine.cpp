@@ -21,6 +21,7 @@ UEditorEngine::UEditorEngine(FWindowsApplication& Application)
 		  *this,
 		  GetAssetManager().GetAssetRegistry(),
 		  AssetImportManager,
+		  EditorSettings,
 		  RenderBackend->GetRenderDevice(),
 		  RenderBackend->GetImGuiRenderBackend(),
 		  InputRouter,
@@ -34,6 +35,10 @@ void UEditorEngine::Startup(FWindowsApplication& Application)
 	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 
 	Renderer.Create(Application.GetWindow().GetHwnd());
+	if (!EditorSettings.Load())
+	{
+		KE_LOG(LogEditor, Error, "Editor Settings를 불러오거나 저장하지 못했다. Path={}", FPaths::ToUtf8(FPaths::EditorSettingsPath()));
+	}
 	AssetImportManager.Startup();
 	ImGuiSystem.Startup();
 
@@ -93,6 +98,7 @@ void UEditorEngine::ProcessAssetImports()
 	{
 		return;
 	}
+	GetAssetManager().GetAssetRegistry().Scan();
 
 	for (const FAssetImportCompletion& Completion : Completions)
 	{
@@ -107,9 +113,16 @@ void UEditorEngine::ProcessAssetImports()
 		{
 			KE_LOG(LogAssetImporter, Warning, "GLB Import 경고. Source={}, Warning={}", SourcePath, Warning);
 		}
+		for (const FImportedAsset& ImportedAsset : Result.ImportedAssets)
+		{
+			if (ImportedAsset.Type == EAssetType::StaticMesh && !GetAssetManager().ReloadStaticMesh(ImportedAsset.AssetId))
+			{
+				KE_LOG(LogAssetImporter, Error, "Static Mesh Reload 실패. AssetPath={}, AssetId={}",
+				       ImportedAsset.AssetPath, ImportedAsset.AssetId.ToString());
+			}
+		}
 		KE_LOG(LogAssetImporter, Display, "GLB Import 완료. Source={}, AssetCount={}", SourcePath, Result.ImportedAssets.size());
 	}
-	GetAssetManager().GetAssetRegistry().Scan();
 }
 
 void UEditorEngine::Render()
@@ -129,6 +142,10 @@ void UEditorEngine::Render()
 		{
 			if (auto Family = ViewportClient->BuildSceneViewFamily())
 			{
+				for (FSceneView& View : Family->Views)
+				{
+					View.LODSteps = EditorSettings.GetLODSteps();
+				}
 				ViewFamilies.push_back(std::move(*Family));
 			}
 		}

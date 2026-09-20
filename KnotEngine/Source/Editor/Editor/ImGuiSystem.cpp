@@ -5,6 +5,7 @@
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Editor/EditorFileUtils.h"
+#include "Editor/Settings/EditorSettings.h"
 #include "Input/InputRouter.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Platform/WindowsApplication.h"
@@ -30,6 +31,7 @@ FImGuiSystem::FImGuiSystem(
 	UEditorEngine& InEditorEngine,
 	FAssetRegistry& InAssetRegistry,
 	FAssetImportManager& InAssetImportManager,
+	FEditorSettings& InEditorSettings,
 	IRenderDevice& InRenderDevice,
 	IImGuiRenderBackend& InRenderBackend,
 	FInputRouter& InInputRouter,
@@ -37,7 +39,7 @@ FImGuiSystem::FImGuiSystem(
 	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
 	  RenderBackend(InRenderBackend), InputRouter(InInputRouter), Selection(InSelection),
 	  InspectorPanel(InAssetRegistry), ViewportPanel(InRenderDevice, InRenderBackend, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
-	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend)
+	  ContentPanel(InAssetRegistry, InAssetImportManager, InRenderDevice, InRenderBackend), SettingsPanel(InEditorSettings)
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
 }
@@ -118,6 +120,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 
 	InputRouter.RegisterGlobalKeyTarget(*this);
 	DrawMenuBar();
+	SettingsPanel.Draw();
 	DrawBottomToolbar();
 	const ImGuiID DockspaceId = ImGui::GetID("KnotEditorDockspaceV2");
 	const bool bNeedsDefaultLayout = ImGui::DockBuilderGetNode(DockspaceId) == nullptr;
@@ -446,6 +449,16 @@ void FImGuiSystem::DrawMenuBar()
 		if (ImGui::MenuItem("Save Level As"))
 		{
 			bSaveLevelDialogRequested = true;
+		}
+		ImGui::EndMenu();
+	}
+	const bool bProjectMenuOpen = ImGui::BeginMenu("Project");
+	DrawMenuBorder();
+	if (bProjectMenuOpen)
+	{
+		if (ImGui::MenuItem("Settings"))
+		{
+			SettingsPanel.Open();
 		}
 		ImGui::EndMenu();
 	}

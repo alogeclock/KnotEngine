@@ -5,6 +5,7 @@
 #include "Core/Math/Matrix.h"
 
 class FStaticMesh;
+struct FSceneView;
 class FScene;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
@@ -51,6 +52,10 @@ struct ENGINE_API FStaticMeshSceneProxy final : FPrimitiveSceneProxy
 	FStaticMesh* Mesh = nullptr; // Component의 UStaticMesh 참조가 Proxy 등록 기간 동안 Asset 수명을 유지한다.
 	TArray<UMaterialInterface*> Materials; // Component Override를 적용한 Slot별 비소유 Material 참조다.
 	UMaterialInterface* GetMaterial(SIZE_T MaterialIndex) const { return MaterialIndex < Materials.size() ? Materials[MaterialIndex] : nullptr; }
+	SIZE_T SelectLOD(const FSceneView& View) const;
+	
+	bool bLODEnabled = true;
+	uint64 MeshRevision = 0; // UStaticMesh가 최초 초기화되거나 재임포트되어 Render Data가 교체되면 반영한다.
 
 private:
 	const UStaticMeshComponent& MeshComponent;

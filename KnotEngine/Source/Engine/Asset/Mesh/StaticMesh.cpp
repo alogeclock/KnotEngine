@@ -15,12 +15,31 @@ bool UStaticMesh::Initialize(
 
 	RenderData = std::move(InRenderData);
 	StaticMaterials = std::move(InStaticMaterials);
+	Revision = 1;
 
 	if (StaticMaterials.empty())
 	{
 		StaticMaterials.push_back({ FName("Default"), nullptr });
 	}
 
+	return true;
+}
+
+// UObject와 영속 AssetId는 유지한 채 재임포트된 CPU/GPU Mesh 데이터와 Material Slot을 교체한다.
+bool UStaticMesh::Reload(FStaticMesh&& InRenderData, TArray<FStaticMaterial>&& InStaticMaterials)
+{
+	if (!InRenderData.IsValid())
+	{
+		return false;
+	}
+
+	RenderData = std::move(InRenderData);
+	StaticMaterials = std::move(InStaticMaterials);
+	if (StaticMaterials.empty())
+	{
+		StaticMaterials.push_back({ FName("Default"), nullptr });
+	}
+	++Revision;
 	return true;
 }
 

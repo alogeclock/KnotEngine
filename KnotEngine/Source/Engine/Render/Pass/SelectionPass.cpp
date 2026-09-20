@@ -28,7 +28,7 @@ uint32 FSelectionPass::AddPass(
 
 		const auto& StaticMeshProxy = static_cast<const FStaticMeshSceneProxy&>(*Primitive);
 		check(StaticMeshProxy.Mesh && StaticMeshProxy.Mesh->GetLODCount() > 0);
-		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(0);
+		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(StaticMeshProxy.SelectLOD(View));
 		const FMeshBuffer* MeshBuffer = &LOD.GetMeshBuffer();
 		checkf(MeshBuffer->IsValid(), "준비되지 않은 Static Mesh가 Selection Pass에 전달되었다.");
 		for (const FStaticMeshSection& Section : LOD.GetSections())

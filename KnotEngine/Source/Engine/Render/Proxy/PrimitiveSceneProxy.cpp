@@ -3,7 +3,11 @@
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
 #include "Render/Resource/Mesh/Mesh.h"
+#include "Render/Scene/SceneView.h"
 #include "World/Node.h"
+
+#include <algorithm>
+#include <cmath>
 
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent& InComponent)
 	: Component(InComponent), bSelected(InComponent.GetOwner().IsSelected())
@@ -33,12 +37,15 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(const UStaticMeshComponent& InCompo
 
 void FStaticMeshSceneProxy::Update()
 {
-	if (!bDirty)
+	UStaticMesh* StaticMesh = MeshComponent.GetStaticMesh();
+	if (!bDirty && MeshRevision == (StaticMesh ? StaticMesh->GetRevision() : 0))
 	{
 		return;
 	}
 
-	Mesh = MeshComponent.GetStaticMesh() ? &MeshComponent.GetStaticMesh()->GetRenderData() : nullptr;
+	Mesh = StaticMesh ? &StaticMesh->GetRenderData() : nullptr;
+	MeshRevision = StaticMesh ? StaticMesh->GetRevision() : 0;
+	bLODEnabled = MeshComponent.IsLODEnable();
 	Materials.clear();
 	if (Mesh && !Mesh->IsValid())
 	{
@@ -53,4 +60,33 @@ void FStaticMeshSceneProxy::Update()
 		}
 	}
 	UpdateBounds(Mesh ? Mesh->GetLocalBounds() : FAABB());
+}
+
+SIZE_T FStaticMeshSceneProxy::SelectLOD(const FSceneView& View) const
+{
+	check(Mesh && Mesh->GetLODCount() > 0);
+	if (!bLODEnabled)
+	{
+		return 0;
+	}
+	if (Mesh->GetLODCount() == 1 || std::fabs(View.ProjectionMatrix.M[2][3]) <= KMath::Epsilon)
+	{
+		return 0;
+	}
+
+	const float Distance = std::max(FVector::Dist(WorldBounds.GetCenter(), View.ViewOrigin), KMath::Epsilon);
+	const float ProjectedRadius = WorldBounds.GetExtent().Size() * std::fabs(View.ProjectionMatrix.M[1][1]) / Distance;
+	static constexpr SIZE_T MaximumLODCount = 5;
+	const SIZE_T LODCount = std::min(Mesh->GetLODCount(), MaximumLODCount);
+	SIZE_T LODIndex = 0;
+	while (LODIndex + 1 < LODCount)
+	{
+		const float Threshold = View.LODSteps[LODIndex];
+		if (ProjectedRadius >= Threshold)
+		{
+			break;
+		}
+		++LODIndex;
+	}
+	return LODIndex;
 }

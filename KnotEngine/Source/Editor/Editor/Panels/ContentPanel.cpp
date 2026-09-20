@@ -199,16 +199,59 @@ void FContentPanel::DrawImportOptions()
 		ImGui::SetNextItemWidth(180.0f);
 		ImGui::DragFloat("Uniform Scale", &PendingImportOptions.UniformScale, 0.01f, 0.0001f, 1000.0f, "%.4f");
 		ImGui::TextDisabled("1.0 converts glTF meters to Knot Engine centimeters.");
+
+		ImGui::Spacing();
+		ImGui::TextUnformatted("Generated LODs");
+		for (SIZE_T LODIndex = 0; LODIndex < PendingImportOptions.LODTriangleRatios.size(); ++LODIndex)
+		{
+			float Percentage = PendingImportOptions.LODTriangleRatios[LODIndex] * 100.0f;
+			const FString Label = "LOD " + std::to_string(LODIndex + 1) + " Triangle Ratio";
+			ImGui::SetNextItemWidth(180.0f);
+			if (ImGui::DragFloat(Label.c_str(), &Percentage, 1.0f, 1.0f, 99.0f, "%.0f%%", ImGuiSliderFlags_AlwaysClamp))
+			{
+				PendingImportOptions.LODTriangleRatios[LODIndex] = Percentage * 0.01f;
+			}
+		}
+		ImGui::BeginDisabled(PendingImportOptions.LODTriangleRatios.size() >= FGLBImportOptions::MaxGeneratedLODCount);
+		if (ImGui::SmallButton("Add LOD"))
+		{
+			const float PreviousRatio = PendingImportOptions.LODTriangleRatios.empty() ? 1.0f : PendingImportOptions.LODTriangleRatios.back();
+			PendingImportOptions.LODTriangleRatios.push_back(std::max(0.01f, PreviousRatio * 0.5f));
+		}
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		ImGui::BeginDisabled(PendingImportOptions.LODTriangleRatios.empty());
+		if (ImGui::SmallButton("Remove Last LOD"))
+		{
+			PendingImportOptions.LODTriangleRatios.pop_back();
+		}
+		ImGui::EndDisabled();
+		ImGui::TextDisabled("Each ratio is measured against the original LOD 0 triangle count.");
 	}
 
 	const bool bScaleValid = std::isfinite(PendingImportOptions.UniformScale) && PendingImportOptions.UniformScale > 0.0f;
+	bool bLODRatiosValid = PendingImportOptions.LODTriangleRatios.size() <= FGLBImportOptions::MaxGeneratedLODCount;
+	float PreviousLODRatio = 1.0f;
+	for (const float LODRatio : PendingImportOptions.LODTriangleRatios)
+	{
+		if (!std::isfinite(LODRatio) || LODRatio <= 0.0f || LODRatio >= PreviousLODRatio)
+		{
+			bLODRatiosValid = false;
+			break;
+		}
+		PreviousLODRatio = LODRatio;
+	}
 	if (!bScaleValid)
 	{
 		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "Uniform Scale must be greater than zero.");
 	}
+	if (!bLODRatiosValid)
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "Each LOD ratio must be lower than the previous LOD.");
+	}
 
 	ImGui::Separator();
-	ImGui::BeginDisabled(!bScaleValid || AssetImportManager.HasActiveImports());
+	ImGui::BeginDisabled(!bScaleValid || !bLODRatiosValid || AssetImportManager.HasActiveImports());
 	if (ImGui::Button("Import"))
 	{
 		if (AssetImportManager.EnqueueGLB(PendingImportSourceFilePath, PendingImportDestinationAssetPath, PendingImportOptions))
@@ -493,20 +536,20 @@ void FContentPanel::DrawContentTiles()
 void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, float TileHeight)
 {
 	ImGui::PushID(FolderPath.c_str());
-	const ImVec2 TileMinimum = ImGui::GetCursorScreenPos();
+	const ImVec2 TileMin = ImGui::GetCursorScreenPos();
 	ImGui::InvisibleButton("##FolderTile", ImVec2(TileWidth, TileHeight));
-	const ImVec2 TileMaximum = ImGui::GetItemRectMax();
+	const ImVec2 TileMax = ImGui::GetItemRectMax();
 	const bool bHovered = ImGui::IsItemHovered();
 	const ImU32 Background = ImGui::GetColorU32(bHovered ? ImGuiCol_HeaderHovered : ImGuiCol_FrameBg);
 	ImDrawList* DrawList = ImGui::GetWindowDrawList();
-	DrawList->AddRectFilled(TileMinimum, TileMaximum, Background, 5.0f);
-	DrawList->AddRect(TileMinimum, TileMaximum, ImGui::GetColorU32(ImGuiCol_Border), 5.0f);
+	DrawList->AddRectFilled(TileMin, TileMax, Background, 5.0f);
+	DrawList->AddRect(TileMin, TileMax, ImGui::GetColorU32(ImGuiCol_Border), 5.0f);
 
-	const ImVec2 IconMinimum(TileMinimum.x + 20.0f, TileMinimum.y + 8.0f);
-	const ImVec2 IconMaximum(IconMinimum.x + 48.0f, IconMinimum.y + 48.0f);
+	const ImVec2 IconMin(TileMin.x + 20.0f, TileMin.y + 8.0f);
+	const ImVec2 IconMax(IconMin.x + 48.0f, IconMin.y + 48.0f);
 	if (FolderIcon.IsValid())
 	{
-		DrawList->AddImage(ImTextureRef(RenderBackend.GetImGuiTextureID(FolderIcon)), IconMinimum, IconMaximum);
+		DrawList->AddImage(ImTextureRef(RenderBackend.GetImGuiTextureID(FolderIcon)), IconMin, IconMax);
 	}
 	const FString FolderName = GetFolderName(FolderPath);
 	ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 0.90f);
@@ -516,10 +559,8 @@ void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, f
 	const ImVec2 LabelSize = ImGui::CalcTextSize(Label.c_str());
 	const ImVec2 TypeSize = ImGui::CalcTextSize("Folder");
 	ImGui::PopFont();
-	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMinimum.x + (TileWidth - LabelSize.x) * 0.5f, TileMinimum.y + 63.0f),
-	                  ImGui::GetColorU32(ImGuiCol_Text), Label.c_str());
-	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMinimum.x + (TileWidth - TypeSize.x) * 0.5f, TileMinimum.y + 90.0f),
-	                  ImGui::GetColorU32(ImGuiCol_TextDisabled), "Folder");
+	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMin.x + (TileWidth - LabelSize.x) * 0.5f, TileMin.y + 63.0f), ImGui::GetColorU32(ImGuiCol_Text), Label.c_str());
+	DrawList->AddText(TileFont, TileFontSize, ImVec2(TileMin.x + (TileWidth - TypeSize.x) * 0.5f, TileMin.y + 90.0f), ImGui::GetColorU32(ImGuiCol_TextDisabled), "Folder");
 
 	if (bHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 	{
@@ -535,7 +576,7 @@ void FContentPanel::DrawFolderTile(const FString& FolderPath, float TileWidth, f
 		ImGui::TextUnformatted(FolderName.c_str());
 		ImGui::EndDragDropSource();
 	}
-	DropItem(FolderPath, TileMinimum, TileMaximum);
+	DropItem(FolderPath, TileMin, TileMax);
 	ImGui::PopID();
 }
 

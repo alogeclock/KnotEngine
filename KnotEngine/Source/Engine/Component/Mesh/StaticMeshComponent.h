@@ -24,6 +24,7 @@ public:
 	UMaterialInterface* GetMaterial(SIZE_T MaterialIndex) const;
 	SIZE_T GetMaterialCount() const;
 	const TArray<TObjectPtr<UMaterialInterface>>& GetOverrideMaterials() const { return OverrideMaterials; }
+	bool IsLODEnable() const { return bLODEnable; }
 
 protected:
 	explicit UStaticMeshComponent(const FAssetId& DefaultAssetId);
@@ -32,6 +33,8 @@ protected:
 private:
 	UPROPERTY(Category = "Static Mesh")
 	TObjectPtr<UStaticMesh> StaticMesh;
+
+	UPROPERTY(Category = "LOD") bool bLODEnable = true;
 
 	UPROPERTY(Category = "Material")
 	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;

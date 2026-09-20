@@ -21,7 +21,7 @@ public:
 	bool IsOwned() const { return Owner != nullptr; }
 	bool IsRegistered() const { return bIsRegistered; }
 	bool HasBegunPlay() const { return bHasBegunPlay; }
-	bool IsTickEnabled() const { return bTickEnable; }
+	bool IsTickEnable() const { return bTickEnable; }
 	bool IsActive() const { return bIsActive; }
 
 	void RegisterComponent();

@@ -36,6 +36,7 @@ public:
 	UStaticMesh* LoadStaticMesh(const FString& AssetPath);
 	UStaticMesh* LoadStaticMesh(const FAssetId& AssetId);
 	UStaticMesh* FindStaticMesh(const FAssetId& AssetId) const;
+	bool ReloadStaticMesh(const FAssetId& AssetId);
 
 	// 논리 경로 또는 영속 ID의 Material을 Cache에서 찾고, 없으면 .kasset에서 Load한다.
 	UMaterial* LoadMaterial(const FString& AssetPath);

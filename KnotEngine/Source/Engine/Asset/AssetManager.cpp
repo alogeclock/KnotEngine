@@ -159,6 +159,36 @@ UStaticMesh* FAssetManager::FindStaticMesh(const FAssetId& AssetId) const
 	return It != StaticMeshes.end() ? It->second.Get() : nullptr;
 }
 
+// 이미 로드된 Static Mesh UObject와 AssetId를 유지하면서 최신 .kasset의 LOD와 Material 데이터를 반영한다.
+bool FAssetManager::ReloadStaticMesh(const FAssetId& AssetId)
+{
+	check(GAssetManager == this);
+	UStaticMesh* ExistingMesh = FindStaticMesh(AssetId);
+	if (!ExistingMesh)
+	{
+		return true;
+	}
+
+	const FAssetData* Asset = AssetRegistry.FindAsset(AssetId);
+	if (!Asset || Asset->Type != EAssetType::StaticMesh)
+	{
+		return false;
+	}
+	UStaticMesh* ImportedMesh = BinaryLoader.LoadStaticMesh(*Asset, *this);
+	if (!ImportedMesh)
+	{
+		return false;
+	}
+	check(ImportedMesh->GetAssetId() == ExistingMesh->GetAssetId());
+	const bool bReloaded = ExistingMesh->Reload(std::move(ImportedMesh->RenderData), std::move(ImportedMesh->StaticMaterials));
+	if (bReloaded)
+	{
+		ExistingMesh->SetAssetPath(Asset->AssetPath);
+	}
+	GUObjectManager.Destroy(ImportedMesh);
+	return bReloaded;
+}
+
 UMaterial* FAssetManager::FindMaterial(const FAssetId& AssetId) const
 {
 	const auto It = Materials.find(AssetId);
