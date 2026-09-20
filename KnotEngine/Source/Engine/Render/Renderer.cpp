@@ -7,6 +7,8 @@
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
 
+#include <limits>
+
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
 	: RenderDevice(InRenderDevice),
 	  RenderContext(InRenderContext),
@@ -93,7 +95,8 @@ FMaterialRenderProxy& URenderer::RegisterMaterial(const UMaterialInterface* Mate
 		return *Existing->second;
 	}
 
-	auto Proxy = std::make_unique<FMaterialRenderProxy>(MaterialInterface);
+	panicf(MaterialRenderProxies.size() < (std::numeric_limits<uint32>::max)(), "Material Render Proxy Sort ID가 uint32 범위를 초과했다.");
+	auto Proxy = std::make_unique<FMaterialRenderProxy>(MaterialInterface, static_cast<uint32>(MaterialRenderProxies.size()));
 	Proxy->Register(*this);
 	FMaterialRenderProxy& Result = *Proxy;
 	MaterialRenderProxies.emplace(MaterialInterface, std::move(Proxy));

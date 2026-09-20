@@ -31,7 +31,7 @@ private:
 		uint32 FirstIndex = 0;
 		uint32 IndexCount = 0;
 
-		uint32 SortKey = 0;
+		uint64 SortKey = 0;
 	};
 
 	struct alignas(16) FDrawConstants
@@ -39,6 +39,8 @@ private:
 		FMatrix Model;
 	};
 	static_assert(sizeof(FDrawConstants) % 16 == 0);
+
+	static uint64 GenerateSortKey(const FMaterialRenderProxy& Material, const FMeshBuffer& MeshBuffer, float Depth, float FarClip);
 
 	static void ExecutePass(
 		IRenderDevice& RenderDevice,

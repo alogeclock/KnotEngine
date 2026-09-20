@@ -4,7 +4,7 @@
 
 이 문서는 Knot Engine의 World 렌더 상태, ViewFamily 구성, 가시성 판정, Draw Command 생성과 GPU 실행의 책임을 정의한다. 현재 구현은 메인 스레드에서 동기 실행하는 D3D11 렌더링 경로다.
 
-현재 Opaque, Gamma Correction Post Process와 Overlay는 매 프레임 생성되는 Render Graph Node로 구성하며 Shader와 Pipeline State는 공용 Cache가 장기 소유한다. Render Thread 분리와 Graph Resource 추적은 향후 목표다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
+현재 Opaque, Gamma Correction Post Process와 Overlay는 매 프레임 생성되는 Render Graph Node로 구성한다. Shader와 Pipeline State는 공용 Cache가, Material의 Pipeline·상수·Texture/Sampler 바인딩은 `FMaterialRenderProxy`가 장기 소유한다. Render Thread 분리와 Graph Resource 추적은 향후 목표다. 문서의 구성은 [Input-Architecture.md](Input-Architecture.md)와 같은 목적·원칙·전체 구조·세부 계약·구현 상태 순서를 따른다.
 
 ## 설계 원칙
 
@@ -16,6 +16,7 @@
 - EditorEngine은 프레임을 조율하고 ViewFamily마다 SceneRenderer를 생성한다.
 - SceneRenderer는 가시성·명령 선택·패스 순서를 결정하고 Renderer는 렌더 명령을 실행한다.
 - 가시 Primitive 수집과 패스별 Draw Command 생성은 별도 단계다.
+- Material UObject의 렌더 바인딩은 Renderer가 소유하는 Material Render Proxy로 한 번 변환해 Draw Command에서 재사용한다.
 - 패스마다 목적에 맞는 Sort Key를 사용한다. Scene 전체를 하나의 정렬 순서로 고정하지 않는다.
 - RHI 계약은 Engine.dll에, D3D11 구현은 Renderer.dll에 둔다.
 - ImGui 화면 구성은 Editor, ImGui GPU 백엔드는 Renderer 모듈의 책임이다.
@@ -54,6 +55,10 @@ FSceneViewFamily ──참조──> FScene
                 ├─ FSceneView[]
                 ├─ FSceneRenderTarget
                 └─ FShowFlags
+
+URenderer ──소유──> FMaterialRenderProxy[]
+                       ↑ 비소유 참조
+                 FMeshDrawCommand
 ```
 
 ## 디렉터리와 책임
@@ -83,7 +88,9 @@ KnotEngine/Source/
 │     │  ├─ Scene.h/.cpp
 │     │  ├─ SceneView.h
 │     │  └─ SceneRenderer.h/.cpp
-│     ├─ Proxy/PrimitiveSceneProxy.h/.cpp
+│     ├─ Proxy/
+│     │  ├─ PrimitiveSceneProxy.h/.cpp
+│     │  └─ MaterialRenderProxy.h/.cpp
 │     ├─ Resource/
 │     │  ├─ Buffer.h/.cpp
 │     │  ├─ Mesh.h/.cpp
@@ -116,7 +123,8 @@ KnotEngine/Source/
 | `FScene` | Proxy 소유·순회·제거, `GetProxies()` 제공 | Component 데이터 접근 |
 | `FEditorViewportClient` | 카메라 입력, View·ViewFamily 구성 | SceneRenderer 생성, Draw 실행 |
 | `FSceneRenderer` | View별 가시성, 임시 Pass Node 구성과 실행 의존성 선언 | World Tick, Proxy 갱신, Present |
-| `URenderer` | 공용 Shader·Pipeline State 수명, 프레임·타깃·Graph 실행 | 구체 Pass, SceneRenderer 생성, 가시성 정책 |
+| `URenderer` | 공용 Shader·Pipeline State와 Material Render Proxy 수명, 프레임·타깃·Graph 실행 | 구체 Pass, SceneRenderer 생성, 가시성 정책 |
+| `FMaterialRenderProxy` | Material별 Pipeline·상수·Texture/Sampler binding 캐시 | Material UObject와 Texture GPU Resource 소유 |
 | `IRenderDevice` | GPU 자원과 Command List 연산 | World·Editor 정책 |
 | `IRenderContext` | 네이티브 창 출력, Swap Chain, Resize·Present | Scene 순회 |
 | `UEditorEngine` | 렌더 작업 생성과 UI 합성 순서 | 패스 내부 컬링·정렬 |
@@ -219,6 +227,26 @@ Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mes
 
 부모 Transform 변경은 자손까지 Dirty를 전파한다. Stopped·Paused에서도 Scene 갱신을 실행하므로 Inspector 편집 결과가 반영된다. World Tick 이후 변경한 값은 다음 Scene 갱신에서 반영된다.
 
+### Material Render Proxy
+
+`FMaterialRenderProxy`는 Primitive의 공간 상태를 나타내는 `FPrimitiveSceneProxy`와 별개의 Renderer 소유 캐시다. `UMaterialInterface` 하나를 Pipeline State, Material Constant bytes, Constant Buffer binding과 Texture/Sampler binding으로 변환해 보관한다. `nullptr` Material Interface는 기본 Material을 나타내는 유효한 캐시 키다.
+
+```text
+UMaterialInterface
+  → URenderer::RegisterMaterial
+      ├─ 이미 등록됨: 기존 FMaterialRenderProxy 반환
+      └─ 최초 등록: FMaterialRenderProxy 생성
+          ├─ ShaderRegistry에서 Shader 조회·생성
+          ├─ PipelineStateCache에서 Pipeline 조회·생성
+          ├─ Reflection Layout에 맞춰 Material Constant 패킹
+          ├─ Texture GPU Resource 준비
+          └─ Texture/Sampler Binding 저장
+```
+
+`URenderer`는 `UMaterialInterface*`를 키로 하는 Map에서 Proxy를 `unique_ptr`로 소유한다. 따라서 Map 재해시 이후에도 Proxy 주소는 유지되고, Draw Command는 Renderer가 해제되기 전까지 안정적인 비소유 포인터를 사용할 수 있다. Renderer는 Shader·Pipeline·Sampler Cache와 Render Device를 해제하기 전에 Material Render Proxy를 먼저 제거한다. Proxy의 `UMaterialInterface*`와 Texture Handle은 비소유 참조이며 UObject나 Texture GPU Resource의 수명을 연장하지 않는다.
+
+각 Proxy에는 Opaque Sort Key에 사용하는 Renderer 수명 범위의 `SortId`가 있다. 현재 Material 파라미터나 Texture가 실행 중 변경됐을 때 Proxy를 다시 등록하는 Revision·Dirty 경로는 없다. 등록 이후 Material이 바뀌면 기존 Constant와 Binding이 자동 갱신되지 않으므로 이 기능은 Material 편집을 도입할 때 추가한다.
+
 ### View와 ViewFamily
 
 `FSceneView`는 ViewMatrix, ProjectionMatrix, ViewProjectionMatrix, ViewOrigin, Frustum과 FRenderViewport를 보관한다. 행벡터 규약으로 `ViewProjectionMatrix = ViewMatrix * ProjectionMatrix`이며 Draw 시 `WorldMatrix * ViewProjectionMatrix`를 사용한다.
@@ -239,14 +267,20 @@ Mesh가 없거나 CPU Geometry의 Bounds가 유효하지 않으면 렌더용 Mes
 
 ## Draw Command
 
-현재 `FMeshDrawCommand`는 Proxy의 비소유 포인터와 uint32 SortKey만 담는다. GPU 명령 버퍼 자체가 아니라 불투명 패스 실행에 필요한 임시 선택 정보다.
+현재 `FMeshDrawCommand`는 Primitive Proxy, Mesh Buffer와 Material Render Proxy의 비소유 포인터, Section index 범위와 `uint64` Sort Key를 담는다. Material Constant·Texture 배열을 Draw Command마다 복사하지 않는다. GPU 명령 버퍼 자체가 아니라 불투명 패스 실행에 필요한 임시 선택 정보다.
 
 `VisiblePrimitives`는 SceneRenderer 멤버이며 View마다 다시 구성한다. `OpaqueCommands`는 `FOpaquePass::AddPass()`에서 생성되어 Opaque Node가 실행될 때까지 보관된다. 가시 Primitive 수만큼 reserve한 뒤 명령을 추가·정렬하며 View나 프레임 간 Draw Command 캐시는 없다.
 
 ```text
 GetProxies → CullView → VisiblePrimitives
-  → FOpaquePass::AddPass의 OpaqueCommands와 View Constants
-  → Opaque Node 실행 → View/Draw 상수 바인딩 → Draw
+  → FOpaquePass::AddPass
+      ├─ Renderer에서 Material Render Proxy 등록·조회
+      ├─ OpaqueCommands와 64비트 Sort Key 생성
+      └─ Pipeline → Material → Mesh → Depth 정렬
+  → Opaque Node 실행
+      ├─ View 상수를 Pass당 한 번 바인딩
+      ├─ 변경된 Pipeline·Material·Mesh 상태만 바인딩
+      └─ Draw 상수 바인딩 → Draw
 ```
 
 캐싱을 추가한다면 Mesh·Material·Pipeline 변경 시 무효화와 View 종속 데이터를 분리해야 한다. 배열을 멤버로 옮기는 것만으로 명령 캐시가 성립하지 않는다.
@@ -289,12 +323,12 @@ Shadow → 필요 시 Depth Prepass → Base/GBuffer → Light → Translucency 
 
 ## Pass별 정렬
 
-현재 불투명 패스는 WorldBounds 중심의 View 공간 Z를 사용한다. NaN과 무한대를 검사하고 음수 깊이를 0으로 제한한 뒤 float 비트를 uint32로 해석한다. 비음수 유한 float 범위에서 이 키를 오름차순 stable sort하여 앞에서 뒤로 그린다.
+현재 불투명 패스는 Draw Command 생성 시 `[Pipeline 12bit | Material 20bit | Mesh 20bit | Depth 12bit]`의 64비트 Sort Key를 만든다. Pipeline에는 Pipeline State Handle Index, Material에는 Material Render Proxy Sort ID, Mesh에는 Vertex Buffer Handle Index를 사용한다. Depth는 WorldBounds 중심의 View 공간 Z를 Far Clip 범위로 정규화한다. 키는 `std::sort`로 오름차순 정렬하며, 실행 중 직전 상태를 추적해 동일한 Pipeline, Material binding과 Mesh Buffer를 다시 설정하지 않는다.
 
 | 패스 | 현재 또는 목표 정렬 기준 |
 |---|---|
-| 현재 Opaque | Bounds 중심의 View depth, front-to-back |
-| 목표 Opaque / Base | Pipeline·Material 변경 비용과 depth를 고려한 키 |
+| 현재 Opaque | Pipeline → Material → Mesh → Bounds 중심의 View depth |
+| 목표 Opaque / Base | 장면의 CPU 상태 변경 비용과 GPU overdraw를 측정해 키 배치 조정 |
 | 목표 Shadow | Shadow View 기준 depth와 depth Pipeline |
 | 목표 Translucency | View 기준 back-to-front, 동일 깊이의 순서 정책 |
 | 목표 Overlay | 레이어와 명시적 표시 순서 |
@@ -327,7 +361,7 @@ Command allocator/list 재사용, descriptor 관리, resource state transition, 
 
 Viewport의 offscreen Scene Color는 선형 색을 저장하는 Render Target이자 Post Process 입력 Shader Resource다. 화면 표시용 Color는 Post Process 출력 Render Target이면서 ImGui에서 읽는 Shader Resource이고, Depth는 두 렌더 단계가 공유하는 DepthStencil 용도다. 현재 바인딩과 Clear는 Renderer가 수행하며 ImGui texture ID 변환은 GPU backend를 통해 처리한다.
 
-Pipeline State는 Shader, Vertex Layout, Primitive Topology와 depth 설정을 묶는다. 현재 FGeometryVertex의 위치·색상 데이터와 Common shader를 사용하며 ViewProjection은 View 상수 `b0`, Model은 Draw 상수 `b3`으로 Vertex Shader에 전달한다. `FPipelineStateCache`가 동일한 Description의 생성을 중복하지 않으며 Material별 texture·sampler·상수와 여러 Pipeline State 조합은 후속 확장이다.
+Pipeline State는 Shader, Vertex Layout, Primitive Topology, Blend와 Depth 설정을 묶는다. Static Mesh는 `FStaticMeshVertex`와 Material이 선택한 Shader를 사용하며 ViewProjection은 View 상수 `b0`, Material Parameter는 Reflection이 지정한 슬롯, Model은 Draw 상수 `b3`으로 전달한다. `FPipelineStateCache`가 동일한 Description의 생성을 중복하지 않고, `FMaterialRenderProxy`가 해당 Pipeline과 Texture·Sampler·상수 바인딩을 재사용한다.
 
 ### 상수 버퍼 슬롯 계약
 
@@ -340,11 +374,15 @@ Shader Stage별 상수 버퍼 슬롯은 데이터의 의미와 갱신 빈도에 
 | `b2` | Material constants | Material 변경 시 |
 | `b3` | Draw/Object constants | Draw마다 |
 
-현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용한다. Overlay Pass의 Grid는 Pixel Shader의 `b0`과 `b1`, Axis는 Vertex·Pixel Shader의 `b0`을 사용한다. `b2`는 Material 시스템이 구현될 때 사용한다.
+현재 Opaque Pass는 Vertex Shader의 `b0`과 `b3`을 사용하고 Material Constant는 Shader Reflection Layout에 기록된 Stage와 Slot에 바인딩한다. 기본 Material Shader의 Material Constant는 `b2`를 사용한다. Overlay Pass의 Grid는 Pixel Shader의 `b0`과 `b1`, Axis는 Vertex·Pixel Shader의 `b0`을 사용한다.
 
 ## Material과 Pipeline 선택
 
-현재 Proxy는 Static Mesh를 보관하며 Material 시스템은 연결되지 않았다. 향후 Material의 Blend Mode와 패스 참여 조건으로 Shader·Pipeline·리소스 바인딩을 선택한다.
+`FStaticMeshSceneProxy`는 Mesh Section의 Material Slot과 Component Override를 반영한 `UMaterialInterface*` 배열을 보관한다. Opaque Pass는 Section별 Material Interface를 `URenderer::RegisterMaterial()`에 전달하고 반환된 `FMaterialRenderProxy`를 Draw Command에 기록한다.
+
+Material Render Proxy는 Material의 Vertex/Pixel Shader, Cull·Depth·Blend 상태로 Pipeline State를 선택한다. Reflection Layout에 따라 상수를 패킹하고 Texture Resource와 Sampler Handle을 준비한다. Material이 없거나 유효하지 않으면 기본 Static Mesh Shader와 Magenta Base Color, 기본 White Texture를 사용한다.
+
+현재는 Blend Mode가 Translucent인 Material도 별도 Translucency Pass가 아니라 Opaque Pass의 Pipeline State로 제출된다. Material 변경 무효화, 패스 참여 분리와 투명 객체의 back-to-front 정렬은 아직 구현하지 않았다.
 
 Primitive 외의 Light나 다른 렌더 대상이 실제로 추가되면 해당 Proxy와 갱신 계약을 설계한다.
 
@@ -397,6 +435,8 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 - ViewFamily마다 생성되고 실행 뒤 폐기되는 raw Node Index 기반 Dependency Render Graph
 - 임시 Opaque/Grid/Axis Node를 등록하는 상태 없는 Pass Builder
 - Render Device 수명 동안 Shader와 PSO를 소유하는 `FShaderRegistry`, `FPipelineStateCache`
+- Renderer 수명 동안 Material별 Pipeline·상수·Texture/Sampler binding을 재사용하는 `FMaterialRenderProxy`
+- Pipeline·Material·Mesh·Depth 64비트 키 기반 Opaque 정렬과 중복 상태 바인딩 생략
 - D3D11 RHI, ImGui 출력 합성과 Submit·Present
 
 ### 미구현과 목표 순서
@@ -404,7 +444,7 @@ CPU Proxy를 제거할 수 있는 시점과 GPU가 Mesh·Texture 사용을 끝�
 | 단계 | 목표 | 완료 기준 |
 |---|---|---|
 | Pass 확장 | Shadow 등 상태 없는 Node Builder와 Index 의존성 추가 | 현재 Opaque·Grid·Axis 출력 유지, Pass별 입력·출력·정렬 명확화 |
-| Material·Light 확장 | 패스 참여와 Pipeline 선택, Shadow·투명 등 추가 | View와 Pass별 명령 선택 및 정렬 검증 |
+| Material·Light 확장 | Material 변경 무효화, 패스 참여 분리, Shadow·투명 등 추가 | View와 Pass별 명령 선택 및 정렬 검증 |
 | Render Thread | 전달 데이터와 렌더 상태 소유 분리 | Component 파괴·Resize·UI 수명과 프레임 순서 검증 |
 | D3D12 | backend 및 GPU 완료 기반 자원 관리 | 자원 전이·재사용·지연 해제 검증 |
 | Graph Resource 추적 | 자원 read/write, 상태 전이와 임시 타깃 관리 | 명시적 Node Index 의존성 위에서 자원 위험을 검증·해결 |
@@ -432,9 +472,12 @@ Pass 확장과 Render Thread 분리는 독립적인 변경으로 검증한다. M
 - [Mesh.cpp](../KnotEngine/Source/Engine/Render/Resource/Mesh.cpp)
 - [PrimitiveSceneProxy.h](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.h)
 - [PrimitiveSceneProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.cpp)
+- [MaterialRenderProxy.h](../KnotEngine/Source/Engine/Render/Proxy/MaterialRenderProxy.h)
+- [MaterialRenderProxy.cpp](../KnotEngine/Source/Engine/Render/Proxy/MaterialRenderProxy.cpp)
 - [Scene.h](../KnotEngine/Source/Engine/Render/Scene/Scene.h)
 - [SceneView.h](../KnotEngine/Source/Engine/Render/Scene/SceneView.h)
 - [SceneRenderer.cpp](../KnotEngine/Source/Engine/Render/Scene/SceneRenderer.cpp)
+- [OpaquePass.cpp](../KnotEngine/Source/Engine/Render/Pass/OpaquePass.cpp)
 - [Renderer.cpp](../KnotEngine/Source/Engine/Render/Renderer.cpp)
 - [RenderDevice.h](../KnotEngine/Source/Engine/Render/RHI/RenderDevice.h)
 - [RenderContext.h](../KnotEngine/Source/Engine/Render/RHI/RenderContext.h)

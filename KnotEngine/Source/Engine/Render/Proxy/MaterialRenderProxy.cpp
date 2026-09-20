@@ -9,8 +9,8 @@
 
 #include <cstring>
 
-FMaterialRenderProxy::FMaterialRenderProxy(const UMaterialInterface* InMaterialInterface)
-	: MaterialInterface(InMaterialInterface)
+FMaterialRenderProxy::FMaterialRenderProxy(const UMaterialInterface* InMaterialInterface, uint32 InSortId)
+	: MaterialInterface(InMaterialInterface), SortId(InSortId)
 {
 }
 

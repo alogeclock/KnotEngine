@@ -20,7 +20,7 @@ public:
 		FSamplerHandle Sampler;
 	};
 
-	explicit FMaterialRenderProxy(const UMaterialInterface* InMaterialInterface);
+	FMaterialRenderProxy(const UMaterialInterface* InMaterialInterface, uint32 InSortId);
 
 	void Register(URenderer& Renderer);
 
@@ -29,10 +29,12 @@ public:
 	const TArray<FMaterialConstantBufferBinding>& GetConstantBuffers() const { return ConstantBuffers; }
 	const TArray<FTextureBinding>& GetTextures() const { return Textures; }
 	const UMaterialInterface* GetMaterialInterface() const { return MaterialInterface; }
+	uint32 GetSortId() const { return SortId; }
 	bool IsRegistered() const { return PipelineState.IsValid(); }
 
 private:
 	const UMaterialInterface* MaterialInterface = nullptr;
+	uint32 SortId = 0;
 	FPipelineStateHandle PipelineState;
 	TArray<uint8> Constants;
 	TArray<FMaterialConstantBufferBinding> ConstantBuffers;
