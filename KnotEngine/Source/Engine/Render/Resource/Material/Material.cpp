@@ -6,15 +6,10 @@
 #include <utility>
 
 // Material의 Shader 식별자와 Opaque/Masked/Translucent 공통 Pipeline 상태를 초기화한다.
-bool FMaterial::Initialize(
-	FShaderKey InVertexShader,
-	FShaderKey InPixelShader,
-	EMaterialBlendMode InBlendMode,
-	EDepthMode InDepthMode,
-	ECullMode InCullMode)
+bool FMaterial::Initialize(FShaderKey InVertexShader, FShaderKey InPixelShader, EMaterialBlendMode InBlendMode, EDepthMode InDepthMode, ECullMode InCullMode)
 {
 	if (InVertexShader.SourcePath.empty() || InVertexShader.EntryPoint.empty() || InVertexShader.Stage != EShaderStage::Vertex ||
-		InPixelShader.SourcePath.empty() || InPixelShader.EntryPoint.empty() || InPixelShader.Stage != EShaderStage::Pixel)
+	    InPixelShader.SourcePath.empty() || InPixelShader.EntryPoint.empty() || InPixelShader.Stage != EShaderStage::Pixel)
 	{
 		return false;
 	}
@@ -51,24 +46,22 @@ void FMaterial::AppendShaderReflection(FMaterialParameterLayout& Layout, const F
 		}
 
 		panicf(Layout.ConstantBufferSize == 0 || Layout.ConstantBufferSize == Buffer.Size,
-			"Vertex/Pixel MaterialConstants 크기가 일치하지 않는다. Existing={}, Incoming={}", Layout.ConstantBufferSize, Buffer.Size);
+		       "Vertex/Pixel MaterialConstants 크기가 일치하지 않는다. Existing={}, Incoming={}", Layout.ConstantBufferSize, Buffer.Size);
 		Layout.ConstantBufferSize = Buffer.Size;
 		Layout.ConstantBuffers.push_back({ Buffer.Stage, Buffer.Slot });
 		for (const FShaderParameterDesc& ShaderParameter : Buffer.Parameters)
 		{
 			const auto Existing = std::find_if(Layout.Parameters.begin(), Layout.Parameters.end(), [&ShaderParameter](const FMaterialParameterDesc& Parameter)
-			{
-				return Parameter.Name == ShaderParameter.Name;
-			});
+			                                   { return Parameter.Name == ShaderParameter.Name; });
 			if (Existing != Layout.Parameters.end())
 			{
 				panicf(Existing->Offset == ShaderParameter.Offset && Existing->Size == ShaderParameter.Size,
-					"Vertex/Pixel Material Parameter 배치가 일치하지 않는다. Name={}", ShaderParameter.Name.ToString());
+				       "Vertex/Pixel Material Parameter 배치가 일치하지 않는다. Name={}", ShaderParameter.Name.ToString());
 				continue;
 			}
 
 			panicf(ShaderParameter.BaseType == EShaderParameterBaseType::Float,
-				"Material Parameter는 현재 float Scalar/Vector만 지원한다. Name={}", ShaderParameter.Name.ToString());
+			       "Material Parameter는 현재 float Scalar/Vector만 지원한다. Name={}", ShaderParameter.Name.ToString());
 			panicf(ShaderParameter.Elements == 0, "Material Parameter 배열은 아직 지원하지 않는다. Name={}", ShaderParameter.Name.ToString());
 			FMaterialParameterDesc Parameter;
 			Parameter.Name = ShaderParameter.Name;
@@ -81,15 +74,15 @@ void FMaterial::AppendShaderReflection(FMaterialParameterLayout& Layout, const F
 			else if (ShaderParameter.Class == EShaderParameterClass::Vector && ShaderParameter.Columns >= 2 && ShaderParameter.Columns <= 4)
 			{
 				Parameter.Type = static_cast<EMaterialParameterType>(
-					static_cast<uint8>(EMaterialParameterType::Vector2) + ShaderParameter.Columns - 2);
+				    static_cast<uint8>(EMaterialParameterType::Vector2) + ShaderParameter.Columns - 2);
 			}
 			else
 			{
 				panicf(false, "지원하지 않는 Material Parameter 형태다. Name={}, Rows={}, Columns={}",
-					ShaderParameter.Name.ToString(), ShaderParameter.Rows, ShaderParameter.Columns);
+				       ShaderParameter.Name.ToString(), ShaderParameter.Rows, ShaderParameter.Columns);
 			}
 			panicf(Parameter.Size == ShaderParameter.Columns * sizeof(float),
-				"Material Parameter 크기가 Scalar/Vector 형태와 일치하지 않는다. Name={}, Size={}", Parameter.Name.ToString(), Parameter.Size);
+			       "Material Parameter 크기가 Scalar/Vector 형태와 일치하지 않는다. Name={}, Size={}", Parameter.Name.ToString(), Parameter.Size);
 			panicf(Parameter.Offset + Parameter.Size <= Buffer.Size, "Material Parameter가 Constant Buffer 범위를 벗어났다. Name={}", Parameter.Name.ToString());
 			Layout.Parameters.push_back(std::move(Parameter));
 		}
@@ -108,9 +101,7 @@ void FMaterial::AppendShaderReflection(FMaterialParameterLayout& Layout, const F
 		Binding.Stage = Resource.Stage;
 		Binding.TextureSlot = Resource.Slot;
 		const auto Sampler = std::find_if(Reflection.Resources.begin(), Reflection.Resources.end(), [&Resource](const FShaderResourceBindingDesc& Candidate)
-		{
-			return Candidate.Type == EShaderResourceType::Sampler && Candidate.Stage == Resource.Stage && Candidate.Slot == Resource.Slot;
-		});
+		                                  { return Candidate.Type == EShaderResourceType::Sampler && Candidate.Stage == Resource.Stage && Candidate.Slot == Resource.Slot; });
 		if (Sampler != Reflection.Resources.end())
 		{
 			Binding.SamplerSlot = Sampler->Slot;

@@ -43,7 +43,6 @@ private:
 };
 
 // FStaticMeshVertex 기반 Static Mesh의 렌더 상태를 보관한다.
-// TODO: 추후 Render Thread가 분리될 경우, 직접 UMaterialInterface*를 읽는 대신 UMaterialProxy 계층을 추가한다.
 struct ENGINE_API FStaticMeshSceneProxy final : FPrimitiveSceneProxy
 {
 	explicit FStaticMeshSceneProxy(const UStaticMeshComponent& InComponent);

@@ -3,6 +3,7 @@
 #include "Core/Assert.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
+#include "Render/Proxy/MaterialRenderProxy.h"
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
 
@@ -73,6 +74,7 @@ void URenderer::Create(void* NativeWindowHandle)
 void URenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
+	MaterialRenderProxies.clear();
 	DebugDraw.Release();
 	DefaultTexture.Release();
 	SamplerStateCache.Release();
@@ -80,6 +82,22 @@ void URenderer::Release()
 	ShaderRegistry.Release();
 	RenderContext.Release();
 	RenderDevice.Release();
+}
+
+// 같은 Material Interface는 Renderer 수명 동안 하나의 Render Proxy로 등록해 재사용한다. nullptr는 기본 Material을 나타낸다.
+FMaterialRenderProxy& URenderer::RegisterMaterial(const UMaterialInterface* MaterialInterface)
+{
+	const auto Existing = MaterialRenderProxies.find(MaterialInterface);
+	if (Existing != MaterialRenderProxies.end())
+	{
+		return *Existing->second;
+	}
+
+	auto Proxy = std::make_unique<FMaterialRenderProxy>(MaterialInterface);
+	Proxy->Register(*this);
+	FMaterialRenderProxy& Result = *Proxy;
+	MaterialRenderProxies.emplace(MaterialInterface, std::move(Proxy));
+	return Result;
 }
 
 void URenderer::Resize(uint32 Width, uint32 Height)

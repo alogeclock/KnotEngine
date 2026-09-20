@@ -1,7 +1,5 @@
 #include "Render/Scene/SceneRenderer.h"
 
-#include "Asset/Material/MaterialInterface.h"
-#include "Asset/Texture/Texture.h"
 #include "Core/Assert.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
@@ -12,7 +10,6 @@
 #include "Render/Pass/SelectionPass.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
-#include "Render/Resource/Material/Material.h"
 #include "Render/Resource/Mesh/Mesh.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/Scene.h"
@@ -105,7 +102,7 @@ void FSceneRenderer::Render(URenderer& Renderer)
 	Renderer.EndRenderTarget();
 }
 
-// 현재 View에서 사용할 Mesh와 Material Texture의 GPU 리소스를 Render Pass 구성 전에 준비한다.
+// 현재 View에서 사용할 Mesh의 GPU 리소스를 Render Pass 구성 전에 준비한다.
 void FSceneRenderer::Prepare(URenderer& Renderer)
 {
 	IRenderDevice& RenderDevice = Renderer.GetRenderDevice();
@@ -120,26 +117,6 @@ void FSceneRenderer::Prepare(URenderer& Renderer)
 		check(StaticMeshProxy.Mesh);
 		panicf(StaticMeshProxy.Mesh->InitResources(RenderDevice), "Static Mesh의 GPU Buffer 생성에 실패했다.");
 
-		const FStaticMeshLOD& LOD = StaticMeshProxy.Mesh->GetLOD(0);
-		for (const FStaticMeshSection& Section : LOD.GetSections())
-		{
-			const UMaterialInterface* MaterialInterface = StaticMeshProxy.GetMaterial(Section.MaterialIndex);
-			const FMaterial* Material = MaterialInterface ? MaterialInterface->GetMaterial() : nullptr;
-			if (!Material || !Material->IsValid())
-			{
-				continue;
-			}
-
-			const FMaterialParameterLayout& Layout = Material->GetOrCreateParameterLayout(Renderer.GetShaderRegistry());
-			for (const FMaterialTextureBinding& Binding : Layout.Textures)
-			{
-				const FTextureMaterialParameter* Parameter = MaterialInterface->FindTextureParameter(Binding.Name);
-				if (Parameter && Parameter->Texture)
-				{
-					panicf(Parameter->Texture->InitResources(RenderDevice), "Material Texture의 GPU Resource 생성에 실패했다. Name={}", Binding.Name.ToString());
-				}
-			}
-		}
 	}
 }
 

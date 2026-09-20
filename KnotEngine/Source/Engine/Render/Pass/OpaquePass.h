@@ -5,13 +5,13 @@
 #include "Core/Math/Matrix.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderTypes.h"
-#include "Render/Resource/Material/Material.h"
 
 #include <span>
 
 class URenderer;
 class IRenderDevice;
 class FMeshBuffer;
+class FMaterialRenderProxy;
 struct FPrimitiveSceneProxy;
 struct FSceneView;
 struct FViewConstants;
@@ -25,24 +25,11 @@ public:
 private:
 	struct FMeshDrawCommand
 	{
-		struct FTextureBinding
-		{
-			EShaderStage Stage = EShaderStage::Pixel;
-			uint32 TextureSlot = 0;
-			uint32 SamplerSlot = FSamplerHandle::InvalidIndex;
-			FTextureHandle Texture;
-			FSamplerHandle Sampler;
-		};
-
 		const FPrimitiveSceneProxy* Primitive = nullptr;
 		const FMeshBuffer* MeshBuffer = nullptr;
+		const FMaterialRenderProxy* Material = nullptr;
 		uint32 FirstIndex = 0;
 		uint32 IndexCount = 0;
-
-		FPipelineStateHandle PipelineState;
-		TArray<uint8> MaterialConstants;
-		TArray<FMaterialConstantBufferBinding> MaterialConstantBuffers;
-		TArray<FTextureBinding> Textures;
 
 		uint32 SortKey = 0;
 	};

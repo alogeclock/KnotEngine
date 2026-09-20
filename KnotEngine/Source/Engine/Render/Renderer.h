@@ -10,10 +10,14 @@
 #include "Render/Shader/ShaderCompiler.h"
 #include "Render/Shader/ShaderRegistry.h"
 
+#include <memory>
+
+class FMaterialRenderProxy;
 class FRenderGraph;
 class IRenderContext;
 class IRenderDevice;
 class IShaderFormat;
+class UMaterialInterface;
 
 class ENGINE_API URenderer
 {
@@ -42,6 +46,7 @@ public:
 	FPipelineStateCache& GetPipelineStateCache();
 	FSamplerStateCache& GetSamplerStateCache();
 	FDebugDraw& GetDebugDraw() { return DebugDraw; }
+	FMaterialRenderProxy& RegisterMaterial(const UMaterialInterface* MaterialInterface);
 
 	FTextureHandle GetDefaultTexture() const { return DefaultTexture.GetHandle(); }
 
@@ -60,6 +65,7 @@ private:
 
 	FTexture DefaultTexture; // 1x1 White Texture
 	FDebugDraw DebugDraw;
+	TMap<const UMaterialInterface*, std::unique_ptr<FMaterialRenderProxy>> MaterialRenderProxies;
 
 	FCommandListHandle CommandList;
 };

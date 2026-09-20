@@ -1,14 +1,11 @@
 #include "Render/Pass/OpaquePass.h"
 
-#include "Asset/Material/MaterialInterface.h"
-#include "Asset/Texture/Texture.h"
 #include "Core/Assert.h"
+#include "Render/Proxy/MaterialRenderProxy.h"
 #include "Render/Proxy/PrimitiveSceneProxy.h"
 #include "Render/Renderer.h"
 #include "Render/Resource/Mesh/MeshBuffer.h"
 #include "Render/Resource/Mesh/Mesh.h"
-#include "Render/Resource/Material/Material.h"
-#include "Render/Resource/Texture.h"
 #include "Render/Resource/Mesh/Vertex.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
@@ -16,7 +13,6 @@
 #include <algorithm>
 #include <bit>
 #include <cmath>
-#include <cstring>
 
 uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSceneView& View, std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives)
 {
@@ -24,15 +20,6 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 
 	const FCommandListHandle CommandList = Renderer.GetCommandList();
 	check(CommandList.IsValid());
-
-	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
-	FPipelineStateCache& PipelineStateCache = Renderer.GetPipelineStateCache();
-	FSamplerStateCache& SamplerStateCache = Renderer.GetSamplerStateCache();
-
-	static const FShaderKey DefaultVertexShader{ "/Engine/Shader/StaticMesh.hlsl", "MainVS", EShaderStage::Vertex };
-	static const FShaderKey DefaultPixelShader{ "/Engine/Shader/StaticMesh.hlsl", "OpaquePS", EShaderStage::Pixel };
-	FMaterial DefaultMaterial;
-	verify(DefaultMaterial.Initialize(DefaultVertexShader, DefaultPixelShader));
 
 	TArray<FMeshDrawCommand> OpaqueCommands;
 	OpaqueCommands.reserve(VisiblePrimitives.size());
@@ -51,78 +38,14 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 		for (const FStaticMeshSection& Section : LOD.GetSections())
 		{
 			const UMaterialInterface* MaterialInterface = StaticMeshProxy.GetMaterial(Section.MaterialIndex);
-			const FMaterial* Material = MaterialInterface ? MaterialInterface->GetMaterial() : nullptr;
-			const bool bHasMaterialAsset = Material && Material->IsValid();
-			const FMaterial& MaterialDefinition = bHasMaterialAsset ? *Material : DefaultMaterial;
-
-			FPipelineStateDesc PipelineStateDesc;
-			PipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(MaterialDefinition.GetVertexShader());
-			PipelineStateDesc.PixelShader = ShaderRegistry.GetOrCreate(MaterialDefinition.GetPixelShader());
-			PipelineStateDesc.VertexLayout = FStaticMeshVertex::GetVertexLayout();
-			PipelineStateDesc.RasterizerState.CullMode = MaterialDefinition.GetCullMode();
-			PipelineStateDesc.DepthMode = MaterialDefinition.GetDepthMode();
-
-			if (MaterialDefinition.GetBlendMode() == EMaterialBlendMode::Translucent)
-			{
-				FRenderTargetBlendDesc& Blend = PipelineStateDesc.BlendState.RenderTarget;
-				Blend.bBlendEnabled = true;
-				Blend.SourceColorBlend = EBlendFactor::SourceAlpha;
-				Blend.DestinationColorBlend = EBlendFactor::InverseSourceAlpha;
-				Blend.SourceAlphaBlend = EBlendFactor::One;
-				Blend.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
-			}
 
 			FMeshDrawCommand Command;
 			Command.Primitive = Primitive;
 			Command.MeshBuffer = MeshBuffer;
+			Command.Material = &Renderer.RegisterMaterial(MaterialInterface);
 			Command.FirstIndex = Section.FirstIndex;
 			Command.IndexCount = Section.IndexCount;
-			Command.PipelineState = PipelineStateCache.GetOrCreate(PipelineStateDesc);
 			Command.SortKey = SortKey;
-			const FMaterialParameterLayout& Layout = MaterialDefinition.GetOrCreateParameterLayout(ShaderRegistry);
-			Command.MaterialConstantBuffers = Layout.ConstantBuffers;
-
-			if (bHasMaterialAsset)
-			{
-				MaterialInterface->PackMaterialConstants(Layout, Command.MaterialConstants);
-			}
-			else // Default Magenta Material
-			{
-				static const FName BaseColorName("BaseColor");
-				Command.MaterialConstants.assign(Layout.ConstantBufferSize, 0);
-				for (const FMaterialParameterDesc& Parameter : Layout.Parameters)
-				{
-					if (Parameter.Name == BaseColorName && Parameter.Type == EMaterialParameterType::Vector4)
-					{
-						static const FVector4 DefaultBaseColor(1.0f, 0.0f, 1.0f, 1.0f);
-						std::memcpy(Command.MaterialConstants.data() + Parameter.Offset, DefaultBaseColor.Data, sizeof(DefaultBaseColor));
-					}
-				}
-			}
-
-			for (const FMaterialTextureBinding& Binding : Layout.Textures)
-			{
-				FMeshDrawCommand::FTextureBinding TextureBinding;
-				TextureBinding.Stage = Binding.Stage;
-				TextureBinding.TextureSlot = Binding.TextureSlot;
-				TextureBinding.SamplerSlot = Binding.SamplerSlot;
-				TextureBinding.Texture = Renderer.GetDefaultTexture();
-				FSamplerDesc Sampler;
-				if (bHasMaterialAsset)
-				{
-					if (const FTextureMaterialParameter* Parameter = MaterialInterface->FindTextureParameter(Binding.Name); Parameter && Parameter->Texture)
-					{
-						checkf(Parameter->Texture->GetResource()->IsValid(), "준비되지 않은 Material Texture가 Opaque Pass에 전달되었다. Name={}", Binding.Name.ToString());
-						TextureBinding.Texture = Parameter->Texture->GetResource()->GetHandle();
-						Sampler = Parameter->Sampler;
-					}
-				}
-				if (Binding.SamplerSlot != FSamplerHandle::InvalidIndex)
-				{
-					TextureBinding.Sampler = SamplerStateCache.GetOrCreate(Sampler);
-				}
-				Command.Textures.push_back(TextureBinding);
-			}
 			OpaqueCommands.push_back(std::move(Command));
 		}
 	}
@@ -159,16 +82,17 @@ void FOpaquePass::ExecutePass(
 
 	for (const FMeshDrawCommand& Command : OpaqueCommands)
 	{
-		RenderDevice.SetPipelineState(CommandList, Command.PipelineState);
+		check(Command.Material && Command.Material->IsRegistered());
+		RenderDevice.SetPipelineState(CommandList, Command.Material->GetPipelineState());
 		RenderDevice.SetConstantData(CommandList, EShaderStage::Vertex, ViewConstantsSlot, std::span<const uint8>(ViewBytes, sizeof(ViewConstants)));
-		if (!Command.MaterialConstants.empty())
+		if (!Command.Material->GetConstants().empty())
 		{
-			for (const FMaterialConstantBufferBinding& Binding : Command.MaterialConstantBuffers)
+			for (const FMaterialConstantBufferBinding& Binding : Command.Material->GetConstantBuffers())
 			{
-				RenderDevice.SetConstantData(CommandList, Binding.Stage, Binding.Slot, Command.MaterialConstants);
+				RenderDevice.SetConstantData(CommandList, Binding.Stage, Binding.Slot, Command.Material->GetConstants());
 			}
 		}
-		for (const FMeshDrawCommand::FTextureBinding& Binding : Command.Textures)
+		for (const FMaterialRenderProxy::FTextureBinding& Binding : Command.Material->GetTextures())
 		{
 			RenderDevice.SetTexture(CommandList, Binding.Stage, Binding.TextureSlot, Binding.Texture);
 			if (Binding.SamplerSlot != FSamplerHandle::InvalidIndex)
