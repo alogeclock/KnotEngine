@@ -116,7 +116,7 @@ target_sources(Editor PRIVATE "${KNOTENGINE_ROOT}/Source/Asset/Resource/KnotEngi
 target_link_libraries(Engine PRIVATE yaml-cpp::yaml-cpp ole32)
 target_link_libraries(Renderer PUBLIC Engine PRIVATE imgui::imgui d3d11 d3dcompiler dxgi)
 target_include_directories(Editor PRIVATE "${CGLTF_INCLUDE_DIR}")
-target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui Microsoft::DirectXTex windowscodecs ole32 shell32 comdlg32)
+target_link_libraries(Editor PRIVATE Engine Renderer imgui::imgui Microsoft::DirectXTex windowscodecs ole32 shell32)
 
 # 전역 new/delete만 각 바이너리에 포함하고, 실제 할당과 통계는 Engine.dll에서 공유한다.
 target_sources(Renderer PRIVATE "${KNOTENGINE_ROOT}/Source/Engine/Core/Memory/MemoryOperators.cpp")

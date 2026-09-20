@@ -1,8 +1,11 @@
 #include "Editor/EditorFileUtils.h"
 
+#include "Core/Log.h"
+
 #include <Windows.h>
-#include <commdlg.h>
+#include <shobjidl_core.h>
 #include <vector>
+#include <wrl/client.h>
 
 // Windows 열기 대화상자를 실행하고 선택한 절대 경로를 반환한다.
 std::optional<std::filesystem::path> FEditorFileUtils::OpenFileDialog(const FEditorFileDialogOptions& Options)
@@ -16,39 +19,116 @@ std::optional<std::filesystem::path> FEditorFileUtils::SaveFileDialog(const FEdi
 	return RunFileDialog(Options, false);
 }
 
-// 공통 옵션을 OPENFILENAMEW로 변환해 열기 또는 저장 대화상자를 실행한다.
+// 공통 옵션으로 Windows Shell 열기 또는 저장 대화상자를 실행한다.
 std::optional<std::filesystem::path> FEditorFileUtils::RunFileDialog(const FEditorFileDialogOptions& Options, bool bOpenDialog)
 {
-	std::vector<wchar_t> FileBuffer(32768, L'\0');
-	if (Options.DefaultFileName)
+	const HRESULT InitializeResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	const bool bShouldUninitialize = SUCCEEDED(InitializeResult);
+	if (FAILED(InitializeResult) && InitializeResult != RPC_E_CHANGED_MODE)
 	{
-		wcsncpy_s(FileBuffer.data(), FileBuffer.size(), Options.DefaultFileName, _TRUNCATE);
+		KE_LOG(LogEditorFileUtils, Error, "파일 대화상자 COM 초기화에 실패했다. HRESULT={:#x}", static_cast<uint32>(InitializeResult));
+		return std::nullopt;
 	}
 
-	OPENFILENAMEW Dialog = {};
-	Dialog.lStructSize = sizeof(Dialog);
-	Dialog.hwndOwner = static_cast<HWND>(Options.OwnerWindowHandle);
-	Dialog.lpstrFilter = Options.Filter;
-	Dialog.lpstrTitle = Options.Title;
-	Dialog.lpstrFile = FileBuffer.data();
-	Dialog.nMaxFile = static_cast<DWORD>(FileBuffer.size());
-	Dialog.lpstrInitialDir = Options.InitialDirectory;
-	Dialog.lpstrDefExt = Options.DefaultExtension;
-	Dialog.nFilterIndex = 1;
-	Dialog.Flags = OFN_EXPLORER | OFN_NOCHANGEDIR;
+	Microsoft::WRL::ComPtr<IFileDialog> Dialog;
+	const CLSID& DialogClass = bOpenDialog ? CLSID_FileOpenDialog : CLSID_FileSaveDialog;
+	HRESULT Result = CoCreateInstance(DialogClass, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(Dialog.GetAddressOf()));
+	if (FAILED(Result))
+	{
+		KE_LOG(LogEditorFileUtils, Error, "파일 대화상자 생성에 실패했다. HRESULT={:#x}", static_cast<uint32>(Result));
+		if (bShouldUninitialize)
+		{
+			CoUninitialize();
+		}
+		return std::nullopt;
+	}
+
+	FILEOPENDIALOGOPTIONS DialogFlags = FOS_FORCEFILESYSTEM;
 	if (Options.bFileMustExist)
 	{
-		Dialog.Flags |= OFN_FILEMUSTEXIST;
+		DialogFlags |= FOS_FILEMUSTEXIST;
 	}
 	if (Options.bPathMustExist)
 	{
-		Dialog.Flags |= OFN_PATHMUSTEXIST;
+		DialogFlags |= FOS_PATHMUSTEXIST;
 	}
 	if (Options.bPromptOverwrite)
 	{
-		Dialog.Flags |= OFN_OVERWRITEPROMPT;
+		DialogFlags |= FOS_OVERWRITEPROMPT;
+	}
+	Dialog->SetOptions(DialogFlags);
+	Dialog->SetTitle(Options.Title);
+	Dialog->SetDefaultExtension(Options.DefaultExtension);
+	if (Options.DefaultFileName)
+	{
+		Dialog->SetFileName(Options.DefaultFileName);
 	}
 
-	const BOOL bSelected = bOpenDialog ? GetOpenFileNameW(&Dialog) : GetSaveFileNameW(&Dialog);
-	return bSelected ? std::optional<std::filesystem::path>(std::filesystem::path(FileBuffer.data()).lexically_normal()) : std::nullopt;
+	std::vector<COMDLG_FILTERSPEC> FileTypes;
+	for (const wchar_t* Name = Options.Filter; Name && *Name;)
+	{
+		const wchar_t* Pattern = Name + wcslen(Name) + 1;
+		if (!*Pattern)
+		{
+			break;
+		}
+		FileTypes.push_back({ Name, Pattern });
+		Name = Pattern + wcslen(Pattern) + 1;
+	}
+	if (!FileTypes.empty())
+	{
+		Dialog->SetFileTypes(static_cast<UINT>(FileTypes.size()), FileTypes.data());
+	}
+
+	if (Options.InitialDirectory)
+	{
+		Microsoft::WRL::ComPtr<IShellItem> InitialFolder;
+		Result = SHCreateItemFromParsingName(Options.InitialDirectory, nullptr, IID_PPV_ARGS(InitialFolder.GetAddressOf()));
+		if (SUCCEEDED(Result))
+		{
+			Dialog->SetFolder(InitialFolder.Get());
+		}
+	}
+
+	Result = Dialog->Show(static_cast<HWND>(Options.OwnerWindowHandle));
+	if (Result == HRESULT_FROM_WIN32(ERROR_CANCELLED))
+	{
+		Dialog.Reset();
+		if (bShouldUninitialize)
+		{
+			CoUninitialize();
+		}
+		return std::nullopt;
+	}
+	if (FAILED(Result))
+	{
+		KE_LOG(LogEditorFileUtils, Error, "파일 대화상자 표시 중 오류가 발생했다. HRESULT={:#x}", static_cast<uint32>(Result));
+		Dialog.Reset();
+		if (bShouldUninitialize)
+		{
+			CoUninitialize();
+		}
+		return std::nullopt;
+	}
+
+	Microsoft::WRL::ComPtr<IShellItem> SelectedItem;
+	PWSTR SelectedPath = nullptr;
+	Result = Dialog->GetResult(SelectedItem.GetAddressOf());
+	if (SUCCEEDED(Result))
+	{
+		Result = SelectedItem->GetDisplayName(SIGDN_FILESYSPATH, &SelectedPath);
+	}
+	std::optional<std::filesystem::path> FilePath;
+	if (SUCCEEDED(Result) && SelectedPath)
+	{
+		FilePath = std::filesystem::path(SelectedPath).lexically_normal();
+	}
+	CoTaskMemFree(SelectedPath);
+	SelectedItem.Reset();
+	Dialog.Reset();
+	if (bShouldUninitialize)
+	{
+		CoUninitialize();
+	}
+	return FilePath;
 }

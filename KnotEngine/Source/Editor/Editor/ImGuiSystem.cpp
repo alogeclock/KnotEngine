@@ -103,6 +103,7 @@ void FImGuiSystem::Startup()
 
 void FImGuiSystem::BeginFrame()
 {
+	ProcessLevelDialogs();
 	RenderBackend.BeginFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
@@ -411,7 +412,6 @@ void FImGuiSystem::DrawMenuBar()
 		ImGui::PopFont();
 		return;
 	}
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, MenuBarItemSpacing);
 	ImDrawList* MenuBarDrawList = ImGui::GetWindowDrawList();
 	const float MenuBarTop = ImGui::GetWindowPos().y;
 	const float MenuBarBottom = MenuBarTop + ImGui::GetWindowHeight();
@@ -423,6 +423,7 @@ void FImGuiSystem::DrawMenuBar()
 		MenuBarDrawList->AddLine(ImVec2(Minimum.x, MenuBarTop), ImVec2(Minimum.x, MenuBarBottom), BorderColor);
 		MenuBarDrawList->AddLine(ImVec2(Maximum.x, MenuBarTop), ImVec2(Maximum.x, MenuBarBottom), BorderColor);
 	};
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Style.ItemSpacing.x * 0.5f);
 	const bool bFileMenuOpen = ImGui::BeginMenu("File");
 	DrawMenuBorder();
 	if (bFileMenuOpen)
@@ -433,15 +434,18 @@ void FImGuiSystem::DrawMenuBar()
 		}
 		if (ImGui::MenuItem("Load Level"))
 		{
-			LoadLevel();
+			bLoadLevelDialogRequested = true;
 		}
 		if (ImGui::MenuItem("Save Level"))
 		{
-			SaveLevel(false);
+			if (!EditorEngine.SaveLevel())
+			{
+				bSaveLevelDialogRequested = true;
+			}
 		}
 		if (ImGui::MenuItem("Save Level As"))
 		{
-			SaveLevel(true);
+			bSaveLevelDialogRequested = true;
 		}
 		ImGui::EndMenu();
 	}
@@ -460,8 +464,22 @@ void FImGuiSystem::DrawMenuBar()
 		ImGui::EndMenu();
 	}
 	ImGui::EndMainMenuBar();
-	ImGui::PopStyleVar();
 	ImGui::PopFont();
+}
+
+// ImGui 메뉴 처리가 끝난 다음 Frame 시작 전에 요청된 Level 파일 대화상자를 실행한다.
+void FImGuiSystem::ProcessLevelDialogs()
+{
+	if (bLoadLevelDialogRequested)
+	{
+		bLoadLevelDialogRequested = false;
+		LoadLevel();
+	}
+	if (bSaveLevelDialogRequested)
+	{
+		bSaveLevelDialogRequested = false;
+		SaveLevel(true);
+	}
 }
 
 // 파일 대화상자에서 선택한 .kmap 경로를 Editor Engine에 전달한다.
@@ -486,10 +504,10 @@ void FImGuiSystem::SaveLevel(bool bSaveAs)
 	}
 }
 
-// Content/Level을 기본 위치로 사용하는 Level 파일 대화상자를 연다.
+// Content/Game/Level을 기본 위치로 사용하는 Level 파일 대화상자를 연다.
 std::optional<std::filesystem::path> FImGuiSystem::OpenLevelDialog(bool bSave) const
 {
-	const std::filesystem::path LevelDirectory = std::filesystem::path(FPaths::ContentDir()) / L"Level";
+	const std::filesystem::path LevelDirectory = std::filesystem::path(FPaths::ContentDir()) / L"Game" / L"Level";
 	std::error_code FileSystemError;
 	std::filesystem::create_directories(LevelDirectory, FileSystemError);
 	if (FileSystemError)

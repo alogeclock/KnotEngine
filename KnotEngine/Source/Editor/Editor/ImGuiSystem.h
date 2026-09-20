@@ -48,6 +48,7 @@ public:
 private:
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
 
+	void ProcessLevelDialogs();
 	void LoadLevel();
 	void SaveLevel(bool bSaveAs);
 	std::optional<std::filesystem::path> OpenLevelDialog(bool bSave) const;
@@ -83,6 +84,8 @@ private:
 
 	bool bFocusConsoleRequested = false;
 	bool bFocusContentRequested = false;
+	bool bLoadLevelDialogRequested = false;
+	bool bSaveLevelDialogRequested = false;
 
 #if KNOT_CPU_PROFILER_ENABLED
 	bool bShowProfile = false;

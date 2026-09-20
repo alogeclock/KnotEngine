@@ -2,10 +2,10 @@
 
 #include "Component/Component.h"
 #include "Component/TransformComponent.h"
+#include "Core/Archive/BinaryArchiveFormatter.h"
+#include "Core/Archive/StructuredArchive.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
-#include "Core/Archive/StructuredArchive.h"
-#include "Core/Archive/YamlArchiveFormatter.h"
 #include "Object/Class.h"
 #include "Object/Property.h"
 #include "Object/Reflection/ReflectionRegistry.h"
@@ -57,7 +57,7 @@ private:
 	TMap<const UObject*, uint32> UUIDsByObject;
 };
 
-// Component를 생성하기 전에 YAML에서 읽은 클래스, 프로퍼티와 저장 UUID를 보관한다.
+// Component를 생성하기 전에 Archive에서 읽은 클래스, 프로퍼티와 저장 UUID를 보관한다.
 struct FMapComponentDefinition
 {
 	uint32 UUID = 0;
@@ -66,7 +66,7 @@ struct FMapComponentDefinition
 	UComponent* Object = nullptr;
 };
 
-// Node 생성과 부모 연결에 필요한 YAML 파싱 결과와 소속 Component 정의를 보관한다.
+// Node 생성과 부모 연결에 필요한 Archive 파싱 결과와 소속 Component 정의를 보관한다.
 struct FMapNodeDefinition
 {
 	uint32 UUID = 0;
@@ -77,7 +77,7 @@ struct FMapNodeDefinition
 	UNode* Object = nullptr;
 };
 
-// Level 생성 전에 YAML에서 읽은 저장 UUID와 소속 Node 정의를 보관한다.
+// Level 생성 전에 Archive에서 읽은 저장 UUID와 소속 Node 정의를 보관한다.
 struct FMapLevelDefinition
 {
 	uint32 UUID = 0;
@@ -137,7 +137,7 @@ static bool RegisterMapObjects(UWorld& World, FMapObjectResolver& Resolver)
 	return true;
 }
 
-// YAML Record에서 Map 전체 구조와 생성할 클래스 정보를 읽되 World는 아직 변경하지 않는다.
+// Binary Record에서 Map 전체 구조와 생성할 클래스 정보를 읽되 World는 아직 변경하지 않는다.
 static bool ReadMapDefinitions(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels)
 {
 	FString Format;
@@ -224,7 +224,7 @@ static bool ReadMapDefinitions(FStructuredArchiveRecord Root, FStructuredArchive
 	return !Archive.HasError();
 }
 
-// World를 YAML .kmap 파일로 저장한다.
+// World를 Binary Structured Archive 기반의 .kmap 파일로 저장한다.
 bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) const
 {
 	if (FilePath.extension() != L".kmap")
@@ -240,7 +240,7 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 		return false;
 	}
 
-	FYamlArchiveFormatter Formatter(EStructuredArchiveMode::Saving);
+	FBinaryArchiveFormatter Formatter(EStructuredArchiveMode::Saving);
 	FStructuredArchive Archive(Formatter, &Resolver);
 	FStructuredArchiveRecord Root = Archive.Open().EnterRecord();
 	FString Format = "KnotMap";
@@ -304,14 +304,14 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 
 	if (Archive.HasError() || !Formatter.SaveToFile(FilePath))
 	{
-		KE_LOG(LogMapSerializer, Error, "Map 저장에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+		KE_LOG(LogMapSerializer, Error, "Binary Map 저장에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
 	}
 	KE_LOG(LogMapSerializer, Log, "Map 저장 완료. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 	return true;
 }
 
-// YAML .kmap을 검증한 뒤 기존 World의 Level과 Node를 새 객체 그래프로 교체한다.
+// Binary .kmap을 검증한 뒤 기존 World의 Level과 Node를 새 객체 그래프로 교체한다.
 bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) const
 {
 	if (FilePath.extension() != L".kmap" || World.GetPlayState() != EPlayState::Stopped)
@@ -320,10 +320,10 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 		return false;
 	}
 
-	FYamlArchiveFormatter Formatter(EStructuredArchiveMode::Loading);
+	FBinaryArchiveFormatter Formatter(EStructuredArchiveMode::Loading);
 	if (!Formatter.LoadFromFile(FilePath))
 	{
-		KE_LOG(LogMapSerializer, Error, "Map YAML을 읽지 못했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+		KE_LOG(LogMapSerializer, Error, "Binary Map을 읽지 못했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
 	}
 
