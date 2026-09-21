@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Editor/Overlays/ViewportStatOverlay.h"
+#include "Editor/Toolbar/ViewportToolbar.h"
 #include "Viewport/Level/LevelEditorViewportClient.h"
 #include "Viewport/Viewport.h"
 
@@ -23,19 +24,15 @@ public:
 	void Draw(bool bVisible, float DeltaTime);
 	void Release();
 	FLevelEditorViewportClient& GetViewportClient() { return ViewportClient; }
+	FViewportToolbar& GetToolbar() { return Toolbar; }
 
 private:
-	void DrawToolbar();
-	void DrawViewModeButtons();
 	void DrawViewport();
 
 	FViewport Viewport;
 	FLevelEditorViewportClient ViewportClient;
 	FViewportStatOverlay StatOverlay;
-
-	FTextureHandle ViewModeIcons;
-	ImTextureID ViewModeIconsId = {};
+	FViewportToolbar Toolbar;
 	
-	FRenderSystem& RenderSystem;
 	FInputRouter& InputRouter;
 };

@@ -1,11 +1,15 @@
 #include "Editor/ImGuiSystem.h"
 
 #include "Asset/AssetImportManager.h"
+#include "Asset/Asset/Asset.h"
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Editor/EditorFileUtils.h"
 #include "Editor/Settings/EditorSettings.h"
+#include "Editor/AssetEditor/AssetEditor.h"
+#include "Editor/AssetEditor/MaterialEditor.h"
+#include "Editor/AssetEditor/StaticMeshEditor.h"
 #include "Input/InputRouter.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Platform/WindowsApplication.h"
@@ -158,6 +162,10 @@ void FImGuiSystem::Draw(float DeltaTime)
 	if (bShowContent)
 	{
 		ContentPanel.Draw();
+		if (const std::optional<FAssetId> OpenRequest = ContentPanel.OpenAssetEditor())
+		{
+			OpenAssetEditor(*OpenRequest);
+		}
 		if (bFocusContentRequested)
 		{
 			ImGui::SetWindowFocus("Content");
@@ -184,9 +192,74 @@ void FImGuiSystem::Draw(float DeltaTime)
 		}
 	}
 #endif
+	DrawAssetEditors(DeltaTime);
 
 	const ImGuiIO& IO = ImGui::GetIO();
 	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
+}
+
+// 동일 Asset Editor가 이미 열려 있으면 포커스하고, 없으면 Asset 종류에 맞는 Document Panel을 생성한다.
+void FImGuiSystem::OpenAssetEditor(const FAssetId& AssetId)
+{
+	for (const std::unique_ptr<FAssetEditor>& Editor : AssetEditors)
+	{
+		if (Editor->GetAssetId() == AssetId)
+		{
+			Editor->RequestFocus();
+			return;
+		}
+	}
+
+	UAsset* Asset = EditorEngine.GetAssetManager().LoadAsset(AssetId);
+	if (!Asset)
+	{
+		KE_LOG(LogEditor, Error, "Asset Editor에서 Asset을 불러오지 못했다. AssetId={}", AssetId.ToString());
+		return;
+	}
+
+	std::unique_ptr<FAssetEditor> Editor;
+	switch (Asset->GetAssetType())
+	{
+	case EAssetType::StaticMesh:
+		Editor = std::make_unique<FStaticMeshEditor>(
+			EditorEngine,
+			RenderSystem,
+			InputRouter,
+			ViewportPanel.GetToolbar(),
+			*static_cast<UStaticMesh*>(Asset));
+		break;
+	case EAssetType::Material:
+		Editor = std::make_unique<FMaterialEditor>(
+			EditorEngine,
+			RenderSystem,
+			InputRouter,
+			ViewportPanel.GetToolbar(),
+			*static_cast<UMaterial*>(Asset));
+		break;
+	default:
+		return;
+	}
+
+	Editor->Startup();
+	AssetEditors.push_back(std::move(Editor));
+}
+
+// 열린 Asset Editor를 그리고 닫힌 Panel은 반복 도중 안전하게 정리한다.
+void FImGuiSystem::DrawAssetEditors(float DeltaTime)
+{
+	for (SIZE_T EditorIndex = 0; EditorIndex < AssetEditors.size();)
+	{
+		FAssetEditor& Editor = *AssetEditors[EditorIndex];
+		Editor.Draw(DeltaTime);
+		if (Editor.IsOpen())
+		{
+			++EditorIndex;
+			continue;
+		}
+
+		Editor.Release();
+		AssetEditors.erase(AssetEditors.begin() + EditorIndex);
+	}
 }
 
 // Snapshot에서 Router가 전달한 전역 단축키로 Bottom Panel을 토글한다.
@@ -398,6 +471,11 @@ void FImGuiSystem::Shutdown()
 	check(bStarted);
 	Application.SetMessageHandler(nullptr);
 	bStarted = false;
+	for (const std::unique_ptr<FAssetEditor>& Editor : AssetEditors)
+	{
+		Editor->Release();
+	}
+	AssetEditors.clear();
 	ContentPanel.Shutdown();
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();

@@ -8,6 +8,7 @@ class UWorld;
 enum class EWorldType : uint8
 {
 	Editor,
+	Asset,
 	Game,
 	PIE
 };

@@ -172,6 +172,14 @@ void FContentPanel::Draw()
 	}
 }
 
+// Asset Tile 더블 클릭으로 발생한 편집기 열기 요청을 Consume 방식으로 한 번만 반환한다.
+std::optional<FAssetId> FContentPanel::OpenAssetEditor()
+{
+	std::optional<FAssetId> Request = OpenAssetRequest;
+	OpenAssetRequest.reset();
+	return Request;
+}
+
 // GLB Import 설정을 조정하고 비동기 Import Queue에 요청을 등록하는 Modal을 표시한다.
 void FContentPanel::DrawImportOptions()
 {
@@ -631,6 +639,11 @@ void FContentPanel::DrawAssetTile(const FAssetData& Asset, float TileWidth, floa
 	if (bHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 	{
 		SelectedAssetPath = Asset.AssetPath;
+	}
+	if (bHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) &&
+		(Asset.Type == EAssetType::StaticMesh || Asset.Type == EAssetType::Material))
+	{
+		OpenAssetRequest = Asset.AssetId;
 	}
 	if (bHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
 	{

@@ -18,6 +18,7 @@
 #include <optional>
 
 class FRenderSystem;
+class FAssetEditor;
 class FAssetImportManager;
 class FAssetRegistry;
 class FEditorSettings;
@@ -57,12 +58,17 @@ private:
 	void SaveLevel(bool bSaveAs);
 	std::optional<std::filesystem::path> OpenLevelDialog(bool bSave) const;
 
+	void OpenAssetEditor(const FAssetId& AssetId);
+	void DrawAssetEditors(float DeltaTime);
+
 	FWindowsApplication& Application;
 	UEditorEngine& EditorEngine;
 	FAssetImportManager& AssetImportManager;
 	FRenderSystem& RenderSystem;
 	FInputRouter& InputRouter;
 	FEditorSelection& Selection;
+
+	TArray<std::unique_ptr<FAssetEditor>> AssetEditors;
 
 	ImFont* MediumFont = nullptr;
 	ImFont* SemiBoldFont = nullptr;

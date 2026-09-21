@@ -6,6 +6,7 @@
 
 #include <array>
 #include <imgui.h>
+#include <optional>
 #include <string_view>
 
 class FRenderSystem;
@@ -21,6 +22,8 @@ public:
 	void Startup();
 	void Draw();
 	void Shutdown();
+
+	std::optional<FAssetId> OpenAssetEditor();
 
 private:
 	static constexpr uint32 ContentIconSize = 128;
@@ -109,4 +112,6 @@ private:
 	bool bOpenRenamePopup = false;
 	bool bOpenDeleteConfirmation = false;
 	bool bRefreshRequested = false;
+
+	std::optional<FAssetId> OpenAssetRequest;
 };

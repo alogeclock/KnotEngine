@@ -6,6 +6,7 @@
 
 class FScene;
 
+// Viewport가 Primitive 표면을 표시하는 방식을 지정한다.
 enum class EViewMode : uint8
 {
 	Unlit,
@@ -13,6 +14,7 @@ enum class EViewMode : uint8
 	ShadedWireframe,
 };
 
+// 단일 카메라에서 Scene을 수집하고 렌더링하는 데 필요한 View 단위 데이터다.
 struct FSceneView
 {
 	FMatrix ViewMatrix;
@@ -23,6 +25,8 @@ struct FSceneView
 	FFrustum Frustum;
 	FRenderViewport Viewport;
 	EViewMode ViewMode = EViewMode::Unlit;
+	
+	int32 ForcedLODIndex = -1;
 	TStaticArray<float, 4> LODSteps = { 0.15f, 0.08f, 0.05f, 0.02f };
 };
 
@@ -36,6 +40,7 @@ struct alignas(16) FViewConstants
 };
 static_assert(sizeof(FViewConstants) == 144);
 
+// 카메라에서 표시할 대상을 플래그 형태로 구별한다.
 struct FShowFlags
 {
 	bool bPrimitive = false;

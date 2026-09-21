@@ -73,6 +73,10 @@ const FMaterialResource& FStaticMeshSceneProxy::GetMaterial(SIZE_T MaterialIndex
 SIZE_T FStaticMeshSceneProxy::SelectLOD(const FSceneView& View) const
 {
 	check(MeshResource && MeshResource->GetLODCount() > 0);
+	if (View.ForcedLODIndex >= 0)
+	{
+		return std::min(static_cast<SIZE_T>(View.ForcedLODIndex), MeshResource->GetLODCount() - 1);
+	}
 	if (!bLODEnable)
 	{
 		return 0;
