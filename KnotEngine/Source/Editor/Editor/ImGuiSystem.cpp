@@ -112,6 +112,7 @@ void FImGuiSystem::Startup()
 	IO.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 	ConsolePanel.Startup();
 	ContentPanel.Startup();
+	ViewportPanel.Startup();
 	bStarted = true;
 	Application.SetMessageHandler(ImGui_ImplWin32_WndProcHandler);
 }

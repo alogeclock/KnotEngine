@@ -34,6 +34,7 @@ public:
 	virtual FSceneView BuildSceneView();
 	virtual std::optional<FSceneViewFamily> BuildSceneViewFamily();
 	FShowFlags& GetShowFlags() { return ShowFlags; }
+	EViewMode& GetViewMode() { return ViewMode; }
 	void SetInputRect(const FVector2& Position, const FVector2& Size);
 
 	// Input
@@ -57,6 +58,7 @@ private:
 
 	FViewport& Viewport;
 	FShowFlags ShowFlags;
+	EViewMode ViewMode = EViewMode::Unlit;
 
 	FEditorViewportCamera Camera;
 	TBitset<static_cast<SIZE_T>(EKeyboardKey::Count)> KeysDown;

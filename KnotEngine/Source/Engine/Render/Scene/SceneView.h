@@ -6,6 +6,13 @@
 
 class FScene;
 
+enum class EViewMode : uint8
+{
+	Unlit,
+	Wireframe,
+	ShadedWireframe,
+};
+
 struct FSceneView
 {
 	FMatrix ViewMatrix;
@@ -15,6 +22,7 @@ struct FSceneView
 	float FarClip = 0.0f;
 	FFrustum Frustum;
 	FRenderViewport Viewport;
+	EViewMode ViewMode = EViewMode::Unlit;
 	TStaticArray<float, 4> LODSteps = { 0.15f, 0.08f, 0.05f, 0.02f };
 };
 

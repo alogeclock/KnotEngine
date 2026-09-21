@@ -1,5 +1,6 @@
 #include "Editor/Panels/ViewportPanel.h"
 
+#include "Core/IO/Paths.h"
 #include "Input/InputRouter.h"
 #include "Render/RenderSystem.h"
 #include "Viewport/Level/LevelEditorViewportClient.h"
@@ -8,6 +9,11 @@
 #include <cmath>
 #include <imgui.h>
 #include <iterator>
+#include <algorithm>
+#include <Windows.h>
+#include <objbase.h>
+#include <wincodec.h>
+#include <wrl/client.h>
 
 FViewportPanel::FViewportPanel(
 	FRenderSystem& InRenderSystem,
@@ -26,6 +32,48 @@ FViewportPanel::~FViewportPanel()
 void FViewportPanel::Release()
 {
 	Viewport.Release();
+	RenderSystem.DestroyTexture(ViewModeIcons);
+	ViewModeIconsId = {};
+}
+
+// PNG Atlas를 시작 시 한 번 디코딩하고 ImGui Texture ID를 캐시한다.
+void FViewportPanel::Startup()
+{
+	constexpr uint32 AtlasWidth = 768;
+	constexpr uint32 AtlasHeight = 256;
+	const HRESULT InitializeResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	TArray<uint8> Pixels(AtlasWidth * AtlasHeight * 4);
+	bool bDecoded = false;
+	{
+		Microsoft::WRL::ComPtr<IWICImagingFactory> Factory;
+		Microsoft::WRL::ComPtr<IWICBitmapDecoder> Decoder;
+		Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> Frame;
+		Microsoft::WRL::ComPtr<IWICBitmapScaler> Scaler;
+		Microsoft::WRL::ComPtr<IWICFormatConverter> Converter;
+		const std::filesystem::path FilePath = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icon/ViewportViewModes.png";
+		if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&Factory))) &&
+			SUCCEEDED(Factory->CreateDecoderFromFilename(FilePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &Decoder)) &&
+			SUCCEEDED(Decoder->GetFrame(0, &Frame)) && SUCCEEDED(Factory->CreateBitmapScaler(&Scaler)) &&
+			SUCCEEDED(Scaler->Initialize(Frame.Get(), AtlasWidth, AtlasHeight, WICBitmapInterpolationModeFant)) &&
+			SUCCEEDED(Factory->CreateFormatConverter(&Converter)) &&
+			SUCCEEDED(Converter->Initialize(Scaler.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom)))
+		{
+			bDecoded = SUCCEEDED(Converter->CopyPixels(nullptr, AtlasWidth * 4, static_cast<UINT>(Pixels.size()), Pixels.data()));
+		}
+	}
+	if (SUCCEEDED(InitializeResult))
+	{
+		CoUninitialize();
+	}
+	panicf(bDecoded, "Viewport View Mode Icon Atlas를 디코딩하지 못했다.");
+	FTextureDesc Desc;
+	Desc.Width = AtlasWidth;
+	Desc.Height = AtlasHeight;
+	Desc.Format = ETextureFormat::RGBA8UNorm;
+	Desc.Usage = ETextureUsage::ShaderResource;
+	const FTextureSubresourceData Data = { Pixels, AtlasWidth * 4, static_cast<uint32>(Pixels.size()) };
+	ViewModeIcons = RenderSystem.CreateTexture(Desc, std::span<const FTextureSubresourceData>(&Data, 1));
+	ViewModeIconsId = RenderSystem.GetImGuiTextureID(ViewModeIcons);
 }
 
 void FViewportPanel::Draw(bool bVisible, float DeltaTime)
@@ -214,9 +262,48 @@ void FViewportPanel::DrawToolbar()
 			ImGui::MenuItem("Bounds", nullptr, &ShowFlags.bBounds);
 			ImGui::EndPopup();
 		}
+		DrawViewModeButtons();
 	}
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
+}
+
+void FViewportPanel::DrawViewModeButtons()
+{
+	static constexpr const char* Names[] = { "Wireframe", "Shaded Wireframe", "Unlit", "Lit" };
+	static constexpr EViewMode Modes[] = { EViewMode::Wireframe, EViewMode::ShadedWireframe, EViewMode::Unlit };
+	static constexpr float IconCenters[] = { 0.155f, 0.385f, 0.615f, 0.845f };
+	const float IconSize = ImGui::GetFontSize() + 2.0f;
+	const float ButtonWidth = IconSize + 8.0f;
+	const float TotalWidth = ButtonWidth * 4.0f + 2.0f * 3.0f;
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - TotalWidth));
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, ImGui::GetStyle().FramePadding.y - 1.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2.0f, 0.0f));
+	for (SIZE_T Index = 0; Index < 4; ++Index)
+	{
+		if (Index != 0)
+		{
+			ImGui::SameLine();
+		}
+		const bool bLit = Index == 3;
+		const bool bSelected = !bLit && ViewportClient.GetViewMode() == Modes[Index];
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(bSelected ? ImGuiCol_ButtonActive : ImGuiCol_FrameBg));
+		ImGui::BeginDisabled(bLit);
+		const ImVec2 UV0(IconCenters[Index] - 0.09f, 0.225f);
+		const ImVec2 UV1(IconCenters[Index] + 0.09f, 0.765f);
+		if (ImGui::ImageButton(Names[Index], ImTextureRef(ViewModeIconsId), ImVec2(IconSize, IconSize), UV0, UV1) && !bLit)
+		{
+			ViewportClient.GetViewMode() = Modes[Index];
+		}
+		ImGui::EndDisabled();
+		ImGui::PopStyleColor();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+		{
+			ImGui::SetTooltip("%s", Names[Index]);
+		}
+	}
+	ImGui::PopStyleVar(2);
 }
 
 void FViewportPanel::DrawViewport()

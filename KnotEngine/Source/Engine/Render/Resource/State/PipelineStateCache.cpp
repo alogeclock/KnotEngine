@@ -36,6 +36,7 @@ FPipelineStateHandle FPipelineStateCache::GetOrCreate(const FPipelineStateDesc& 
 
 void FPipelineStateCache::Release()
 {
+	WireframeVariants.clear();
 	for (FEntry& Entry : Entries)
 	{
 		RenderDevice.DestroyPipelineState(Entry.Handle);

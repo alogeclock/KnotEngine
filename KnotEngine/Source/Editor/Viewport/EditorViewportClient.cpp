@@ -78,6 +78,7 @@ std::optional<FSceneViewFamily> FEditorViewportClient::BuildSceneViewFamily()
 	};
 	Family.ShowFlags = ShowFlags;
 	Family.Views.push_back(BuildSceneView());
+	Family.Views.back().ViewMode = ViewMode;
 	return Family;
 }
 

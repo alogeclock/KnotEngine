@@ -19,17 +19,22 @@ public:
 		FEditorSelection& InSelection);
 	~FViewportPanel();
 
+	void Startup();
 	void Draw(bool bVisible, float DeltaTime);
 	void Release();
 	FLevelEditorViewportClient& GetViewportClient() { return ViewportClient; }
 
 private:
 	void DrawToolbar();
+	void DrawViewModeButtons();
 	void DrawViewport();
 
 	FViewport Viewport;
 	FLevelEditorViewportClient ViewportClient;
 	FViewportStatOverlay StatOverlay;
+
+	FTextureHandle ViewModeIcons;
+	ImTextureID ViewModeIconsId = {};
 	
 	FRenderSystem& RenderSystem;
 	FInputRouter& InputRouter;

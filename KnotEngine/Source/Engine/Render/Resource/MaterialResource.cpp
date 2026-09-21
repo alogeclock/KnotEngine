@@ -32,21 +32,22 @@ bool FMaterialResource::Initialize(
 	const FMaterial& Material = bHasMaterialAsset ? Command.Material : DefaultMaterial;
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 
-	FPipelineStateDesc PipelineStateDesc;
-	PipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(Material.GetVertexShader());
-	PipelineStateDesc.PixelShader = ShaderRegistry.GetOrCreate(Material.GetPixelShader());
-	PipelineStateDesc.VertexLayout = FStaticMeshVertex::GetVertexLayout();
-	PipelineStateDesc.RasterizerState.CullMode = Material.GetCullMode();
-	PipelineStateDesc.DepthMode = Material.GetDepthMode();
+	FPipelineStateDesc SurfaceDesc;
+	SurfaceDesc.VertexShader = ShaderRegistry.GetOrCreate(Material.GetVertexShader());
+	SurfaceDesc.PixelShader = ShaderRegistry.GetOrCreate(Material.GetPixelShader());
+	SurfaceDesc.VertexLayout = FStaticMeshVertex::GetVertexLayout();
+	SurfaceDesc.RasterizerState.CullMode = Material.GetCullMode();
+	SurfaceDesc.DepthMode = Material.GetDepthMode();
 	if (Material.GetBlendMode() == EMaterialBlendMode::Translucent)
 	{
-		FRenderTargetBlendDesc& Blend = PipelineStateDesc.BlendState.RenderTarget;
+		FRenderTargetBlendDesc& Blend = SurfaceDesc.BlendState.RenderTarget;
 		Blend.bBlendEnabled = true;
 		Blend.SourceColorBlend = EBlendFactor::SourceAlpha;
 		Blend.DestinationColorBlend = EBlendFactor::InverseSourceAlpha;
 		Blend.SourceAlphaBlend = EBlendFactor::One;
 		Blend.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 	}
+	PipelineStateDesc = SurfaceDesc;
 	PipelineState = Renderer.GetPipelineStateCache().GetOrCreate(PipelineStateDesc);
 	if (!PipelineState.IsValid())
 	{
@@ -61,9 +62,10 @@ bool FMaterialResource::Initialize(
 			Layout.Elements.insert(Layout.Elements.end(), InstanceLayout.Elements.begin(), InstanceLayout.Elements.end());
 			return Layout;
 		}();
-		PipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(InstancedVertexShader);
-		PipelineStateDesc.VertexLayout = InstancedVertexLayout;
-		InstancedPipelineState = Renderer.GetPipelineStateCache().GetOrCreate(PipelineStateDesc);
+		InstancedPipelineStateDesc = SurfaceDesc;
+		InstancedPipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(InstancedVertexShader);
+		InstancedPipelineStateDesc.VertexLayout = InstancedVertexLayout;
+		InstancedPipelineState = Renderer.GetPipelineStateCache().GetOrCreate(InstancedPipelineStateDesc);
 	}
 
 	FMaterialParameterLayout Layout;
@@ -160,6 +162,8 @@ void FMaterialResource::Release()
 	Constants.clear();
 	PipelineState = {};
 	InstancedPipelineState = {};
+	PipelineStateDesc = {};
+	InstancedPipelineStateDesc = {};
 	SortId = 0;
 	SourceRevision = 0;
 }

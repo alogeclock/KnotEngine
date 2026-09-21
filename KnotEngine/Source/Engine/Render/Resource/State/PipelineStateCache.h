@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineAPI.h"
+#include "Core/Assert.h"
 
 #include "Render/RHI/RenderTypes.h"
 
@@ -20,6 +21,19 @@ public:
 
 	void Create();
 	FPipelineStateHandle GetOrCreate(const FPipelineStateDesc& Desc);
+	// 콜백은 저장하지 않고 캐시 미스일 때만 즉시 실행한다.
+	template <typename FCreateDesc>
+	FPipelineStateHandle GetOrCreateWireframe(FPipelineStateHandle BasePipeline, bool bOverlay, FCreateDesc&& CreateDesc)
+	{
+		check(BasePipeline.IsValid());
+		const uint64 Key = (static_cast<uint64>(BasePipeline.Generation) << 32) | BasePipeline.Index;
+		FPipelineStateHandle& Variant = WireframeVariants[Key][bOverlay ? 1 : 0];
+		if (!Variant.IsValid())
+		{
+			Variant = GetOrCreate(CreateDesc());
+		}
+		return Variant;
+	}
 	void Release();
 
 private:
@@ -31,4 +45,6 @@ private:
 
 	IRenderDevice& RenderDevice;
 	TArray<FEntry> Entries;
+	// 기본 PSO의 Generation과 Index를 키로 사용한다. 변형은 Entries가 소유한다.
+	TMap<uint64, TStaticArray<FPipelineStateHandle, 2>> WireframeVariants;
 };

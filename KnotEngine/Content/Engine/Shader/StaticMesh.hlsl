@@ -81,6 +81,16 @@ float4 OpaquePS(PS_INPUT input) : SV_TARGET
 	return GetBaseColor(input);
 }
 
+float4 WireframePS(PS_INPUT input) : SV_TARGET
+{
+	return float4(0.2f, 0.2f, 0.2f, 1.0f);
+}
+
+float4 WireOverlayPS(PS_INPUT input) : SV_TARGET
+{
+	return float4(0.2f, 0.2f, 0.2f, 0.2f);
+}
+
 float4 MaskedPS(PS_INPUT input) : SV_TARGET
 {
 	float4 Color = GetBaseColor(input);
