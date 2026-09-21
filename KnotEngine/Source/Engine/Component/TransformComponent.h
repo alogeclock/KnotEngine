@@ -27,7 +27,13 @@ public:
 
 private:
 	void OnTransformChanged();
+
+	/// 부모 Transform을 기준으로 한 상대 변환이다.
 	UPROPERTY(Category = "Transform") FTransform RelativeTransform;
+
+	/// 계층 구조에서 연결된 부모 Transform이다.
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UTransformComponent> Parent;
+
+	/// 계층 구조에서 연결된 자식 Transform 목록이다.
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<UTransformComponent>> Children;
 };

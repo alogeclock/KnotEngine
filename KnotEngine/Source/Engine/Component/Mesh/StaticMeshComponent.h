@@ -32,9 +32,12 @@ protected:
 	std::unique_ptr<FPrimitiveSceneProxy> CreatePrimitiveSceneProxy(const FPrimitiveRenderData& RenderData) const override;
 
 private:
+	/// 이 컴포넌트가 렌더링할 Static Mesh Asset이다.
 	UPROPERTY(Category = "Static Mesh") TObjectPtr<UStaticMesh> StaticMesh;
 
+	/// 화면 점유율에 따른 LOD 선택을 사용할지 결정한다.
 	UPROPERTY(Category = "LOD") bool bLODEnable = true;
 
+	/// Static Mesh의 Material Slot별 재정의 Material 목록이다.
 	UPROPERTY(Category = "Material") TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
 };

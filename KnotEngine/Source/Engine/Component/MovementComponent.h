@@ -14,6 +14,6 @@ public:
 	const FRotator& GetRotationRate() const { return RotationRate; }
 
 private:
-	/// 노드의 초당 회전 각도(degree)
+	/// 노드에 적용되는 초당 회전 각도(degree)이다.
 	UPROPERTY(Category = "Movement") FRotator RotationRate;
 };

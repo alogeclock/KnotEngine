@@ -32,5 +32,6 @@ private:
 	static constexpr uint64 InvalidPrimitiveId = 0;
 	uint64 PrimitiveId = InvalidPrimitiveId;
 
+	/// Primitive을 Scene에 표시할지 결정한다.
 	UPROPERTY(Category = "Primitive") bool bVisible = true;
 };

@@ -43,7 +43,11 @@ protected:
 	virtual void OnDeactivated() {}
 
 	bool bCanEverTick = false;
+
+	/// 활성 상태에서 매 프레임 TickComponent()를 호출할지 결정한다.
 	UPROPERTY(Category = "Component") bool bTickEnable = false;
+
+	/// 컴포넌트 등록 시 자동으로 활성화할지 결정한다.
 	UPROPERTY(Category = "Component") bool bAutoActivate = true;
 
 private:
