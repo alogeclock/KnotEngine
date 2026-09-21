@@ -13,7 +13,13 @@ void FPrimitiveSceneProxy::ApplyPrimitiveData(ERenderCommandType Type, const FPr
 	if (HasRenderCommand(Type, ERenderCommandType::Transform) || HasRenderCommand(Type, ERenderCommandType::Mesh))
 	{
 		WorldMatrix = RenderData.WorldMatrix;
+	}
+	if (HasRenderCommand(Type, ERenderCommandType::Mesh))
+	{
 		LocalBounds = RenderData.LocalBounds;
+	}
+	if (HasRenderCommand(Type, ERenderCommandType::Transform) || HasRenderCommand(Type, ERenderCommandType::Mesh))
+	{
 		WorldBounds = LocalBounds.IsValid() ? LocalBounds.Transform(WorldMatrix) : FAABB();
 		WorldBoundsRadius = WorldBounds.IsValid() ? WorldBounds.GetExtent().Size() : 0.0f;
 	}
