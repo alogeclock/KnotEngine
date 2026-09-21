@@ -94,11 +94,7 @@ void FDebugDraw::DrawLine(const FVector& Start, const FVector& End, const FColor
 	}
 }
 
-void FDebugDraw::DrawCube(
-	const FVector& Center,
-	const FVector& Extent,
-	const FQuat& Rotation,
-	const FColor& Color)
+void FDebugDraw::DrawCube(const FVector& Center, const FVector& Extent, const FQuat& Rotation, const FColor& Color)
 {
 	if (Extent.X > 0.0f && Extent.Y > 0.0f && Extent.Z > 0.0f)
 	{
@@ -114,11 +110,7 @@ void FDebugDraw::DrawSphere(const FVector& Center, float Radius, const FColor& C
 	}
 }
 
-void FDebugDraw::DrawHemiSphere(
-	const FVector& Center,
-	float Radius,
-	const FQuat& Rotation,
-	const FColor& Color)
+void FDebugDraw::DrawHemiSphere(const FVector& Center, float Radius, const FQuat& Rotation, const FColor& Color)
 {
 	if (Radius > 0.0f)
 	{
@@ -126,25 +118,14 @@ void FDebugDraw::DrawHemiSphere(
 	}
 }
 
-void FDebugDraw::DrawCylinder(
-	const FVector& Center,
-	float Radius,
-	float HalfHeight,
-	const FQuat& Rotation,
-	const FColor& Color)
+void FDebugDraw::DrawCylinder(const FVector& Center, float Radius, float HalfHeight, const FQuat& Rotation, const FColor& Color)
 {
 	if (Radius > 0.0f && HalfHeight > 0.0f)
 	{
 		AddInstance(EShapeType::Cylinder, FTransform(Rotation, Center, FVector(Radius, Radius, HalfHeight)).ToMatrix(), Color, FVector4());
 	}
 }
-
-void FDebugDraw::DrawCapsule(
-	const FVector& Center,
-	float Radius,
-	float HalfHeight,
-	const FQuat& Rotation,
-	const FColor& Color)
+void FDebugDraw::DrawCapsule(const FVector& Center, float Radius, float HalfHeight, const FQuat& Rotation, const FColor& Color)
 {
 	if (Radius > 0.0f && HalfHeight >= 0.0f)
 	{
@@ -180,12 +161,12 @@ void FDebugDraw::AddMeshLine(TArray<FGeometryVertex>& Vertices, TArray<uint32>& 
 }
 
 void FDebugDraw::AddCircle(
-	TArray<FGeometryVertex>& Vertices,
-	TArray<uint32>& Indices,
-	EAxis Axis,
-	float AxisOffset,
-	float Radius,
-	uint32 Segments)
+    TArray<FGeometryVertex>& Vertices,
+    TArray<uint32>& Indices,
+    EAxis Axis,
+    float AxisOffset,
+    float Radius,
+    uint32 Segments)
 {
 	check(Segments >= 3);
 	for (uint32 Segment = 0; Segment < Segments; ++Segment)
@@ -200,9 +181,18 @@ void FDebugDraw::AddCircle(
 		FVector End;
 		switch (Axis)
 		{
-		case EAxis::X: Start = FVector(AxisOffset, Cos0, Sin0); End = FVector(AxisOffset, Cos1, Sin1); break;
-		case EAxis::Y: Start = FVector(Cos0, AxisOffset, Sin0); End = FVector(Cos1, AxisOffset, Sin1); break;
-		case EAxis::Z: Start = FVector(Cos0, Sin0, AxisOffset); End = FVector(Cos1, Sin1, AxisOffset); break;
+		case EAxis::X:
+			Start = FVector(AxisOffset, Cos0, Sin0);
+			End = FVector(AxisOffset, Cos1, Sin1);
+			break;
+		case EAxis::Y:
+			Start = FVector(Cos0, AxisOffset, Sin0);
+			End = FVector(Cos1, AxisOffset, Sin1);
+			break;
+		case EAxis::Z:
+			Start = FVector(Cos0, Sin0, AxisOffset);
+			End = FVector(Cos1, Sin1, AxisOffset);
+			break;
 		}
 		AddMeshLine(Vertices, Indices, Start, End);
 	}
@@ -213,12 +203,28 @@ void FDebugDraw::BuildCubeMesh(FGeometryMesh& Mesh)
 	TArray<FGeometryVertex> Vertices;
 	TArray<uint32> Indices;
 	static constexpr FVector Corners[] = {
-		{ -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
-		{ -1.0f, -1.0f, 1.0f }, { 1.0f, -1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { -1.0f, 1.0f, 1.0f },
+		{ -1.0f, -1.0f, -1.0f },
+		{ 1.0f, -1.0f, -1.0f },
+		{ 1.0f, 1.0f, -1.0f },
+		{ -1.0f, 1.0f, -1.0f },
+		{ -1.0f, -1.0f, 1.0f },
+		{ 1.0f, -1.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f },
+		{ -1.0f, 1.0f, 1.0f },
 	};
 	static constexpr uint8 Edges[][2] = {
-		{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 }, { 4, 5 }, { 5, 6 },
-		{ 6, 7 }, { 7, 4 }, { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+		{ 0, 1 },
+		{ 1, 2 },
+		{ 2, 3 },
+		{ 3, 0 },
+		{ 4, 5 },
+		{ 5, 6 },
+		{ 6, 7 },
+		{ 7, 4 },
+		{ 0, 4 },
+		{ 1, 5 },
+		{ 2, 6 },
+		{ 3, 7 },
 	};
 	for (const auto& Edge : Edges)
 	{
@@ -334,18 +340,18 @@ FMatrix FDebugDraw::MakeArrowTransform(const FVector& Start, const FVector& End)
 	const FVector Right = (ReferenceUp ^ Forward).GetSafeNormal();
 	const FVector Up = Forward ^ Right;
 	const FMatrix Rotation(
-		Forward.X, Forward.Y, Forward.Z, 0.0f,
-		Right.X, Right.Y, Right.Z, 0.0f,
-		Up.X, Up.Y, Up.Z, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f);
+	    Forward.X, Forward.Y, Forward.Z, 0.0f,
+	    Right.X, Right.Y, Right.Z, 0.0f,
+	    Up.X, Up.Y, Up.Z, 0.0f,
+	    0.0f, 0.0f, 0.0f, 1.0f);
 	return FMatrix::MakeWorld(Start, Rotation, FVector(Length, Length, Length));
 }
 
 void FDebugDraw::AddInstance(
-	EShapeType ShapeType,
-	const FMatrix& Model,
-	const FColor& Color,
-	const FVector4& ShapeParameters)
+    EShapeType ShapeType,
+    const FMatrix& Model,
+    const FColor& Color,
+    const FVector4& ShapeParameters)
 {
 	Instances[static_cast<uint32>(ShapeType)].push_back({ Model, Color.ToVector4(), ShapeParameters });
 }

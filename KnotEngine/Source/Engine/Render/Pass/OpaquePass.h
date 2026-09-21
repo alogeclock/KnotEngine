@@ -13,6 +13,9 @@ class IRenderDevice;
 class FMeshBuffer;
 class FMaterialResource;
 struct FPrimitiveSceneProxy;
+struct FStaticMeshInstance;
+class FStaticMeshLODResource;
+struct FStaticMeshSceneProxy;
 struct FSceneView;
 struct FViewConstants;
 
@@ -23,32 +26,40 @@ public:
 	static uint32 AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSceneView& View, std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives);
 
 private:
+	struct FPrimitiveCommand
+	{
+		const FStaticMeshSceneProxy* Primitive = nullptr;
+		const FStaticMeshLODResource* LOD = nullptr;
+		const FMeshBuffer* MeshBuffer = nullptr;
+		uint64 BatchKey = 0;
+	};
+
 	struct FMeshDrawCommand
 	{
-		const FPrimitiveSceneProxy* Primitive = nullptr;
+		const FStaticMeshSceneProxy* Primitive = nullptr;
 		const FMeshBuffer* MeshBuffer = nullptr;
 		const FMaterialResource* Material = nullptr;
 		uint32 FirstIndex = 0;
 		uint32 IndexCount = 0;
-
+		uint32 FirstInstance = 0;
+		uint32 InstanceCount = 0;
 		uint64 SortKey = 0;
+		bool bInstanced = false;
 	};
 
-	struct alignas(16) FDrawConstants
-	{
-		FMatrix Model;
-	};
-	static_assert(sizeof(FDrawConstants) % 16 == 0);
-
-	static uint64 GenerateSortKey(const FMaterialResource& Material, const FMeshBuffer& MeshBuffer, float Depth, float FarClip);
+	static bool ArePrimitiveCommandsCompatible(const FPrimitiveCommand& Left, const FPrimitiveCommand& Right);
+	static bool CanInstance(const FPrimitiveCommand& Command);
+	static uint64 GenerateSortKey(FPipelineStateHandle PipelineState, const FMaterialResource& Material, const FMeshBuffer& MeshBuffer);
 
 	static void ExecutePass(
-		IRenderDevice& RenderDevice,
+		URenderer& Renderer,
 		FCommandListHandle CommandList,
 		const FRenderViewport& Viewport,
 		const FViewConstants& ViewConstants,
-		const TArray<FMeshDrawCommand>& OpaqueCommands);
+		const TArray<FMeshDrawCommand>& OpaqueCommands,
+		const TArray<FStaticMeshInstance>& Instances);
 
 	static constexpr uint32 ViewConstantsSlot = 0;
 	static constexpr uint32 DrawConstantsSlot = 3;
+	static constexpr uint32 MinimumInstanceCount = 4;
 };

@@ -4,6 +4,7 @@
 
 #include <d3d11.h>
 
+#include <array>
 #include <cstring>
 #include <limits>
 
@@ -353,7 +354,11 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 		NativeElement.SemanticIndex = Element.SemanticIndex;
 		NativeElement.Format = Format;
 		NativeElement.AlignedByteOffset = Element.Offset;
-		NativeElement.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+		NativeElement.InputSlot = Element.InputSlot;
+		NativeElement.InputSlotClass = Element.InputRate == EVertexInputRate::PerInstance ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
+		NativeElement.InstanceDataStepRate = Element.InstanceStepRate;
+		panicf((Element.InputRate == EVertexInputRate::PerInstance) == (Element.InstanceStepRate > 0),
+			"Vertex Element의 Input Rate와 Instance Step Rate가 일치하지 않는다.");
 		LayoutDescs.push_back(NativeElement);
 	}
 
@@ -626,6 +631,35 @@ void FD3D11RenderDevice::SetVertexBuffer(FCommandListHandle CommandList, FBuffer
 	const FBufferDesc* Desc = BufferPool.ResolveDesc(Buffer);
 	panicf(NativeBuffer && Desc && Desc->Usage == EBufferUsage::Vertex && Stride > 0, "유효하지 않은 Vertex Buffer 바인딩.");
 	NativeDevice.GetContext()->IASetVertexBuffers(0, 1, &NativeBuffer, &Stride, &Offset);
+}
+
+// 연속된 Input Slot에 여러 Vertex Buffer를 한 번에 바인딩한다.
+void FD3D11RenderDevice::SetVertexBuffers(FCommandListHandle CommandList, uint32 FirstSlot, std::span<const FVertexBufferBinding> Bindings)
+{
+	ValidateCommandList(CommandList);
+	panicf(!Bindings.empty() && FirstSlot + Bindings.size() <= D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT,
+		"Vertex Buffer Slot 범위를 벗어났다. FirstSlot={}, Count={}", FirstSlot, Bindings.size());
+
+	std::array<ID3D11Buffer*, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> NativeBuffers{};
+	std::array<uint32, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> Strides{};
+	std::array<uint32, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> Offsets{};
+	for (SIZE_T BindingIndex = 0; BindingIndex < Bindings.size(); ++BindingIndex)
+	{
+		const FVertexBufferBinding& Binding = Bindings[BindingIndex];
+		ID3D11Buffer* NativeBuffer = BufferPool.ResolveBuffer(Binding.Buffer);
+		const FBufferDesc* Desc = BufferPool.ResolveDesc(Binding.Buffer);
+		panicf(NativeBuffer && Desc && Desc->Usage == EBufferUsage::Vertex && Binding.Stride > 0,
+			"유효하지 않은 Vertex Buffer 바인딩.");
+		NativeBuffers[BindingIndex] = NativeBuffer;
+		Strides[BindingIndex] = Binding.Stride;
+		Offsets[BindingIndex] = Binding.Offset;
+	}
+	NativeDevice.GetContext()->IASetVertexBuffers(
+		FirstSlot,
+		static_cast<uint32>(Bindings.size()),
+		NativeBuffers.data(),
+		Strides.data(),
+		Offsets.data());
 }
 
 // Index Buffer와 Index Format 및 시작 Offset을 Input Assembler에 설정한다.

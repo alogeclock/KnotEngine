@@ -61,6 +61,7 @@ public:
 	void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) override;
 	
 	void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset) override;
+	void SetVertexBuffers(FCommandListHandle CommandList, uint32 FirstSlot, std::span<const FVertexBufferBinding> Bindings) override;
 	void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset) override;
 	
 	void SetTexture(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FTextureHandle Texture) override;

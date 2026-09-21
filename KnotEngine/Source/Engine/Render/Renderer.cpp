@@ -6,7 +6,9 @@
 #include "Render/RHI/RenderContext.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Resource/ResourceCommand.h"
+#include "Render/Resource/Mesh/Vertex.h"
 
+#include <algorithm>
 #include <limits>
 
 URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
@@ -82,12 +84,54 @@ void URenderer::Release()
 	ReleaseAssetReferences();
 	DefaultMaterialResource.Release();
 	DebugDraw.Release();
+	RenderDevice.DestroyBuffer(StaticMeshInstanceBuffer);
+	StaticMeshInstanceBufferCapacity = 0;
 	DefaultTextureResource.Release();
 	SamplerStateCache.Release();
 	PipelineStateCache.Release();
 	ShaderRegistry.Release();
 	RenderContext.Release();
 	RenderDevice.Release();
+}
+
+// 현재 Pass가 사용하는 Static Mesh Instance를 동적 Vertex Buffer에 한 번 업로드한다.
+FBufferHandle URenderer::UploadStaticMeshInstances(std::span<const FStaticMeshInstance> Instances)
+{
+	check(!Instances.empty());
+	checkf(Instances.size() <= (std::numeric_limits<uint32>::max)() / sizeof(FStaticMeshInstance),
+		"Static Mesh Instance Buffer 크기가 uint32 범위를 초과했다. Count={}", Instances.size());
+	const uint32 RequiredCapacity = static_cast<uint32>(Instances.size());
+	if (RequiredCapacity > StaticMeshInstanceBufferCapacity)
+	{
+		uint32 NewCapacity = std::max(4096u, StaticMeshInstanceBufferCapacity);
+		while (NewCapacity < RequiredCapacity)
+		{
+			check(NewCapacity <= (std::numeric_limits<uint32>::max)() / 2);
+			NewCapacity *= 2;
+		}
+		check(NewCapacity <= (std::numeric_limits<uint32>::max)() / sizeof(FStaticMeshInstance));
+		RenderDevice.DestroyBuffer(StaticMeshInstanceBuffer);
+		const FBufferDesc Desc = {
+			NewCapacity * static_cast<uint32>(sizeof(FStaticMeshInstance)), EBufferUsage::Vertex, EResourceAccess::CPUWrite
+		};
+		StaticMeshInstanceBuffer = RenderDevice.CreateBuffer(Desc);
+		StaticMeshInstanceBufferCapacity = NewCapacity;
+	}
+
+	const auto* Bytes = reinterpret_cast<const uint8*>(Instances.data());
+	RenderDevice.UpdateBuffer(StaticMeshInstanceBuffer, std::span<const uint8>(Bytes, Instances.size_bytes()));
+	return StaticMeshInstanceBuffer;
+}
+
+void URenderer::AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics& Statistics)
+{
+	InstancedDrawStatistics.VisiblePrimitives += Statistics.VisiblePrimitives;
+	InstancedDrawStatistics.InstancedPrimitives += Statistics.InstancedPrimitives;
+	InstancedDrawStatistics.InstanceBatches += Statistics.InstanceBatches;
+	InstancedDrawStatistics.InstancedDrawCalls += Statistics.InstancedDrawCalls;
+	InstancedDrawStatistics.FallbackDrawCalls += Statistics.FallbackDrawCalls;
+	InstancedDrawStatistics.BatchBuildTimeMs += Statistics.BatchBuildTimeMs;
+	InstancedDrawStatistics.InstanceUploadTimeMs += Statistics.InstanceUploadTimeMs;
 }
 
 void URenderer::ReleaseAssetReferences()
@@ -181,6 +225,7 @@ void URenderer::BeginFrame()
 	KNOT_PROFILE_SCOPE("Render", "URenderer::BeginFrame");
 
 	checkf(!CommandList.IsValid(), "Renderer Frame이 이미 시작되었다.");
+	InstancedDrawStatistics = {};
 	CommandList = RenderDevice.BeginCommandList();
 	RenderDevice.BeginFrameStatistics(CommandList);
 	RenderContext.BeginFrame(CommandList);

@@ -6,6 +6,19 @@ struct VS_INPUT
 	float2 TexCoord : TEXCOORD0;
 };
 
+struct INSTANCED_VS_INPUT
+{
+	float3 Position : POSITION;
+	float3 Normal : NORMAL;
+	float3 Tangent : TANGENT;
+	float2 TexCoord : TEXCOORD0;
+
+	float4 Model0 : INSTANCE_MODEL0;
+	float4 Model1 : INSTANCE_MODEL1;
+	float4 Model2 : INSTANCE_MODEL2;
+	float4 Model3 : INSTANCE_MODEL3;
+};
+
 struct PS_INPUT
 {
 	float4 Position : SV_POSITION;
@@ -45,6 +58,16 @@ PS_INPUT MainVS(VS_INPUT input)
 	output.Position = mul(WorldPosition, ViewProjection);
 	output.TexCoord = input.TexCoord;
 	
+	return output;
+}
+
+PS_INPUT InstancedVS(INSTANCED_VS_INPUT input)
+{
+	PS_INPUT output;
+	row_major float4x4 ModelMatrix = float4x4(input.Model0, input.Model1, input.Model2, input.Model3);
+	float4 WorldPosition = mul(float4(input.Position, 1.0f), ModelMatrix);
+	output.Position = mul(WorldPosition, ViewProjection);
+	output.TexCoord = input.TexCoord;
 	return output;
 }
 

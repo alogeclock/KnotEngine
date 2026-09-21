@@ -29,3 +29,18 @@ const FVertexLayout& FStaticMeshVertex::GetVertexLayout()
 
 	return Layout;
 }
+
+const FVertexLayout& FStaticMeshInstance::GetVertexLayout()
+{
+	static const FVertexLayout Layout = {
+		{
+			{ EVertexSemantic::InstanceModel, EVertexFormat::Float4, 0, 0, 1, EVertexInputRate::PerInstance, 1 },
+			{ EVertexSemantic::InstanceModel, EVertexFormat::Float4, 1, 16, 1, EVertexInputRate::PerInstance, 1 },
+			{ EVertexSemantic::InstanceModel, EVertexFormat::Float4, 2, 32, 1, EVertexInputRate::PerInstance, 1 },
+			{ EVertexSemantic::InstanceModel, EVertexFormat::Float4, 3, 48, 1, EVertexInputRate::PerInstance, 1 },
+		},
+		static_cast<uint16>(sizeof(FStaticMeshInstance))
+	};
+
+	return Layout;
+}

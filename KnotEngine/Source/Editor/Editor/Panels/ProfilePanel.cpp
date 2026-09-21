@@ -46,6 +46,20 @@ void FProfilePanel::Draw(float DeltaTime)
 			}
 		}
 	}
+	const FInstancedDrawStatistics LastInstancedDrawStatistics = RenderSystem.GetLastInstancedDrawStatistics();
+	if (!bPaused && LastInstancedDrawStatistics.bValid &&
+		LastInstancedDrawStatistics.FrameNumber != LastSampledInstancedDrawFrameNumber)
+	{
+		LastSampledInstancedDrawFrameNumber = LastInstancedDrawStatistics.FrameNumber;
+		if (DisplayedInstancedDrawStats.FrameNumber == 0 || RefreshTimer <= 0.0f || bRefreshed)
+		{
+			DisplayedInstancedDrawStats = LastInstancedDrawStatistics;
+			if (!bRefreshed)
+			{
+				RefreshTimer = RefreshInterval;
+			}
+		}
+	}
 
 	if (!ImGui::Begin("Profile", nullptr, ImGuiWindowFlags_HorizontalScrollbar))
 	{
@@ -59,10 +73,11 @@ void FProfilePanel::Draw(float DeltaTime)
 		RefreshTimer = 0.0f;
 	}
 	ImGui::SameLine();
-	ImGui::TextDisabled(bPaused ? "CPU/GPU sampling paused" : "CPU/GPU sampling active");
+	ImGui::TextDisabled(bPaused ? "CPU/GPU/Draw sampling paused" : "CPU/GPU/Draw sampling active");
 	ImGui::Separator();
 
-	if (DisplayedGameFrame.FrameNumber == 0 && DisplayedRenderFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid)
+	if (DisplayedGameFrame.FrameNumber == 0 && DisplayedRenderFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid &&
+		!DisplayedInstancedDrawStats.bValid)
 	{
 		ImGui::TextDisabled("Waiting for CPU/GPU profile data...");
 		ImGui::End();
@@ -80,6 +95,7 @@ void FProfilePanel::Draw(float DeltaTime)
 	{
 		DrawCPUStats(ECPUProfileThread::Render, "CPU Stats (Render Thread)", "RenderThreadCPUProfileStats");
 	}
+	DrawInstancedDrawStats();
 	ImGui::End();
 }
 
@@ -222,6 +238,51 @@ void FProfilePanel::DrawCPUStats(ECPUProfileThread Thread, const char* HeaderNam
 			ImGui::TableSetColumnIndex(6);
 			ImGui::Text("%.3f", Stat.MinTimeMs);
 		}
+		ImGui::EndTable();
+	}
+}
+
+// Opaque Pass의 자동 인스턴싱 적용량과 준비 비용을 Profile Panel의 마지막 카테고리에 표시한다.
+void FProfilePanel::DrawInstancedDrawStats() const
+{
+	if (!ImGui::CollapsingHeader("Instanced Draws", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		return;
+	}
+	if (!DisplayedInstancedDrawStats.bValid)
+	{
+		ImGui::TextDisabled("Waiting for instanced draw data...");
+		return;
+	}
+
+	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame
+		| ImGuiTableFlags_NoSavedSettings;
+	const float TableWidth = std::max(1120.0f, ImGui::GetContentRegionAvail().x);
+	if (ImGui::BeginTable("InstancedDrawStats", 7, TableFlags, ImVec2(TableWidth, 0.0f)))
+	{
+		ImGui::TableSetupColumn("Visible Primitives");
+		ImGui::TableSetupColumn("Instanced Primitives");
+		ImGui::TableSetupColumn("Instance Batches");
+		ImGui::TableSetupColumn("Instanced Draw Calls");
+		ImGui::TableSetupColumn("Fallback Draw Calls");
+		ImGui::TableSetupColumn("Batch Build Time");
+		ImGui::TableSetupColumn("Instance Upload Time");
+		ImGui::TableHeadersRow();
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedInstancedDrawStats.VisiblePrimitives));
+		ImGui::TableSetColumnIndex(1);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedInstancedDrawStats.InstancedPrimitives));
+		ImGui::TableSetColumnIndex(2);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedInstancedDrawStats.InstanceBatches));
+		ImGui::TableSetColumnIndex(3);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedInstancedDrawStats.InstancedDrawCalls));
+		ImGui::TableSetColumnIndex(4);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedInstancedDrawStats.FallbackDrawCalls));
+		ImGui::TableSetColumnIndex(5);
+		ImGui::Text("%.3f ms", DisplayedInstancedDrawStats.BatchBuildTimeMs);
+		ImGui::TableSetColumnIndex(6);
+		ImGui::Text("%.3f ms", DisplayedInstancedDrawStats.InstanceUploadTimeMs);
 		ImGui::EndTable();
 	}
 }

@@ -52,6 +52,13 @@ using FShaderHandle = TRenderHandle<FShaderHandleTag>;
 using FPipelineStateHandle = TRenderHandle<FPipelineStateHandleTag>;
 using FCommandListHandle = TRenderHandle<FCommandListHandleTag>;
 
+struct ENGINE_API FVertexBufferBinding
+{
+	FBufferHandle Buffer;
+	uint32 Stride = 0;
+	uint32 Offset = 0;
+};
+
 // 비동기 GPU Query에서 완료된 한 프레임의 실행 시간과 Pipeline 호출 수다.
 struct ENGINE_API FGPUFrameStatistics
 {
@@ -61,6 +68,20 @@ struct ENGINE_API FGPUFrameStatistics
 	uint64 IAPrimitives = 0;
 	uint64 VSInvocations = 0;
 	uint64 PSInvocations = 0;
+	bool bValid = false;
+};
+
+// 한 Render Frame에서 Opaque Pass의 자동 인스턴싱 적용 결과와 CPU 준비 비용을 집계한다.
+struct ENGINE_API FInstancedDrawStatistics
+{
+	uint64 FrameNumber = 0;
+	uint64 VisiblePrimitives = 0;
+	uint64 InstancedPrimitives = 0;
+	uint64 InstanceBatches = 0;
+	uint64 InstancedDrawCalls = 0;
+	uint64 FallbackDrawCalls = 0;
+	double BatchBuildTimeMs = 0.0;
+	double InstanceUploadTimeMs = 0.0;
 	bool bValid = false;
 };
 

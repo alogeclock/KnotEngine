@@ -17,6 +17,7 @@ constexpr const char* GetSemanticName(EVertexSemantic Semantic)
 	case EVertexSemantic::Tangent: return "TANGENT";
 	case EVertexSemantic::Color: return "COLOR";
 	case EVertexSemantic::TexCoord0: return "TEXCOORD";
+	case EVertexSemantic::InstanceModel: return "INSTANCE_MODEL";
 	}
 	return nullptr;
 }

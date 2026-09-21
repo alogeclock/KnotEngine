@@ -53,6 +53,7 @@ public:
 	void Release();
 
 	FPipelineStateHandle GetPipelineState() const { return PipelineState; }
+	FPipelineStateHandle GetInstancedPipelineState() const { return InstancedPipelineState; }
 	const TArray<uint8>& GetConstants() const { return Constants; }
 	const TArray<FMaterialConstantBufferBinding>& GetConstantBuffers() const { return ConstantBuffers; }
 	const TArray<FTextureBinding>& GetTextures() const { return Textures; }
@@ -68,6 +69,7 @@ private:
 	uint32 SortId = 0;
 	uint64 SourceRevision = 0;
 	FPipelineStateHandle PipelineState;
+	FPipelineStateHandle InstancedPipelineState;
 	TArray<uint8> Constants;
 	TArray<FMaterialConstantBufferBinding> ConstantBuffers;
 	TArray<FTextureBinding> Textures;

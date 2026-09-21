@@ -23,6 +23,7 @@ bool FMaterialResource::Initialize(
 	}
 
 	static const FShaderKey DefaultVertexShader{ "/Engine/Shader/StaticMesh.hlsl", "MainVS", EShaderStage::Vertex };
+	static const FShaderKey InstancedVertexShader{ "/Engine/Shader/StaticMesh.hlsl", "InstancedVS", EShaderStage::Vertex };
 	static const FShaderKey DefaultPixelShader{ "/Engine/Shader/StaticMesh.hlsl", "OpaquePS", EShaderStage::Pixel };
 	FMaterial DefaultMaterial;
 	verify(DefaultMaterial.Initialize(DefaultVertexShader, DefaultPixelShader));
@@ -50,6 +51,19 @@ bool FMaterialResource::Initialize(
 	if (!PipelineState.IsValid())
 	{
 		return false;
+	}
+	if (Material.GetVertexShader() == DefaultVertexShader && Material.GetBlendMode() != EMaterialBlendMode::Translucent)
+	{
+		static const FVertexLayout InstancedVertexLayout = []
+		{
+			FVertexLayout Layout = FStaticMeshVertex::GetVertexLayout();
+			const FVertexLayout& InstanceLayout = FStaticMeshInstance::GetVertexLayout();
+			Layout.Elements.insert(Layout.Elements.end(), InstanceLayout.Elements.begin(), InstanceLayout.Elements.end());
+			return Layout;
+		}();
+		PipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(InstancedVertexShader);
+		PipelineStateDesc.VertexLayout = InstancedVertexLayout;
+		InstancedPipelineState = Renderer.GetPipelineStateCache().GetOrCreate(PipelineStateDesc);
 	}
 
 	FMaterialParameterLayout Layout;
@@ -145,6 +159,7 @@ void FMaterialResource::Release()
 	ConstantBuffers.clear();
 	Constants.clear();
 	PipelineState = {};
+	InstancedPipelineState = {};
 	SortId = 0;
 	SourceRevision = 0;
 }

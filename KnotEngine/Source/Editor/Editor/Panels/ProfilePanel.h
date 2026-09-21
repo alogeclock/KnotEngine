@@ -37,6 +37,7 @@ private:
 	FCPUProfileFrame DisplayedGameFrame;
 	FCPUProfileFrame DisplayedRenderFrame;
 	FGPUFrameStatistics DisplayedGPUStats;
+	FInstancedDrawStatistics DisplayedInstancedDrawStats;
 
 	FRenderSystem& RenderSystem;
 
@@ -45,10 +46,12 @@ private:
 	uint64 LastSampledGameFrameNumber = 0;
 	uint64 LastSampledRenderFrameNumber = 0;
 	uint64 LastSampledGPUFrameNumber = 0;
+	uint64 LastSampledInstancedDrawFrameNumber = 0;
 	bool bPaused = false;
 
 	void Sample(const FCPUProfileFrame& Frame);
 	void Refresh(const FCPUProfileFrame& GameFrame, const FCPUProfileFrame& RenderFrame);
 	void DrawGPUStats() const;
 	void DrawCPUStats(ECPUProfileThread Thread, const char* HeaderName, const char* TableName) const;
+	void DrawInstancedDrawStats() const;
 };

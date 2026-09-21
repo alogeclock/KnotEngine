@@ -12,6 +12,13 @@ enum class EVertexSemantic : uint8
 	Tangent,
 	Color,
 	TexCoord0,
+	InstanceModel,
+};
+
+enum class EVertexInputRate : uint8
+{
+	PerVertex,
+	PerInstance,
 };
 
 // 정점 Attribute의 메모리 저장 형식이다. 각 Render Device가 네이티브 포맷으로 변환한다.
@@ -31,6 +38,9 @@ struct ENGINE_API FVertexElement
 	EVertexFormat Format;
 	uint8 SemanticIndex;
 	uint16 Offset;
+	uint8 InputSlot = 0;
+	EVertexInputRate InputRate = EVertexInputRate::PerVertex;
+	uint16 InstanceStepRate = 0;
 
 	bool operator==(const FVertexElement&) const = default;
 };

@@ -52,8 +52,8 @@ void FD3D11BufferPool::UpdateBuffer(ID3D11DeviceContext* DeviceContext, FBufferH
 	ID3D11Buffer* Buffer = ResolveBuffer(Handle);
 	const FBufferDesc* Desc = ResolveDesc(Handle);
 	checkf(Buffer && Desc, "유효하지 않은 Buffer 핸들. Index={}, Generation={}", Handle.Index, Handle.Generation);
-	panicf(Desc->Access == EResourceAccess::CPUWrite && Data.size() == Desc->Size,
-	       "CPUWrite Buffer 갱신 크기 불일치. Expected={}, Actual={}", Desc->Size, Data.size());
+	panicf(Desc->Access == EResourceAccess::CPUWrite && !Data.empty() && Data.size() <= Desc->Size,
+	       "CPUWrite Buffer 갱신 크기가 유효하지 않다. Capacity={}, Actual={}", Desc->Size, Data.size());
 
 	D3D11_MAPPED_SUBRESOURCE Mapped = {};
 	const HRESULT Result = DeviceContext->Map(Buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Mapped);

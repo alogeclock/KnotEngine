@@ -50,6 +50,7 @@ public:
 	// 아래 함수는 열린 Command List에 Graphics 상태 및 Draw 명령을 기록한다.
 	virtual void SetPipelineState(FCommandListHandle CommandList, FPipelineStateHandle PipelineState) = 0;
 	virtual void SetVertexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, uint32 Stride, uint32 Offset = 0) = 0;
+	virtual void SetVertexBuffers(FCommandListHandle CommandList, uint32 FirstSlot, std::span<const FVertexBufferBinding> Bindings) = 0;
 	virtual void SetIndexBuffer(FCommandListHandle CommandList, FBufferHandle Buffer, EIndexFormat Format, uint32 Offset = 0) = 0;
 	virtual void SetConstantData(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, std::span<const uint8> Data) = 0;
 	virtual void SetTexture(FCommandListHandle CommandList, EShaderStage Stage, uint32 Slot, FTextureHandle Texture) = 0;

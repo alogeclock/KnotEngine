@@ -124,8 +124,12 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 				RenderBackend->GetImGuiRenderBackend().Render(Renderer->GetCommandList(), *DrawData);
 			}
 			Renderer->EndFrame();
-			std::lock_guard Lock(GPUStatisticsMutex);
+			FInstancedDrawStatistics InstancedDrawStatistics = Renderer->GetInstancedDrawStatistics();
+			InstancedDrawStatistics.FrameNumber = FrameNumber;
+			InstancedDrawStatistics.bValid = true;
+			std::lock_guard Lock(FrameStatisticsMutex);
 			LastGPUFrameStatistics = RenderBackend->GetRenderDevice().GetLastFrameStatistics();
+			LastInstancedDrawStatistics = InstancedDrawStatistics;
 		}
 
 #if KNOT_CPU_PROFILER_ENABLED
@@ -223,8 +227,14 @@ ImTextureID FRenderSystem::GetImGuiTextureID(FTextureHandle Texture)
 
 FGPUFrameStatistics FRenderSystem::GetLastGPUFrameStatistics() const
 {
-	std::lock_guard Lock(GPUStatisticsMutex);
+	std::lock_guard Lock(FrameStatisticsMutex);
 	return LastGPUFrameStatistics;
+}
+
+FInstancedDrawStatistics FRenderSystem::GetLastInstancedDrawStatistics() const
+{
+	std::lock_guard Lock(FrameStatisticsMutex);
+	return LastInstancedDrawStatistics;
 }
 
 ImTextureID FRenderSystem::StartupImGui(std::span<const uint8> FontPixels, uint32 FontWidth, uint32 FontHeight)

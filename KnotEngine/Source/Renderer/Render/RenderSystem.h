@@ -47,6 +47,7 @@ public:
 
 	ImTextureID GetImGuiTextureID(FTextureHandle Texture);
 	FGPUFrameStatistics GetLastGPUFrameStatistics() const;
+	FInstancedDrawStatistics GetLastInstancedDrawStatistics() const;
 
 	ImTextureID StartupImGui(std::span<const uint8> FontPixels, uint32 FontWidth, uint32 FontHeight);
 	void ShutdownImGui();
@@ -70,8 +71,9 @@ private:
 	uint64 CompletedRenderFrames = 0;
 	static constexpr uint64 MaxFramesInFlight = 2;
 
-	mutable std::mutex GPUStatisticsMutex;
+	mutable std::mutex FrameStatisticsMutex;
 	FGPUFrameStatistics LastGPUFrameStatistics;
+	FInstancedDrawStatistics LastInstancedDrawStatistics;
 
 	bool bStarted = false;
 };

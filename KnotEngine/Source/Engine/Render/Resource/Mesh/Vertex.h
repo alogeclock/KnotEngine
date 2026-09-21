@@ -4,6 +4,7 @@
 
 #include "Core/Math/Vector2.h"
 #include "Core/Math/Vector.h"
+#include "Core/Math/Matrix.h"
 #include "Render/RHI/VertexLayout.h"
 
 #include <type_traits>
@@ -41,3 +42,14 @@ struct ENGINE_API FStaticMeshVertex
 static_assert(std::is_standard_layout_v<FStaticMeshVertex>, "FStaticMeshVertex must have a standard layout.");
 static_assert(std::is_trivially_copyable_v<FStaticMeshVertex>, "FStaticMeshVertex must be trivially copyable.");
 static_assert(sizeof(FStaticMeshVertex) == 48, "FStaticMeshVertex size must be 48 bytes.");
+
+// 같은 Static Mesh Draw가 공유하는 객체별 World Transform이다.
+struct ENGINE_API FStaticMeshInstance
+{
+	FMatrix WorldMatrix;
+
+	static const FVertexLayout& GetVertexLayout();
+};
+static_assert(std::is_standard_layout_v<FStaticMeshInstance>, "FStaticMeshInstance must have a standard layout.");
+static_assert(std::is_trivially_copyable_v<FStaticMeshInstance>, "FStaticMeshInstance must be trivially copyable.");
+static_assert(sizeof(FStaticMeshInstance) == 64, "FStaticMeshInstance size must be 64 bytes.");

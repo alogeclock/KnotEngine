@@ -19,7 +19,9 @@ class FRenderGraph;
 class IRenderContext;
 class IRenderDevice;
 class IShaderFormat;
+
 struct FMaterialResourceCommand;
+struct FStaticMeshInstance;
 struct FStaticMeshResourceCommand;
 struct FTextureResourceCommand;
 
@@ -66,6 +68,9 @@ public:
 	IRenderDevice& GetRenderDevice() const;
 	FCommandListHandle GetCommandList() const;
 	FRenderViewport GetViewport() const;
+	FBufferHandle UploadStaticMeshInstances(std::span<const FStaticMeshInstance> Instances);
+	void AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics& Statistics);
+	const FInstancedDrawStatistics& GetInstancedDrawStatistics() const { return InstancedDrawStatistics; }
 
 private:
 	IRenderDevice& RenderDevice;
@@ -79,6 +84,9 @@ private:
 	FMaterialResource DefaultMaterialResource;
 	FTextureResource DefaultTextureResource; // 1x1 White Texture
 	FDebugDraw DebugDraw;
+	FBufferHandle StaticMeshInstanceBuffer;
+	uint32 StaticMeshInstanceBufferCapacity = 0;
+	FInstancedDrawStatistics InstancedDrawStatistics;
 
 	TMap<FAssetId, std::unique_ptr<FMaterialResource>, FAssetIdHash> MaterialResources;
 	TMap<FAssetId, std::unique_ptr<FStaticMeshResource>, FAssetIdHash> StaticMeshResources;
