@@ -2,7 +2,7 @@
 
 #include "Viewport/EditorViewportClient.h"
 
-class URenderer;
+class FRenderer;
 class UNode;
 struct FEditorSelection;
 

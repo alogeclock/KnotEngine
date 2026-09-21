@@ -14,7 +14,7 @@
 #include <span>
 
 class IRenderBackend;
-class URenderer;
+class FRenderer;
 struct RENDERER_API FViewportRenderTargets
 {
 	FSceneRenderTarget RenderTarget;
@@ -62,7 +62,7 @@ private:
 	};
 
 	std::unique_ptr<IRenderBackend> RenderBackend;
-	std::unique_ptr<URenderer> Renderer;
+	std::unique_ptr<FRenderer> Renderer;
 	FRenderThread RenderThread;
 
 	std::mutex FrameMutex;

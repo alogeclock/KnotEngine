@@ -16,7 +16,7 @@
 #include <chrono>
 #include <limits>
 
-bool FOpaquePass::ArePrimitiveCommandsCompatible(const FPrimitiveCommand& Left, const FPrimitiveCommand& Right)
+bool FOpaquePass::CanBatch(const FPrimitiveCommand& Left, const FPrimitiveCommand& Right)
 {
 	if (Left.LOD != Right.LOD)
 	{
@@ -70,7 +70,7 @@ uint64 FOpaquePass::GenerateSortKey(FPipelineStateHandle PipelineState, const FM
 	       static_cast<uint64>(MeshSortId & MeshSortMask) << 12;
 }
 
-uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSceneView& View, std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives)
+uint32 FOpaquePass::AddPass(FRenderGraph& Graph, FRenderer& Renderer, const FSceneView& View, std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives)
 {
 	const auto BatchBuildStart = std::chrono::steady_clock::now();
 	FInstancedDrawStatistics Statistics;
@@ -108,8 +108,9 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 	{
 		const FPrimitiveCommand& FirstCommand = PrimitiveCommands[FirstPrimitive];
 		SIZE_T LastPrimitive = FirstPrimitive + 1;
-		while (LastPrimitive < PrimitiveCommands.size() && FirstCommand.BatchKey == PrimitiveCommands[LastPrimitive].BatchKey &&
-			ArePrimitiveCommandsCompatible(FirstCommand, PrimitiveCommands[LastPrimitive]))
+		while (LastPrimitive < PrimitiveCommands.size() &&
+			FirstCommand.BatchKey == PrimitiveCommands[LastPrimitive].BatchKey &&
+			CanBatch(FirstCommand, PrimitiveCommands[LastPrimitive]))
 		{
 			++LastPrimitive;
 		}
@@ -205,7 +206,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSce
 }
 
 void FOpaquePass::ExecutePass(
-	URenderer& Renderer,
+	FRenderer& Renderer,
 	FCommandListHandle CommandList,
 	const FRenderViewport& Viewport,
 	const FViewConstants& ViewConstants,
@@ -232,10 +233,8 @@ void FOpaquePass::ExecutePass(
 
 	for (const FMeshDrawCommand& Command : OpaqueCommands)
 	{
-		check(Command.Material && Command.Material->IsValid());
-		const FPipelineStateHandle PipelineState = Command.bInstanced
-			? Command.Material->GetInstancedPipelineState()
-			: Command.Material->GetPipelineState();
+		verify(Command.Material && Command.Material->IsValid());
+		const FPipelineStateHandle PipelineState = Command.bInstanced ? Command.Material->GetInstancedPipelineState() : Command.Material->GetPipelineState();
 		if (CurrentPipelineState != PipelineState)
 		{
 			RenderDevice.SetPipelineState(CommandList, PipelineState);

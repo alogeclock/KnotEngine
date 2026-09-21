@@ -10,7 +10,7 @@
 
 class FMeshBuffer;
 class IRenderDevice;
-class URenderer;
+class FRenderer;
 struct FPrimitiveSceneProxy;
 struct FSceneView;
 struct FViewConstants;
@@ -21,7 +21,7 @@ class ENGINE_API FSelectionPass
 public:
 	static uint32 AddPass(
 		FRenderGraph& Graph,
-		URenderer& Renderer,
+		FRenderer& Renderer,
 		const FSceneView& View,
 		std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives,
 		FTextureHandle SelectionDepth);

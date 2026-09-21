@@ -15,7 +15,7 @@
 
 FRenderSystem::FRenderSystem()
 	: RenderBackend(CreateRenderBackend()),
-	  Renderer(std::make_unique<URenderer>(RenderBackend->GetRenderDevice(), RenderBackend->GetRenderContext(), RenderBackend->GetShaderFormat()))
+	  Renderer(std::make_unique<FRenderer>(RenderBackend->GetRenderDevice(), RenderBackend->GetRenderContext(), RenderBackend->GetShaderFormat()))
 {
 }
 

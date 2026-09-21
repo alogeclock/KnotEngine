@@ -10,7 +10,7 @@
 
 struct FMatrix;
 class FViewport;
-class URenderer;
+class FRenderer;
 class UWorld;
 
 // 메인 스레드에서 카메라와 입력을 관리하고 ViewFamily를 구성한다.

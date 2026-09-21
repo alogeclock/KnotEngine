@@ -13,7 +13,7 @@
 // 선택된 Static Mesh Section을 수집해 Selection Depth Pass를 Render Graph에 추가한다.
 uint32 FSelectionPass::AddPass(
 	FRenderGraph& Graph,
-	URenderer& Renderer,
+	FRenderer& Renderer,
 	const FSceneView& View,
 	std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives,
 	FTextureHandle SelectionDepth)

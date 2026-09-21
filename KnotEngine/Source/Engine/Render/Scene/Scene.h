@@ -5,7 +5,7 @@
 #include <memory>
 
 class UPrimitiveComponent;
-class URenderer;
+class FRenderer;
 class FSceneRenderer;
 
 enum class EPrimitiveCommandAction : uint8
@@ -38,7 +38,7 @@ public:
 	void RemovePrimitive(uint64 PrimitiveId);
 
 	TArray<FPrimitiveRenderCommand> DrainRenderCommands();
-	void ApplyRenderCommands(URenderer& Renderer, TArray<FPrimitiveRenderCommand>&& Commands);
+	void ApplyRenderCommands(FRenderer& Renderer, TArray<FPrimitiveRenderCommand>&& Commands);
 
 private:
 	friend class FSceneRenderer;

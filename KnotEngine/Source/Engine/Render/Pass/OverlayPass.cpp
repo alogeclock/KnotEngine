@@ -7,7 +7,7 @@
 
 uint32 FOverlayPass::AddPass(
 	FRenderGraph& Graph,
-	URenderer& Renderer,
+	FRenderer& Renderer,
 	const FSceneView& View,
 	const FShowFlags& ShowFlags,
 	FTextureHandle ColorTarget,

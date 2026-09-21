@@ -25,16 +25,16 @@ struct FStaticMeshInstance;
 struct FStaticMeshResourceCommand;
 struct FTextureResourceCommand;
 
-class ENGINE_API URenderer
+class ENGINE_API FRenderer
 {
 public:
-	URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat);
-	~URenderer();
+	FRenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat);
+	~FRenderer();
 
-	URenderer(const URenderer&) = delete;
-	URenderer& operator=(const URenderer&) = delete;
-	URenderer(URenderer&&) = delete;
-	URenderer& operator=(URenderer&&) = delete;
+	FRenderer(const FRenderer&) = delete;
+	FRenderer& operator=(const FRenderer&) = delete;
+	FRenderer(FRenderer&&) = delete;
+	FRenderer& operator=(FRenderer&&) = delete;
 
 	void Create(void* NativeWindowHandle);
 	void ReleaseAssetReferences();
@@ -68,6 +68,7 @@ public:
 	IRenderDevice& GetRenderDevice() const;
 	FCommandListHandle GetCommandList() const;
 	FRenderViewport GetViewport() const;
+
 	FBufferHandle UploadStaticMeshInstances(std::span<const FStaticMeshInstance> Instances);
 	void AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics& Statistics);
 	const FInstancedDrawStatistics& GetInstancedDrawStatistics() const { return InstancedDrawStatistics; }
@@ -84,7 +85,8 @@ private:
 	FMaterialResource DefaultMaterialResource;
 	FTextureResource DefaultTextureResource; // 1x1 White Texture
 	FDebugDraw DebugDraw;
-	FBufferHandle StaticMeshInstanceBuffer;
+
+	FBufferHandle StaticMeshInstanceBuffer; // 적정 크기를 할당하고 프레임마다 새로 쓰는 Dynamic Instance Buffer.
 	uint32 StaticMeshInstanceBufferCapacity = 0;
 	FInstancedDrawStatistics InstancedDrawStatistics;
 

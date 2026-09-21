@@ -5,7 +5,7 @@
 #include "World/Level.h"
 #include "Render/Scene/Scene.h"
 
-class URenderer;
+class FRenderer;
 class FMapSerializer;
 class UEditorEngine;
 

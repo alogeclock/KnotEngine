@@ -7,7 +7,7 @@
 
 class FMaterial;
 class FTextureResource;
-class URenderer;
+class FRenderer;
 class FShaderRegistry;
 struct FMaterialResourceCommand;
 
@@ -49,7 +49,7 @@ public:
 		FSamplerHandle Sampler;
 	};
 
-	bool Initialize(URenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId);
+	bool Initialize(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId);
 	void Release();
 
 	FPipelineStateHandle GetPipelineState() const { return PipelineState; }

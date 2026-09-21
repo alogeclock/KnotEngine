@@ -34,10 +34,10 @@ enum class EVertexFormat : uint8
 // 하나의 정점 Attribute가 사용하는 Semantic, Format 및 Vertex 내 Byte Offset을 정의한다.
 struct ENGINE_API FVertexElement
 {
-	EVertexSemantic Semantic;
-	EVertexFormat Format;
-	uint8 SemanticIndex;
-	uint16 Offset;
+	EVertexSemantic Semantic = EVertexSemantic::Position;
+	EVertexFormat Format = EVertexFormat::Float1;
+	uint8 SemanticIndex = 0;
+	uint16 Offset = 0;
 	uint8 InputSlot = 0;
 	EVertexInputRate InputRate = EVertexInputRate::PerVertex;
 	uint16 InstanceStepRate = 0;

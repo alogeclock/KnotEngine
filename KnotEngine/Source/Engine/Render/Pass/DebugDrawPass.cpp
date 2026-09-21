@@ -12,7 +12,7 @@
 
 uint32 FDebugDrawPass::AddPass(
 	FRenderGraph& Graph,
-	URenderer& Renderer,
+	FRenderer& Renderer,
 	const FSceneView& View,
 	std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives,
 	FTextureHandle ColorTarget,

@@ -8,7 +8,7 @@
 #include <span>
 
 class IRenderDevice;
-class URenderer;
+class FRenderer;
 struct FPrimitiveSceneProxy;
 struct FSceneView;
 struct FViewConstants;
@@ -19,7 +19,7 @@ class ENGINE_API FDebugDrawPass final
 public:
 	static uint32 AddPass(
 		FRenderGraph& Graph,
-		URenderer& Renderer,
+		FRenderer& Renderer,
 		const FSceneView& View,
 		std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives,
 		FTextureHandle ColorTarget,
@@ -49,11 +49,13 @@ private:
 		const FRenderViewport& Viewport,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);
+
 	static void DrawLines(
 		IRenderDevice& RenderDevice,
 		FCommandListHandle CommandList,
 		const FViewConstants& ViewConstants,
 		const FPassParameters& Parameters);
+
 	static void DrawShapes(
 		IRenderDevice& RenderDevice,
 		FCommandListHandle CommandList,

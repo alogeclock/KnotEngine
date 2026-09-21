@@ -10,7 +10,7 @@ class FStaticMeshResource;
 class FMaterialResource;
 struct FSceneView;
 class FScene;
-class URenderer;
+class FRenderer;
 
 // Component가 Game Thread에서 추출해 제출하는 값 복사본이다. Render Thread는 Asset UObject를 조회하지 않는다.
 struct ENGINE_API FPrimitiveRenderData
@@ -33,7 +33,7 @@ struct ENGINE_API FPrimitiveSceneProxy
 	FPrimitiveSceneProxy(const FPrimitiveSceneProxy&) = delete;
 	FPrimitiveSceneProxy& operator=(const FPrimitiveSceneProxy&) = delete;
 
-	virtual void Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, URenderer& Renderer) = 0;
+	virtual void Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, FRenderer& Renderer) = 0;
 
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;
@@ -58,7 +58,7 @@ private:
 struct ENGINE_API FStaticMeshSceneProxy final : FPrimitiveSceneProxy
 {
 	explicit FStaticMeshSceneProxy(const FPrimitiveRenderData& RenderData);
-	void Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, URenderer& Renderer) override;
+	void Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, FRenderer& Renderer) override;
 
 	FStaticMeshResource* MeshResource = nullptr; // Renderer의 Static Mesh Resource Cache가 소유한다.
 	TArray<const FMaterialResource*> Materials;

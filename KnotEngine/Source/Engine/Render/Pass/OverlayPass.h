@@ -7,7 +7,7 @@
 #include "Render/RHI/RenderTypes.h"
 
 class IRenderDevice;
-class URenderer;
+class FRenderer;
 struct FSceneView;
 struct FShowFlags;
 struct FViewConstants;
@@ -18,7 +18,7 @@ class ENGINE_API FOverlayPass
 public:
 	static uint32 AddPass(
 		FRenderGraph& Graph,
-		URenderer& Renderer,
+		FRenderer& Renderer,
 		const FSceneView& View,
 		const FShowFlags& ShowFlags,
 		FTextureHandle ColorTarget,

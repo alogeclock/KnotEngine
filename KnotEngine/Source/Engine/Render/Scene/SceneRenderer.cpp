@@ -19,7 +19,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily& InViewFamily)
 	check(ViewFamily.Scene);
 }
 
-void FSceneRenderer::Render(URenderer& Renderer)
+void FSceneRenderer::Render(FRenderer& Renderer)
 {
 	KNOT_PROFILE_SCOPE("Render", "FSceneRenderer::Render");
 

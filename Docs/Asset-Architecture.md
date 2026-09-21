@@ -98,7 +98,7 @@ FAssetManager
       ├─ FStaticMeshLOD[1..]
       └─ 전체 Local Bounds
 
-URenderer
+FRenderer
 └─ Static Mesh Resource Cache
    └─ FStaticMeshResource
 	  └─ FStaticMeshLODResource[]
@@ -130,11 +130,11 @@ UTexture
    ├─ 크기, Format과 sRGB 정보
 	└─ CPU Mip Payload
 
-URenderer
+FRenderer
 └─ Texture Resource Cache
 	└─ FTextureResource
 
-URenderer
+FRenderer
 └─ Material Resource Cache
 	└─ FMaterialResource
 	   ├─ Pipeline과 Material Constant

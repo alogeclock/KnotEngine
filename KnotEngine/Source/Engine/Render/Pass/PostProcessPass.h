@@ -6,7 +6,7 @@
 #include "Render/RHI/RenderTypes.h"
 
 class IRenderDevice;
-class URenderer;
+class FRenderer;
 
 // 선형 Scene Color에 선택 Outline을 합성하고 화면 표시용 sRGB 색으로 변환하는 전체 화면 Post Process Pass다.
 class ENGINE_API FPostProcessPass
@@ -14,7 +14,7 @@ class ENGINE_API FPostProcessPass
 public:
 	static uint32 AddPass(
 		FRenderGraph& Graph,
-		URenderer& Renderer,
+		FRenderer& Renderer,
 		FTextureHandle SceneColor,
 		FTextureHandle DisplayColor,
 		FTextureHandle SelectionDepth,

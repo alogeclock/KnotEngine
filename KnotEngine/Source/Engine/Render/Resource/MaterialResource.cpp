@@ -12,7 +12,7 @@
 
 // Material의 고정 Pipeline, 상수 및 Texture/Sampler 바인딩을 Renderer Resource로 생성한다.
 bool FMaterialResource::Initialize(
-	URenderer& Renderer,
+	FRenderer& Renderer,
 	const FMaterialResourceCommand& Command,
 	uint32 InSortId)
 {

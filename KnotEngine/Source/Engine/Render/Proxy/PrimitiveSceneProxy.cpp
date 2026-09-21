@@ -35,7 +35,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(const FPrimitiveRenderData& RenderD
 	WorldBoundsRadius = WorldBounds.IsValid() ? WorldBounds.GetExtent().Size() : 0.0f;
 }
 
-void FStaticMeshSceneProxy::Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, URenderer& Renderer)
+void FStaticMeshSceneProxy::Apply(ERenderCommandType Type, const FPrimitiveRenderData& RenderData, FRenderer& Renderer)
 {
 	ApplyPrimitiveData(Type, RenderData);
 	if (HasRenderCommand(Type, ERenderCommandType::Mesh))

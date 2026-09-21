@@ -7,7 +7,7 @@
 // Scene Color와 Selection Depth를 읽어 Outline 및 Gamma Correction 결과를 Display Color에 기록하는 Graph Pass를 등록한다.
 uint32 FPostProcessPass::AddPass(
 	FRenderGraph& Graph,
-	URenderer& Renderer,
+	FRenderer& Renderer,
 	FTextureHandle SceneColor,
 	FTextureHandle DisplayColor,
 	FTextureHandle SelectionDepth,

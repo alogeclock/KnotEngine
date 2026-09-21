@@ -8,7 +8,7 @@
 
 #include <span>
 
-class URenderer;
+class FRenderer;
 class IRenderDevice;
 class FMeshBuffer;
 class FMaterialResource;
@@ -23,7 +23,7 @@ struct FViewConstants;
 class ENGINE_API FOpaquePass
 {
 public:
-	static uint32 AddPass(FRenderGraph& Graph, URenderer& Renderer, const FSceneView& View, std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives);
+	static uint32 AddPass(FRenderGraph& Graph, FRenderer& Renderer, const FSceneView& View, std::span<const FPrimitiveSceneProxy* const> VisiblePrimitives);
 
 private:
 	struct FPrimitiveCommand
@@ -47,17 +47,17 @@ private:
 		bool bInstanced = false;
 	};
 
-	static bool ArePrimitiveCommandsCompatible(const FPrimitiveCommand& Left, const FPrimitiveCommand& Right);
-	static bool CanInstance(const FPrimitiveCommand& Command);
-	static uint64 GenerateSortKey(FPipelineStateHandle PipelineState, const FMaterialResource& Material, const FMeshBuffer& MeshBuffer);
-
 	static void ExecutePass(
-		URenderer& Renderer,
+		FRenderer& Renderer,
 		FCommandListHandle CommandList,
 		const FRenderViewport& Viewport,
 		const FViewConstants& ViewConstants,
 		const TArray<FMeshDrawCommand>& OpaqueCommands,
 		const TArray<FStaticMeshInstance>& Instances);
+
+	static bool CanBatch(const FPrimitiveCommand& Left, const FPrimitiveCommand& Right);
+	static bool CanInstance(const FPrimitiveCommand& Command);
+	static uint64 GenerateSortKey(FPipelineStateHandle PipelineState, const FMaterialResource& Material, const FMeshBuffer& MeshBuffer);
 
 	static constexpr uint32 ViewConstantsSlot = 0;
 	static constexpr uint32 DrawConstantsSlot = 3;

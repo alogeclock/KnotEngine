@@ -9,7 +9,7 @@ class UWorld;
 class UTransformComponent;
 class UComponent;
 class UClass;
-class URenderer;
+class FRenderer;
 struct FEditorSelection;
 
 // Level에 배치되는 최소 단위 객체로, Component의 합성을 통해 기능을 구현한다.

@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <limits>
 
-URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
+FRenderer::FRenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
 	: RenderDevice(InRenderDevice),
 	  RenderContext(InRenderContext),
 	  ShaderCompiler(InShaderFormat),
@@ -21,42 +21,42 @@ URenderer::URenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderCont
 {
 }
 
-URenderer::~URenderer()
+FRenderer::~FRenderer()
 {
 	Release();
 }
 
-IRenderDevice& URenderer::GetRenderDevice() const
+IRenderDevice& FRenderer::GetRenderDevice() const
 {
 	return RenderDevice;
 }
 
-FShaderRegistry& URenderer::GetShaderRegistry()
+FShaderRegistry& FRenderer::GetShaderRegistry()
 {
 	return ShaderRegistry;
 }
 
-FPipelineStateCache& URenderer::GetPipelineStateCache()
+FPipelineStateCache& FRenderer::GetPipelineStateCache()
 {
 	return PipelineStateCache;
 }
 
-FSamplerStateCache& URenderer::GetSamplerStateCache()
+FSamplerStateCache& FRenderer::GetSamplerStateCache()
 {
 	return SamplerStateCache;
 }
 
-FCommandListHandle URenderer::GetCommandList() const
+FCommandListHandle FRenderer::GetCommandList() const
 {
 	return CommandList;
 }
 
-FRenderViewport URenderer::GetViewport() const
+FRenderViewport FRenderer::GetViewport() const
 {
 	return RenderContext.GetViewport();
 }
 
-void URenderer::Create(void* NativeWindowHandle)
+void FRenderer::Create(void* NativeWindowHandle)
 {
 	Release();
 	RenderDevice.Create();
@@ -78,7 +78,7 @@ void URenderer::Create(void* NativeWindowHandle)
 	DebugDraw.Create();
 }
 
-void URenderer::Release()
+void FRenderer::Release()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Renderer를 해제할 수 없다.");
 	ReleaseAssetReferences();
@@ -95,7 +95,7 @@ void URenderer::Release()
 }
 
 // 현재 Pass가 사용하는 Static Mesh Instance를 동적 Vertex Buffer에 한 번 업로드한다.
-FBufferHandle URenderer::UploadStaticMeshInstances(std::span<const FStaticMeshInstance> Instances)
+FBufferHandle FRenderer::UploadStaticMeshInstances(std::span<const FStaticMeshInstance> Instances)
 {
 	check(!Instances.empty());
 	checkf(Instances.size() <= (std::numeric_limits<uint32>::max)() / sizeof(FStaticMeshInstance),
@@ -123,7 +123,7 @@ FBufferHandle URenderer::UploadStaticMeshInstances(std::span<const FStaticMeshIn
 	return StaticMeshInstanceBuffer;
 }
 
-void URenderer::AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics& Statistics)
+void FRenderer::AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics& Statistics)
 {
 	InstancedDrawStatistics.VisiblePrimitives += Statistics.VisiblePrimitives;
 	InstancedDrawStatistics.InstancedPrimitives += Statistics.InstancedPrimitives;
@@ -134,7 +134,7 @@ void URenderer::AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics
 	InstancedDrawStatistics.InstanceUploadTimeMs += Statistics.InstanceUploadTimeMs;
 }
 
-void URenderer::ReleaseAssetReferences()
+void FRenderer::ReleaseAssetReferences()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Asset 참조를 해제할 수 없다.");
 	MaterialResources.clear();
@@ -142,7 +142,7 @@ void URenderer::ReleaseAssetReferences()
 	StaticMeshResources.clear();
 }
 
-void URenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
+void FRenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
 {
 	check(Command.AssetId.IsValid() && Command.Revision != 0);
 	std::unique_ptr<FTextureResource>& Resource = TextureResources[Command.AssetId];
@@ -165,7 +165,7 @@ void URenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
 	       "Texture Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
 }
 
-void URenderer::UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command)
+void FRenderer::UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command)
 {
 	check(Command.AssetId.IsValid() && Command.Revision != 0);
 	std::unique_ptr<FStaticMeshResource>& Resource = StaticMeshResources[Command.AssetId];
@@ -180,7 +180,7 @@ void URenderer::UpdateStaticMeshResource(const FStaticMeshResourceCommand& Comma
 	}
 }
 
-void URenderer::UpdateMaterialResource(const FMaterialResourceCommand& Command)
+void FRenderer::UpdateMaterialResource(const FMaterialResourceCommand& Command)
 {
 	check(Command.AssetId.IsValid() && Command.Revision != 0);
 	std::unique_ptr<FMaterialResource>& Resource = MaterialResources[Command.AssetId];
@@ -196,33 +196,33 @@ void URenderer::UpdateMaterialResource(const FMaterialResourceCommand& Command)
 	}
 }
 
-FTextureResource* URenderer::FindTextureResource(const FAssetId& AssetId) const
+FTextureResource* FRenderer::FindTextureResource(const FAssetId& AssetId) const
 {
 	const auto Iterator = TextureResources.find(AssetId);
 	return Iterator != TextureResources.end() ? Iterator->second.get() : nullptr;
 }
 
-FStaticMeshResource* URenderer::FindStaticMeshResource(const FAssetId& AssetId) const
+FStaticMeshResource* FRenderer::FindStaticMeshResource(const FAssetId& AssetId) const
 {
 	const auto Iterator = StaticMeshResources.find(AssetId);
 	return Iterator != StaticMeshResources.end() ? Iterator->second.get() : nullptr;
 }
 
-FMaterialResource* URenderer::FindMaterialResource(const FAssetId& AssetId) const
+FMaterialResource* FRenderer::FindMaterialResource(const FAssetId& AssetId) const
 {
 	const auto Iterator = MaterialResources.find(AssetId);
 	return Iterator != MaterialResources.end() ? Iterator->second.get() : nullptr;
 }
 
-void URenderer::Resize(uint32 Width, uint32 Height)
+void FRenderer::Resize(uint32 Width, uint32 Height)
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Render Context 크기를 변경할 수 없다.");
 	RenderContext.Resize(Width, Height);
 }
 
-void URenderer::BeginFrame()
+void FRenderer::BeginFrame()
 {
-	KNOT_PROFILE_SCOPE("Render", "URenderer::BeginFrame");
+	KNOT_PROFILE_SCOPE("Render", "FRenderer::BeginFrame");
 
 	checkf(!CommandList.IsValid(), "Renderer Frame이 이미 시작되었다.");
 	InstancedDrawStatistics = {};
@@ -231,9 +231,9 @@ void URenderer::BeginFrame()
 	RenderContext.BeginFrame(CommandList);
 }
 
-void URenderer::EndFrame()
+void FRenderer::EndFrame()
 {
-	KNOT_PROFILE_SCOPE("Render", "URenderer::EndFrame");
+	KNOT_PROFILE_SCOPE("Render", "FRenderer::EndFrame");
 
 	checkf(CommandList.IsValid(), "Renderer Frame이 시작되지 않았다.");
 	RenderContext.EndFrame(CommandList);
@@ -244,14 +244,14 @@ void URenderer::EndFrame()
 	DebugDraw.Reset();
 }
 
-void URenderer::Execute(FRenderGraph& RenderGraph)
+void FRenderer::Execute(FRenderGraph& RenderGraph)
 {
 	check(CommandList.IsValid());
 	RenderGraph.Execute();
 }
 
 // World를 offscreen Color/Depth Target에 렌더링하도록 출력 대상과 Viewport를 설정하고 이전 프레임의 내용을 초기화한다.
-void URenderer::BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport)
+void FRenderer::BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle DepthTarget, const FRenderViewport& Viewport)
 {
 	check(CommandList.IsValid());
 	static constexpr float ViewportClearColor[4] = { 0.035f, 0.04f, 0.05f, 1.0f };
@@ -262,7 +262,7 @@ void URenderer::BeginRenderTarget(FTextureHandle ColorTarget, FTextureHandle Dep
 }
 
 // Offscreen RTV 바인딩을 끝내고 Back Buffer를 복구하여 이후 ImGui가 Color Target의 SRV를 화면에 렌더링할 수 있게 한다.
-void URenderer::EndRenderTarget()
+void FRenderer::EndRenderTarget()
 {
 	check(CommandList.IsValid());
 	RenderContext.BindBackBuffer(CommandList);

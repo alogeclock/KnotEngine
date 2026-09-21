@@ -61,7 +61,7 @@ TArray<FPrimitiveRenderCommand> FScene::DrainRenderCommands()
 }
 
 // Render Thread의 프레임 시작 시 FIFO 명령을 적용한다.
-void FScene::ApplyRenderCommands(URenderer& Renderer, TArray<FPrimitiveRenderCommand>&& Commands)
+void FScene::ApplyRenderCommands(FRenderer& Renderer, TArray<FPrimitiveRenderCommand>&& Commands)
 {
 	for (FPrimitiveRenderCommand& Command : Commands)
 	{

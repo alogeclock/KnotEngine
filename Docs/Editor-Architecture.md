@@ -26,7 +26,7 @@ FWindowsApplication
         ↓
 UEditorEngine
 ├─ Editor WorldContext
-├─ URenderer
+├─ FRenderer
 ├─ FAssetRegistry
 ├─ FInputRouter
 ├─ FEditorViewportClient 목록
