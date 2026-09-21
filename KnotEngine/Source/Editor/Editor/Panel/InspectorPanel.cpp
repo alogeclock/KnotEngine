@@ -1,4 +1,4 @@
-#include "Editor/Panels/InspectorPanel.h"
+#include "Editor/Panel/InspectorPanel.h"
 
 #include "Asset/AssetRegistry.h"
 #include "Asset/AssetManager.h"

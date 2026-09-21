@@ -1,10 +1,9 @@
 #pragma once
 
 #include "Asset/Asset/AssetId.h"
+#include "Editor/Widget/ViewportWidget.h"
 #include "Viewport/Asset/AssetEditorViewportClient.h"
-#include "Viewport/Viewport.h"
 
-class FInputRouter;
 class FRenderSystem;
 class FViewportToolbar;
 class UAsset;
@@ -15,19 +14,14 @@ class UWorld;
 class FAssetEditor
 {
 public:
-	FAssetEditor(
-		UEditorEngine& InEditorEngine,
-		FRenderSystem& InRenderSystem,
-		FInputRouter& InInputRouter,
-		FViewportToolbar& InViewportToolbar,
-		UAsset& InAsset);
+	FAssetEditor(UEditorEngine& InEditorEngine, UAsset& InAsset);
 	virtual ~FAssetEditor();
 
 	FAssetEditor(const FAssetEditor&) = delete;
 	FAssetEditor& operator=(const FAssetEditor&) = delete;
 
 	void Startup();
-	void Draw(float DeltaTime);
+	void Draw(float DeltaTime, FViewportToolbar& ViewportToolbar);
 	void Release();
 
 	const FAssetId& GetAssetId() const { return AssetId; }
@@ -49,20 +43,17 @@ protected:
 	FAssetEditorViewportClient& GetAssetViewportClient() { return ViewportClient; }
 
 private:
-	void DrawToolbar();
-	void DrawViewport();
+	void DrawToolbar(FViewportToolbar& ViewportToolbar);
 
 	UEditorEngine& EditorEngine;
 	FRenderSystem& RenderSystem;
-	FInputRouter& InputRouter;
-	FViewportToolbar& ViewportToolbar;
 	UAsset& Asset;
 
 	FAssetId AssetId;
 	FString WindowName;
 	uint64 PreviewWorldContextId = 0;
 
-	FViewport Viewport;
+	FViewportWidget ViewportWidget;
 	FAssetEditorViewportClient ViewportClient;
 
 	bool bOpen = true;

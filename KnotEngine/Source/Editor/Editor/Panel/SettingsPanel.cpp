@@ -1,6 +1,6 @@
-#include "Editor/Panels/SettingsPanel.h"
+#include "Editor/Panel/SettingsPanel.h"
 
-#include "Editor/Settings/EditorSettings.h"
+#include "Editor/Setting/EditorSettings.h"
 
 #include <algorithm>
 #include <imgui.h>

@@ -5,7 +5,7 @@
 #include "Asset/AssetRegistry.h"
 #include "Input/InputRouter.h"
 #include "Editor/ImGuiSystem.h"
-#include "Editor/Settings/EditorSettings.h"
+#include "Editor/Setting/EditorSettings.h"
 
 #include <filesystem>
 
@@ -39,8 +39,11 @@ public:
 	bool SaveLevel(const std::filesystem::path& FilePath = {});
 
 	UWorld* GetWorld() const override { return FindWorld(EditorContextId); }
+	FRenderSystem& GetRenderSystem() { return RenderSystem; }
+	FAssetImportManager& GetAssetImportManager() { return AssetImportManager; }
+	FInputRouter& GetInputRouter() { return InputRouter; }
 	FEditorSelection& GetEditorSelection() { return EditorSelection; }
-	const FEditorSelection& GetEditorSelection() const { return EditorSelection; }
+	FEditorSettings& GetEditorSettings() { return EditorSettings; }
 
 private:
 	void ProcessAssetImports();

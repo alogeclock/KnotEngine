@@ -61,7 +61,11 @@ KnotEngine/Source/Editor/
 ├─ Runtime/       Editor 시작, 종료와 프레임 조율
 ├─ Asset/         Content 스캔과 Editor Asset 메타데이터
 ├─ Input/         Editor 입력 대상과 소유권 라우팅
-├─ ImGui/         DockSpace, Panel, Selection과 Overlay
+├─ Editor/        DockSpace, Asset Editor와 UI 구성
+│  ├─ Panel/      독립 Editor 창
+│  ├─ Widget/     Viewport와 Overlay 등 재사용하는 UI 조각
+│  ├─ Toolbar/    공유 Toolbar
+│  └─ Setting/    Editor 설정 데이터
 └─ Viewport/      Viewport surface, Camera와 ViewportClient
 ```
 
@@ -72,17 +76,21 @@ KnotEngine/Source/Editor/
 | Panel | 한 Editor 창의 상태와 표시 | 다른 Panel의 수명 관리 |
 | `FEditorSelection` | Panel이 공유하는 현재 선택 | 선택 객체의 소유권 |
 | `FInputRouter` | Viewport 등 Engine 입력 대상 선택 | ImGui 위젯 처리, Win32 입력 수집 |
+| `FViewportWidget` | Viewport surface 표시와 이미지 영역의 입력 등록 | Camera와 World 선택 정책 |
 | `FViewport` | offscreen 출력 surface와 크기 | Camera와 World 선택 정책 |
 | `FEditorViewportClient` | Camera 입력, View와 ViewFamily 구성 | Panel layout과 ImGui 렌더링 |
 
 ## 소유권과 수명
 
-`UEditorEngine`은 Renderer, Input Router와 ImGui System을 소유한다. Editor World는 `UEngine`의 WorldContext를 통해 관리한다.
+`UEditorEngine`은 Renderer를 참조하고 Input Router와 ImGui System을 소유한다. Editor World는 `UEngine`의 WorldContext를 통해 관리한다.
 
-`FImGuiSystem`은 Selection과 concrete Panel을 소유한다. Viewport Panel은 Viewport surface와 concrete ViewportClient를 소유하며, `UEditorEngine`은 등록된 ViewportClient를 non-owning 목록으로 순회한다.
+`FImGuiSystem`은 공유 Viewport Toolbar와 concrete Panel을 소유한다. Level Viewport Panel과 Asset Editor는 각각 `FViewportWidget`과 concrete ViewportClient를 소유하며, `UEditorEngine`은 등록된 ViewportClient를 non-owning 목록으로 순회한다. Selection은 `UEditorEngine`이 소유하고 필요한 Panel에 참조로 전달한다.
 
 ```text
-FImGuiSystem / Viewport Panel
+FImGuiSystem
+├─ 공유 Viewport Toolbar
+└─ Viewport Panel / Asset Editor
+        ├─ FViewportWidget
         └─ ViewportClient 실제 소유
                 ↓ register / unregister
 UEditorEngine

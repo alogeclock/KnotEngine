@@ -4,13 +4,14 @@
 #include "Render/ImGui/ImGuiDrawDataCopy.h"
 #include "Editor/EditorSelection.h"
 #include "Input/InputRouter.h"
-#include "Editor/Panels/ConsolePanel.h"
-#include "Editor/Panels/ContentPanel.h"
-#include "Editor/Panels/HierarchyPanel.h"
-#include "Editor/Panels/InspectorPanel.h"
-#include "Editor/Panels/ProfilePanel.h"
-#include "Editor/Panels/SettingsPanel.h"
-#include "Editor/Panels/ViewportPanel.h"
+#include "Editor/Panel/ConsolePanel.h"
+#include "Editor/Panel/ContentPanel.h"
+#include "Editor/Panel/HierarchyPanel.h"
+#include "Editor/Panel/InspectorPanel.h"
+#include "Editor/Panel/ProfilePanel.h"
+#include "Editor/Panel/SettingsPanel.h"
+#include "Editor/Panel/ViewportPanel.h"
+#include "Editor/Toolbar/ViewportToolbar.h"
 
 #include <Windows.h>
 #include <cstdint>
@@ -31,15 +32,7 @@ class FWindowsApplication;
 class FImGuiSystem : public IInputTarget
 {
 public:
-	FImGuiSystem(
-		FWindowsApplication& InApplication,
-		UEditorEngine& InEditorEngine,
-		FAssetRegistry& InAssetRegistry,
-		FAssetImportManager& InAssetImportManager,
-		FEditorSettings& InEditorSettings,
-		FRenderSystem& InRenderSystem,
-		FInputRouter& InInputRouter,
-		FEditorSelection& InSelection);
+	FImGuiSystem(FWindowsApplication& InApplication, UEditorEngine& InEditorEngine);
 	~FImGuiSystem();
 
 	void Startup();
@@ -75,6 +68,7 @@ private:
 	FImGuiDrawDataCopy DrawData;
 
 	FViewportStatState ViewportStatState;
+	FViewportToolbar ViewportToolbar;
 
 	FHierarchyPanel HierarchyPanel;
 	FInspectorPanel InspectorPanel;
@@ -94,7 +88,6 @@ private:
 	bool bShowConsole = false;
 	bool bShowContent = false;
 
-	bool bFocusConsoleRequested = false;
 	bool bFocusContentRequested = false;
 	bool bLoadLevelDialogRequested = false;
 	bool bSaveLevelDialogRequested = false;

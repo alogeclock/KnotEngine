@@ -1,4 +1,4 @@
-#include "Editor/Settings/EditorSettings.h"
+#include "Editor/Setting/EditorSettings.h"
 
 #include "Core/IO/Paths.h"
 

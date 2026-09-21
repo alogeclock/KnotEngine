@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Editor/Overlays/ViewportStatOverlay.h"
-#include "Editor/Toolbar/ViewportToolbar.h"
+#include "Editor/Widget/ViewportOverlayWidget.h"
+#include "Editor/Widget/ViewportWidget.h"
 #include "Viewport/Level/LevelEditorViewportClient.h"
-#include "Viewport/Viewport.h"
 
 class FInputRouter;
 class FRenderSystem;
+class FViewportToolbar;
 struct FEditorSelection;
 
 // ViewportPanel은 Level Editor의 Viewport를 ImGui Window로 감싸서 렌더링하고, InputRouter에 ViewportClient를 등록한다.
@@ -20,19 +20,12 @@ public:
 		FEditorSelection& InSelection);
 	~FViewportPanel();
 
-	void Startup();
-	void Draw(bool bVisible, float DeltaTime);
+	void Draw(bool bVisible, float DeltaTime, FViewportToolbar& Toolbar);
 	void Release();
 	FLevelEditorViewportClient& GetViewportClient() { return ViewportClient; }
-	FViewportToolbar& GetToolbar() { return Toolbar; }
 
 private:
-	void DrawViewport();
-
-	FViewport Viewport;
+	FViewportWidget ViewportWidget;
 	FLevelEditorViewportClient ViewportClient;
-	FViewportStatOverlay StatOverlay;
-	FViewportToolbar Toolbar;
-	
-	FInputRouter& InputRouter;
+	FViewportOverlayWidget ViewportOverlayWidget;
 };

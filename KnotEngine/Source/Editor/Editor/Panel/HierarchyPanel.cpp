@@ -1,4 +1,4 @@
-#include "Editor/Panels/HierarchyPanel.h"
+#include "Editor/Panel/HierarchyPanel.h"
 
 #include "Component/Component.h"
 #include "Editor/EditorSelection.h"

@@ -10,13 +10,8 @@
 
 #include <imgui.h>
 
-FMaterialEditor::FMaterialEditor(
-	UEditorEngine& InEditorEngine,
-	FRenderSystem& InRenderSystem,
-	FInputRouter& InInputRouter,
-	FViewportToolbar& InViewportToolbar,
-	UMaterial& InMaterial)
-	: FAssetEditor(InEditorEngine, InRenderSystem, InInputRouter, InViewportToolbar, InMaterial), Material(InMaterial)
+FMaterialEditor::FMaterialEditor(UEditorEngine& InEditorEngine, UMaterial& InMaterial)
+	: FAssetEditor(InEditorEngine, InMaterial), Material(InMaterial)
 {
 }
 

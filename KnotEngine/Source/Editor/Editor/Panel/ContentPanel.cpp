@@ -1,4 +1,4 @@
-#include "Editor/Panels/ContentPanel.h"
+#include "Editor/Panel/ContentPanel.h"
 
 #include "Asset/AssetImportManager.h"
 #include "Core/IO/Paths.h"

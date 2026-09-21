@@ -1,4 +1,4 @@
-#include "Editor/Panels/ProfilePanel.h"
+#include "Editor/Panel/ProfilePanel.h"
 
 #include "Render/RenderSystem.h"
 

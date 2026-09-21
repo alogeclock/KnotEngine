@@ -11,13 +11,8 @@
 #include <algorithm>
 #include <imgui.h>
 
-FStaticMeshEditor::FStaticMeshEditor(
-	UEditorEngine& InEditorEngine,
-	FRenderSystem& InRenderSystem,
-	FInputRouter& InInputRouter,
-	FViewportToolbar& InViewportToolbar,
-	UStaticMesh& InStaticMesh)
-	: FAssetEditor(InEditorEngine, InRenderSystem, InInputRouter, InViewportToolbar, InStaticMesh), StaticMesh(InStaticMesh)
+FStaticMeshEditor::FStaticMeshEditor(UEditorEngine& InEditorEngine, UStaticMesh& InStaticMesh)
+	: FAssetEditor(InEditorEngine, InStaticMesh), StaticMesh(InStaticMesh)
 {
 }
 

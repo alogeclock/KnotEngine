@@ -10,12 +10,7 @@ class UWorld;
 class FStaticMeshEditor final : public FAssetEditor
 {
 public:
-	FStaticMeshEditor(
-		UEditorEngine& InEditorEngine,
-		FRenderSystem& InRenderSystem,
-		FInputRouter& InInputRouter,
-		FViewportToolbar& InViewportToolbar,
-		UStaticMesh& InStaticMesh);
+	FStaticMeshEditor(UEditorEngine& InEditorEngine, UStaticMesh& InStaticMesh);
 
 protected:
 	const char* GetEditorTypeName() const override { return "Static Mesh Editor"; }

@@ -1,17 +1,17 @@
-#include "Editor/Overlays/ViewportStatOverlay.h"
+#include "Editor/Widget/ViewportOverlayWidget.h"
 
 #include "Core/Memory/Memory.h"
 
 #include <imgui.h>
 
 // 공유 표시 상태를 참조하도록 Viewport 통계 오버레이를 구성한다.
-FViewportStatOverlay::FViewportStatOverlay(const FViewportStatState& InState)
+FViewportOverlayWidget::FViewportOverlayWidget(const FViewportStatState& InState)
 	: State(InState)
 {
 }
 
 // 짧은 프레임 구간을 누적하여 안정적인 FPS와 평균 frame time을 갱신한다.
-void FViewportStatOverlay::Tick(float DeltaTime)
+void FViewportOverlayWidget::Tick(float DeltaTime)
 {
 	if (DeltaTime <= 0.0f)
 	{
@@ -31,7 +31,7 @@ void FViewportStatOverlay::Tick(float DeltaTime)
 }
 
 // 직전에 그린 Viewport 이미지의 왼쪽 위에 활성화된 통계를 반투명 창으로 표시한다.
-void FViewportStatOverlay::Draw() const
+void FViewportOverlayWidget::Draw() const
 {
 	if (!State.bShowFPS && !State.bShowMemory)
 	{

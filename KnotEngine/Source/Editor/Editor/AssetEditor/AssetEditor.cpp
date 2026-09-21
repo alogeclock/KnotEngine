@@ -1,24 +1,17 @@
 #include "Editor/AssetEditor/AssetEditor.h"
 
 #include "Asset/Asset/Asset.h"
-#include "Input/InputRouter.h"
 #include "Render/RenderSystem.h"
 #include "Runtime/EditorEngine.h"
 #include "Editor/Toolbar/ViewportToolbar.h"
 #include "World/World.h"
 
 #include <algorithm>
-#include <cmath>
 #include <imgui.h>
 
-FAssetEditor::FAssetEditor(
-	UEditorEngine& InEditorEngine,
-	FRenderSystem& InRenderSystem,
-	FInputRouter& InInputRouter,
-	FViewportToolbar& InViewportToolbar,
-	UAsset& InAsset)
-	: EditorEngine(InEditorEngine), RenderSystem(InRenderSystem), InputRouter(InInputRouter), ViewportToolbar(InViewportToolbar), Asset(InAsset),
-	  AssetId(InAsset.GetAssetId()), Viewport(InRenderSystem), ViewportClient(Viewport)
+FAssetEditor::FAssetEditor(UEditorEngine& InEditorEngine, UAsset& InAsset)
+	: EditorEngine(InEditorEngine), RenderSystem(InEditorEngine.GetRenderSystem()), Asset(InAsset), AssetId(InAsset.GetAssetId()),
+	  ViewportWidget(RenderSystem, InEditorEngine.GetInputRouter()), ViewportClient(ViewportWidget.GetViewport())
 {
 }
 
@@ -47,7 +40,7 @@ void FAssetEditor::Startup()
 }
 
 // 공통 Toolbar, Preview Viewport와 Asset별 Details를 하나의 동적 Document Panel에 배치한다.
-void FAssetEditor::Draw(float DeltaTime)
+void FAssetEditor::Draw(float DeltaTime, FViewportToolbar& ViewportToolbar)
 {
 	(void)DeltaTime;
 	check(bStarted);
@@ -60,8 +53,7 @@ void FAssetEditor::Draw(float DeltaTime)
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	if (!ImGui::Begin(WindowName.c_str(), &bOpen))
 	{
-		InputRouter.UnregisterTarget(ViewportClient);
-		Viewport.Release();
+		ViewportWidget.Release(ViewportClient);
 		ImGui::End();
 		ImGui::PopStyleVar();
 		return;
@@ -70,8 +62,8 @@ void FAssetEditor::Draw(float DeltaTime)
 	const float DetailsWidth = std::clamp(ImGui::GetContentRegionAvail().x * 0.28f, 280.0f, 420.0f);
 	if (ImGui::BeginChild("##AssetViewport", ImVec2(-DetailsWidth, 0.0f), ImGuiChildFlags_Borders))
 	{
-		DrawToolbar();
-		DrawViewport();
+		DrawToolbar(ViewportToolbar);
+		ViewportWidget.Draw(ViewportClient);
 	}
 	ImGui::EndChild();
 	ImGui::SameLine(0.0f, 0.0f);
@@ -95,7 +87,7 @@ void FAssetEditor::Release()
 		return;
 	}
 
-	InputRouter.UnregisterTarget(ViewportClient);
+	ViewportWidget.Release(ViewportClient);
 	EditorEngine.UnregisterViewportClient(ViewportClient);
 	DestroyPreviewContent();
 	if (UWorld* PreviewWorld = GetPreviewWorld())
@@ -106,7 +98,6 @@ void FAssetEditor::Release()
 	ViewportClient.SetWorld(nullptr);
 	EditorEngine.DestroyWorldContext(PreviewWorldContextId);
 	PreviewWorldContextId = 0;
-	Viewport.Release();
 	bStarted = false;
 }
 
@@ -115,7 +106,7 @@ UWorld* FAssetEditor::GetPreviewWorld() const
 	return PreviewWorldContextId != 0 ? EditorEngine.FindWorld(PreviewWorldContextId) : nullptr;
 }
 
-void FAssetEditor::DrawToolbar()
+void FAssetEditor::DrawToolbar(FViewportToolbar& ViewportToolbar)
 {
 	ViewportToolbar.Draw(ViewportClient, [this]
 	{
@@ -125,36 +116,4 @@ void FAssetEditor::DrawToolbar()
 		ImGui::SameLine();
 		DrawAssetToolbar();
 	});
-}
-
-void FAssetEditor::DrawViewport()
-{
-	const ImVec2 ImageSize = ImGui::GetContentRegionAvail();
-	if (ImageSize.x <= 0.0f || ImageSize.y <= 0.0f)
-	{
-		InputRouter.UnregisterTarget(ViewportClient);
-		Viewport.Release();
-		return;
-	}
-
-	const ImVec2 FramebufferScale = ImGui::GetIO().DisplayFramebufferScale;
-	const uint32 Width = static_cast<uint32>(std::lround(ImageSize.x * FramebufferScale.x));
-	const uint32 Height = static_cast<uint32>(std::lround(ImageSize.y * FramebufferScale.y));
-	if (Width == 0 || Height == 0)
-	{
-		InputRouter.UnregisterTarget(ViewportClient);
-		Viewport.Release();
-		return;
-	}
-
-	Viewport.Resize(Width, Height);
-	if (!Viewport.IsValid())
-	{
-		return;
-	}
-
-	ImGui::Image(ImTextureRef(Viewport.GetDisplayTextureId()), ImageSize);
-	const ImVec2 ImagePosition = ImGui::GetItemRectMin();
-	ViewportClient.SetInputRect(FVector2(ImagePosition.x, ImagePosition.y), FVector2(ImageSize.x, ImageSize.y));
-	InputRouter.RegisterTarget(ViewportClient, ImGui::IsItemHovered(), ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows));
 }

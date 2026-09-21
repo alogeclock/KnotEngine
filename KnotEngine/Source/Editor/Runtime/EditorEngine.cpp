@@ -17,7 +17,7 @@
 
 UEditorEngine::UEditorEngine(FWindowsApplication& Application, FRenderSystem& InRenderSystem)
     : RenderSystem(InRenderSystem),
-      ImGuiSystem(Application, *this, GetAssetManager().GetAssetRegistry(), AssetImportManager, EditorSettings, InRenderSystem, InputRouter, EditorSelection)
+      ImGuiSystem(Application, *this)
 {
 }
 

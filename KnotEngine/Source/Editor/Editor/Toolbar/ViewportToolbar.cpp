@@ -14,7 +14,7 @@
 #include <wrl/client.h>
 
 FViewportToolbar::FViewportToolbar(FRenderSystem& InRenderSystem)
-	: RenderSystem(InRenderSystem)
+    : RenderSystem(InRenderSystem)
 {
 }
 
@@ -34,11 +34,11 @@ void FViewportToolbar::Startup()
 		Microsoft::WRL::ComPtr<IWICFormatConverter> Converter;
 		const std::filesystem::path FilePath = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icon/ViewportViewModes.png";
 		if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&Factory))) &&
-			SUCCEEDED(Factory->CreateDecoderFromFilename(FilePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &Decoder)) &&
-			SUCCEEDED(Decoder->GetFrame(0, &Frame)) && SUCCEEDED(Factory->CreateBitmapScaler(&Scaler)) &&
-			SUCCEEDED(Scaler->Initialize(Frame.Get(), AtlasWidth, AtlasHeight, WICBitmapInterpolationModeFant)) &&
-			SUCCEEDED(Factory->CreateFormatConverter(&Converter)) &&
-			SUCCEEDED(Converter->Initialize(Scaler.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0f, WICBitmapPaletteTypeCustom)))
+		    SUCCEEDED(Factory->CreateDecoderFromFilename(FilePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &Decoder)) &&
+		    SUCCEEDED(Decoder->GetFrame(0, &Frame)) && SUCCEEDED(Factory->CreateBitmapScaler(&Scaler)) &&
+		    SUCCEEDED(Scaler->Initialize(Frame.Get(), AtlasWidth, AtlasHeight, WICBitmapInterpolationModeFant)) &&
+		    SUCCEEDED(Factory->CreateFormatConverter(&Converter)) &&
+		    SUCCEEDED(Converter->Initialize(Scaler.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0f, WICBitmapPaletteTypeCustom)))
 		{
 			bDecoded = SUCCEEDED(Converter->CopyPixels(nullptr, AtlasWidth * 4, static_cast<UINT>(Pixels.size()), Pixels.data()));
 		}
@@ -125,12 +125,7 @@ void FViewportToolbar::Draw(FEditorViewportClient& ViewportClient, const std::fu
 				const ImGuiStyle& Style = ImGui::GetStyle();
 				const float ResetButtonWidth = ImGui::CalcTextSize("Reset").x + Style.FramePadding.x * 2.0f;
 				ImGui::SetNextItemWidth(-ResetButtonWidth - Style.ItemSpacing.x);
-				ImGui::SliderFloat(
-					"##CameraSensitivity",
-					&Camera.Sensitivity,
-					FEditorViewportClient::MinCameraSensitivity,
-					FEditorViewportClient::MaxCameraSensitivity,
-					"%.1f");
+				ImGui::SliderFloat("##CameraSensitivity", &Camera.Sensitivity, FEditorViewportClient::MinCameraSensitivity, FEditorViewportClient::MaxCameraSensitivity, "%.1f");
 				ImGui::SameLine();
 				if (ImGui::Button("Reset"))
 				{

@@ -10,10 +10,10 @@ struct FViewportStatState
 };
 
 // Viewport 위에 표시할 FPS를 집계하고 활성화된 통계를 반투명 창으로 그린다.
-class FViewportStatOverlay
+class FViewportOverlayWidget
 {
 public:
-	explicit FViewportStatOverlay(const FViewportStatState& InState);
+	explicit FViewportOverlayWidget(const FViewportStatState& InState);
 
 	void Tick(float DeltaTime);
 	void Draw() const;

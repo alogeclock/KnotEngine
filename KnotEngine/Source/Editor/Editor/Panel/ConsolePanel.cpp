@@ -1,6 +1,6 @@
-#include "Editor/Panels/ConsolePanel.h"
+#include "Editor/Panel/ConsolePanel.h"
 
-#include "Editor/Overlays/ViewportStatOverlay.h"
+#include "Editor/Widget/ViewportOverlayWidget.h"
 
 #include <algorithm>
 #include <cctype>
@@ -42,6 +42,10 @@ void FConsolePanel::Shutdown()
 // 도구 모음과 로그 영역 및 명령 입력창을 순서대로 그린다.
 void FConsolePanel::Draw()
 {
+	if (bFocusCommandInput)
+	{
+		ImGui::SetNextWindowFocus();
+	}
 	if (!ImGui::Begin("Console"))
 	{
 		ImGui::End();

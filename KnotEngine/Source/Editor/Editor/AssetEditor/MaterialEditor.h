@@ -10,12 +10,7 @@ class UWorld;
 class FMaterialEditor final : public FAssetEditor
 {
 public:
-	FMaterialEditor(
-		UEditorEngine& InEditorEngine,
-		FRenderSystem& InRenderSystem,
-		FInputRouter& InInputRouter,
-		FViewportToolbar& InViewportToolbar,
-		UMaterial& InMaterial);
+	FMaterialEditor(UEditorEngine& InEditorEngine, UMaterial& InMaterial);
 
 protected:
 	const char* GetEditorTypeName() const override { return "Material Editor"; }

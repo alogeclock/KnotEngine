@@ -6,7 +6,7 @@
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Editor/EditorFileUtils.h"
-#include "Editor/Settings/EditorSettings.h"
+#include "Editor/Setting/EditorSettings.h"
 #include "Editor/AssetEditor/AssetEditor.h"
 #include "Editor/AssetEditor/MaterialEditor.h"
 #include "Editor/AssetEditor/StaticMeshEditor.h"
@@ -30,22 +30,15 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
-FImGuiSystem::FImGuiSystem(
-    FWindowsApplication& InApplication,
-    UEditorEngine& InEditorEngine,
-    FAssetRegistry& InAssetRegistry,
-    FAssetImportManager& InAssetImportManager,
-    FEditorSettings& InEditorSettings,
-    FRenderSystem& InRenderSystem,
-    FInputRouter& InInputRouter,
-    FEditorSelection& InSelection)
-    : Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InAssetImportManager),
-      RenderSystem(InRenderSystem), InputRouter(InInputRouter), Selection(InSelection),
-      InspectorPanel(InAssetRegistry), ViewportPanel(InRenderSystem, InInputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
-      ContentPanel(InAssetRegistry, InAssetImportManager, InRenderSystem), SettingsPanel(InEditorSettings)
+FImGuiSystem::FImGuiSystem(FWindowsApplication& InApplication, UEditorEngine& InEditorEngine)
+	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InEditorEngine.GetAssetImportManager()),
+	  RenderSystem(InEditorEngine.GetRenderSystem()), InputRouter(InEditorEngine.GetInputRouter()), Selection(InEditorEngine.GetEditorSelection()),
+	  ViewportToolbar(RenderSystem), InspectorPanel(InEditorEngine.GetAssetManager().GetAssetRegistry()),
+	  ViewportPanel(RenderSystem, InputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
+	  ContentPanel(InEditorEngine.GetAssetManager().GetAssetRegistry(), AssetImportManager, RenderSystem), SettingsPanel(InEditorEngine.GetEditorSettings())
 #if KNOT_CPU_PROFILER_ENABLED
       ,
-      ProfilePanel(InRenderSystem)
+	  ProfilePanel(RenderSystem)
 #endif
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
@@ -116,7 +109,7 @@ void FImGuiSystem::Startup()
 	IO.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 	ConsolePanel.Startup();
 	ContentPanel.Startup();
-	ViewportPanel.Startup();
+	ViewportToolbar.Startup();
 	bStarted = true;
 	Application.SetMessageHandler(ImGui_ImplWin32_WndProcHandler);
 }
@@ -157,7 +150,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	{
 		InspectorPanel.Draw(Selection);
 	}
-	ViewportPanel.Draw(bShowViewport, DeltaTime);
+	ViewportPanel.Draw(bShowViewport, DeltaTime, ViewportToolbar);
 	DrawBottomPanelDockspace();
 	if (bShowContent)
 	{
@@ -175,11 +168,6 @@ void FImGuiSystem::Draw(float DeltaTime)
 	if (bShowConsole)
 	{
 		ConsolePanel.Draw();
-		if (bFocusConsoleRequested)
-		{
-			ImGui::SetWindowFocus("Console");
-			bFocusConsoleRequested = false;
-		}
 	}
 #if KNOT_CPU_PROFILER_ENABLED
 	if (bShowProfile)
@@ -221,20 +209,10 @@ void FImGuiSystem::OpenAssetEditor(const FAssetId& AssetId)
 	switch (Asset->GetAssetType())
 	{
 	case EAssetType::StaticMesh:
-		Editor = std::make_unique<FStaticMeshEditor>(
-			EditorEngine,
-			RenderSystem,
-			InputRouter,
-			ViewportPanel.GetToolbar(),
-			*static_cast<UStaticMesh*>(Asset));
+		Editor = std::make_unique<FStaticMeshEditor>(EditorEngine, *static_cast<UStaticMesh*>(Asset));
 		break;
 	case EAssetType::Material:
-		Editor = std::make_unique<FMaterialEditor>(
-			EditorEngine,
-			RenderSystem,
-			InputRouter,
-			ViewportPanel.GetToolbar(),
-			*static_cast<UMaterial*>(Asset));
+		Editor = std::make_unique<FMaterialEditor>(EditorEngine, *static_cast<UMaterial*>(Asset));
 		break;
 	default:
 		return;
@@ -250,7 +228,7 @@ void FImGuiSystem::DrawAssetEditors(float DeltaTime)
 	for (SIZE_T EditorIndex = 0; EditorIndex < AssetEditors.size();)
 	{
 		FAssetEditor& Editor = *AssetEditors[EditorIndex];
-		Editor.Draw(DeltaTime);
+		Editor.Draw(DeltaTime, ViewportToolbar);
 		if (Editor.IsOpen())
 		{
 			++EditorIndex;
@@ -276,12 +254,10 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		if (bShowConsole)
 		{
 			bShowConsole = false;
-			bFocusConsoleRequested = false;
 		}
 		else
 		{
 			bShowConsole = true;
-			bFocusConsoleRequested = true;
 			ConsolePanel.OnOpened();
 		}
 		return FInputReply::Handled();
@@ -367,7 +343,11 @@ void FImGuiSystem::DrawBottomToolbar()
 			ImGui::SameLine(0.0f, 0.0f);
 			if (DrawToolbarButton("Console"))
 			{
-				TogglePanel(bShowConsole, bFocusConsoleRequested);
+				bShowConsole = !bShowConsole;
+				if (bShowConsole)
+				{
+					ConsolePanel.OnOpened();
+				}
 			}
 
 			float RightContentWidth = ImportStatusWidth;
@@ -479,6 +459,7 @@ void FImGuiSystem::Shutdown()
 	ContentPanel.Shutdown();
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
+	ViewportToolbar.Release();
 	RenderSystem.ShutdownImGui();
 	ImGuiIO& IO = ImGui::GetIO();
 	IO.BackendRendererName = nullptr;
@@ -562,7 +543,10 @@ void FImGuiSystem::DrawMenuBar()
 		ImGui::MenuItem("Hierarchy", nullptr, &bShowHierarchy);
 		ImGui::MenuItem("Inspector", nullptr, &bShowInspector);
 		ImGui::MenuItem("Viewport", nullptr, &bShowViewport);
-		ImGui::MenuItem("Console", nullptr, &bShowConsole);
+		if (ImGui::MenuItem("Console", nullptr, &bShowConsole) && bShowConsole)
+		{
+			ConsolePanel.OnOpened();
+		}
 		ImGui::MenuItem("Content", nullptr, &bShowContent);
 #if KNOT_CPU_PROFILER_ENABLED
 		ImGui::MenuItem("Profile", nullptr, &bShowProfile);
