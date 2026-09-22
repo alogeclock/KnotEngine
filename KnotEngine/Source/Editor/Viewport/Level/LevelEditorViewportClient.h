@@ -19,6 +19,8 @@ public:
 	void OnMouseCaptureLost() override;
 
 	FSceneView BuildSceneView() override;
+	bool IsGizmoLocalSpace() const { return TransformGizmo.IsLocalSpace(); }
+	void SetGizmoLocalSpace(bool bLocalSpace) { TransformGizmo.SetLocalSpace(bLocalSpace); }
 
 private:
 	UNode* Raycast(const FVector2& InputPosition);

@@ -18,11 +18,18 @@ FViewportToolbar::FViewportToolbar(FRenderSystem& InRenderSystem)
 {
 }
 
-// View Mode PNG Atlas를 시작 시 한 번 디코딩하고 ImGui Texture ID를 캐시한다.
+// Toolbar PNG Atlas를 시작 시 한 번 로드하고 ImGui Texture ID를 캐시한다.
 void FViewportToolbar::Startup()
 {
-	constexpr uint32 AtlasWidth = 768;
-	constexpr uint32 AtlasHeight = 256;
+	ViewModeIcons = LoadIconAtlas(L"ViewportViewModes.png", 768, 256);
+	ViewModeIconsId = RenderSystem.GetImGuiTextureID(ViewModeIcons);
+	CoordinateSpaceIcons = LoadIconAtlas(L"ViewportCoordinateSpaces.png", 512, 256);
+	CoordinateSpaceIconsId = RenderSystem.GetImGuiTextureID(CoordinateSpaceIcons);
+}
+
+// Icon 폴더의 PNG를 RGBA로 디코딩하여 Toolbar용 GPU Texture를 생성한다.
+FTextureHandle FViewportToolbar::LoadIconAtlas(const wchar_t* FileName, uint32 AtlasWidth, uint32 AtlasHeight)
+{
 	const HRESULT InitializeResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	TArray<uint8> Pixels(AtlasWidth * AtlasHeight * 4);
 	bool bDecoded = false;
@@ -32,7 +39,7 @@ void FViewportToolbar::Startup()
 		Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> Frame;
 		Microsoft::WRL::ComPtr<IWICBitmapScaler> Scaler;
 		Microsoft::WRL::ComPtr<IWICFormatConverter> Converter;
-		const std::filesystem::path FilePath = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icon/ViewportViewModes.png";
+		const std::filesystem::path FilePath = std::filesystem::path(FPaths::ContentDir()) / L"Engine/Icon" / FileName;
 		if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&Factory))) &&
 		    SUCCEEDED(Factory->CreateDecoderFromFilename(FilePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &Decoder)) &&
 		    SUCCEEDED(Decoder->GetFrame(0, &Frame)) && SUCCEEDED(Factory->CreateBitmapScaler(&Scaler)) &&
@@ -47,7 +54,7 @@ void FViewportToolbar::Startup()
 	{
 		CoUninitialize();
 	}
-	panicf(bDecoded, "Viewport View Mode Icon Atlas를 디코딩하지 못했다.");
+	panicf(bDecoded, "Viewport Toolbar Icon Atlas를 디코딩하지 못했다.");
 
 	FTextureDesc Desc;
 	Desc.Width = AtlasWidth;
@@ -55,8 +62,7 @@ void FViewportToolbar::Startup()
 	Desc.Format = ETextureFormat::RGBA8UNorm;
 	Desc.Usage = ETextureUsage::ShaderResource;
 	const FTextureSubresourceData Data = { Pixels, AtlasWidth * 4, static_cast<uint32>(Pixels.size()) };
-	ViewModeIcons = RenderSystem.CreateTexture(Desc, std::span<const FTextureSubresourceData>(&Data, 1));
-	ViewModeIconsId = RenderSystem.GetImGuiTextureID(ViewModeIcons);
+	return RenderSystem.CreateTexture(Desc, std::span<const FTextureSubresourceData>(&Data, 1));
 }
 
 // Viewport 공통 메뉴와 선택적인 Editor별 도구를 하나의 Toolbar 행에 배치한다.
@@ -213,6 +219,23 @@ void FViewportToolbar::Draw(FEditorViewportClient& ViewportClient, const std::fu
 	ImGui::PopStyleVar();
 }
 
+// PNG Atlas의 World/Local 아이콘을 표시하고 좌표계 전환 클릭 여부를 반환한다.
+bool FViewportToolbar::DrawCoordinateSpaceButton(bool bLocalSpace)
+{
+	const float IconSize = ImGui::GetFontSize() + 2.0f;
+	const float CellStart = bLocalSpace ? 0.5f : 0.0f;
+	const ImVec2 UV0(CellStart + 0.045f, 0.09f);
+	const ImVec2 UV1(CellStart + 0.455f, 0.91f);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, ImGui::GetStyle().FramePadding.y - 1.0f));
+	const bool bClicked = ImGui::ImageButton("##CoordinateSpace", ImTextureRef(CoordinateSpaceIconsId), ImVec2(IconSize, IconSize), UV0, UV1);
+	ImGui::PopStyleVar();
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("%s", (bClicked ? !bLocalSpace : bLocalSpace) ? "Local Space" : "World Space");
+	}
+	return bClicked;
+}
+
 void FViewportToolbar::DrawViewModeButtons(FEditorViewportClient& ViewportClient)
 {
 	static constexpr const char* Names[] = { "Wireframe", "Shaded Wireframe", "Unlit", "Lit" };
@@ -255,4 +278,6 @@ void FViewportToolbar::Release()
 {
 	RenderSystem.DestroyTexture(ViewModeIcons);
 	ViewModeIconsId = {};
+	RenderSystem.DestroyTexture(CoordinateSpaceIcons);
+	CoordinateSpaceIconsId = {};
 }

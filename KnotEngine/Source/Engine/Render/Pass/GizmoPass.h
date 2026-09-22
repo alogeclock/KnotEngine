@@ -22,17 +22,30 @@ private:
 	{
 		FVector Origin;
 		float WorldScale = 1.0f;
+
 		FVector ViewRight;
 		uint32 Mode = 0;
+
 		FVector ViewUp;
 		int32 HighlightedAxis = -1;
+
 		FVector ViewOrigin;
 		uint32 Padding = 0;
+
 		float ViewportWidth = 1.0f;
 		float ViewportHeight = 1.0f;
 		float Padding2[2] = {};
+
+		FVector AxisX;
+		float Padding3 = 0.0f;
+
+		FVector AxisY;
+		float Padding4 = 0.0f;
+
+		FVector AxisZ;
+		float Padding5 = 0.0f;
 	};
-	static_assert(sizeof(FGizmoConstants) == 80);
+	static_assert(sizeof(FGizmoConstants) == 128);
 
 	static void ExecutePass(
 		IRenderDevice& RenderDevice,

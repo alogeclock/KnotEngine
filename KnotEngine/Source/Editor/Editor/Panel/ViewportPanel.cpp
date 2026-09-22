@@ -42,7 +42,13 @@ void FViewportPanel::Draw(bool bVisible, float DeltaTime, FViewportToolbar& Tool
 		return;
 	}
 
-	Toolbar.Draw(ViewportClient);
+	Toolbar.Draw(ViewportClient, [&]()
+	{
+		if (Toolbar.DrawCoordinateSpaceButton(ViewportClient.IsGizmoLocalSpace()))
+		{
+			ViewportClient.SetGizmoLocalSpace(!ViewportClient.IsGizmoLocalSpace());
+		}
+	});
 	if (ViewportWidget.Draw(ViewportClient))
 	{
 		ViewportOverlayWidget.Draw();

@@ -98,12 +98,34 @@ void FTransformGizmo::OnKeyboardFocusLost()
 	}
 }
 
-// 선택이 바뀌거나 대상이 제거되면 이전 대상의 조작 상태를 폐기한다.
+// 좌표계를 전환하고 이전 축의 Hover 상태를 초기화한다.
+void FTransformGizmo::SetLocalSpace(bool bInLocalSpace)
+{
+	if (bDragging)
+	{
+		return;
+	}
+	bLocalSpace = bInLocalSpace;
+	HoveredAxis = ETransformGizmoAxis::None;
+}
+
+// 선택 변경을 반영하고 드래그 중이 아닐 때 선택 객체의 회전 축을 갱신한다.
 void FTransformGizmo::UpdateSelection(const FEditorSelection& Selection)
 {
 	if (bDragging && (!Selection.SelectedNode || Selection.SelectedNode->GetUUID() != DragTargetUUID))
 	{
 		CancelDrag();
+	}
+	if (!bDragging)
+	{
+		AxisRotation = FMatrix::Identity;
+		if (bLocalSpace && Selection.SelectedNode)
+		{
+			for (const UTransformComponent* Transform = &Selection.SelectedNode->GetTransform(); Transform; Transform = Transform->GetParent())
+			{
+				AxisRotation *= Transform->GetRelativeTransform().Rotation.ToMatrix();
+			}
+		}
 	}
 }
 
@@ -118,18 +140,21 @@ void FTransformGizmo::BuildGizmoView(const FEditorSelection& Selection, const FS
 	OutData.Origin = Selection.SelectedNode->GetTransform().GetWorldLocation();
 	OutData.WorldScale = GetUnitsPerPixel(View, OutData.Origin) * GizmoLengthPixels;
 	OutData.Mode = Mode;
+	OutData.AxisX = GetAxisVector(ETransformGizmoAxis::X);
+	OutData.AxisY = GetAxisVector(ETransformGizmoAxis::Y);
+	OutData.AxisZ = GetAxisVector(ETransformGizmoAxis::Z);
 	OutData.HighlightedAxis = static_cast<int32>(bDragging ? ActiveAxis : HoveredAxis);
 	OutData.bVisible = OutData.WorldScale > KMath::Epsilon;
 }
 
 // 축 열거형을 Knot의 월드 좌표계 단위 벡터로 변환한다.
-FVector FTransformGizmo::GetAxisVector(ETransformGizmoAxis Axis)
+FVector FTransformGizmo::GetAxisVector(ETransformGizmoAxis Axis) const
 {
 	switch (Axis)
 	{
-	case ETransformGizmoAxis::X: return FVector::ForwardVector;
-	case ETransformGizmoAxis::Y: return FVector::RightVector;
-	case ETransformGizmoAxis::Z: return FVector::UpVector;
+	case ETransformGizmoAxis::X: return AxisRotation.GetScaledAxis(EAxis::X);
+	case ETransformGizmoAxis::Y: return AxisRotation.GetScaledAxis(EAxis::Y);
+	case ETransformGizmoAxis::Z: return AxisRotation.GetScaledAxis(EAxis::Z);
 	case ETransformGizmoAxis::View:
 	case ETransformGizmoAxis::Trackball:
 	case ETransformGizmoAxis::Center:
@@ -304,18 +329,18 @@ ETransformGizmoAxis FTransformGizmo::HitTest(const FSceneView& View, const FVect
 		FVector Side1;
 		if (Axis == ETransformGizmoAxis::X)
 		{
-			Side0 = FVector::RightVector;
-			Side1 = FVector::UpVector;
+			Side0 = GetAxisVector(ETransformGizmoAxis::Y);
+			Side1 = GetAxisVector(ETransformGizmoAxis::Z);
 		}
 		else if (Axis == ETransformGizmoAxis::Y)
 		{
-			Side0 = FVector::ForwardVector;
-			Side1 = FVector::UpVector;
+			Side0 = GetAxisVector(ETransformGizmoAxis::X);
+			Side1 = GetAxisVector(ETransformGizmoAxis::Z);
 		}
 		else
 		{
-			Side0 = FVector::ForwardVector;
-			Side1 = FVector::RightVector;
+			Side0 = GetAxisVector(ETransformGizmoAxis::X);
+			Side1 = GetAxisVector(ETransformGizmoAxis::Y);
 		}
 		for (uint32 Segment = 0; Segment < 64; ++Segment)
 		{

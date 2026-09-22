@@ -24,6 +24,9 @@ enum class EGizmoViewMode : uint8
 
 struct FGizmoView
 {
+	FVector AxisX = FVector::ForwardVector;
+	FVector AxisY = FVector::RightVector;
+	FVector AxisZ = FVector::UpVector;
 	FVector Origin;
 	float WorldScale = 1.0f;
 	EGizmoViewMode Mode = EGizmoViewMode::Translate;

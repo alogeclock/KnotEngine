@@ -29,6 +29,9 @@ uint32 FGizmoPass::AddPass(FRenderGraph& Graph, FRenderer& Renderer, const FScen
 
 	FGizmoConstants Constants;
 	Constants.Origin = View.Gizmo.Origin;
+	Constants.AxisX = View.Gizmo.AxisX;
+	Constants.AxisY = View.Gizmo.AxisY;
+	Constants.AxisZ = View.Gizmo.AxisZ;
 	Constants.WorldScale = View.Gizmo.WorldScale;
 	const FMatrix InverseView = View.ViewMatrix.GetInverse();
 	Constants.ViewRight = InverseView.GetScaledAxis(EAxis::X).GetSafeNormal();

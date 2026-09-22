@@ -17,11 +17,15 @@ public:
 	void Startup();
 	void Draw(FEditorViewportClient& ViewportClient, const std::function<void()>& DrawExtension = {});
 	void Release();
+	bool DrawCoordinateSpaceButton(bool bLocalSpace);
 
 private:
+	FTextureHandle LoadIconAtlas(const wchar_t* FileName, uint32 AtlasWidth, uint32 AtlasHeight);
 	void DrawViewModeButtons(FEditorViewportClient& ViewportClient);
 
 	FRenderSystem& RenderSystem;
 	FTextureHandle ViewModeIcons;
 	ImTextureID ViewModeIconsId = {};
+	FTextureHandle CoordinateSpaceIcons;
+	ImTextureID CoordinateSpaceIconsId = {};
 };

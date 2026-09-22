@@ -26,6 +26,15 @@ cbuffer GizmoConstants : register(b1)
 
 	float2 ViewportSize;
 	float2 Padding2;
+
+	float3 AxisX;
+	float Padding3;
+
+	float3 AxisY;
+	float Padding4;
+
+	float3 AxisZ;
+	float Padding5;
 };
 
 static const float Tau = 6.28318530718f;
@@ -35,15 +44,15 @@ static const float3 AxisColors[3] = { float3(0.86f, 0.18f, 0.18f), float3(0.25f,
 // Axis Index를 X, Y, Z 단위 축 벡터로 변환한다.
 float3 GetAxis(uint AxisIndex)
 {
-	return AxisIndex == 0 ? float3(1.0f, 0.0f, 0.0f) : AxisIndex == 1 ? float3(0.0f, 1.0f, 0.0f) : float3(0.0f, 0.0f, 1.0f);
+	return AxisIndex == 0 ? AxisX : AxisIndex == 1 ? AxisY : AxisZ;
 }
 
 // 기준 축에 수직인 두 Basis 축 중 하나를 반환한다.
 float3 GetSide(uint AxisIndex, uint SideIndex)
 {
-	if (AxisIndex == 0) return SideIndex == 0 ? float3(0.0f, 1.0f, 0.0f) : float3(0.0f, 0.0f, 1.0f);
-	if (AxisIndex == 1) return SideIndex == 0 ? float3(1.0f, 0.0f, 0.0f) : float3(0.0f, 0.0f, 1.0f);
-	return SideIndex == 0 ? float3(1.0f, 0.0f, 0.0f) : float3(0.0f, 1.0f, 0.0f);
+	if (AxisIndex == 0) return SideIndex == 0 ? AxisY : AxisZ;
+	if (AxisIndex == 1) return SideIndex == 0 ? AxisX : AxisZ;
+	return SideIndex == 0 ? AxisX : AxisY;
 }
 
 // 로컬 좌표를 월드-뷰-투영 변환하여 클립 좌표로 이동시킨다.

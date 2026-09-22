@@ -34,9 +34,11 @@ public:
 	void BuildGizmoView(const FEditorSelection& Selection, const FSceneView& View, FGizmoView& OutData) const;
 
 	bool IsDragging() const { return bDragging; }
+	bool IsLocalSpace() const { return bLocalSpace; }
+	void SetLocalSpace(bool bInLocalSpace);
 
 private:
-	static FVector GetAxisVector(ETransformGizmoAxis Axis);
+	FVector GetAxisVector(ETransformGizmoAxis Axis) const;
 	static FVector GetViewRotationAxis(const FSceneView& View, const FVector& Origin);
 	static FVector MapTrackballVector(const FSceneView& View, const FVector& Origin, const FVector2& PixelPosition);
 
@@ -65,6 +67,8 @@ private:
 	static constexpr float DragDeadZonePixels = 2.0f;
 
 	EGizmoViewMode Mode = EGizmoViewMode::Translate;
+	bool bLocalSpace = false;
+	FMatrix AxisRotation = FMatrix::Identity;
 	ETransformGizmoAxis HoveredAxis = ETransformGizmoAxis::None;
 	ETransformGizmoAxis ActiveAxis = ETransformGizmoAxis::None;
 
