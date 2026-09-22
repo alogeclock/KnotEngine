@@ -63,6 +63,21 @@ void UWorld::Reset()
 	NameCounters.clear();
 }
 
+// 검증된 임시 World의 평탄 Level/Node 상태를 현재 World에 커밋한다.
+void UWorld::Replace(UWorld& LoadedWorld)
+{
+	check(this != &LoadedWorld && PlayState == EPlayState::Stopped && LoadedWorld.PlayState == EPlayState::Stopped);
+
+	Reset();
+
+	for (SIZE_T LevelIndex = 0; LevelIndex < LoadedWorld.Levels.size(); ++LevelIndex)
+	{
+		ULevel& Destination = LevelIndex == 0 ? GetPersistentLevel() : CreateLevel();
+		LoadedWorld.Levels[LevelIndex]->TransferNodes(Destination);
+	}
+	NameCounters = std::move(LoadedWorld.NameCounters);
+}
+
 // BaseName별로 증가하는 숫자 접미사를 붙여 새 Node 이름을 생성한다.
 FName UWorld::GetNodeName(const FString& BaseName)
 {

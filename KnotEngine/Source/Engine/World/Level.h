@@ -29,11 +29,20 @@ public:
 
 private:
 	friend class UComponent;
+	friend class UTransformComponent;
+	friend class UWorld;
+
+	void InsertRootNode(UNode& Node, SIZE_T SiblingIndex);
+	void RemoveRootNode(UNode& Node);
+	bool SetRootSiblingIndex(UNode& Node, SIZE_T SiblingIndex);
+
+	void TransferNodes(ULevel& Destination);
 
 	void RegisterTickComponent(UComponent& Component);
 	void UnregisterTickComponent(UComponent& Component);
 
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UWorld> OwningWorld;
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<UNode>> Nodes;
+	TArray<UNode*> RootNodes; // Level이 소유하는 Root Node의 Hierarchy 순서만 관리하는 비소유 인덱스
 	TArray<UComponent*> TickComponents; // 활성화된 Tick Component의 비소유 밀집 배열
 };

@@ -22,13 +22,21 @@ public:
 
 	FMatrix GetWorldMatrix() const;
 	FVector GetWorldLocation() const;
+
 	UTransformComponent* GetParent() const { return Parent; }
 	const TArray<TObjectPtr<UTransformComponent>>& GetChildren() const { return Children; }
+	SIZE_T GetSiblingIndex() const { return SiblingIndex; }
 
 	// 상대 변환을 유지한다. 순환을 만드는 외부 부착 요청은 false로 거절한다.
-	bool SetParent(UTransformComponent* NewParent);
+	bool SetParent(UTransformComponent* NewParent, SIZE_T SiblingIndex = static_cast<SIZE_T>(-1));
+	bool SetSiblingIndex(SIZE_T SiblingIndex);
 
 private:
+	friend class ULevel;
+
+	static constexpr SIZE_T InvalidIndex = static_cast<SIZE_T>(-1);
+
+	void Detach();
 	void SetRelativeRotation(const FQuat& InRotation);
 	void OnTransformChanged();
 
@@ -49,4 +57,7 @@ private:
 
 	/// 계층 구조에서 연결된 자식 Transform 목록이다.
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<UTransformComponent>> Children;
+
+	/// Parent의 Children 또는 Level의 RootNodes 배열에서 현재 순서다.
+	SIZE_T SiblingIndex = InvalidIndex; 
 };

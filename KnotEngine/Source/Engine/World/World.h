@@ -52,6 +52,8 @@ private:
 	void ResumePlay();
 	void EndPlay();
 
+	void Replace(UWorld& LoadedWorld);
+
 	FScene Scene;
 	TMap<FString, uint64> NameCounters;
 

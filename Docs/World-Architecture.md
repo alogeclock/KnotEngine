@@ -144,6 +144,8 @@ ULevel::Nodes
 
 `CreateNode()`로 만든 Node는 즉시 배열에 들어간다. World가 `Stopped` 상태가 아니면 새 Node도 곧바로 BeginPlay를 받는다. Level의 Node 배열은 밀집 저장소이며 제거 시 내부 인덱스로 swap-pop한다. 따라서 UUID와 객체 주소는 식별에 사용할 수 있지만 배열 순서는 안정적이지 않다. World는 BaseName별 접미사 카운터로 새 Node의 표시 이름을 만든다.
 
+Transform의 `Children` 배열과 Level의 비소유 `RootNodes` 배열이 Hierarchy 순서를 관리한다. 각 Transform은 배열상의 `SiblingIndex`를 캐시하므로 조회와 저장은 O(1)이며, 부모 변경이나 순서 변경 때 영향받은 형제 구간만 인덱스를 갱신한다. `Nodes`는 계속 모든 Node를 평탄하게 소유하고 제거 시 swap-pop하므로 Hierarchy 순서와 분리된다. `RemoveNode()`는 Transform 자손을 먼저 재귀적으로 제거하고 대상 Node를 제거한다.
+
 현재 Level은 다음 생명주기 요청을 모든 Node에 전달한다.
 
 - `BeginPlay()`
@@ -158,6 +160,8 @@ ULevel::Nodes
 모든 Node는 생성과 함께 정확히 하나의 `UTransformComponent`를 만든다. Transform은 빠른 접근을 위한 `Transform` 멤버와 소유를 나타내는 `Components` 배열 양쪽에서 참조한다.
 
 `UTransformComponent`는 상대 위치, `FRotator RelativeRotation`, 상대 크기를 직렬화 원본으로 보관한다. `FQuat CachedRotation`은 `RelativeRotation`에 대응하는 정규화된 계산용 캐시다. Inspector에서 입력한 360도 이상의 회전값은 `RelativeRotation`에 그대로 남고, Gizmo처럼 Quaternion 결과를 적용하는 경로는 기존 회전의 winding과 가까운 동등 표현을 선택한 뒤 실제 변화량만 누적한다. 렌더링과 행렬 계산에는 `CachedRotation`을 사용한다.
+
+Transform 계층은 Parent와 Children 포인터를 Transient로 관리한다. `.kmap` Version 1은 Level별 Node를 평탄하게 저장하고 각 Node에 `ParentUUID`와 `SiblingIndex`를 필수로 기록한다. 이 포맷 이전에 생성된 `.kmap`은 하위 호환하지 않는다. Load는 모든 Parent 참조, Level 경계, 순환과 Sibling Index 연속성을 먼저 검증한 뒤 임시 World에 전체 객체 그래프를 복원한다. 복원이 모두 성공한 경우에만 기존 World의 Level/Node 상태를 교체한다.
 
 ```text
 Cube UNode

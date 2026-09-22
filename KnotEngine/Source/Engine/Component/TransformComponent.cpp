@@ -1,15 +1,14 @@
 #include "Component/TransformComponent.h"
 #include "Component/PrimitiveComponent.h"
+#include "World/Level.h"
 #include "World/Node.h"
+
+#include <algorithm>
 
 UTransformComponent::~UTransformComponent()
 {
-	SetParent(nullptr);
-	for (const auto& Child : Children)
-	{
-		Child->Parent = nullptr;
-		Child->OnTransformChanged();
-	}
+	check(Children.empty());
+	Detach();
 }
 
 void UTransformComponent::SetRelativeTransform(const FTransform& Transform)
@@ -98,8 +97,14 @@ FVector UTransformComponent::GetWorldLocation() const
 	return GetWorldMatrix().TransformPosition(FVector::ZeroVector);
 }
 
-bool UTransformComponent::SetParent(UTransformComponent* NewParent)
+bool UTransformComponent::SetParent(UTransformComponent* NewParent, SIZE_T SiblingIndex)
 {
+	static constexpr SIZE_T LastSiblingIndex = static_cast<SIZE_T>(-1);
+	ULevel& Level = GetOwner().GetLevel();
+	if (NewParent && &NewParent->GetOwner().GetLevel() != &Level)
+	{
+		return false;
+	}
 	// 자신이나 자신의 자손을 부모로 수정하지 않도록 한다.
 	for (const UTransformComponent* Ancestor = NewParent; Ancestor; Ancestor = Ancestor->Parent)
 	{
@@ -111,25 +116,83 @@ bool UTransformComponent::SetParent(UTransformComponent* NewParent)
 	// 같은 부모라면 자식 목록 수정과 Transform 변경 통지가 필요없다.
 	if (Parent.Get() == NewParent)
 	{
-		return true;
+		return SiblingIndex == LastSiblingIndex || SetSiblingIndex(SiblingIndex);
 	}
-	// 기존 부모가 더 이상 자신에게 Transform 변경을 전파하지 않도록 자식 목록에서 제거한다.
-	if (Parent)
+
+	const SIZE_T NewSiblingCount = NewParent ? NewParent->Children.size() : Level.RootNodes.size();
+	const SIZE_T NewSiblingIndex = SiblingIndex == LastSiblingIndex ? NewSiblingCount : SiblingIndex;
+	if (NewSiblingIndex > NewSiblingCount)
 	{
-		for (SIZE_T Index = 0; Index < Parent->Children.size(); ++Index)
-		{
-			if (Parent->Children[Index].Get() == this)
-			{
-				Parent->Children.erase(Parent->Children.begin() + Index);
-				break;
-			}
-		}
-	} 
+		return false;
+	}
+
+	Detach();
 	Parent = NewParent;
 	if (Parent)
 	{
-		Parent->Children.emplace_back(this);
+		Parent->Children.insert(Parent->Children.begin() + NewSiblingIndex, this);
+		for (SIZE_T Index = NewSiblingIndex; Index < Parent->Children.size(); ++Index)
+		{
+			Parent->Children[Index]->SiblingIndex = Index;
+		}
+	}
+	else
+	{
+		Level.InsertRootNode(GetOwner(), NewSiblingIndex);
 	}
 	OnTransformChanged(); // 자식과 자손의 렌더 상태를 갱신한다.
+	return true;
+}
+
+// Parent의 Children 또는 Level의 RootNodes에서 현재 Transform을 제거하고 뒷 인덱스를 보정한다.
+void UTransformComponent::Detach()
+{
+	if (SiblingIndex == InvalidIndex)
+	{
+		check(!Parent);
+		return;
+	}
+	if (Parent)
+	{
+		check(SiblingIndex < Parent->Children.size() && Parent->Children[SiblingIndex].Get() == this);
+		const SIZE_T RemoveIndex = SiblingIndex;
+		Parent->Children.erase(Parent->Children.begin() + RemoveIndex);
+		for (SIZE_T Index = RemoveIndex; Index < Parent->Children.size(); ++Index)
+		{
+			Parent->Children[Index]->SiblingIndex = Index;
+		}
+		Parent = nullptr;
+		SiblingIndex = InvalidIndex;
+		return;
+	}
+	GetOwner().GetLevel().RemoveRootNode(GetOwner());
+}
+
+// 현재 Parent 그룹 안에서 Transform의 Sibling 순서를 변경한다.
+bool UTransformComponent::SetSiblingIndex(SIZE_T SiblingIndex)
+{
+	if (!Parent)
+	{
+		return GetOwner().GetLevel().SetRootSiblingIndex(GetOwner(), SiblingIndex);
+	}
+	if (SiblingIndex >= Parent->Children.size())
+	{
+		return false;
+	}
+
+	const SIZE_T CurrentIndex = this->SiblingIndex;
+	if (CurrentIndex == SiblingIndex)
+	{
+		return true;
+	}
+	TObjectPtr<UTransformComponent> Transform = Parent->Children[CurrentIndex];
+	Parent->Children.erase(Parent->Children.begin() + CurrentIndex);
+	Parent->Children.insert(Parent->Children.begin() + SiblingIndex, Transform);
+	const SIZE_T FirstChangedIndex = (std::min)(CurrentIndex, SiblingIndex);
+	const SIZE_T LastChangedIndex = (std::max)(CurrentIndex, SiblingIndex);
+	for (SIZE_T Index = FirstChangedIndex; Index <= LastChangedIndex; ++Index)
+	{
+		Parent->Children[Index]->SiblingIndex = Index;
+	}
 	return true;
 }

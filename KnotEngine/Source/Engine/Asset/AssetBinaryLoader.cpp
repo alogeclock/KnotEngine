@@ -14,6 +14,8 @@
 #include <fstream>
 #include <limits>
 
+// TODO: 대용량 에셋의 메모리 사용량과 부분 로딩 요구가 확인되면 파일 스트리밍 Archive를 도입한다.
+// FFileReader/FFileWriter 설계 시 Seek/Tell, 범위 검증, 비동기 I/O 및 임시 파일을 통한 안전한 저장 정책을 함께 정의한다.
 TArray<uint8> FAssetBinaryLoader::LoadAssetFile(const FAssetData& Asset)
 {
 	if (!Asset.AssetId.IsValid() || !Asset.HasBinaryFile())

@@ -10,6 +10,7 @@ class UTransformComponent;
 class UComponent;
 class UClass;
 class FRenderer;
+class FMapSerializer;
 struct FEditorSelection;
 
 // Level에 배치되는 최소 단위 객체로, Component의 합성을 통해 기능을 구현한다.
@@ -50,6 +51,7 @@ public:
 	bool IsSelected() const { return bSelected; }
 
 private:
+	friend class FMapSerializer;
 	friend class ULevel;
 	friend struct FEditorSelection;
 
@@ -57,6 +59,10 @@ private:
 
 	void AttachComponent(UComponent& Component);
 	void SetSelected(bool bSelected);
+
+	UTransformComponent* GetParent() const;
+	const TArray<TObjectPtr<UTransformComponent>>& GetChildren() const;
+	SIZE_T GetSiblingIndex() const;
 
 	UPROPERTY(Category = "Node") FName Name;
 

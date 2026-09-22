@@ -122,3 +122,21 @@ void UNode::AttachComponent(UComponent& Component)
 		Component.BeginPlay();
 	}
 }
+
+// Node의 Transform 계층에 연결된 Parent를 Node 내부 계층 접근으로 노출한다.
+UTransformComponent* UNode::GetParent() const
+{
+	return Transform->GetParent();
+}
+
+// Node의 Transform 계층에 연결된 Children을 Node 내부 계층 접근으로 노출한다.
+const TArray<TObjectPtr<UTransformComponent>>& UNode::GetChildren() const
+{
+	return Transform->GetChildren();
+}
+
+// Node의 Transform에 캐시된 Hierarchy Sibling Index를 반환한다.
+SIZE_T UNode::GetSiblingIndex() const
+{
+	return Transform->GetSiblingIndex();
+}

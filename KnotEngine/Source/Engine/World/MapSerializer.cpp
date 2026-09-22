@@ -13,80 +13,47 @@
 #include "World/Node.h"
 #include "World/World.h"
 
+#include <algorithm>
 #include <charconv>
 #include <optional>
 
-// Map에 저장된 UUID와 현재 UObject 포인터를 양방향으로 연결해 객체 참조를 복원한다.
-class FMapObjectResolver final : public FStructuredArchiveObjectResolver
+// Map UUID와 UObject를 양방향으로 등록한다.
+bool FMapSerializer::FMapObjectResolver::Register(uint32 UUID, UObject& Object)
 {
-public:
-	bool Register(uint32 UUID, UObject& Object)
+	if (UUID == 0 || ObjectsByUUID.contains(UUID) || UUIDsByObject.contains(&Object))
 	{
-		if (UUID == 0 || ObjectsByUUID.contains(UUID) || UUIDsByObject.contains(&Object))
-		{
-			return false;
-		}
-		ObjectsByUUID.emplace(UUID, &Object);
-		UUIDsByObject.emplace(&Object, UUID);
-		return true;
+		return false;
 	}
+	ObjectsByUUID.emplace(UUID, &Object);
+	UUIDsByObject.emplace(&Object, UUID);
+	return true;
+}
 
-	bool GetObjectUUID(const UObject& Object, uint32& OutUUID) const override
+// UObject에 대응하는 Map UUID를 반환한다.
+bool FMapSerializer::FMapObjectResolver::GetObjectUUID(const UObject& Object, uint32& OutUUID) const
+{
+	const auto Iterator = UUIDsByObject.find(&Object);
+	if (Iterator == UUIDsByObject.end())
 	{
-		const auto Iterator = UUIDsByObject.find(&Object);
-		if (Iterator == UUIDsByObject.end())
-		{
-			return false;
-		}
-		OutUUID = Iterator->second;
-		return true;
+		return false;
 	}
+	OutUUID = Iterator->second;
+	return true;
+}
 
-	UObject* ResolveObject(uint32 UUID, const UClass& ExpectedClass) const override
+// Map UUID와 기대 클래스에 일치하는 UObject를 해석한다.
+UObject* FMapSerializer::FMapObjectResolver::ResolveObject(uint32 UUID, const UClass& ExpectedClass) const
+{
+	const auto Iterator = ObjectsByUUID.find(UUID);
+	if (Iterator == ObjectsByUUID.end() || !Iterator->second->IsA(&ExpectedClass))
 	{
-		const auto Iterator = ObjectsByUUID.find(UUID);
-		if (Iterator == ObjectsByUUID.end() || !Iterator->second->IsA(&ExpectedClass))
-		{
-			return nullptr;
-		}
-		return Iterator->second;
+		return nullptr;
 	}
-
-private:
-	TMap<uint32, UObject*> ObjectsByUUID;
-	TMap<const UObject*, uint32> UUIDsByObject;
-};
-
-// Component를 생성하기 전에 Archive에서 읽은 클래스, 프로퍼티와 저장 UUID를 보관한다.
-struct FMapComponentDefinition
-{
-	uint32 UUID = 0;
-	const UClass* Class = nullptr;
-	std::optional<FStructuredArchiveRecord> Properties;
-	UComponent* Object = nullptr;
-};
-
-// Node 생성과 부모 연결에 필요한 Archive 파싱 결과와 소속 Component 정의를 보관한다.
-struct FMapNodeDefinition
-{
-	uint32 UUID = 0;
-	uint32 ParentUUID = 0;
-	FString Name;
-	std::optional<FStructuredArchiveRecord> Properties;
-	TArray<FMapComponentDefinition> Components;
-	UNode* Object = nullptr;
-};
-
-// Level 생성 전에 Archive에서 읽은 저장 UUID와 소속 Node 정의를 보관한다.
-struct FMapLevelDefinition
-{
-	uint32 UUID = 0;
-	TArray<FMapNodeDefinition> Nodes;
-	ULevel* Object = nullptr;
-};
+	return Iterator->second;
+}
 
 // 객체의 모든 비 Transient 프로퍼티를 구조화된 Record에 직렬화한다.
-static void SerializeMapObject(FStructuredArchiveRecord Record, UObject& Object)
+void FMapSerializer::SerializeObjects(FStructuredArchiveRecord Record, UObject& Object)
 {
 	TArray<const FProperty*> Properties;
 	Object.GetClass()->GetAllProperties(Properties);
@@ -109,7 +76,7 @@ static void SerializeMapObject(FStructuredArchiveRecord Record, UObject& Object)
 }
 
 // World의 현재 객체 그래프를 각 UObject가 이미 가진 UUID로 등록한다.
-static bool RegisterMapObjects(UWorld& World, FMapObjectResolver& Resolver)
+bool FMapSerializer::RegisterObjects(UWorld& World, FMapObjectResolver& Resolver)
 {
 	const TArray<TObjectPtr<ULevel>>& Levels = World.GetLevels();
 	for (const TObjectPtr<ULevel>& Level : Levels)
@@ -138,7 +105,7 @@ static bool RegisterMapObjects(UWorld& World, FMapObjectResolver& Resolver)
 }
 
 // Binary Record에서 Map 전체 구조와 생성할 클래스 정보를 읽되 World는 아직 변경하지 않는다.
-static bool ReadMapDefinitions(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels)
+bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels)
 {
 	FString Format;
 	uint32 Version = 0;
@@ -197,6 +164,7 @@ static bool ReadMapDefinitions(FStructuredArchiveRecord Root, FStructuredArchive
 					return false;
 				}
 			}
+			NodeRecord.EnterField("SiblingIndex") << NodeDefinition.SiblingIndex;
 			uint32 ComponentCount = 0;
 			FStructuredArchiveArray Components = NodeRecord.EnterField("Components").EnterArray(ComponentCount);
 			NodeDefinition.Components.resize(ComponentCount);
@@ -224,6 +192,71 @@ static bool ReadMapDefinitions(FStructuredArchiveRecord Root, FStructuredArchive
 	return !Archive.HasError();
 }
 
+// World를 변경하기 전에 Parent 참조, Level 경계, 순환과 Sibling Index 연속성을 모두 검증한다.
+bool FMapSerializer::ValidateMap(TArray<FMapLevelDefinition>& Levels)
+{
+	TMap<uint32, FMapNodeLocation> NodesByUUID;
+	for (SIZE_T LevelIndex = 0; LevelIndex < Levels.size(); ++LevelIndex)
+	{
+		for (FMapNodeDefinition& Node : Levels[LevelIndex].Nodes)
+		{
+			NodesByUUID.emplace(Node.UUID, FMapNodeLocation{ &Node, LevelIndex });
+		}
+	}
+
+	for (SIZE_T LevelIndex = 0; LevelIndex < Levels.size(); ++LevelIndex)
+	{
+		TMap<uint32, TSet<uint32>> SiblingIndices;
+		for (const FMapNodeDefinition& Node : Levels[LevelIndex].Nodes)
+		{
+			if (Node.ParentUUID != 0)
+			{
+				const auto Parent = NodesByUUID.find(Node.ParentUUID);
+				if (Parent == NodesByUUID.end() || Parent->second.LevelIndex != LevelIndex || Parent->second.Node == &Node)
+				{
+					return false;
+				}
+			}
+			if (!SiblingIndices[Node.ParentUUID].emplace(Node.SiblingIndex).second)
+			{
+				return false;
+			}
+		}
+		for (const auto& [ParentUUID, Indices] : SiblingIndices)
+		{
+			for (uint32 Index = 0; Index < Indices.size(); ++Index)
+			{
+				if (!Indices.contains(Index))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	TMap<uint32, uint8> VisitStates;
+	for (const auto& [UUID, Location] : NodesByUUID)
+	{
+		TArray<uint32> Path;
+		uint32 CurrentUUID = UUID;
+		while (CurrentUUID != 0 && VisitStates[CurrentUUID] != 2)
+		{
+			if (VisitStates[CurrentUUID] == 1)
+			{
+				return false;
+			}
+			VisitStates[CurrentUUID] = 1;
+			Path.push_back(CurrentUUID);
+			CurrentUUID = NodesByUUID.at(CurrentUUID).Node->ParentUUID;
+		}
+		for (uint32 PathUUID : Path)
+		{
+			VisitStates[PathUUID] = 2;
+		}
+	}
+	return true;
+}
+
 // World를 Binary Structured Archive 기반의 .kmap 파일로 저장한다.
 bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) const
 {
@@ -234,7 +267,7 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 	}
 
 	FMapObjectResolver Resolver;
-	if (!RegisterMapObjects(World, Resolver))
+	if (!RegisterObjects(World, Resolver))
 	{
 		KE_LOG(LogMapSerializer, Error, "Map 객체에 유효하지 않거나 중복된 UUID가 있다.");
 		return false;
@@ -271,7 +304,7 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 			NodeRecord.EnterField("Class") << ClassName;
 
 			FStructuredArchiveSlot ParentSlot = NodeRecord.EnterField("ParentUUID");
-			if (UTransformComponent* Parent = Node->GetTransform().GetParent())
+			if (UTransformComponent* Parent = Node->GetParent())
 			{
 				uint32 ParentUUID = 0;
 				if (!Resolver.GetObjectUUID(Parent->GetOwner(), ParentUUID))
@@ -284,8 +317,10 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 			{
 				ParentSlot.SetNull();
 			}
+			uint32 SiblingIndex = static_cast<uint32>(Node->GetSiblingIndex());
+			NodeRecord.EnterField("SiblingIndex") << SiblingIndex;
 
-			SerializeMapObject(NodeRecord.EnterField("Properties").EnterRecord(), *Node);
+			SerializeObjects(NodeRecord.EnterField("Properties").EnterRecord(), *Node);
 			const TArray<TObjectPtr<UComponent>>& NodeComponents = Node->GetComponents();
 			uint32 ComponentCount = static_cast<uint32>(NodeComponents.size());
 			FStructuredArchiveArray Components = NodeRecord.EnterField("Components").EnterArray(ComponentCount);
@@ -297,7 +332,7 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 				Resolver.GetObjectUUID(*Component, ComponentUUID);
 				ComponentRecord.EnterField("UUID") << ComponentUUID;
 				ComponentRecord.EnterField("Class") << ClassName;
-				SerializeMapObject(ComponentRecord.EnterField("Properties").EnterRecord(), *Component);
+				SerializeObjects(ComponentRecord.EnterField("Properties").EnterRecord(), *Component);
 			}
 		}
 	}
@@ -330,18 +365,18 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 	FMapObjectResolver Resolver;
 	FStructuredArchive Archive(Formatter, &Resolver);
 	TArray<FMapLevelDefinition> LevelDefinitions;
-	if (!ReadMapDefinitions(Archive.Open().EnterRecord(), Archive, LevelDefinitions))
+	if (!ReadMap(Archive.Open().EnterRecord(), Archive, LevelDefinitions) || !ValidateMap(LevelDefinitions))
 	{
-		KE_LOG(LogMapSerializer, Error, "Map 구조 또는 클래스 검증에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+		KE_LOG(LogMapSerializer, Error, "Map 구조, 클래스 또는 계층 검증에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
 	}
 
-	World.Reset();
+	UWorld* LoadedWorld = GUObjectManager.Create<UWorld>();
 
 	for (SIZE_T LevelIndex = 0; LevelIndex < LevelDefinitions.size(); ++LevelIndex)
 	{
 		FMapLevelDefinition& LevelDefinition = LevelDefinitions[LevelIndex];
-		LevelDefinition.Object = LevelIndex == 0 ? &World.GetPersistentLevel() : &World.CreateLevel();
+		LevelDefinition.Object = LevelIndex == 0 ? &LoadedWorld->GetPersistentLevel() : &LoadedWorld->CreateLevel();
 		if (!Resolver.Register(LevelDefinition.UUID, *LevelDefinition.Object))
 		{
 			Archive.SetError();
@@ -377,6 +412,7 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 	}
 	if (Archive.HasError())
 	{
+		GUObjectManager.Destroy(LoadedWorld);
 		KE_LOG(LogMapSerializer, Error, "Map 객체 생성에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
 	}
@@ -385,27 +421,54 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 	{
 		for (FMapNodeDefinition& NodeDefinition : LevelDefinition.Nodes)
 		{
-			SerializeMapObject(*NodeDefinition.Properties, *NodeDefinition.Object);
+			SerializeObjects(*NodeDefinition.Properties, *NodeDefinition.Object);
 			for (FMapComponentDefinition& ComponentDefinition : NodeDefinition.Components)
 			{
-				SerializeMapObject(*ComponentDefinition.Properties, *ComponentDefinition.Object);
+				SerializeObjects(*ComponentDefinition.Properties, *ComponentDefinition.Object);
 			}
 		}
 	}
 
+	TArray<FMapNodeDefinition*> ChildDefinitions;
+	TArray<FMapNodeDefinition*> RootDefinitions;
 	for (FMapLevelDefinition& LevelDefinition : LevelDefinitions)
 	{
 		for (FMapNodeDefinition& NodeDefinition : LevelDefinition.Nodes)
 		{
 			if (NodeDefinition.ParentUUID == 0)
 			{
+				RootDefinitions.push_back(&NodeDefinition);
 				continue;
 			}
-			UObject* ParentObject = Resolver.ResolveObject(NodeDefinition.ParentUUID, *UNode::StaticClass());
-			if (!ParentObject || !NodeDefinition.Object->GetTransform().SetParent(&static_cast<UNode*>(ParentObject)->GetTransform()))
-			{
-				Archive.SetError();
-			}
+			ChildDefinitions.push_back(&NodeDefinition);
+		}
+	}
+	std::sort(ChildDefinitions.begin(), ChildDefinitions.end(), [](const FMapNodeDefinition* Left, const FMapNodeDefinition* Right)
+	{
+		return Left->ParentUUID != Right->ParentUUID ? Left->ParentUUID < Right->ParentUUID : Left->SiblingIndex < Right->SiblingIndex;
+	});
+	for (FMapNodeDefinition* NodeDefinition : ChildDefinitions)
+	{
+		UObject* ParentObject = Resolver.ResolveObject(NodeDefinition->ParentUUID, *UNode::StaticClass());
+		if (!ParentObject || !NodeDefinition->Object->GetTransform().SetParent(
+			&static_cast<UNode*>(ParentObject)->GetTransform(), NodeDefinition->SiblingIndex))
+		{
+			Archive.SetError();
+		}
+	}
+	std::sort(RootDefinitions.begin(), RootDefinitions.end(), [](const FMapNodeDefinition* Left, const FMapNodeDefinition* Right)
+	{
+		if (&Left->Object->GetLevel() != &Right->Object->GetLevel())
+		{
+			return Left->Object->GetLevel().GetUUID() < Right->Object->GetLevel().GetUUID();
+		}
+		return Left->SiblingIndex < Right->SiblingIndex;
+	});
+	for (FMapNodeDefinition* NodeDefinition : RootDefinitions)
+	{
+		if (!NodeDefinition->Object->GetTransform().SetSiblingIndex(NodeDefinition->SiblingIndex))
+		{
+			Archive.SetError();
 		}
 	}
 
@@ -428,15 +491,18 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 					NextSuffix = Suffix + 1;
 				}
 			}
-			World.NameCounters[BaseName] = (std::max)(World.NameCounters[BaseName], NextSuffix);
+			LoadedWorld->NameCounters[BaseName] = (std::max)(LoadedWorld->NameCounters[BaseName], NextSuffix);
 		}
 	}
 
 	if (Archive.HasError())
 	{
+		GUObjectManager.Destroy(LoadedWorld);
 		KE_LOG(LogMapSerializer, Error, "Map 객체 또는 프로퍼티 복원에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
 	}
+	World.Replace(*LoadedWorld);
+	GUObjectManager.Destroy(LoadedWorld);
 	KE_LOG(LogMapSerializer, Log, "Map 불러오기 완료. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 	return true;
 }
