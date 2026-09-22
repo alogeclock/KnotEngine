@@ -37,6 +37,6 @@ enum class EEditorViewportViewMode : uint8
 struct FEditorViewportCamera
 {
 	FEditorViewportCameraTransform ViewTransform;
-	EEditorViewportViewMode ViewMode = EEditorViewportViewMode::Perspective; // TO-DO: AssetEditor, LevelEditor 일반화
+	EEditorViewportViewMode ViewMode = EEditorViewportViewMode::Perspective;	
 	float Sensitivity = 1.0f;
 };

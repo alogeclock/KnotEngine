@@ -29,6 +29,9 @@ public:
 	const FWindowsWindow& GetWindow() const { return Window; }
 	const FInputSnapshot& GetInputSnapshot() const { return InputSnapshot; }
 
+	bool WarpCursor(const FVector2& Position) { return WindowsInput.WarpCursor(Position); }
+	void SetCursorVisible(bool bVisible) { WindowsInput.SetCursorVisible(bVisible); }
+
 	void RequestExit() { bIsExitRequested = true; }
 	bool IsExitRequested() const { return bIsExitRequested; }
 	bool IsResizing() const { return bIsResizing; }

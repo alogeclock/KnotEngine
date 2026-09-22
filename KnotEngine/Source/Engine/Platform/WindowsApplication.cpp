@@ -35,6 +35,11 @@ LRESULT FWindowsApplication::ProcessMessage(HWND WindowHandle, UINT Message, WPA
 	}
 
 	WindowsInput.ProcessMessage(WindowHandle, Message, WParam, LParam);
+	if (Message == WM_SETCURSOR && LOWORD(LParam) == HTCLIENT && !WindowsInput.IsCursorVisible())
+	{
+		SetCursor(nullptr);
+		return true;
+	}
 	if (MessageHandler && MessageHandler(WindowHandle, Message, WParam, LParam))
 	{
 		return true;

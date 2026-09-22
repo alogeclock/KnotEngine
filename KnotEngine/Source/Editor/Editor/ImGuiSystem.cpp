@@ -435,10 +435,33 @@ void FImGuiSystem::DrawBottomPanelDockspace()
 	ImGui::PopStyleVar(2);
 }
 
+// 커서 요청을 반영하고 완성된 ImGui 렌더 데이터를 렌더 스레드 전달용으로 복사한다.
 void FImGuiSystem::EndFrame()
 {
+	UpdateCursor();
 	ImGui::Render();
 	DrawData.Copy(ImGui::GetDrawData());
+}
+
+// 입력 판정은 Snapshot/Router가 담당하고 여기서는 플랫폼과 ImGui의 커서 위치만 동기화한다.
+void FImGuiSystem::UpdateCursor()
+{
+	const FInputSnapshot& InputSnapshot = Application.GetInputSnapshot();
+	std::optional<FVector2> CursorPosition = InputRouter.ConsumeCursorWarp();
+	if (const std::optional<FVector2> InspectorPosition = InspectorPanel.FinishCursorDrag(InputSnapshot))
+	{
+		CursorPosition = InspectorPosition;
+	}
+	Application.SetCursorVisible(!InspectorPanel.IsCursorDragging());
+	if (CursorPosition && Application.WarpCursor(*CursorPosition))
+	{
+		// ImGui DragFloat의 이전 좌표도 함께 바꿔 Warp가 프로퍼티 값에 더해지지 않게 한다.
+		const ImVec2 Position(CursorPosition->X, CursorPosition->Y);
+		ImGui::TeleportMousePos(Position);
+		ImGuiIO& IO = ImGui::GetIO();
+		IO.AddMousePosEvent(Position.x, Position.y);
+		IO.WantSetMousePos = false;
+	}
 }
 
 FImGuiDrawDataCopy FImGuiSystem::Consume()
@@ -446,9 +469,11 @@ FImGuiDrawDataCopy FImGuiSystem::Consume()
 	return std::move(DrawData);
 }
 
+// 커서 표시를 복구하고 에디터 UI 자원과 ImGui 백엔드를 종료한다.
 void FImGuiSystem::Shutdown()
 {
 	check(bStarted);
+	Application.SetCursorVisible(true);
 	Application.SetMessageHandler(nullptr);
 	bStarted = false;
 	for (const std::unique_ptr<FAssetEditor>& Editor : AssetEditors)

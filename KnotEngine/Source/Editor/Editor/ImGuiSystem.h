@@ -51,8 +51,16 @@ private:
 	void SaveLevel(bool bSaveAs);
 	std::optional<std::filesystem::path> OpenLevelDialog(bool bSave) const;
 
+	void UpdateCursor();
+
 	void OpenAssetEditor(const FAssetId& AssetId);
 	void DrawAssetEditors(float DeltaTime);
+
+	void DrawMenuBar();
+	void DrawBottomToolbar();
+	void DrawBottomPanelDockspace();
+
+	void BuildLayout(std::uint32_t DockspaceId);
 
 	FWindowsApplication& Application;
 	UEditorEngine& EditorEngine;
@@ -97,9 +105,4 @@ private:
 	bool bFocusProfileRequested = false;
 #endif
 
-	void DrawMenuBar();
-	void DrawBottomToolbar();
-	void DrawBottomPanelDockspace();
-
-	void BuildLayout(std::uint32_t DockspaceId);
 };

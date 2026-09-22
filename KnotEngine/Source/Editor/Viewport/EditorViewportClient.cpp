@@ -103,16 +103,20 @@ bool FEditorViewportClient::GetViewportPixelPosition(const FVector2& InputPositi
 	}
 
 	const FVector2 LocalPosition = InputPosition - InputRectPosition;
-	if (LocalPosition.X < 0.0f || LocalPosition.Y < 0.0f || LocalPosition.X >= InputRectSize.X || LocalPosition.Y >= InputRectSize.Y)
-	{
-		return false;
-	}
 
 	OutPixelPosition.X = LocalPosition.X * static_cast<float>(Viewport.GetWidth()) / InputRectSize.X;
 	OutPixelPosition.Y = LocalPosition.Y * static_cast<float>(Viewport.GetHeight()) / InputRectSize.Y;
 	return true;
 }
 
+// 클라이언트 좌표가 Viewport 이미지 영역 안에 있는지 검사한다.
+bool FEditorViewportClient::ContainsInputPosition(const FVector2& InputPosition) const
+{
+	const FVector2 LocalPosition = InputPosition - InputRectPosition;
+	return LocalPosition.X >= 0.0f && LocalPosition.Y >= 0.0f && LocalPosition.X < InputRectSize.X && LocalPosition.Y < InputRectSize.Y;
+}
+
+// 라우팅된 키와 포인터 이벤트를 카메라 이동·회전·줌 입력으로 처리한다.
 FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 {
 	if (const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event))
@@ -147,6 +151,10 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 		Camera.ViewTransform.Rotate(PointerEvent->Delta.X * LookSensitivity, -PointerEvent->Delta.Y * LookSensitivity);
 		return FInputReply::Handled();
 	}
+	if (PointerEvent->Type == EPointerInputEventType::CursorMoved && bRotatingCamera)
+	{
+		return WrapCameraCursor(PointerEvent->Position);
+	}
 	if (PointerEvent->Type == EPointerInputEventType::Wheel)
 	{
 		const float WheelDelta = PointerEvent->WheelDelta.Y;
@@ -168,9 +176,40 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	return FInputReply::Unhandled();
 }
 
+// Viewport를 벗어난 카메라 드래그 커서를 반대편 내부로 옮기도록 요청한다.
+FInputReply FEditorViewportClient::WrapCameraCursor(const FVector2& Position) const
+{
+	if (InputRectSize.X <= 2.0f || InputRectSize.Y <= 2.0f)
+	{
+		return FInputReply::Handled();
+	}
+
+	FVector2 WrappedPosition = Position;
+	const FVector2 MaxPosition = InputRectPosition + InputRectSize;
+	if (Position.X < InputRectPosition.X)
+	{
+		WrappedPosition.X = MaxPosition.X - 1.0f;
+	}
+	else if (Position.X >= MaxPosition.X)
+	{
+		WrappedPosition.X = InputRectPosition.X + 1.0f;
+	}
+	if (Position.Y < InputRectPosition.Y)
+	{
+		WrappedPosition.Y = MaxPosition.Y - 1.0f;
+	}
+	else if (Position.Y >= MaxPosition.Y)
+	{
+		WrappedPosition.Y = InputRectPosition.Y + 1.0f;
+	}
+	return WrappedPosition == Position ? FInputReply::Handled() : FInputReply::Handled().WarpCursor(WrappedPosition);
+}
+
+// 키보드 포커스를 잃으면 유지 중인 이동 키와 카메라 회전을 초기화한다.
 void FEditorViewportClient::OnKeyboardFocusLost()
 {
 	KeysDown.reset();
+	bRotatingCamera = false;
 }
 
 void FEditorViewportClient::OnMouseCaptureLost()

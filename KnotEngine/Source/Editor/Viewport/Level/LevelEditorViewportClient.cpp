@@ -19,8 +19,13 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport, FE
 {
 }
 
+// 진행 중인 카메라 드래그를 우선 처리하고 일반 왼쪽 클릭은 장면 선택으로 전달한다.
 FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 {
+	if (IsCameraDragging())
+	{
+		return FEditorViewportClient::OnInputEvent(Event);
+	}
 	const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
@@ -35,7 +40,7 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition)
 {
 	FVector2 PixelPosition;
 	UWorld* World = GetWorld();
-	if (!World || !GetViewportPixelPosition(InputPosition, PixelPosition))
+	if (!World || !ContainsInputPosition(InputPosition) || !GetViewportPixelPosition(InputPosition, PixelPosition))
 	{
 		return nullptr;
 	}

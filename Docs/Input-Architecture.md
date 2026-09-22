@@ -330,6 +330,7 @@ return FInputReply::Handled()
 - Handled 또는 Unhandled
 - 키보드 포커스 설정 또는 해제
 - 논리적인 마우스 캡처 설정 또는 해제
+- 캡처 대상의 커서 재배치 요청 (`WarpCursor`)
 
 라우터는 대상 콜백이 반환된 뒤 요청을 적용한다.
 
@@ -339,12 +340,14 @@ return FInputReply::Handled()
 |---|---|
 | Mouse Button | Down 소유자, 캡처 대상, hovered 대상, ImGui |
 | Pointer Move/Wheel | 캡처 대상, hovered 대상, ImGui |
-| Raw Move | 캡처 대상, ImGui |
+| Raw Move | 캡처 대상, hovered 대상, ImGui |
 | Key | Down 소유자, Global Key Target, ImGui keyboard/text, focused 대상 |
 | Character | ImGui text/keyboard, focused 대상 |
 | Focus Lost | 모든 논리 소유권 해제 |
 
 명시적으로 등록된 hovered 뷰포트는 ImGui 전역 mouse capture 플래그보다 우선한다. 일반 ImGui 패널 위에서는 등록된 엔진 target이 없으므로 ImGui가 이벤트를 소비한다.
+
+캡처된 엔진 드래그 또는 ImGui 마우스 조작 중에는 새로운 전역 단축키를 실행하지 않는다. 기존 Down에 대응하는 Up/Repeat 소유권은 유지한다. ImGui가 키보드 입력을 점유하면 라우팅 종료 시 키보드 포커스를 해제하여 카메라의 유지 입력을 초기화한다. `ViewportClient::Tick()` 자체를 차단하거나 별도의 카메라 입력 허용 상태를 복제하지 않는다.
 
 ### Down/Up 소유권
 
@@ -379,6 +382,15 @@ Capture 해제
 ```
 
 스냅샷에서 눌린 마우스 버튼이 하나도 없으면 라우터는 남아 있는 논리 캡처를 자동 해제한다.
+
+### 무한 드래그와 커서 재배치
+
+- 카메라는 라우팅된 `CursorMoved`의 클라이언트 좌표가 이미지 영역을 벗어나면 `FInputReply::WarpCursor()`로 반대편 좌표를 요청한다. 회전은 `MouseMoved`의 Raw delta만 사용한다.
+- Router는 현재 캡처 대상의 요청만 보관한다. 이후 커서 이동은 이전 요청을 대체하고, 캡처 해제·포커스 상실은 미실행 요청을 폐기한다.
+- Inspector의 위젯 활성 여부와 직접 숫자 입력 여부는 ImGui가 판단한다. 드래그 시작 좌표·버튼 유지·포커스·이동 임계값은 `FInputSnapshot`으로 판단한다. 드래그 중에는 커서를 숨기고 시작 위치로 되돌린다.
+- `FImGuiSystem`은 라우팅 이후 요청을 `FWindowsApplication`에 전달한다. ImGui 좌표 동기화는 UI 드래그 계산에 재배치 거리가 섞이지 않도록 하는 출력 연동일 뿐, 엔진 입력의 출처가 아니다.
+- `FWindowsInput::WarpCursor()`가 Win32 재배치를 수행하고 수집기의 기준 좌표를 갱신한다. 이미 발행한 스냅샷은 변경하지 않으며 재배치를 물리 이동으로 기록하지 않는다. 커서 숨김 복구는 버튼 해제·위젯 소멸·포커스 상실·종료 시 처리한다.
+- 좌표는 현재 단일 네이티브 창의 클라이언트 좌표다. Viewport 포함 검사와 Render Target 픽셀 변환은 분리하며, 변환에 FramebufferScale을 중복 적용하지 않는다.
 
 ## 뷰포트 연결 계획
 

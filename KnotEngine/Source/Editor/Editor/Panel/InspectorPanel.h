@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core/CoreTypes.h"
+#include "Core/Math/Vector2.h"
+#include <optional>
 
 struct FEditorSelection;
 struct FQuat;
@@ -15,6 +17,7 @@ class UObject;
 class UNode;
 class UClass;
 class FAssetRegistry;
+class FInputSnapshot;
 
 class FInspectorPanel
 {
@@ -24,8 +27,13 @@ public:
 
 	void SetBoldFont(ImFont& InBoldFont) { BoldFont = &InBoldFont; }
 	void Draw(const FEditorSelection& Selection);
+	std::optional<FVector2> FinishCursorDrag(const FInputSnapshot& InputSnapshot);
+
+	bool IsCursorDragging() const { return bCursorDragging; }
 
 private:
+	bool DragFloat(const char* Label, float* Value, float Speed, float Min = 0.0f, float Max = 0.0f, const char* Format = "%.3f");
+	void TrackCursorDrag();
 	static bool DrawComponent(UNode& Node, const UClass& Class);
 
 	bool DrawComponentHeader(UComponent& Component, const FString& HeaderName, bool& bRemoveComponent);
@@ -60,4 +68,10 @@ private:
 	ImFont* BoldFont = nullptr;
 	UComponent* CopiedComponent = nullptr;
 	TStaticArray<char, 128> ComponentFilter = {};
+
+	FVector2 CursorDragOrigin = FVector2::ZeroVector;
+	uint32 ActiveDragItemId = 0;
+	uint32 PreviousDragItemId = 0;
+	bool bDragItemActivated = false;
+	bool bCursorDragging = false;
 };

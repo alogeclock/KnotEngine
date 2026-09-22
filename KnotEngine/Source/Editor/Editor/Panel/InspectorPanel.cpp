@@ -9,6 +9,7 @@
 #include "Component/Mesh/StaticMeshComponent.h"
 
 #include "Core/Geometry/Transform.h"
+#include "Core/Input/InputSnapshot.h"
 #include "Core/Math/Rotator.h"
 
 #include "Object/Class.h"
@@ -24,6 +25,7 @@
 #include "World/Node.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <algorithm>
 #include <cctype>
@@ -179,6 +181,7 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	}
 
 	UNode& Node = *Selection.SelectedNode;
+	ImGui::PushID(&Node);
 	DrawObject(Node);
 	UComponent* ComponentToRemove = nullptr;
 	for (const TObjectPtr<UComponent>& ComponentPointer : Node.GetComponents())
@@ -215,6 +218,7 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 		Node.RemoveComponent(*ComponentToRemove);
 	}
 	DrawAddComponent(Node);
+	ImGui::PopID();
 	ImGui::End();
 }
 
@@ -465,6 +469,74 @@ void FInspectorPanel::EndPropertyRow()
 	ImGui::PopStyleVar(2);
 }
 
+// 실수 프로퍼티 드래그 위젯을 그리고 무한 드래그를 위한 활성 상태를 기록한다.
+bool FInspectorPanel::DragFloat(const char* Label, float* Value, float Speed, float Min, float Max, const char* Format)
+{
+	const bool bChanged = ImGui::DragFloat(Label, Value, Speed, Min, Max, Format);
+	TrackCursorDrag();
+	return bChanged;
+}
+
+// 직접 숫자 입력 중이 아닌 활성 드래그 위젯의 식별자와 활성화 여부를 기록한다.
+void FInspectorPanel::TrackCursorDrag()
+{
+	const ImGuiID Id = ImGui::GetItemID();
+	if (ImGui::IsItemActive() && !ImGui::TempInputIsActive(Id))
+	{
+		ActiveDragItemId = Id;
+		bDragItemActivated = ImGui::IsItemActivated();
+	}
+}
+
+// 패널이 숨겨지거나 대상이 사라져도 매 프레임 커서 상태를 정리한다.
+std::optional<FVector2> FInspectorPanel::FinishCursorDrag(const FInputSnapshot& InputSnapshot)
+{
+	std::optional<FVector2> CursorPosition;
+	const bool bHasPointer = InputSnapshot.HasFocus() && InputSnapshot.HasPointerPosition();
+	const bool bActive = ActiveDragItemId != 0 && ImGui::GetActiveID() == ActiveDragItemId;
+	if (bHasPointer && bActive && InputSnapshot.IsMouseButtonDown(EMouseButton::Left))
+	{
+		if (bDragItemActivated || PreviousDragItemId != ActiveDragItemId)
+		{
+			CursorDragOrigin = InputSnapshot.GetPointerPosition();
+			bCursorDragging = false;
+			for (const FInputEvent& Event : InputSnapshot.GetEvents())
+			{
+				const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
+				if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
+				{
+					CursorDragOrigin = PointerEvent->Position;
+				}
+			}
+		}
+		const FVector2 Distance = InputSnapshot.GetPointerPosition() - CursorDragOrigin;
+		static constexpr float DragThreshold = 3.0f;
+		bCursorDragging |= Distance.X * Distance.X + Distance.Y * Distance.Y >= DragThreshold * DragThreshold;
+		if (bCursorDragging)
+		{
+			CursorPosition = CursorDragOrigin;
+			ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+		}
+	}
+	else
+	{
+		if (bCursorDragging)
+		{
+			ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+			if (bHasPointer)
+			{
+				CursorPosition = CursorDragOrigin;
+			}
+		}
+		bCursorDragging = false;
+	}
+	PreviousDragItemId = ActiveDragItemId;
+	ActiveDragItemId = 0;
+	bDragItemActivated = false;
+	return CursorPosition;
+}
+
+// 벡터의 X·Y·Z 성분을 한 행의 숫자 드래그 위젯으로 편집한다.
 bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 {
 	ImGui::PushID(Label);
@@ -476,13 +548,13 @@ bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= ImGui::DragFloat("X##Value", &Vector.X, 0.1f);
+			bChanged |= DragFloat("X##Value", &Vector.X, 0.1f);
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= ImGui::DragFloat("Y##Value", &Vector.Y, 0.1f);
+			bChanged |= DragFloat("Y##Value", &Vector.Y, 0.1f);
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= ImGui::DragFloat("Z##Value", &Vector.Z, 0.1f);
+			bChanged |= DragFloat("Z##Value", &Vector.Z, 0.1f);
 			ImGui::EndTable();
 		}
 		EndPropertyRow();
@@ -503,13 +575,13 @@ bool FInspectorPanel::DrawRotator(const char* Label, FRotator& Rotator)
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= ImGui::DragFloat("##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
+			bChanged |= DragFloat("##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= ImGui::DragFloat("##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
+			bChanged |= DragFloat("##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= ImGui::DragFloat("##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
+			bChanged |= DragFloat("##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
 			ImGui::EndTable();
 		}
 		EndPropertyRow();
@@ -518,6 +590,7 @@ bool FInspectorPanel::DrawRotator(const char* Label, FRotator& Rotator)
 	return bChanged;
 }
 
+// 쿼터니언을 오일러 각도 드래그로 편집하고 회전 변화량을 반영한다.
 bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 {
 	ImGui::PushID(Label);
@@ -560,7 +633,7 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			float EditedX = Euler.X;
-			if (ImGui::DragFloat("X##Value", &EditedX, 0.1f))
+			if (DragFloat("X##Value", &EditedX, 0.1f))
 			{
 				const FQuat DeltaRotation(FVector::ForwardVector, KMath::ToRadian(EditedX - Euler.X));
 				Quat = (Quat * DeltaRotation).GetNormalized();
@@ -571,7 +644,7 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			float EditedY = Euler.Y;
-			if (ImGui::DragFloat("Y##Value", &EditedY, 0.1f))
+			if (DragFloat("Y##Value", &EditedY, 0.1f))
 			{
 				const FQuat YawRotation(FVector::UpVector, KMath::ToRadian(Euler.Z));
 				const FVector PitchAxis = YawRotation.RotateVector(FVector::RightVector);
@@ -584,7 +657,7 @@ bool FInspectorPanel::DrawQuat(const char* Label, FQuat& Quat)
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			float EditedZ = Euler.Z;
-			if (ImGui::DragFloat("Z##Value", &EditedZ, 0.1f))
+			if (DragFloat("Z##Value", &EditedZ, 0.1f))
 			{
 				const FQuat DeltaRotation(FVector::UpVector, KMath::ToRadian(EditedZ - Euler.Z));
 				Quat = (DeltaRotation * Quat).GetNormalized();
@@ -729,7 +802,7 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		float EditedValue = *static_cast<float*>(Value);
 		if (BeginPropertyRow(Label.c_str()))
 		{
-			bChanged = ImGui::DragFloat("##Value", &EditedValue, 0.1f);
+			bChanged = DragFloat("##Value", &EditedValue, 0.1f);
 			EndPropertyRow();
 		}
 		if (bChanged)
@@ -744,6 +817,7 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 		if (BeginPropertyRow(Label.c_str()))
 		{
 			bChanged = ImGui::DragScalar("##Value", ImGuiDataType_Double, &EditedValue, 0.1f);
+			TrackCursorDrag();
 			EndPropertyRow();
 		}
 		if (bChanged)

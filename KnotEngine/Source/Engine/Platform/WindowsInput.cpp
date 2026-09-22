@@ -28,8 +28,10 @@ void FWindowsInput::Startup(HWND InWindowHandle)
 	}
 }
 
+// 커서 표시를 복구하고 Raw Input 등록과 대기 이벤트를 정리한다.
 void FWindowsInput::Shutdown()
 {
+	SetCursorVisible(true);
 	if (!WindowHandle)
 	{
 		return;
@@ -180,12 +182,52 @@ FInputSnapshot FWindowsInput::TakeSnapshot()
 	return Snapshot;
 }
 
+// 클라이언트 좌표로 커서를 재배치하되 물리적인 이동 이벤트나 델타로 기록하지 않는다.
+bool FWindowsInput::WarpCursor(const FVector2& Position)
+{
+	if (!WindowHandle || !bHasFocus || GetFocus() != WindowHandle)
+	{
+		return false;
+	}
+	POINT ScreenPosition = { static_cast<LONG>(Position.X), static_cast<LONG>(Position.Y) };
+	if (!ClientToScreen(WindowHandle, &ScreenPosition) || !SetCursorPos(ScreenPosition.x, ScreenPosition.y))
+	{
+		KE_LOG(LogInput, Warning, "커서 재배치 실패. GetLastError()={}", GetLastError());
+		return false;
+	}
+	PointerPosition = FVector2(static_cast<float>(static_cast<LONG>(Position.X)), static_cast<float>(static_cast<LONG>(Position.Y)));
+	bHasPointerPosition = true;
+	return true;
+}
+
+// 커서를 숨기거나 이전 모양으로 복구하며 포커스를 잃은 상태에서는 표시를 유지한다.
+void FWindowsInput::SetCursorVisible(bool bVisible)
+{
+	bVisible = bVisible || !bHasFocus;
+	if (bCursorVisible == bVisible)
+	{
+		return;
+	}
+	bCursorVisible = bVisible;
+	if (bVisible)
+	{
+		SetCursor(VisibleCursor ? VisibleCursor : LoadCursorW(nullptr, IDC_ARROW));
+		VisibleCursor = nullptr;
+	}
+	else
+	{
+		VisibleCursor = GetCursor();
+		SetCursor(nullptr);
+	}
+}
+
 // 포커스 전환을 반영하고 포커스를 잃으면 조합 대기 중인 상위 서로게이트를 버린다.
 void FWindowsInput::ProcessFocusChange(bool bInHasFocus)
 {
 	SetWindowFocusState(bInHasFocus);
 	if (!bInHasFocus)
 	{
+		SetCursorVisible(true);
 		PendingHighSurrogate = 0;
 	}
 }

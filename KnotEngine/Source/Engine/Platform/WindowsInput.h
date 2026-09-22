@@ -17,6 +17,10 @@ public:
 	void ProcessMessage(HWND MessageWindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
 	FInputSnapshot TakeSnapshot();
+	bool WarpCursor(const FVector2& Position);
+
+	void SetCursorVisible(bool bVisible);
+	bool IsCursorVisible() const { return bCursorVisible; }
 
 private:
 	static constexpr SIZE_T KeyCount = static_cast<SIZE_T>(EKeyboardKey::Count);
@@ -54,6 +58,7 @@ private:
 	EModifierKeyMask GetModifiers() const;
 
 	HWND WindowHandle = nullptr;
+	HCURSOR VisibleCursor = nullptr;
 
 	TStaticArray<bool, KeyCount> KeysDown = {};
 	TStaticArray<bool, KeyCount> KeysPressed = {};
@@ -74,4 +79,5 @@ private:
 	char16_t PendingHighSurrogate = 0;
 	bool bHasPointerPosition = false;
 	bool bHasFocus = false;
+	bool bCursorVisible = true;
 };

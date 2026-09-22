@@ -48,11 +48,15 @@ public:
 	void OnCameraStateChanged();
 	void OnViewTransformChanged();
 
+	bool IsCameraDragging() const { return bRotatingCamera; }
+
 protected:
 	FViewport& GetViewport() const { return Viewport; }
 	bool GetViewportPixelPosition(const FVector2& InputPosition, FVector2& OutPixelPosition) const;
+	bool ContainsInputPosition(const FVector2& InputPosition) const;
 
 private:
+	FInputReply WrapCameraCursor(const FVector2& Position) const;
 	bool UpdateKeyState(const FKeyInputEvent& Event);
 	bool IsKeyDown(EKeyboardKey Key) const;
 
