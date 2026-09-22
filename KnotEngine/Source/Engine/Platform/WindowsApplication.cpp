@@ -121,11 +121,18 @@ void FWindowsApplication::Startup(HINSTANCE InInstance, int ShowCmd)
 
 	panicf(RegisterClassExW(&WindowClass), "RegisterClassExW 실패. GetLastError()={}", GetLastError());
 
-	HWND WindowHandle = CreateWindowExW( 0, ClassName, Title, WS_MAXIMIZE | WS_VISIBLE | WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, nullptr, nullptr, Instance, this);
+	HWND WindowHandle = CreateWindowExW(0, ClassName, Title, WS_MAXIMIZE | WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, nullptr, nullptr, Instance, this);
 	panicf(WindowHandle, "CreateWindowExW 실패. GetLastError()={}", GetLastError());
 
 	Window.Startup(WindowHandle);
 	WindowsInput.Startup(WindowHandle);
+}
+
+// 렌더러와 에디터 초기화가 끝난 뒤 메인 창을 최대화하여 표시한다.
+void FWindowsApplication::Show()
+{
+	const HWND WindowHandle = Window.GetHwnd();
+	check(WindowHandle);
 	ShowWindow(WindowHandle, SW_SHOWMAXIMIZED);
 	UpdateWindow(WindowHandle);
 }

@@ -19,6 +19,7 @@ public:
 	~FWindowsApplication() = default;
 
 	void Startup(HINSTANCE InInstance, int ShowCmd);
+	void Show();
 	using FMessageHandler = LRESULT (*)(HWND, UINT, WPARAM, LPARAM);
 	void SetMessageHandler(FMessageHandler Handler) { MessageHandler = Handler; }
 	void PumpMessages();

@@ -21,6 +21,7 @@ int Launch(HINSTANCE Instance, int ShowCmd)
 	GEngine = EditorEngine;
 
 	EditorEngine->Startup(EngineLoop.GetApplication());
+	EngineLoop.GetApplication().Show();
 
 	const int32 Result = EngineLoop.Run(*EditorEngine);
 
