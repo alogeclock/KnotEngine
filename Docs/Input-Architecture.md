@@ -399,6 +399,8 @@ Level Editor Viewport는 `FTransformGizmo`를 직접 소유한다. 입력은 진
 
 선택된 Node가 있고 Gizmo를 조작 중이지 않을 때 `Space`를 누르면 Translate, Rotate, Scale 모드를 순서대로 전환한다. 개별 모드 전환 키는 사용하지 않는다.
 
+Level Editor Viewport에 키보드 포커스가 있을 때 `F`를 누르면 선택 Node에 카메라를 맞춘다. 표시 중인 Static Mesh Component의 World Bounds를 합쳐 화면 중앙에 배치하며, 카메라 방향은 유지한다. 원근 뷰는 FOV와 종횡비에 맞춰 거리를, 직교 뷰는 화면 폭을 조절한다. 메시가 없는 Node는 Transform 위치와 기본 반경을 사용한다. 키 반복, modifier 조합, 카메라·Gizmo 드래그 중에는 포커스를 실행하지 않으며 ImGui 숫자·텍스트 편집 차단은 기존 Router 정책을 따른다.
+
 Gizmo 객체와 UObject 주소는 Render Thread에 전달하지 않는다. `FLevelEditorViewportClient::BuildSceneView()`가 위치, 화면 크기 기반 월드 배율, 모드와 Highlight 축만 `FGizmoView` 값으로 복사하며 Render Thread는 이를 전용 Overlay Pass에서 소비한다.
 
 향후 뷰포트는 다음 경로로 연결한다.
@@ -427,6 +429,10 @@ ImGui DockSpace
 ```
 
 패널 도킹은 ImGui Docking이 담당하고, 패널 내부의 월드 뷰포트 분할만 작은 전용 layout으로 구현한다.
+
+### 선택 포커스 애니메이션
+
+`F` 포커스는 0.25초 동안 시작 위치와 목표 위치, 직교 줌을 Smoothstep으로 보간한다. 진행 중 다시 `F`를 누르면 현재 위치에서 새 전환을 시작한다. 카메라 직접 조작, 마우스 버튼 누름·휠, Escape, 선택 변경 및 포커스·캡처 상실 시 현재 위치에서 중단한다. 일반 Viewport Tick은 계속 실행한다.
 
 ## 게임 입력과의 경계
 

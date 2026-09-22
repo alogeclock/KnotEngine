@@ -25,6 +25,19 @@ public:
 private:
 	UNode* Raycast(const FVector2& InputPosition);
 
+	void FocusSelectedNode();
+	void UpdateFocusAnimation(float DeltaTime);
+
 	FEditorSelection& Selection;
 	FTransformGizmo TransformGizmo;
+
+	static constexpr float FocusAnimationDuration = 0.25f;
+	FVector FocusStartLocation = FVector::ZeroVector;
+	FVector FocusTargetLocation = FVector::ZeroVector;
+	float FocusStartOrthoZoom = 0.0f;
+	float FocusTargetOrthoZoom = 0.0f;
+	float FocusElapsedTime = 0.0f;
+	uint32 FocusTargetUUID = 0;
+	FEditorViewportCameraTransform LastFocusTransform; // 외부 카메라 조작을 감지하기 위한 직전 적용 값.
+	bool bFocusAnimating = false;
 };
