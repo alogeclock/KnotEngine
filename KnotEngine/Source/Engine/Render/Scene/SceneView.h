@@ -14,6 +14,23 @@ enum class EViewMode : uint8
 	ShadedWireframe,
 };
 
+// Editor Transform Gizmo가 View별로 Render Thread에 전달하는 값 복사본이다.
+enum class EGizmoViewMode : uint8
+{
+	Translate,
+	Rotate,
+	Scale,
+};
+
+struct FGizmoView
+{
+	FVector Origin;
+	float WorldScale = 1.0f;
+	EGizmoViewMode Mode = EGizmoViewMode::Translate;
+	int32 HighlightedAxis = -1;
+	bool bVisible = false;
+};
+
 // 단일 카메라에서 Scene을 수집하고 렌더링하는 데 필요한 View 단위 데이터다.
 struct FSceneView
 {
@@ -25,6 +42,7 @@ struct FSceneView
 	FFrustum Frustum;
 	FRenderViewport Viewport;
 	EViewMode ViewMode = EViewMode::Unlit;
+	FGizmoView Gizmo;
 	
 	int32 ForcedLODIndex = -1;
 	TStaticArray<float, 4> LODSteps = { 0.15f, 0.08f, 0.05f, 0.02f };

@@ -447,12 +447,37 @@ void FImGuiSystem::EndFrame()
 void FImGuiSystem::UpdateCursor()
 {
 	const FInputSnapshot& InputSnapshot = Application.GetInputSnapshot();
-	std::optional<FVector2> CursorPosition = InputRouter.ConsumeCursorWarp();
+
+	// 드래그 조작 시 매 프레임 커서의 위치를 드래그 시작 위치로 초기화한다.
+	std::optional<FVector2> CursorPosition;
+	const bool bLockViewportCursor = InputRouter.ShouldHideCursor();
+	if (bLockViewportCursor)
+	{
+		if (!ViewportCursorOrigin && InputSnapshot.HasPointerPosition())
+		{
+			ViewportCursorOrigin = InputSnapshot.GetPointerPosition();
+		}
+		if (ViewportCursorOrigin)
+		{
+			CursorPosition = ViewportCursorOrigin;
+		}
+	}
+	else if (bViewportCursorLocked)
+	{
+		CursorPosition = ViewportCursorOrigin;
+		ViewportCursorOrigin.reset();
+	}
+	bViewportCursorLocked = bLockViewportCursor;
+
 	if (const std::optional<FVector2> InspectorPosition = InspectorPanel.FinishCursorDrag(InputSnapshot))
 	{
 		CursorPosition = InspectorPosition;
 	}
-	Application.SetCursorVisible(!InspectorPanel.IsCursorDragging());
+	const bool bHideCursor = InspectorPanel.IsCursorDragging() || bLockViewportCursor;
+	if (bHideCursor)
+	{
+		ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+	}
 	if (CursorPosition && Application.WarpCursor(*CursorPosition))
 	{
 		// ImGui DragFloat의 이전 좌표도 함께 바꿔 Warp가 프로퍼티 값에 더해지지 않게 한다.
@@ -462,6 +487,7 @@ void FImGuiSystem::UpdateCursor()
 		IO.AddMousePosEvent(Position.x, Position.y);
 		IO.WantSetMousePos = false;
 	}
+	Application.SetCursorVisible(!bHideCursor);
 }
 
 FImGuiDrawDataCopy FImGuiSystem::Consume()
@@ -473,6 +499,8 @@ FImGuiDrawDataCopy FImGuiSystem::Consume()
 void FImGuiSystem::Shutdown()
 {
 	check(bStarted);
+	ViewportCursorOrigin.reset();
+	bViewportCursorLocked = false;
 	Application.SetCursorVisible(true);
 	Application.SetMessageHandler(nullptr);
 	bStarted = false;

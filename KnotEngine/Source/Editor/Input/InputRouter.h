@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Core/Input/InputSnapshot.h"
-#include <optional>
-
 // 에디터 입력 대상이 이벤트 처리 결과와 함께 포커스 및 캡처 변경을 요청한다.
 class FInputReply
 {
@@ -14,7 +12,6 @@ public:
 	FInputReply& ClearKeyboardFocus();
 	FInputReply& CaptureMouse();
 	FInputReply& ReleaseMouse();
-	FInputReply& WarpCursor(const FVector2& Position);
 
 	bool IsHandled() const { return bHandled; }
 
@@ -26,7 +23,6 @@ private:
 	bool bClearKeyboardFocus = false;
 	bool bCaptureMouse = false;
 	bool bReleaseMouse = false;
-	std::optional<FVector2> CursorWarpPosition;
 };
 
 // ImGui 바깥에서 동작하는 뷰포트, 기즈모 등의 에디터 입력 소비 지점이다.
@@ -38,6 +34,7 @@ public:
 	virtual FInputReply OnInputEvent(const FInputEvent& Event) = 0;
 	virtual void OnKeyboardFocusLost() {}
 	virtual void OnMouseCaptureLost() {}
+	virtual bool ShouldHideCursor() const { return false; }
 };
 
 // ImGui의 UI 판정과 엔진 입력 이벤트 사이에서 에디터 대상의 포커스 및 캡처를 관리한다.
@@ -53,7 +50,6 @@ public:
 	void SetImGuiCaptureState(bool bWantsMouse, bool bWantsKeyboard, bool bWantsTextInput);
 	void RouteInput();
 	void Reset();
-	std::optional<FVector2> ConsumeCursorWarp();
 
 	IInputTarget* GetHoveredTarget() const { return HoveredTarget; }
 	IInputTarget* GetKeyboardFocusOwner() const { return KeyboardFocusOwner; }
@@ -61,6 +57,7 @@ public:
 
 	bool HasMouseInput(const IInputTarget& Target) const;
 	bool HasKeyboardInput(const IInputTarget& Target) const;
+	bool ShouldHideCursor() const;
 
 	const TArray<bool>& GetHandledEvents() const { return HandledEvents; }
 
@@ -110,7 +107,6 @@ private:
 	bool IsAnyMouseButtonDown() const;
 
 	FInputSnapshot PendingSnapshot;
-	std::optional<FVector2> PendingCursorWarp;
 	TArray<FRegisteredTarget> RegisteredTargets;
 	TArray<bool> HandledEvents;
 	TStaticArray<FSequenceOwner, KeyCount> KeyOwners = {};

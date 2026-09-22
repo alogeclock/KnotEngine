@@ -4,6 +4,7 @@
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/Pass/DebugDrawPass.h"
+#include "Render/Pass/GizmoPass.h"
 #include "Render/Pass/OverlayPass.h"
 #include "Render/Pass/OpaquePass.h"
 #include "Render/Pass/PostProcessPass.h"
@@ -82,6 +83,10 @@ void FSceneRenderer::Render(FRenderer& Renderer)
 				BoundsPrimitives = VisiblePrimitives;
 			}
 			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives, Target.DisplayColor, Target.Depth));
+		}
+		if (View.Gizmo.bVisible)
+		{
+			OverlayNodes.push_back(FGizmoPass::AddPass(RenderGraph, Renderer, View, Target.DisplayColor, Target.Depth));
 		}
 	}
 	const uint32 PostProcessNode = FPostProcessPass::AddPass(RenderGraph, Renderer, Target.SceneColor, Target.DisplayColor, Target.SelectionDepth, Target.Depth, TargetViewport);

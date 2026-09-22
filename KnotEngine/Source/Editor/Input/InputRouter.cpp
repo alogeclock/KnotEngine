@@ -49,29 +49,12 @@ FInputReply& FInputReply::ReleaseMouse()
 	return *this;
 }
 
-// 입력 처리 결과에 클라이언트 좌표 기준의 커서 재배치 요청을 추가한다.
-FInputReply& FInputReply::WarpCursor(const FVector2& Position)
-{
-	bHandled = true;
-	CursorWarpPosition = Position;
-	return *this;
-}
-
-// 캡처와 창 포커스가 유효한 커서 재배치 요청을 한 번 반환하고 비운다.
-std::optional<FVector2> FInputRouter::ConsumeCursorWarp()
-{
-	const std::optional<FVector2> Position = MouseCaptureOwner && PendingSnapshot.HasFocus() ? PendingCursorWarp : std::nullopt;
-	PendingCursorWarp.reset();
-	return Position;
-}
-
 // 새 입력 스냅샷을 보관하고 프레임별 대상 등록과 소비 상태를 초기화한다.
 void FInputRouter::BeginFrame(const FInputSnapshot& InputSnapshot)
 {
 	checkf(!bHasPendingFrame, "이전 에디터 입력 프레임을 라우팅하기 전에 새 스냅샷이 전달되었다.");
 
 	PendingSnapshot = InputSnapshot;
-	PendingCursorWarp.reset();
 	RegisteredTargets.clear();
 	HandledEvents.clear();
 	HoveredTarget = nullptr;
@@ -181,8 +164,8 @@ void FInputRouter::RouteInput()
 	{
 		SetMouseCapture(nullptr);
 	}
-	// UI가 키보드 입력을 점유하면 유지 입력을 취소한다. Viewport Tick 자체는 계속 실행한다.
-	if (bImGuiWantsKeyboard || bImGuiWantsTextInput)
+	// Native 드래그가 없을 때만 ImGui의 키보드 점유에 따라 유지 입력을 취소한다.
+	if (!MouseCaptureOwner && (bImGuiWantsKeyboard || bImGuiWantsTextInput))
 	{
 		SetKeyboardFocus(nullptr);
 	}
@@ -195,7 +178,6 @@ void FInputRouter::Reset()
 {
 	ClearAllOwnership(true);
 	PendingSnapshot = {};
-	PendingCursorWarp.reset();
 	RegisteredTargets.clear();
 	HandledEvents.clear();
 	HoveredTarget = nullptr;
@@ -214,6 +196,12 @@ bool FInputRouter::HasMouseInput(const IInputTarget& Target) const
 bool FInputRouter::HasKeyboardInput(const IInputTarget& Target) const
 {
 	return KeyboardFocusOwner == &Target && !bImGuiWantsKeyboard && !bImGuiWantsTextInput;
+}
+
+// 현재 캡처 대상이 상대 마우스 조작을 위해 커서 숨김을 요청하는지 반환한다.
+bool FInputRouter::ShouldHideCursor() const
+{
+	return MouseCaptureOwner && MouseCaptureOwner->ShouldHideCursor();
 }
 
 bool FInputRouter::RouteEvent(const FInputEvent& Event)
@@ -281,6 +269,16 @@ bool FInputRouter::RouteKeyEvent(const FKeyInputEvent& Event)
 		DispatchEvent(SequenceOwner.Target, FInputEvent(Event));
 		return true;
 	}
+	else if (MouseCaptureOwner)
+	{
+		IInputTarget* CapturedTarget = MouseCaptureOwner;
+		DispatchEvent(CapturedTarget, FInputEvent(Event));
+		if (Event.bDown)
+		{
+			SequenceOwner = { CapturedTarget, ESequenceOwner::Native };
+		}
+		return true;
+	}
 	else if (!MouseCaptureOwner && !(bImGuiWantsMouse && IsAnyMouseButtonDown()) && DispatchEvent(GlobalKeyTarget, FInputEvent(Event)))
 	{
 		SequenceOwner = { GlobalKeyTarget, ESequenceOwner::Native };
@@ -307,11 +305,6 @@ bool FInputRouter::RouteKeyEvent(const FKeyInputEvent& Event)
 // 마우스 버튼 소유권과 캡처·Hover 상태에 따라 포인터 이벤트를 전달한다.
 bool FInputRouter::RoutePointerEvent(const FPointerInputEvent& Event)
 {
-	if (Event.Type == EPointerInputEventType::CursorMoved)
-	{
-		PendingCursorWarp.reset();
-	}
-
 	IInputTarget* Target = MouseCaptureOwner ? MouseCaptureOwner : HoveredTarget;
 	if (Event.Type == EPointerInputEventType::ButtonDown || Event.Type == EPointerInputEventType::ButtonUp)
 	{
@@ -396,7 +389,7 @@ bool FInputRouter::DispatchEvent(IInputTarget* Target, const FInputEvent& Event)
 	return Reply.IsHandled();
 }
 
-// 입력 대상이 반환한 포커스·캡처 변경과 커서 재배치 요청을 적용한다.
+// 입력 대상이 반환한 포커스와 마우스 캡처 변경 요청을 적용한다.
 void FInputRouter::ApplyReply(IInputTarget& Target, const FInputReply& Reply)
 {
 	if (Reply.bClearKeyboardFocus)
@@ -414,10 +407,6 @@ void FInputRouter::ApplyReply(IInputTarget& Target, const FInputReply& Reply)
 	if (Reply.bCaptureMouse)
 	{
 		SetMouseCapture(&Target);
-	}
-	if (Reply.CursorWarpPosition && MouseCaptureOwner == &Target)
-	{
-		PendingCursorWarp = Reply.CursorWarpPosition;
 	}
 }
 
@@ -490,7 +479,6 @@ void FInputRouter::SetMouseCapture(IInputTarget* Target)
 	}
 
 	IInputTarget* PreviousOwner = MouseCaptureOwner;
-	PendingCursorWarp.reset();
 	MouseCaptureOwner = Target;
 	if (PreviousOwner && IsTargetRegistered(PreviousOwner))
 	{
@@ -504,10 +492,9 @@ void FInputRouter::ClearSequenceOwners()
 	MouseButtonOwners.fill(FSequenceOwner{});
 }
 
-// 모든 입력 소유권과 미실행 커서 요청을 비우고 필요하면 상실을 통지한다.
+// 모든 입력 소유권을 비우고 필요하면 기존 소유자에게 상실을 통지한다.
 void FInputRouter::ClearAllOwnership(bool bNotifyOwners)
 {
-	PendingCursorWarp.reset();
 	IInputTarget* PreviousKeyboardOwner = KeyboardFocusOwner;
 	IInputTarget* PreviousMouseOwner = MouseCaptureOwner;
 

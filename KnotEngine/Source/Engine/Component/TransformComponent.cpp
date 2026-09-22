@@ -18,6 +18,7 @@ void UTransformComponent::SetRelativeTransform(const FTransform& Transform)
 	RelativeTransform.Rotation.Normalize();
 	OnTransformChanged();
 }
+
 void UTransformComponent::PostEditProperty(const FProperty& Property)
 {
 	Super::PostEditProperty(Property);

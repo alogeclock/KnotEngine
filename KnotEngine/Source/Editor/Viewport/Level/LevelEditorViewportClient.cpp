@@ -19,20 +19,66 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport, FE
 {
 }
 
+// 입력 이벤트가 없는 프레임에도 선택 변경과 대상 제거를 반영하고 일반 Viewport Tick을 수행한다.
+void FLevelEditorViewportClient::Tick(float DeltaTime)
+{
+	TransformGizmo.UpdateSelection(Selection);
+	FEditorViewportClient::Tick(DeltaTime);
+}
+
 // 진행 중인 카메라 드래그를 우선 처리하고 일반 왼쪽 클릭은 장면 선택으로 전달한다.
 FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 {
+	TransformGizmo.UpdateSelection(Selection);
+
 	if (IsCameraDragging())
 	{
 		return FEditorViewportClient::OnInputEvent(Event);
 	}
+
 	const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
+	FVector2 PixelPosition = FVector2::ZeroVector;
+
+	if (PointerEvent && !GetViewportPixelPosition(PointerEvent->Position, PixelPosition))
+	{
+		return FInputReply::Unhandled();
+	}
+
+	const FInputReply GizmoReply = TransformGizmo.OnInputEvent(Event, Selection, BuildSceneView(), PixelPosition);
+	if (GizmoReply.IsHandled())
+	{
+		return GizmoReply;
+	}
+
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
 		Selection.Select(Raycast(PointerEvent->Position));
 		return FInputReply::Handled().SetKeyboardFocus();
 	}
+
 	return FEditorViewportClient::OnInputEvent(Event);
+}
+
+// 키보드 포커스 상실을 카메라와 진행 중인 Gizmo 조작에 함께 전달한다.
+void FLevelEditorViewportClient::OnKeyboardFocusLost()
+{
+	TransformGizmo.OnKeyboardFocusLost();
+	FEditorViewportClient::OnKeyboardFocusLost();
+}
+
+// 정상 확정 전에 캡처가 사라지면 Gizmo의 시작 Transform을 복원한다.
+void FLevelEditorViewportClient::OnMouseCaptureLost()
+{
+	TransformGizmo.OnMouseCaptureLost();
+	FEditorViewportClient::OnMouseCaptureLost();
+}
+
+// 기본 Scene View에 현재 선택의 View별 Gizmo Render 값을 복사한다.
+FSceneView FLevelEditorViewportClient::BuildSceneView()
+{
+	FSceneView View = FEditorViewportClient::BuildSceneView();
+	TransformGizmo.BuildGizmoView(Selection, View, View.Gizmo);
+	return View;
 }
 
 // 입력 위치에서 만든 World Ray로 모든 LOD0 Triangle을 순회하여 가장 가까운 Node를 반환한다.

@@ -74,6 +74,7 @@ private:
 	ImFont* MediumFont = nullptr;
 	ImFont* SemiBoldFont = nullptr;
 	FImGuiDrawDataCopy DrawData;
+	std::optional<FVector2> ViewportCursorOrigin;
 
 	FViewportStatState ViewportStatState;
 	FViewportToolbar ViewportToolbar;
@@ -99,6 +100,7 @@ private:
 	bool bFocusContentRequested = false;
 	bool bLoadLevelDialogRequested = false;
 	bool bSaveLevelDialogRequested = false;
+	bool bViewportCursorLocked = false;
 
 #if KNOT_CPU_PROFILER_ENABLED
 	bool bShowProfile = false;

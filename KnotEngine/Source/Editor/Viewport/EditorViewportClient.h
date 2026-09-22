@@ -41,6 +41,7 @@ public:
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
 	void OnKeyboardFocusLost() override;
 	void OnMouseCaptureLost() override;
+	bool ShouldHideCursor() const override { return bRotatingCamera; }
 
 	// Camera
 	FEditorViewportCamera& GetCamera() { return Camera; }
@@ -56,7 +57,6 @@ protected:
 	bool ContainsInputPosition(const FVector2& InputPosition) const;
 
 private:
-	FInputReply WrapCameraCursor(const FVector2& Position) const;
 	bool UpdateKeyState(const FKeyInputEvent& Event);
 	bool IsKeyDown(EKeyboardKey Key) const;
 
@@ -64,8 +64,9 @@ private:
 	FShowFlags ShowFlags;
 	EViewMode ViewMode = EViewMode::Unlit;
 
+	TBitset<static_cast<SIZE_T>(EKeyboardKey::Count)> KeysDown; // 전역 Key 상태를 복제하는 것이 아닌, 유지 중인 키를 기억하는 상태
+
 	FEditorViewportCamera Camera;
-	TBitset<static_cast<SIZE_T>(EKeyboardKey::Count)> KeysDown;
 	FVector2 InputRectPosition = FVector2::ZeroVector;
 	FVector2 InputRectSize = FVector2::ZeroVector;
 	bool bRotatingCamera = false;

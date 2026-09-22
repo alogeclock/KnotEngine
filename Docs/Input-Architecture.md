@@ -330,7 +330,6 @@ return FInputReply::Handled()
 - Handled 또는 Unhandled
 - 키보드 포커스 설정 또는 해제
 - 논리적인 마우스 캡처 설정 또는 해제
-- 캡처 대상의 커서 재배치 요청 (`WarpCursor`)
 
 라우터는 대상 콜백이 반환된 뒤 요청을 적용한다.
 
@@ -383,18 +382,24 @@ Capture 해제
 
 스냅샷에서 눌린 마우스 버튼이 하나도 없으면 라우터는 남아 있는 논리 캡처를 자동 해제한다.
 
-### 무한 드래그와 커서 재배치
+### 무한 드래그와 커서 표시
 
-- 카메라는 라우팅된 `CursorMoved`의 클라이언트 좌표가 이미지 영역을 벗어나면 `FInputReply::WarpCursor()`로 반대편 좌표를 요청한다. 회전은 `MouseMoved`의 Raw delta만 사용한다.
-- Router는 현재 캡처 대상의 요청만 보관한다. 이후 커서 이동은 이전 요청을 대체하고, 캡처 해제·포커스 상실은 미실행 요청을 폐기한다.
+- 카메라는 우클릭 캡처 중 커서를 숨기고 조작 시작 좌표에 고정한다. 회전은 `MouseMoved`의 Raw delta만 사용하므로 절대 커서 좌표와 재배치 거리는 카메라 회전량에 관여하지 않는다.
+- Router는 현재 마우스 캡처 대상의 커서 숨김 요청을 UI 마감 시점에 조회할 수 있게 한다. 캡처 해제·포커스 상실 시 커서는 다시 표시된다.
 - Inspector의 위젯 활성 여부와 직접 숫자 입력 여부는 ImGui가 판단한다. 드래그 시작 좌표·버튼 유지·포커스·이동 임계값은 `FInputSnapshot`으로 판단한다. 드래그 중에는 커서를 숨기고 시작 위치로 되돌린다.
-- `FImGuiSystem`은 라우팅 이후 요청을 `FWindowsApplication`에 전달한다. ImGui 좌표 동기화는 UI 드래그 계산에 재배치 거리가 섞이지 않도록 하는 출력 연동일 뿐, 엔진 입력의 출처가 아니다.
-- `FWindowsInput::WarpCursor()`가 Win32 재배치를 수행하고 수집기의 기준 좌표를 갱신한다. 이미 발행한 스냅샷은 변경하지 않으며 재배치를 물리 이동으로 기록하지 않는다. 커서 숨김 복구는 버튼 해제·위젯 소멸·포커스 상실·종료 시 처리한다.
+- `FImGuiSystem`은 카메라 캡처 시작 좌표와 Inspector가 요청한 좌표를 `FWindowsApplication`에 전달한다. ImGui 좌표 동기화는 재배치 거리가 조작값에 섞이지 않도록 하는 출력 연동일 뿐, 엔진 입력의 출처가 아니다.
+- 재배치 시 `FWindowsInput::WarpCursor()`가 Win32 재배치를 수행하고 수집기의 기준 좌표를 갱신한다. 이미 발행한 스냅샷은 변경하지 않으며 재배치를 물리 이동으로 기록하지 않는다. 커서 숨김 복구는 버튼 해제·위젯 소멸·포커스 상실·종료 시 처리한다.
 - 좌표는 현재 단일 네이티브 창의 클라이언트 좌표다. Viewport 포함 검사와 Render Target 픽셀 변환은 분리하며, 변환에 FramebufferScale을 중복 적용하지 않는다.
 
 ## 뷰포트 연결 계획
 
-`FInputRouter`와 엔진 프레임 연결 및 Level Editor Viewport 입력 대상 등록은 구현되어 있다. 추가 Viewport layout과 Gizmo는 같은 target 등록 방식으로 확장한다.
+`FInputRouter`와 엔진 프레임 연결, Level Editor Viewport 입력 대상 등록과 Transform Gizmo는 구현되어 있다. 추가 Viewport layout도 같은 target 등록 방식으로 확장한다.
+
+Level Editor Viewport는 `FTransformGizmo`를 직접 소유한다. 입력은 진행 중인 Gizmo 조작, Gizmo Hit Test, Scene Picking, Camera 순서로 처리한다. Gizmo는 선택 Node의 UUID와 조작 시작 Transform을 보관하며 이동·회전·스케일 결과를 이전 프레임에 누적하지 않고 시작 상태와 현재 커서 목표로부터 매번 다시 계산한다. 작은 커서 이동은 Dead Zone으로 무시하고, Escape·오른쪽 클릭·포커스 또는 캡처 상실·선택 변경 시 시작 Transform을 복원한다. Translate Gizmo의 중앙 Handle은 View 평면 위 자유 이동, Scale Gizmo의 중앙 Handle은 균일 Scale을 수행한다. Rotation Gizmo의 X/Y/Z 링은 각 월드축, 흰색 외곽 링은 카메라 시선축, 내부 영역은 가상 구 기반 Trackball 회전을 수행한다.
+
+선택된 Node가 있고 Gizmo를 조작 중이지 않을 때 `Space`를 누르면 Translate, Rotate, Scale 모드를 순서대로 전환한다. 개별 모드 전환 키는 사용하지 않는다.
+
+Gizmo 객체와 UObject 주소는 Render Thread에 전달하지 않는다. `FLevelEditorViewportClient::BuildSceneView()`가 위치, 화면 크기 기반 월드 배율, 모드와 Highlight 축만 `FGizmoView` 값으로 복사하며 Render Thread는 이를 전용 Overlay Pass에서 소비한다.
 
 향후 뷰포트는 다음 경로로 연결한다.
 
@@ -463,10 +468,11 @@ ImGui DockSpace
 - 키와 버튼의 Down/Up 소유권 추적
 - 포커스 손실과 대상 제거 시 소유권 정리
 - `UEditorEngine` 프레임 흐름 연결
+- Level Editor Transform Gizmo의 입력 우선순위와 캡처
+- 월드 축 이동·회전·스케일 및 시작 Transform 기반 Drag
 
 ### 미구현
 
-- 기즈모 입력 우선순위
 - 뷰포트 내부 splitter 입력
 - PIE Game Viewport 전달
 - GameViewportClient 이후 게임 입력 경로

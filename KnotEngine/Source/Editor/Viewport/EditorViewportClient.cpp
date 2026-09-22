@@ -153,7 +153,7 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	}
 	if (PointerEvent->Type == EPointerInputEventType::CursorMoved && bRotatingCamera)
 	{
-		return WrapCameraCursor(PointerEvent->Position);
+		return FInputReply::Handled();
 	}
 	if (PointerEvent->Type == EPointerInputEventType::Wheel)
 	{
@@ -175,36 +175,6 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 
 	return FInputReply::Unhandled();
 }
-
-// Viewport를 벗어난 카메라 드래그 커서를 반대편 내부로 옮기도록 요청한다.
-FInputReply FEditorViewportClient::WrapCameraCursor(const FVector2& Position) const
-{
-	if (InputRectSize.X <= 2.0f || InputRectSize.Y <= 2.0f)
-	{
-		return FInputReply::Handled();
-	}
-
-	FVector2 WrappedPosition = Position;
-	const FVector2 MaxPosition = InputRectPosition + InputRectSize;
-	if (Position.X < InputRectPosition.X)
-	{
-		WrappedPosition.X = MaxPosition.X - 1.0f;
-	}
-	else if (Position.X >= MaxPosition.X)
-	{
-		WrappedPosition.X = InputRectPosition.X + 1.0f;
-	}
-	if (Position.Y < InputRectPosition.Y)
-	{
-		WrappedPosition.Y = MaxPosition.Y - 1.0f;
-	}
-	else if (Position.Y >= MaxPosition.Y)
-	{
-		WrappedPosition.Y = InputRectPosition.Y + 1.0f;
-	}
-	return WrappedPosition == Position ? FInputReply::Handled() : FInputReply::Handled().WarpCursor(WrappedPosition);
-}
-
 // 키보드 포커스를 잃으면 유지 중인 이동 키와 카메라 회전을 초기화한다.
 void FEditorViewportClient::OnKeyboardFocusLost()
 {
@@ -265,6 +235,7 @@ void FEditorViewportClient::OnViewTransformChanged()
 	Camera.ViewTransform.ViewRotation.Normalize();
 }
 
+// 렌더 뷰포트 및 카메라 정보를 기반으로 Scene을 수집하고 렌더링하기 위한 뷰 단위 데이터를 초기화한다.
 FSceneView FEditorViewportClient::BuildSceneView()
 {
 	const FRenderViewport ViewportInfo = Viewport.GetRenderViewport();
