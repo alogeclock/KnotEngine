@@ -143,7 +143,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	{
 		if (UWorld* World = EditorEngine.GetWorld())
 		{
-			HierarchyPanel.Draw(*World, Selection);
+			HierarchyPanel.Draw(*World, Selection, Application.GetInputSnapshot());
 		}
 	}
 	if (bShowInspector)

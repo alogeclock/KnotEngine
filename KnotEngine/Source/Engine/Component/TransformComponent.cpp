@@ -4,6 +4,7 @@
 #include "World/Node.h"
 
 #include <algorithm>
+#include <cmath>
 
 UTransformComponent::~UTransformComponent()
 {
@@ -97,7 +98,8 @@ FVector UTransformComponent::GetWorldLocation() const
 	return GetWorldMatrix().TransformPosition(FVector::ZeroVector);
 }
 
-bool UTransformComponent::SetParent(UTransformComponent* NewParent, SIZE_T SiblingIndex)
+// 현재 Relative Transform을 유지한 채 Parent와 Sibling 순서를 변경한다.
+bool UTransformComponent::SetParentRelative(UTransformComponent* NewParent, SIZE_T SiblingIndex)
 {
 	static constexpr SIZE_T LastSiblingIndex = static_cast<SIZE_T>(-1);
 	ULevel& Level = GetOwner().GetLevel();
@@ -105,7 +107,6 @@ bool UTransformComponent::SetParent(UTransformComponent* NewParent, SIZE_T Sibli
 	{
 		return false;
 	}
-	// 자신이나 자신의 자손을 부모로 수정하지 않도록 한다.
 	for (const UTransformComponent* Ancestor = NewParent; Ancestor; Ancestor = Ancestor->Parent)
 	{
 		if (Ancestor == this)
@@ -113,7 +114,6 @@ bool UTransformComponent::SetParent(UTransformComponent* NewParent, SIZE_T Sibli
 			return false;
 		}
 	}
-	// 같은 부모라면 자식 목록 수정과 Transform 변경 통지가 필요없다.
 	if (Parent.Get() == NewParent)
 	{
 		return SiblingIndex == LastSiblingIndex || SetSiblingIndex(SiblingIndex);
@@ -140,7 +140,73 @@ bool UTransformComponent::SetParent(UTransformComponent* NewParent, SIZE_T Sibli
 	{
 		Level.InsertRootNode(GetOwner(), NewSiblingIndex);
 	}
-	OnTransformChanged(); // 자식과 자손의 렌더 상태를 갱신한다.
+	OnTransformChanged();
+	return true;
+}
+
+// 현재 World Transform을 유지하도록 새 Parent 기준의 Relative Transform을 계산한다.
+bool UTransformComponent::SetParentAbsolute(UTransformComponent* NewParent, SIZE_T SiblingIndex)
+{
+	static constexpr SIZE_T LastSiblingIndex = static_cast<SIZE_T>(-1);
+	ULevel& Level = GetOwner().GetLevel();
+	if (NewParent && &NewParent->GetOwner().GetLevel() != &Level)
+	{
+		return false;
+	}
+	for (const UTransformComponent* Ancestor = NewParent; Ancestor; Ancestor = Ancestor->Parent)
+	{
+		if (Ancestor == this)
+		{
+			return false;
+		}
+	}
+	if (Parent.Get() == NewParent)
+	{
+		return SiblingIndex == LastSiblingIndex || SetSiblingIndex(SiblingIndex);
+	}
+
+	const SIZE_T NewSiblingCount = NewParent ? NewParent->Children.size() : Level.RootNodes.size();
+	const SIZE_T NewSiblingIndex = SiblingIndex == LastSiblingIndex ? NewSiblingCount : SiblingIndex;
+	if (NewSiblingIndex > NewSiblingCount)
+	{
+		return false;
+	}
+
+	FMatrix RelativeMatrix = GetWorldMatrix();
+	if (NewParent)
+	{
+		const FMatrix ParentWorldMatrix = NewParent->GetWorldMatrix();
+		if (std::fabs(ParentWorldMatrix.GetDeterminant()) <= KMath::Epsilon)
+		{
+			return false;
+		}
+		RelativeMatrix *= ParentWorldMatrix.GetInverse();
+	}
+
+	FVector Translation;
+	FMatrix Rotation;
+	FVector Scale;
+	if (!RelativeMatrix.Decompose(Translation, Rotation, Scale))
+	{
+		return false;
+	}
+	const FTransform NewRelativeTransform(FQuat(Rotation), Translation, Scale);
+
+	Detach();
+	Parent = NewParent;
+	if (Parent)
+	{
+		Parent->Children.insert(Parent->Children.begin() + NewSiblingIndex, this);
+		for (SIZE_T Index = NewSiblingIndex; Index < Parent->Children.size(); ++Index)
+		{
+			Parent->Children[Index]->SiblingIndex = Index;
+		}
+	}
+	else
+	{
+		Level.InsertRootNode(GetOwner(), NewSiblingIndex);
+	}
+	SetRelativeTransform(NewRelativeTransform);
 	return true;
 }
 

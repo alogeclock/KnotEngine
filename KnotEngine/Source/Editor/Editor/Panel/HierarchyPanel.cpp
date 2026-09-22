@@ -1,6 +1,7 @@
 #include "Editor/Panel/HierarchyPanel.h"
 
 #include "Component/Component.h"
+#include "Core/Input/InputSnapshot.h"
 #include "Editor/EditorSelection.h"
 #include "Object/Class.h"
 #include "Object/Reflection/ReflectionRegistry.h"
@@ -10,6 +11,7 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <limits>
 
 UNode& FHierarchyPanel::CreateNode(UWorld& World, const FString& BaseName)
@@ -31,46 +33,284 @@ bool FHierarchyPanel::DrawNode(UWorld& World, FEditorSelection& Selection, const
 	return true;
 }
 
-void FHierarchyPanel::DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex, FEditorSelection& Selection)
+// 선택된 자손을 중복 제거한 뒤 선택 계층의 최상위 Node부터 제거한다.
+void FHierarchyPanel::RemoveSelectedNodes(FEditorSelection& Selection)
 {
-	ImGui::PushID(&Level);
-	const FString LevelLabel = &Level == &World.GetPersistentLevel() ? "Persistent Level" : "Level " + std::to_string(LevelIndex);
-	if (ImGui::TreeNodeEx(LevelLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+	const TArray<UNode*>& SelectedNodes = Selection.GetSelectedNodes();
+	TSet<UNode*> SelectedLookup(SelectedNodes.begin(), SelectedNodes.end());
+	TArray<UNode*> RemovalRoots;
+	for (UNode* Node : SelectedNodes)
 	{
-		const TArray<TObjectPtr<UNode>>& Nodes = Level.GetNodes();
-		check(Nodes.size() <= static_cast<SIZE_T>((std::numeric_limits<int>::max)()));
-		
-		// 화면에 보이는 객체의 텍스트만 렌더링하도록 한다.
-		ImGuiListClipper Clipper;
-		Clipper.Begin(static_cast<int>(Nodes.size()));
-		while (Clipper.Step())
+		bool bHasAncestor = false;
+		for (UTransformComponent* Parent = Node->GetParent(); Parent; Parent = Parent->GetParent())
 		{
-			for (int NodeIndex = Clipper.DisplayStart; NodeIndex < Clipper.DisplayEnd; ++NodeIndex)
+			if (SelectedLookup.contains(&Parent->GetOwner()))
 			{
-				UNode* Node = Nodes[static_cast<SIZE_T>(NodeIndex)].Get();
-				if (!Node)
-				{
-					ImGui::Dummy({ 0.0f, ImGui::GetTextLineHeightWithSpacing() });
-					continue;
-				}
-
-				ImGui::PushID(Node);
-				const FString NodeName = Node->GetName().ToString();
-				const bool bSelected = Selection.SelectedNode == Node;
-				if (ImGui::Selectable(NodeName.c_str(), bSelected))
-				{
-					Selection.Select(Node);
-				}
-				if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-				{
-					Selection.Select(Node);
-				}
-				ImGui::PopID();
+				bHasAncestor = true;
+				break;
 			}
 		}
-		ImGui::TreePop();
+		if (!bHasAncestor)
+		{
+			RemovalRoots.push_back(Node);
+		}
+	}
+
+	Selection.Deselect();
+	for (UNode* Node : RemovalRoots)
+	{
+		Node->GetLevel().RemoveNode(*Node);
+	}
+}
+
+// 펼쳐진 Node와 자손만 화면 표시 순서의 평탄 목록에 추가한다.
+void FHierarchyPanel::BuildVisibleNodes(UNode& Node, uint32 Depth)
+{
+	const TArray<TObjectPtr<UTransformComponent>>& Children = Node.GetChildren();
+	VisibleNodes.push_back(FVisibleNode{ &Node, Depth, !Children.empty() });
+	if (CollapsedNodeUUIDs.contains(Node.GetUUID()))
+	{
+		return;
+	}
+	for (const TObjectPtr<UTransformComponent>& Child : Children)
+	{
+		BuildVisibleNodes(Child->GetOwner(), Depth + 1);
+	}
+}
+
+// Ctrl은 선택을 토글하고 Shift는 현재 가시 목록에서 Anchor부터 범위를 선택한다.
+void FHierarchyPanel::SelectVisibleNode(UNode& Node, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot)
+{
+	const EModifierKeyMask Modifiers = InputSnapshot.GetModifiers();
+	const bool bControlDown = HasModifierKey(Modifiers, EModifierKeyMask::Control);
+	const bool bShiftDown = HasModifierKey(Modifiers, EModifierKeyMask::Shift);
+	if (bShiftDown && SelectionAnchor)
+	{
+		const auto Anchor = std::find_if(VisibleNodes.begin(), VisibleNodes.end(), [this](const FVisibleNode& VisibleNode)
+		{
+			return VisibleNode.Node == SelectionAnchor;
+		});
+		const auto Target = std::find_if(VisibleNodes.begin(), VisibleNodes.end(), [&Node](const FVisibleNode& VisibleNode)
+		{
+			return VisibleNode.Node == &Node;
+		});
+		if (Anchor != VisibleNodes.end() && Target != VisibleNodes.end())
+		{
+			TArray<UNode*> Range = bControlDown ? Selection.GetSelectedNodes() : TArray<UNode*>();
+			const auto First = (std::min)(Anchor, Target);
+			const auto Last = (std::max)(Anchor, Target);
+			for (auto Iterator = First; Iterator <= Last; ++Iterator)
+			{
+				if (std::find(Range.begin(), Range.end(), Iterator->Node) == Range.end())
+				{
+					Range.push_back(Iterator->Node);
+				}
+			}
+			Selection.Select(Range, &Node);
+			return;
+		}
+	}
+
+	if (bControlDown)
+	{
+		Selection.Toggle(Node);
+	}
+	else
+	{
+		Selection.Select(&Node);
+	}
+	SelectionAnchor = &Node;
+}
+
+// 한 가시 Node 행의 펼침, 선택과 Drag & Drop 입력을 처리한다.
+void FHierarchyPanel::DrawVisibleNode(const FVisibleNode& VisibleNode, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot)
+{
+	UNode& Node = *VisibleNode.Node;
+	ImGui::PushID(&Node);
+	if (VisibleNode.Depth > 0)
+	{
+		ImGui::Indent(static_cast<float>(VisibleNode.Depth) * ImGui::GetStyle().IndentSpacing);
+	}
+
+	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_SpanAvailWidth |
+		ImGuiTreeNodeFlags_NoTreePushOnOpen |
+		ImGuiTreeNodeFlags_OpenOnArrow |
+		ImGuiTreeNodeFlags_OpenOnDoubleClick;
+	if (Selection.IsSelected(&Node))
+	{
+		Flags |= ImGuiTreeNodeFlags_Selected;
+	}
+	if (!VisibleNode.bHasChildren)
+	{
+		Flags |= ImGuiTreeNodeFlags_Leaf;
+	}
+
+	const bool bExpanded = VisibleNode.bHasChildren && !CollapsedNodeUUIDs.contains(Node.GetUUID());
+	ImGui::SetNextItemOpen(bExpanded, ImGuiCond_Always);
+	const FString NodeName = Node.GetName().ToString();
+	const bool bOpen = ImGui::TreeNodeEx("##Node", Flags, "%s", NodeName.c_str());
+	const ImVec2 ItemMinimum = ImGui::GetItemRectMin();
+	const ImVec2 ItemMaximum = ImGui::GetItemRectMax();
+	if (VisibleNode.bHasChildren)
+	{
+		if (bOpen)
+		{
+			CollapsedNodeUUIDs.erase(Node.GetUUID());
+		}
+		else
+		{
+			CollapsedNodeUUIDs.emplace(Node.GetUUID());
+		}
+	}
+	if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen())
+	{
+		SelectVisibleNode(Node, Selection, InputSnapshot);
+	}
+	if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && !Selection.IsSelected(&Node))
+	{
+		Selection.Select(&Node);
+		SelectionAnchor = &Node;
+	}
+
+	if (ImGui::BeginDragDropSource())
+	{
+		if (!Selection.IsSelected(&Node))
+		{
+			Selection.Select(&Node);
+			SelectionAnchor = &Node;
+		}
+		UNode* PayloadNode = &Node;
+		ImGui::SetDragDropPayload("HIERARCHY_NODE", &PayloadNode, sizeof(PayloadNode));
+		ImGui::TextUnformatted(NodeName.c_str());
+		ImGui::EndDragDropSource();
+	}
+
+	if (ImGui::BeginDragDropTarget())
+	{
+		const ImGuiDragDropFlags DropFlags =
+			ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
+		const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload("HIERARCHY_NODE", DropFlags);
+		if (Payload && Payload->DataSize == sizeof(UNode*))
+		{
+			const float ItemHeight = ItemMaximum.y - ItemMinimum.y;
+			const float Position = ItemHeight > 0.0f ? (ImGui::GetMousePos().y - ItemMinimum.y) / ItemHeight : 0.5f;
+			const ENodeDropPosition DropPosition = Position < 0.25f ? ENodeDropPosition::Before :
+				(Position > 0.75f ? ENodeDropPosition::After : ENodeDropPosition::Into);
+			const ImU32 Color = ImGui::GetColorU32(ImGuiCol_DragDropTarget);
+			if (DropPosition == ENodeDropPosition::Into)
+			{
+				ImGui::GetForegroundDrawList()->AddRect(ItemMinimum, ItemMaximum, Color, 2.0f, 0, 2.0f);
+			}
+			else
+			{
+				const float Y = DropPosition == ENodeDropPosition::Before ? ItemMinimum.y : ItemMaximum.y;
+				ImGui::GetForegroundDrawList()->AddLine(ImVec2(ItemMinimum.x, Y), ImVec2(ItemMaximum.x, Y), Color, 2.0f);
+			}
+			if (Payload->IsDelivery())
+			{
+				PendingDrop.DraggedNode = *static_cast<UNode* const*>(Payload->Data);
+				PendingDrop.TargetNode = &Node;
+				PendingDrop.TargetLevel = &Node.GetLevel();
+				PendingDrop.Position = DropPosition;
+				PendingDrop.bValid = true;
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (VisibleNode.Depth > 0)
+	{
+		ImGui::Unindent(static_cast<float>(VisibleNode.Depth) * ImGui::GetStyle().IndentSpacing);
 	}
 	ImGui::PopID();
+}
+
+// Level의 Root부터 가시 계층을 만들고 화면에 걸친 행만 실제로 렌더링한다.
+void FHierarchyPanel::DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot)
+{
+	ImGui::PushID(&Level);
+	const bool bPersistentLevel = &Level == &World.GetPersistentLevel();
+	bool bLevelOpen = true;
+	if (!bPersistentLevel)
+	{
+		const FString LevelLabel = "Level " + std::to_string(LevelIndex);
+		bLevelOpen = ImGui::TreeNodeEx(LevelLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+		if (ImGui::BeginDragDropTarget())
+		{
+			const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload("HIERARCHY_NODE", ImGuiDragDropFlags_AcceptBeforeDelivery);
+			if (Payload && Payload->DataSize == sizeof(UNode*) && Payload->IsDelivery())
+			{
+				PendingDrop.DraggedNode = *static_cast<UNode* const*>(Payload->Data);
+				PendingDrop.TargetLevel = &Level;
+				PendingDrop.Position = ENodeDropPosition::Root;
+				PendingDrop.bValid = true;
+			}
+			ImGui::EndDragDropTarget();
+		}
+	}
+	if (bLevelOpen)
+	{
+		VisibleNodes.clear();
+		for (UNode* RootNode : Level.RootNodes)
+		{
+			BuildVisibleNodes(*RootNode, 0);
+		}
+		check(VisibleNodes.size() <= static_cast<SIZE_T>((std::numeric_limits<int>::max)()));
+
+		ImGuiListClipper Clipper;
+		Clipper.Begin(static_cast<int>(VisibleNodes.size()));
+		while (Clipper.Step())
+		{
+			for (int Index = Clipper.DisplayStart; Index < Clipper.DisplayEnd; ++Index)
+			{
+				DrawVisibleNode(VisibleNodes[static_cast<SIZE_T>(Index)], Selection, InputSnapshot);
+			}
+		}
+		if (!bPersistentLevel)
+		{
+			ImGui::TreePop();
+		}
+	}
+	ImGui::PopID();
+}
+
+// 보류한 Drop을 계층 순회가 끝난 뒤 적용하여 가시 목록과 자식 배열의 무효화를 피한다.
+void FHierarchyPanel::ApplyPendingDrop()
+{
+	if (!PendingDrop.bValid || !PendingDrop.DraggedNode || !PendingDrop.TargetLevel ||
+		&PendingDrop.DraggedNode->GetLevel() != PendingDrop.TargetLevel)
+	{
+		return;
+	}
+
+	UTransformComponent& DraggedTransform = PendingDrop.DraggedNode->GetTransform();
+	UTransformComponent* NewParent = nullptr;
+	SIZE_T NewSiblingIndex = 0;
+	if (PendingDrop.Position == ENodeDropPosition::Root)
+	{
+		NewSiblingIndex = PendingDrop.TargetLevel->RootNodes.size();
+	}
+	else
+	{
+		check(PendingDrop.TargetNode);
+		if (PendingDrop.Position == ENodeDropPosition::Into)
+		{
+			NewParent = &PendingDrop.TargetNode->GetTransform();
+			NewSiblingIndex = PendingDrop.TargetNode->GetChildren().size();
+		}
+		else
+		{
+			NewParent = PendingDrop.TargetNode->GetParent();
+			NewSiblingIndex = PendingDrop.TargetNode->GetSiblingIndex();
+			NewSiblingIndex += PendingDrop.Position == ENodeDropPosition::After ? 1 : 0;
+		}
+	}
+
+	if (DraggedTransform.GetParent() == NewParent && DraggedTransform.GetSiblingIndex() < NewSiblingIndex)
+	{
+		--NewSiblingIndex;
+	}
+	DraggedTransform.SetParentAbsolute(NewParent, NewSiblingIndex);
 }
 
 // Hierarchy 어디에서나 Node 생성과 현재 선택 Node 제거 메뉴를 표시한다.
@@ -134,12 +374,13 @@ bool FHierarchyPanel::DrawContextMenu(UWorld& World, FEditorSelection& Selection
 		ImGui::EndMenu();
 	}
 
-	const bool bRemoveNode = ImGui::MenuItem("Remove Node", nullptr, false, Selection.SelectedNode != nullptr);
+	const bool bMultipleNodes = Selection.GetSelectedNodes().size() > 1;
+	const bool bRemoveNode = ImGui::MenuItem(bMultipleNodes ? "Remove Nodes" : "Remove Node", nullptr, false, Selection.SelectedNode != nullptr);
 	ImGui::EndPopup();
 	return bRemoveNode;
 }
 
-void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection)
+void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot)
 {
 	if (!ImGui::Begin("Hierarchy"))
 	{
@@ -147,6 +388,7 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection)
 		return;
 	}
 
+	PendingDrop = FPendingDrop();
 	const TArray<TObjectPtr<ULevel>>& Levels = World.GetLevels();
 	for (SIZE_T LevelIndex = 0; LevelIndex < Levels.size(); ++LevelIndex)
 	{
@@ -155,13 +397,13 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection)
 		{
 			continue;
 		}
-		DrawLevel(World, *Level, LevelIndex, Selection);
+		DrawLevel(World, *Level, LevelIndex, Selection, InputSnapshot);
 	}
+	ApplyPendingDrop();
 	if (DrawContextMenu(World, Selection))
 	{
-		UNode* NodeToRemove = Selection.SelectedNode;
-		Selection.Deselect();
-		NodeToRemove->GetLevel().RemoveNode(*NodeToRemove);
+		RemoveSelectedNodes(Selection);
+		SelectionAnchor = nullptr;
 	}
 	ImGui::End();
 }

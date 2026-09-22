@@ -3,6 +3,7 @@
 #include "World/Node.h"
 
 class UComponent;
+class FHierarchyPanel;
 
 // World에 속한 Node의 저장 및 관리 단위.
 // 공간상의 부모-자식 관계와 관계없이 소속된 모든 Node를 평탄한 배열로 소유하며,
@@ -29,6 +30,7 @@ public:
 
 private:
 	friend class UComponent;
+	friend class FHierarchyPanel;
 	friend class UTransformComponent;
 	friend class UWorld;
 

@@ -27,8 +27,8 @@ public:
 	const TArray<TObjectPtr<UTransformComponent>>& GetChildren() const { return Children; }
 	SIZE_T GetSiblingIndex() const { return SiblingIndex; }
 
-	// 상대 변환을 유지한다. 순환을 만드는 외부 부착 요청은 false로 거절한다.
-	bool SetParent(UTransformComponent* NewParent, SIZE_T SiblingIndex = static_cast<SIZE_T>(-1));
+	bool SetParentRelative(UTransformComponent* NewParent, SIZE_T SiblingIndex = static_cast<SIZE_T>(-1));
+	bool SetParentAbsolute(UTransformComponent* NewParent, SIZE_T SiblingIndex = static_cast<SIZE_T>(-1));
 	bool SetSiblingIndex(SIZE_T SiblingIndex);
 
 private:
@@ -36,9 +36,10 @@ private:
 
 	static constexpr SIZE_T InvalidIndex = static_cast<SIZE_T>(-1);
 
-	void Detach();
-	void SetRelativeRotation(const FQuat& InRotation);
 	void OnTransformChanged();
+	
+	void SetRelativeRotation(const FQuat& InRotation);
+	void Detach();
 
 	/// 부모 Transform을 기준으로 한 상대 위치이다.
 	UPROPERTY(Category = "Transform") FVector Location = FVector::ZeroVector;

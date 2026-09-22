@@ -11,6 +11,7 @@ class UComponent;
 class UClass;
 class FRenderer;
 class FMapSerializer;
+class FHierarchyPanel;
 struct FEditorSelection;
 
 // Level에 배치되는 최소 단위 객체로, Component의 합성을 통해 기능을 구현한다.
@@ -52,6 +53,7 @@ public:
 
 private:
 	friend class FMapSerializer;
+	friend class FHierarchyPanel;
 	friend class ULevel;
 	friend struct FEditorSelection;
 

@@ -450,7 +450,7 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 	for (FMapNodeDefinition* NodeDefinition : ChildDefinitions)
 	{
 		UObject* ParentObject = Resolver.ResolveObject(NodeDefinition->ParentUUID, *UNode::StaticClass());
-		if (!ParentObject || !NodeDefinition->Object->GetTransform().SetParent(
+		if (!ParentObject || !NodeDefinition->Object->GetTransform().SetParentRelative(
 			&static_cast<UNode*>(ParentObject)->GetTransform(), NodeDefinition->SiblingIndex))
 		{
 			Archive.SetError();
