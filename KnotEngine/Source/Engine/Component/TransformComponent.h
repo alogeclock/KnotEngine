@@ -13,8 +13,11 @@ class ENGINE_API UTransformComponent final : public UComponent
 public:
 	~UTransformComponent() override;
 
-	const FTransform& GetRelativeTransform() const { return RelativeTransform; }
+	FTransform GetRelativeTransform() const;
+	const FRotator& GetRelativeRotation() const { return Rotation; }
+
 	void SetRelativeTransform(const FTransform& Transform);
+	void SetRelativeRotation(const FRotator& InRotation);
 	void PostEditProperty(const FProperty& Property) override;
 
 	FMatrix GetWorldMatrix() const;
@@ -26,10 +29,20 @@ public:
 	bool SetParent(UTransformComponent* NewParent);
 
 private:
+	void SetRelativeRotation(const FQuat& InRotation);
 	void OnTransformChanged();
 
-	/// 부모 Transform을 기준으로 한 상대 변환이다.
-	UPROPERTY(Category = "Transform") FTransform RelativeTransform;
+	/// 부모 Transform을 기준으로 한 상대 위치이다.
+	UPROPERTY(Category = "Transform") FVector Location = FVector::ZeroVector;
+
+	/// 부모 Transform을 기준으로 한 상대 회전이며 사용자가 입력한 누적 각도를 보존한다.
+	UPROPERTY(Category = "Transform") FRotator Rotation = FRotator::ZeroRotator;
+
+	/// 부모 Transform을 기준으로 한 상대 크기이다.
+	UPROPERTY(Category = "Transform") FVector Scale = FVector::OneVector;
+
+	/// Rotation에 대응하는 정규화된 실제 회전 캐시이다.
+	FQuat CachedRotation = FQuat::Identity;
 
 	/// 계층 구조에서 연결된 부모 Transform이다.
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UTransformComponent> Parent;

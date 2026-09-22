@@ -41,6 +41,27 @@ FRotator FRotator::GetNormalized() const noexcept
 	return Result;
 }
 
+// 누적된 각도를 360도 회전량과 정규화된 나머지로 분리한다.
+void FRotator::GetWindingAndRemainder(FRotator& Winding, FRotator& Remainder) const noexcept
+{
+	Remainder = GetNormalized();
+	Winding = *this - Remainder;
+}
+
+// 두 동등한 표현 중 이 회전값과 축별 차이의 합이 작은 표현을 선택한다.
+void FRotator::SetClosest(FRotator& Other) const noexcept
+{
+	const FRotator Alternative = FRotator(180.0f - Other.Pitch, Other.Yaw + 180.0f, Other.Roll + 180.0f);
+	const FRotator FirstDelta = Other - *this;
+	const FRotator SecondDelta = Alternative - *this;
+	const float FirstDistance = std::fabs(FirstDelta.Pitch) + std::fabs(FirstDelta.Yaw) + std::fabs(FirstDelta.Roll);
+	const float SecondDistance = std::fabs(SecondDelta.Pitch) + std::fabs(SecondDelta.Yaw) + std::fabs(SecondDelta.Roll);
+	if (SecondDistance < FirstDistance)
+	{
+		Other = Alternative;
+	}
+}
+
 bool FRotator::IsZero() const noexcept
 {
 	return NormalizeAxis(Pitch) == 0.0f &&

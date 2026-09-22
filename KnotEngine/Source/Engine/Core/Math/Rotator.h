@@ -105,6 +105,9 @@ public:
 	FVector Vector() const noexcept;
 	void Normalize() noexcept;
 	FRotator GetNormalized() const noexcept;
+	void GetWindingAndRemainder(FRotator& Winding, FRotator& Remainder) const noexcept;
+	FRotator GetEquivalentRotator() const noexcept;
+	void SetClosest(FRotator& Other) const noexcept;
 	bool IsZero() const noexcept;
 	bool IsNearlyZero(float Tolerance = KMath::Epsilon) const noexcept;
 	bool Equals(const FRotator& Other, float Tolerance = KMath::Epsilon) const noexcept;

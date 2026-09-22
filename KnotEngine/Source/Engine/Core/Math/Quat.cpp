@@ -96,21 +96,23 @@ FVector FQuat::GetUp() const noexcept
 	return RotateVector(FVector::UpVector);
 }
 
+// Knot의 회전 순서로 분해하고 특이점에서는 Roll이 0인 하나의 대표값을 반환한다.
 FRotator FQuat::Rotator() const noexcept
 {
 	const FMatrix RotationMatrix = ToMatrix();
-	const float PitchRadians = std::asin(std::clamp(RotationMatrix.M[2][0], -1.0f, 1.0f));
-	const float CosPitch = std::cos(PitchRadians);
+	const float CosPitch = std::hypot(RotationMatrix.M[0][0], RotationMatrix.M[1][0]);
+	float PitchRadians = std::atan2(RotationMatrix.M[2][0], CosPitch);
 
 	float YawRadians = 0.0f;
 	float RollRadians = 0.0f;
-	if (std::fabs(CosPitch) > KMath::Epsilon)
+	if (CosPitch > KMath::Epsilon)
 	{
 		YawRadians = std::atan2(-RotationMatrix.M[1][0], RotationMatrix.M[0][0]);
 		RollRadians = std::atan2(-RotationMatrix.M[2][1], RotationMatrix.M[2][2]);
 	}
 	else
 	{
+		PitchRadians = std::copysign(KMath::ToRadian(90.0f), RotationMatrix.M[2][0]);
 		YawRadians = std::atan2(RotationMatrix.M[0][1], RotationMatrix.M[1][1]);
 	}
 

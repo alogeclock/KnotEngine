@@ -14,16 +14,53 @@ UTransformComponent::~UTransformComponent()
 
 void UTransformComponent::SetRelativeTransform(const FTransform& Transform)
 {
-	RelativeTransform = Transform;
-	RelativeTransform.Rotation.Normalize();
+	Location = Transform.Translation;
+	Scale = Transform.Scale;
+	SetRelativeRotation(Transform.Rotation);
+	OnTransformChanged();
+}
+
+// 편집용 오일러 회전을 그대로 보존하면서 실제 회전 캐시를 갱신한다.
+void UTransformComponent::SetRelativeRotation(const FRotator& InRotation)
+{
+	Rotation = InRotation;
+	CachedRotation = Rotation.Quaternion().GetNormalized();
 	OnTransformChanged();
 }
 
 void UTransformComponent::PostEditProperty(const FProperty& Property)
 {
 	Super::PostEditProperty(Property);
-	RelativeTransform.Rotation.Normalize();
+	CachedRotation = Rotation.Quaternion().GetNormalized();
 	OnTransformChanged();
+}
+
+// 계산용 Transform을 편집 원본 값과 Quaternion 캐시로 구성한다.
+FTransform UTransformComponent::GetRelativeTransform() const
+{
+	return FTransform(CachedRotation, Location, Scale);
+}
+
+// 외부 Quaternion의 실제 회전 변화량만 기존 오일러 값에 더해 누적 각도를 보존한다.
+void UTransformComponent::SetRelativeRotation(const FQuat& InRotation)
+{
+	const FQuat NewRotation = InRotation.GetNormalized();
+	if (NewRotation.Equals(CachedRotation))
+	{
+		CachedRotation = NewRotation;
+		return;
+	}
+
+	FRotator Winding;
+	FRotator Remainder;
+	Rotation.GetWindingAndRemainder(Winding, Remainder);
+
+	FRotator NewRemainder = NewRotation.Rotator();
+	Remainder.SetClosest(NewRemainder);
+	FRotator DeltaRotation = NewRemainder - Remainder;
+	DeltaRotation.Normalize();
+	Rotation += DeltaRotation;
+	CachedRotation = NewRotation;
 }
 
 void UTransformComponent::OnTransformChanged()
@@ -48,10 +85,10 @@ void UTransformComponent::OnTransformChanged()
 FMatrix UTransformComponent::GetWorldMatrix() const
 {
 	// 행벡터 규약. 행렬로 합성하여 비균일 스케일과 회전에서 생기는 shear도 유지한다.
-	FMatrix Result = RelativeTransform.ToMatrix();
+	FMatrix Result = GetRelativeTransform().ToMatrix();
 	for (const UTransformComponent* Ancestor = Parent; Ancestor; Ancestor = Ancestor->Parent)
 	{
-		Result *= Ancestor->RelativeTransform.ToMatrix();
+		Result *= Ancestor->GetRelativeTransform().ToMatrix();
 	}
 	return Result;
 }

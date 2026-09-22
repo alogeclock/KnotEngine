@@ -563,7 +563,7 @@ bool FInspectorPanel::DrawVector(const char* Label, FVector& Vector)
 	return bChanged;
 }
 
-// Rotator의 Pitch, Yaw, Roll 값을 한 행에 나란히 그린다.
+// Rotator를 Transform 축 표기와 같은 X(Roll), Y(Pitch), Z(Yaw) 순서로 그린다.
 bool FInspectorPanel::DrawRotator(const char* Label, FRotator& Rotator)
 {
 	ImGui::PushID(Label);
@@ -575,13 +575,13 @@ bool FInspectorPanel::DrawRotator(const char* Label, FRotator& Rotator)
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= DragFloat("##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
+			bChanged |= DragFloat("X##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= DragFloat("##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
+			bChanged |= DragFloat("Y##Pitch", &Rotator.Pitch, 0.1f, 0.0f, 0.0f, "%.1f°");
 			ImGui::TableNextColumn();
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			bChanged |= DragFloat("##Roll", &Rotator.Roll, 0.1f, 0.0f, 0.0f, "%.1f°");
+			bChanged |= DragFloat("Z##Yaw", &Rotator.Yaw, 0.1f, 0.0f, 0.0f, "%.1f°");
 			ImGui::EndTable();
 		}
 		EndPropertyRow();

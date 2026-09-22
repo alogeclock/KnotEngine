@@ -157,6 +157,8 @@ ULevel::Nodes
 
 모든 Node는 생성과 함께 정확히 하나의 `UTransformComponent`를 만든다. Transform은 빠른 접근을 위한 `Transform` 멤버와 소유를 나타내는 `Components` 배열 양쪽에서 참조한다.
 
+`UTransformComponent`는 상대 위치, `FRotator RelativeRotation`, 상대 크기를 직렬화 원본으로 보관한다. `FQuat CachedRotation`은 `RelativeRotation`에 대응하는 정규화된 계산용 캐시다. Inspector에서 입력한 360도 이상의 회전값은 `RelativeRotation`에 그대로 남고, Gizmo처럼 Quaternion 결과를 적용하는 경로는 기존 회전의 winding과 가까운 동등 표현을 선택한 뒤 실제 변화량만 누적한다. 렌더링과 행렬 계산에는 `CachedRotation`을 사용한다.
+
 ```text
 Cube UNode
 ├─ UTransformComponent
