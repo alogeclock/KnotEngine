@@ -1,5 +1,6 @@
 #include "Component/Mesh/StaticMeshComponent.h"
 
+#include "Asset/Asset/EngineAssetIds.h"
 #include "Asset/AssetManager.h"
 #include "Core/Assert.h"
 #include "Object/Property.h"
@@ -8,6 +9,10 @@
 #include "World/Node.h"
 
 #include <algorithm>
+
+UStaticMeshComponent::UStaticMeshComponent() : UStaticMeshComponent(FEngineAssetIds::Cube)
+{
+}
 
 UStaticMeshComponent::UStaticMeshComponent(const FAssetId& DefaultAssetId)
 {

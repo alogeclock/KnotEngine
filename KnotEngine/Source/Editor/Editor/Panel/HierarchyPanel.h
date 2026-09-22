@@ -30,7 +30,7 @@ private:
 		bool bHasChildren = false;
 	};
 
-	struct FPendingDrop
+	struct FPendingDropNode
 	{
 		UNode* DraggedNode = nullptr;
 		UNode* TargetNode = nullptr;
@@ -53,7 +53,7 @@ private:
 
 	TArray<FVisibleNode> VisibleNodes;
 	UNode* SelectionAnchor = nullptr;
-	FPendingDrop PendingDrop;
+	FPendingDropNode PendingDrop;
 
 	TSet<uint32> CollapsedNodeUUIDs;
 };

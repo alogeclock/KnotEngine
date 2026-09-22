@@ -388,7 +388,7 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection, const FIn
 		return;
 	}
 
-	PendingDrop = FPendingDrop();
+	PendingDrop = FPendingNode();
 	const TArray<TObjectPtr<ULevel>>& Levels = World.GetLevels();
 	for (SIZE_T LevelIndex = 0; LevelIndex < Levels.size(); ++LevelIndex)
 	{

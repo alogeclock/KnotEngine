@@ -13,7 +13,7 @@ class ENGINE_API UStaticMeshComponent : public UPrimitiveComponent
 	GENERATED_CLASS(UStaticMeshComponent, UPrimitiveComponent)
 
 public:
-	UStaticMeshComponent() = default;
+	UStaticMeshComponent();
 
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
 	UStaticMesh* GetStaticMesh() const { return StaticMesh.Get(); }
