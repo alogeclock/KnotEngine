@@ -32,6 +32,13 @@ cbuffer OverlayConstants : register(b1)
 
     float4 MinorColor;
     float4 MajorColor;
+
+    row_major float4x4 Projection;
+    row_major float4x4 InverseProjection;
+    row_major float4x4 InverseViewRotation;
+    float2 GridOriginPhase;
+    float CameraHeight;
+    float Padding2;
 };
 
 static const float GridLineWidth = 1.0f;
@@ -49,42 +56,48 @@ VS_OUTPUT VS(uint VertexId : SV_VertexID)
 
 PS_OUTPUT PS(VS_OUTPUT Input)
 {
-    // Reversed-Z의 Near=1에서 시작하고 정확한 Far=0 대신 중간 깊이 지점으로 광선 방향만 복원한다.
-    float4 NearPosition = mul(float4(Input.NdcPosition, 1.0f, 1.0f), InverseViewProjection);
-    float4 RayPosition = mul(float4(Input.NdcPosition, 0.5f, 1.0f), InverseViewProjection);
-    NearPosition /= NearPosition.w;
-    RayPosition /= RayPosition.w;
+    // Projection만 역변환하여 큰 World Translation이 포함되지 않은 View Space 광선을 복원한다.
+    float4 NearViewPosition = mul(float4(Input.NdcPosition, 1.0f, 1.0f), InverseProjection);
+    float4 RayViewPosition = mul(float4(Input.NdcPosition, 0.5f, 1.0f), InverseProjection);
+    NearViewPosition /= NearViewPosition.w;
+    RayViewPosition /= RayViewPosition.w;
+
+    // View 회전만 역변환하여 카메라 원점 기준의 작은 World Relative 좌표를 유지한다.
+    float3 NearRelativePosition = mul(float4(NearViewPosition.xyz, 0.0f), InverseViewRotation).xyz;
+    float3 RayRelativePosition = mul(float4(RayViewPosition.xyz, 0.0f), InverseViewRotation).xyz;
 
     // World Z=0 평면과 평행하거나 View 앞에서 평면과 만나지 않는 광선은 버린다.
-    float3 RayDirection = RayPosition.xyz - NearPosition.xyz;
+    float3 RayDirection = RayRelativePosition - NearRelativePosition;
     if (abs(RayDirection.z) < 0.00001f)
     {
         discard;
     }
 
-    float RayDistance = -NearPosition.z / RayDirection.z;
+    float RayDistance = (-CameraHeight - NearRelativePosition.z) / RayDirection.z;
     if (RayDistance < 0.0f)
     {
         discard;
     }
 
-    float3 WorldPosition = NearPosition.xyz + RayDirection * RayDistance;
+    float3 RelativeWorldPosition = NearRelativePosition + RayDirection * RayDistance;
+    float3 ViewPosition = NearViewPosition.xyz + (RayViewPosition.xyz - NearViewPosition.xyz) * RayDistance;
     float MajorGridSpacing = GridSpacing * MajorGridInterval;
 
-    // 화면 미분값으로 선의 픽셀 폭을 유지하고 Minor Grid의 계단 현상을 줄인다.
-    float2 MinorCoordinates = WorldPosition.xy / GridSpacing;
+    // 카메라 위치의 작은 주기 위상만 더해 절대 World Grid와 정렬하면서 큰 좌표의 frac 정밀도 손실을 피한다.
+    float2 GridPosition = RelativeWorldPosition.xy + GridOriginPhase;
+    float2 MinorCoordinates = GridPosition / GridSpacing;
     float2 MinorDerivatives = max(fwidth(MinorCoordinates), 0.00001f);
     float2 MinorDistance = abs(frac(MinorCoordinates - 0.5f) - 0.5f) / MinorDerivatives;
     float MinorAlpha = saturate(GridLineWidth - min(MinorDistance.x, MinorDistance.y));
 
     // 일정 간격마다 더 밝은 Major Grid를 같은 방식으로 계산한다.
-    float2 MajorCoordinates = WorldPosition.xy / MajorGridSpacing;
+    float2 MajorCoordinates = GridPosition / MajorGridSpacing;
     float2 MajorDerivatives = max(fwidth(MajorCoordinates), 0.00001f);
     float2 MajorDistance = abs(frac(MajorCoordinates - 0.5f) - 0.5f) / MajorDerivatives;
     float MajorAlpha = saturate(GridLineWidth - min(MajorDistance.x, MajorDistance.y));
 
     // Far Plane에서 갑자기 잘리지 않도록 View와의 3차원 거리로 먼저 페이드한다.
-    float ViewDistance = length(WorldPosition - ViewOrigin);
+    float ViewDistance = length(RelativeWorldPosition);
     float FadeStart = min(FadeDistance * 0.5f, FarClip * 0.8f);
     float FadeEnd = min(FadeDistance, FarClip * 0.95f);
     float Fade = 1.0f - smoothstep(FadeStart, FadeEnd, ViewDistance);
@@ -96,7 +109,7 @@ PS_OUTPUT PS(VS_OUTPUT Input)
     }
 
     // 교차점이 현재 View의 Clip 범위에 있을 때만 실제 깊이를 기록한다.
-    float4 ClipPosition = mul(float4(WorldPosition, 1.0f), ViewProjection);
+    float4 ClipPosition = mul(float4(ViewPosition, 1.0f), Projection);
     if (ClipPosition.w <= 0.0f)
     {
         discard;

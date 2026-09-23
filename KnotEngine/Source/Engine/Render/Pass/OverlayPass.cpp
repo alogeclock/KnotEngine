@@ -5,6 +5,8 @@
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
 
+#include <cmath>
+
 uint32 FOverlayPass::AddPass(
 	FRenderGraph& Graph,
 	FRenderer& Renderer,
@@ -43,6 +45,20 @@ uint32 FOverlayPass::AddPass(
 		Parameters.OverlayConstants.MajorGridInterval = 5.0f;
 		Parameters.OverlayConstants.MinorColor = FVector4(0.30f, 0.33f, 0.38f, 0.3f);
 		Parameters.OverlayConstants.MajorColor = FVector4(0.42f, 0.46f, 0.52f, 0.5f);
+		Parameters.OverlayConstants.Projection = View.ProjectionMatrix;
+		Parameters.OverlayConstants.InverseProjection = View.ProjectionMatrix.GetInverse();
+		Parameters.OverlayConstants.InverseViewRotation = View.ViewMatrix.GetTransposed();
+		Parameters.OverlayConstants.InverseViewRotation.M[0][3] = 0.0f;
+		Parameters.OverlayConstants.InverseViewRotation.M[1][3] = 0.0f;
+		Parameters.OverlayConstants.InverseViewRotation.M[2][3] = 0.0f;
+		Parameters.OverlayConstants.InverseViewRotation.M[3][0] = 0.0f;
+		Parameters.OverlayConstants.InverseViewRotation.M[3][1] = 0.0f;
+		Parameters.OverlayConstants.InverseViewRotation.M[3][2] = 0.0f;
+		Parameters.OverlayConstants.InverseViewRotation.M[3][3] = 1.0f;
+		const float MajorGridSpacing = Parameters.OverlayConstants.GridSpacing * Parameters.OverlayConstants.MajorGridInterval;
+		Parameters.OverlayConstants.GridOriginPhase = FVector2(
+			std::fmod(View.ViewOrigin.X, MajorGridSpacing), std::fmod(View.ViewOrigin.Y, MajorGridSpacing));
+		Parameters.OverlayConstants.CameraHeight = View.ViewOrigin.Z;
 	}
 
 	if (ShowFlags.bAxis)

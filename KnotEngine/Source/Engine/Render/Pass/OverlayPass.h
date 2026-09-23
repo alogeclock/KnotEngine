@@ -2,6 +2,8 @@
 
 #include "EngineAPI.h"
 
+#include "Core/Math/Matrix.h"
+#include "Core/Math/Vector2.h"
 #include "Core/Math/Vector4.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderTypes.h"
@@ -35,8 +37,14 @@ private:
 		uint32 Padding;
 		FVector4 MinorColor;
 		FVector4 MajorColor;
+		FMatrix Projection;
+		FMatrix InverseProjection;
+		FMatrix InverseViewRotation;
+		FVector2 GridOriginPhase;
+		float CameraHeight;
+		float Padding2;
 	};
-	static_assert(sizeof(FOverlayConstants) == 48);
+	static_assert(sizeof(FOverlayConstants) == 256);
 
 	struct FPassParameters
 	{
