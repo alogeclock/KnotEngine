@@ -108,7 +108,25 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
-		Selection.Select(Raycast(PointerEvent->Position));
+		UNode* HitNode = Raycast(PointerEvent->Position);
+		if (HasModifierKey(PointerEvent->Modifiers, EModifierKeyMask::Control))
+		{
+			if (HitNode)
+			{
+				Selection.Toggle(*HitNode);
+			}
+		}
+		else if (HasModifierKey(PointerEvent->Modifiers, EModifierKeyMask::Shift))
+		{
+			if (HitNode)
+			{
+				Selection.Add(*HitNode);
+			}
+		}
+		else
+		{
+			Selection.Select(HitNode);
+		}
 		return FInputReply::Handled().SetKeyboardFocus();
 	}
 
