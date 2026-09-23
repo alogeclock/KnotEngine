@@ -313,6 +313,10 @@ public 기본 생성이 가능하고 추상 클래스가 아닌 타입에만 Nat
 
 모든 UObject는 생성 시 UUID와 `GUObjectArray` 인덱스를 받는다. 배열은 파괴 시 swap-remove를 사용하므로 인덱스는 바뀔 수 있다. UUID와 인덱스 모두 현재 실행 중 객체 조회를 위한 값이며 영속 식별자가 아니다.
 
+UObject 생명주기와 `GUObjectArray`는 Game Thread가 단독 소유한다. `FEngineLoop::Startup()`이 `FUObjectManager`에 Game Thread를 등록하며 객체 생성, 복제, 조회, 파괴와 배열 등록·해제는 모두 해당 Thread인지 검증한다. Render Thread와 Asset Import Worker는 UObject에 접근하지 않고 Game Thread가 추출한 값 복사본이나 파일 기반 결과만 처리한다. 이 정책에 따라 UUID와 전역 객체 배열에는 Mutex나 atomic을 사용하지 않는다.
+
+`FObjectInitializer`의 `thread_local` Current는 중첩된 생성 Context의 Thread 간 오염을 방지하기 위한 장치이며, Worker Thread에서 `NewObject()`를 허용한다는 의미가 아니다.
+
 ### 구조체 수명
 
 등록되는 구조체는 기본 생성, 소멸과 복사 대입이 가능해야 한다. `TStructOps<T>`는 미초기화 메모리의 생성·소멸과 이미 생성된 목적지로의 복사 대입을 담당한다.

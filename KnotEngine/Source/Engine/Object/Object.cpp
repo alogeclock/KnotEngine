@@ -8,9 +8,31 @@ TArray<UObject*> GUObjectArray;
 FUObjectManager GUObjectManager;
 uint32 UObject::NextUUID = 1;
 
+// UObject 시스템을 호출한 현재 Thread를 유일한 Game Thread로 등록한다.
+void FUObjectManager::Startup()
+{
+	check(GameThreadId == std::thread::id());
+	GameThreadId = std::this_thread::get_id();
+}
+
+// 모든 UObject가 정리됐는지 Game Thread에서 확인하고 Thread 소유권을 해제한다.
+void FUObjectManager::Shutdown()
+{
+	check(IsInGameThread());
+	check(GUObjectArray.empty());
+	GameThreadId = {};
+}
+
+// 현재 호출자가 UObject 생명주기를 소유한 Game Thread인지 확인한다.
+bool FUObjectManager::IsInGameThread() const
+{
+	return GameThreadId != std::thread::id() && GameThreadId == std::this_thread::get_id();
+}
+
 // CDO 또는 명시적 Template을 기준으로 객체와 생성자 Default Subobject의 반영 프로퍼티를 초기화한다.
 UObject* FUObjectManager::NewObject(UClass& Class, UObject* Outer, FName Name, UObject* Template, EObjectFlags Flags, FObjectInstancingContext* ExistingContext)
 {
+	check(IsInGameThread());
 	panic(Class.CanCreateObject());
 	if (!Template && (Flags & EObjectFlags::ClassDefaultObject) == EObjectFlags::None)
 	{
@@ -43,6 +65,7 @@ UObject* FUObjectManager::NewObject(UClass& Class, UObject* Outer, FName Name, U
 // 원본 객체와 생성자 Default Subobject를 한 Instancing Context에 만들고 참조를 복제 대상 객체로 치환한다.
 UObject* FUObjectManager::DuplicateObject(const UObject& Source, UObject* NewOuter, FName NewName)
 {
+	check(IsInGameThread());
 	UClass& Class = *Source.GetClass();
 	panic(Class.CanCreateObject());
 
@@ -64,6 +87,7 @@ UObject* FUObjectManager::DuplicateObject(const UObject& Source, UObject* NewOut
 // 새 객체에 UUID와 배열 인덱스를 부여하고 전역 객체 배열에 등록한다.
 UObject::UObject()
 {
+	check(GUObjectManager.IsInGameThread());
 	if (FObjectInitializer* Initializer = FObjectInitializer::GetCurrent())
 	{
 		ClassPrivate = &Initializer->GetClass();
@@ -85,6 +109,7 @@ uint32 UObject::GenerateUUID()
 // 제거할 객체를 배열의 마지막 객체와 교환해 전역 객체 배열에서 상수 시간에 제거한다.
 UObject::~UObject()
 {
+	check(GUObjectManager.IsInGameThread());
 	check(DefaultSubobjects.empty());
 	check(!GUObjectArray.empty());
 	check(InternalIndex < GUObjectArray.size());

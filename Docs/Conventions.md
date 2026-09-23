@@ -27,3 +27,9 @@
 - `check()`는 Debug와 Development에서 내부 불변식과 프로그래머 계약을 검증할 때 사용한다. `operator[]`의 범위와 내부 호출 순서처럼 부수 효과가 없는 저수준 API 계약은 Shipping 비용을 추가하지 않도록 `check()`로 검증한다.
 - `verify()`는 모든 빌드에서 실행해야 하는 부수 효과가 있는 표현식에 사용한다. Debug와 Development에서는 실패 시 종료하고 Shipping에서는 결과만 버린다.
 - 복구 가능한 정상 실패는 명시적인 조건문과 로그로 처리한다.
+
+## Threading and UObject Lifetime
+
+- 모든 `UObject`의 생성, 복제, 조회와 파괴는 Game Thread에서만 수행한다. `NewObject()`, `Duplicate()`, `GUObjectManager`와 `GUObjectArray`를 Worker Thread 또는 Render Thread에서 호출하거나 접근하지 않는다.
+- Render Thread는 Game Thread가 추출한 Scene, Resource Command와 값 복사본만 사용하며 `UObject` 및 `UComponent`를 직접 조회하지 않는다.
+- Asset Import Worker는 소스 파일 해석, 일반 데이터 가공과 `.kasset` 출력만 수행한다. Import 결과의 Asset Registry 반영과 Asset `UObject` 생성·갱신은 Game Thread에서 수행한다.

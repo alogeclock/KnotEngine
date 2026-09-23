@@ -3,11 +3,13 @@
 #include "Core/Assert.h"
 #include "Core/Name.h"
 #include "Core/Profiling/CPUProfiler.h"
+#include "Object/Object.h"
 #include "Runtime/Engine.h"
 
 void FEngineLoop::Startup(HINSTANCE Instance, int32 ShowCmd)
 {
 	FName::Startup();
+	GUObjectManager.Startup();
 	ReflectionRegistry.Startup();
 
 	Application.Startup(Instance, ShowCmd);
@@ -50,5 +52,6 @@ void FEngineLoop::Shutdown()
 	Application.Shutdown();
 
 	ReflectionRegistry.Shutdown();
+	GUObjectManager.Shutdown();
 	FName::Shutdown();
 }

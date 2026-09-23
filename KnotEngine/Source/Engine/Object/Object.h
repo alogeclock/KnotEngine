@@ -7,6 +7,7 @@
 #include "Object/Reflection/ReflectionMacros.h"
 #include "Object/Reflection/ReflectionRegistry.h"
 
+#include <thread>
 #include <type_traits>
 
 class UClass;
@@ -46,7 +47,7 @@ public:
 	bool IsA(const UClass* Class) const;
 	void Serialize(FArchive& Ar);
 
-	bool HasAnyFlags(EObjectFlags Flags) const { return (Flags & Flags) != EObjectFlags::None; }
+	bool HasAnyFlags(EObjectFlags InFlags) const { return (Flags & InFlags) != EObjectFlags::None; }
 	bool IsTemplate() const { return HasAnyFlags(EObjectFlags::ClassDefaultObject | EObjectFlags::DefaultSubobject) && (!Outer || Outer->IsTemplate()); }
 	
 	UObject* GetOuter() const { return Outer; }
@@ -91,12 +92,18 @@ extern ENGINE_API TArray<UObject*> GUObjectArray;
 class ENGINE_API FUObjectManager
 {
 public:
+	void Startup();
+	void Shutdown();
+
+	bool IsInGameThread() const;
+
 	UObject* NewObject(UClass& Class, UObject* Outer = nullptr, FName Name = FName(), UObject* Template = nullptr,
 	                 EObjectFlags Flags = EObjectFlags::None, FObjectInstancingContext* ExistingContext = nullptr);
 	UObject* DuplicateObject(const UObject& Source, UObject* NewOuter = nullptr, FName NewName = FName());
 
 	void Destroy(UObject* Object)
 	{
+		check(IsInGameThread());
 		if (!Object)
 		{
 			return;
@@ -107,6 +114,7 @@ public:
 
 	UObject* FindByUUID(uint32 UUID) const
 	{
+		check(IsInGameThread());
 		for (auto* Obj : GUObjectArray)
 		{
 			if (Obj && Obj->GetUUID() == UUID)
@@ -120,6 +128,7 @@ public:
 
 	UObject* FindByIndex(uint32 Index) const
 	{
+		check(IsInGameThread());
 		if (Index >= GUObjectArray.size())
 		{
 			return nullptr;
@@ -128,6 +137,8 @@ public:
 		return GUObjectArray[Index];
 	}
 
+private:
+	std::thread::id GameThreadId;
 };
 
 extern ENGINE_API FUObjectManager GUObjectManager;
