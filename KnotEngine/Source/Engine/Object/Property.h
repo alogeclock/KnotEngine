@@ -8,6 +8,7 @@
 
 class UStruct;
 class FStructuredArchiveSlot;
+class FObjectInstancingContext;
 
 enum class EPropertyKind : uint8
 {
@@ -71,6 +72,7 @@ public:
 	void InitializeValue(void* Value) const;
 	void DestroyValue(void* Value) const;
 	void CopyValue(void* Dst, const void* Src) const;
+	void CopyValue(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const;
 	void SerializeValue(FArchive& Ar, void* Value) const;
 	void SerializeValue(FStructuredArchiveSlot Slot, void* Value) const;
 	void VisitReferences(void* Value, FReferenceCollector& Collector) const;
@@ -88,6 +90,7 @@ protected:
 	virtual void InitializeElement(void* Value) const = 0;
 	virtual void DestroyElement(void* Value) const = 0;
 	virtual void CopyElement(void* Dst, const void* Src) const = 0;
+	virtual void CopyElement(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const;
 	virtual void SerializeElement(FArchive& Ar, void* Value) const = 0;
 	virtual void SerializeElement(FStructuredArchiveSlot Slot, void* Value) const = 0;
 	virtual void VisitElementReferences(void* Value, FReferenceCollector& Collector) const {}

@@ -23,7 +23,7 @@ public:
 
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	virtual void Startup(FWindowsApplication& Application) {}
+	virtual void Startup(FWindowsApplication& Application);
 	virtual void ProcessInput(const FInputSnapshot& InputSnapshot) {}
 	virtual void OnWindowResized(FWindowSize Size) {}
 	virtual void Tick(float DeltaTime) {}

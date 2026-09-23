@@ -29,6 +29,9 @@ public:
 	UWorld();
 	~UWorld() override;
 
+	void PostInitProperties() override;
+	void PostDuplicate() override;
+
 	ULevel& CreateLevel();
 	ULevel& GetPersistentLevel() const;
 	void RemoveLevel(ULevel& Level);

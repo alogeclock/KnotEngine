@@ -60,6 +60,17 @@ void FArrayProperty::CopyElement(void* Dst, const void* Src) const
 	ArrayOps->Copy(Dst, Src);
 }
 
+// 배열 크기를 맞춘 뒤 내부 프로퍼티를 객체 참조 재매핑과 함께 원소별 복사한다.
+void FArrayProperty::CopyElement(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const
+{
+	const SIZE_T Count = ArrayOps->Num(Src);
+	ArrayOps->Resize(Dst, Count);
+	for (SIZE_T Index = 0; Index < Count; ++Index)
+	{
+		Inner->CopyValue(ArrayOps->GetElement(Dst, Index), ArrayOps->GetElement(const_cast<void*>(Src), Index), InstancingContext);
+	}
+}
+
 // 배열 길이를 저장하거나 복원한 뒤 내부 프로퍼티를 사용해 각 원소를 직렬화한다.
 void FArrayProperty::SerializeElement(FArchive& Ar, void* Value) const
 {

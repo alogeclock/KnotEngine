@@ -305,9 +305,11 @@ FName 종료
 
 ### 객체 생성과 식별
 
-일반 객체는 `GUObjectManager.Create<T>(Args...)`로 생성한다. 관리자는 생성자를 실행한 뒤 `T::StaticClass()`를 객체의 실제 클래스로 연결하므로 생성자 안에서 `GetClass()`를 호출하지 않는다. UObject는 값 복사와 이동을 금지한다.
+일반 객체는 `NewObject<T>(Outer, Name)`로 생성한다. 생성 컨텍스트가 C++ 생성자보다 먼저 실제 클래스, Outer, 이름과 Template을 연결하고, Template이 없으면 클래스 CDO를 사용한다. 생성자와 Default Subobject 구성이 끝나면 비 Transient 프로퍼티를 복사하고 `PostInitProperties()`를 호출한다. UObject는 값 복사와 이동을 금지한다.
 
-public 기본 생성이 가능하고 추상 클래스가 아닌 타입에만 `UClass::CreateObject()`용 생성 함수를 만든다. 생성자 인자가 필요한 타입도 `GUObjectManager.Create<T>(Args...)`로 만들 수 있지만 스키마를 통한 무인자 생성은 할 수 없다.
+public 기본 생성이 가능하고 추상 클래스가 아닌 타입에만 Native 생성 함수를 만든다. 생성 함수는 `UClass`와 `FObjectInitializer`가 사용하는 내부 경로이며 외부 코드는 직접 호출하지 않는다. UObject 생성자는 CDO에서도 실행되므로 외부 서비스 연결과 런타임 부작용은 `Startup()`으로 분리한다.
+
+`UEngine`과 `UEditorEngine`도 CDO를 가지며 기본 생성된다. 실제 Editor 인스턴스는 `NewObject<UEditorEngine>()`으로 만든 뒤 `Startup(Application, RenderSystem)`에서 Asset Manager, Render System과 ImGui를 연결한다. CDO에는 이 런타임 상태가 만들어지지 않는다.
 
 모든 UObject는 생성 시 UUID와 `GUObjectArray` 인덱스를 받는다. 배열은 파괴 시 swap-remove를 사용하므로 인덱스는 바뀔 수 있다. UUID와 인덱스 모두 현재 실행 중 객체 조회를 위한 값이며 영속 식별자가 아니다.
 
@@ -428,8 +430,8 @@ UPROPERTY() TSoftObjectPtr<UTexture2D> PreviewTexture;
 ## 관련 파일
 
 - [ReflectionMacros.h](../KnotEngine/Source/Engine/Object/Reflection/ReflectionMacros.h), [ReflectionRegistry.cpp](../KnotEngine/Source/Engine/Object/Reflection/ReflectionRegistry.cpp)
-- [Object.h](../KnotEngine/Source/Engine/Object/Object.h), [Class.h](../KnotEngine/Source/Engine/Object/Class.h), [Property.h](../KnotEngine/Source/Engine/Object/Property.h)
-- [Function.h](../KnotEngine/Source/Engine/Object/Function.h), [ReferenceCollector.h](../KnotEngine/Source/Engine/Object/ReferenceCollector.h), [ObjectPtr.h](../KnotEngine/Source/Engine/Object/ObjectPtr.h)
+- [Object.h](../KnotEngine/Source/Engine/Object/Object.h), [Class.h](../KnotEngine/Source/Engine/Object/Reflection/Class.h), [Property.h](../KnotEngine/Source/Engine/Object/Property.h)
+- [Function.h](../KnotEngine/Source/Engine/Object/Reflection/Function.h), [ReferenceCollector.h](../KnotEngine/Source/Engine/Object/ReferenceCollector.h), [ObjectPtr.h](../KnotEngine/Source/Engine/Object/ObjectPtr.h)
 - [KnotHeaderTool.py](../Scripts/KnotHeaderTool.py), [Reflection.cmake](../KnotEngine/Build/CMake/Reflection.cmake)
 - [Conventions.md](Conventions.md)
 

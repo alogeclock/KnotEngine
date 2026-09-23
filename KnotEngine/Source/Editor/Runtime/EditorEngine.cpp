@@ -15,23 +15,20 @@
 
 #include <algorithm>
 
-UEditorEngine::UEditorEngine(FWindowsApplication& Application, FRenderSystem& InRenderSystem)
-    : RenderSystem(InRenderSystem),
-      ImGuiSystem(Application, *this)
+void UEditorEngine::Startup(FWindowsApplication& Application, FRenderSystem& InRenderSystem)
 {
-}
-
-void UEditorEngine::Startup(FWindowsApplication& Application)
-{
-	check(EditorContextId == 0);
+	check(EditorContextId == 0 && !RenderSystem && !ImGuiSystem);
 	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
+	Super::Startup(Application);
+	RenderSystem = &InRenderSystem;
+	ImGuiSystem = std::make_unique<FImGuiSystem>(Application, *this);
 
 	if (!EditorSettings.Load())
 	{
 		KE_LOG(LogEditor, Error, "Editor Settings를 불러오거나 저장하지 못했다. Path={}", FPaths::ToUtf8(FPaths::EditorSettingsPath()));
 	}
 	AssetImportManager.Startup();
-	ImGuiSystem.Startup();
+	ImGuiSystem->Startup();
 
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
 	UWorld* EditorWorld = FindWorld(EditorContextId);
@@ -47,16 +44,17 @@ void UEditorEngine::ProcessInput(const FInputSnapshot& InputSnapshot)
 
 void UEditorEngine::OnWindowResized(FWindowSize Size)
 {
-	RenderSystem.ResizeWindow(Size.Width, Size.Height);
+	GetRenderSystem().ResizeWindow(Size.Width, Size.Height);
 }
 
 void UEditorEngine::Tick(float DeltaTime)
 {
 	KNOT_PROFILE_SCOPE("Tick", "UEditorEngine::Tick");
 
+	check(ImGuiSystem);
 	ProcessAssetImports();
-	ImGuiSystem.BeginFrame();
-	ImGuiSystem.Draw(DeltaTime);
+	ImGuiSystem->BeginFrame();
+	ImGuiSystem->Draw(DeltaTime);
 	InputRouter.RouteInput();
 
 	for (FWorldContext& Context : WorldContexts)
@@ -75,7 +73,7 @@ void UEditorEngine::Tick(float DeltaTime)
 		}
 	}
 
-	ImGuiSystem.EndFrame();
+	ImGuiSystem->EndFrame();
 
 	Render();
 }
@@ -172,7 +170,7 @@ void UEditorEngine::Render()
 		}
 	}
 
-	RenderSystem.Render(std::move(Scenes), std::move(ViewFamilies), ImGuiSystem.Consume());
+	GetRenderSystem().Render(std::move(Scenes), std::move(ViewFamilies), ImGuiSystem->Consume());
 }
 
 void UEditorEngine::RegisterViewportClient(FEditorViewportClient& ViewportClient)
@@ -246,21 +244,24 @@ bool UEditorEngine::SaveLevel(const std::filesystem::path& FilePath)
 
 void UEditorEngine::Shutdown()
 {
+	check(ImGuiSystem && RenderSystem);
 	EditorSelection.Deselect();
 	AssetImportManager.Shutdown();
 	InputRouter.Reset();
-	ImGuiSystem.Shutdown();
+	ImGuiSystem->Shutdown();
 
 	if (UWorld* World = GetWorld())
 	{
 		World->EndPlay();
 		World->Reset();
-		RenderSystem.Flush(World->GetScene());
+		GetRenderSystem().Flush(World->GetScene());
 	}
 
 	DestroyWorldContext(EditorContextId);
 	EditorContextId = 0;
 
-	RenderSystem.ReleaseAssetResources();
+	GetRenderSystem().ReleaseAssetResources();
+	ImGuiSystem.reset();
+	RenderSystem = nullptr;
 	Super::Shutdown();
 }

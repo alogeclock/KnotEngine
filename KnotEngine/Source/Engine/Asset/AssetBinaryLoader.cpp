@@ -96,7 +96,7 @@ UTexture2D* FAssetBinaryLoader::LoadTexture2D(const FAssetData& Asset) const
 		return nullptr;
 	}
 
-	UTexture2D* Texture = GUObjectManager.Create<UTexture2D>();
+	UTexture2D* Texture = NewObject<UTexture2D>();
 	if (!Texture->Initialize(AssetHeader.AssetId, Asset.AssetPath, Header.Width, Header.Height, Header.Format, Header.ColorSpace, std::move(Mips)))
 	{
 		GUObjectManager.Destroy(Texture);
@@ -194,7 +194,7 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FAssetData& Asset, FAssetManag
 		KE_LOG(LogAssetBinaryLoader, Error, "Material Render Definition 초기화에 실패했다. AssetPath={}", AssetPath);
 		return nullptr;
 	}
-	UMaterial* Material = GUObjectManager.Create<UMaterial>();
+	UMaterial* Material = NewObject<UMaterial>();
 	if (!Material->Initialize(AssetHeader.AssetId, AssetPath, std::move(RenderMaterial), std::move(Scalars), std::move(Vectors), std::move(Textures)))
 	{
 		KE_LOG(LogAssetBinaryLoader, Error, "Material UObject 초기화에 실패했다. AssetPath={}", AssetPath);
@@ -296,7 +296,7 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FAssetData& Asset, FAssetM
 		return nullptr;
 	}
 
-	UStaticMesh* Mesh = GUObjectManager.Create<UStaticMesh>();
+	UStaticMesh* Mesh = NewObject<UStaticMesh>();
 	if (!Mesh->Initialize(AssetHeader.AssetId, AssetPath, std::move(MeshData), std::move(Materials)))
 	{
 		GUObjectManager.Destroy(Mesh);

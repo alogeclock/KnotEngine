@@ -1,12 +1,31 @@
 #include "World/Level.h"
 #include "Component/Component.h"
+#include "Object/Reflection/Class.h"
+#include "Object/ObjectInstancingContext.h"
 #include "World/World.h"
 
 #include <algorithm>
+#include <functional>
 #include <utility>
 
-ULevel::ULevel(UWorld& World) : OwningWorld(&World)
+// CDO 복사가 끝난 실제 Level을 Outer World에 연결한다.
+void ULevel::PostInitProperties()
 {
+	Super::PostInitProperties();
+	if (IsTemplate())
+	{
+		return;
+	}
+	panic(GetOuter() && GetOuter()->IsA(UWorld::StaticClass()));
+	OwningWorld = static_cast<UWorld*>(GetOuter());
+}
+
+// 복제된 Level의 비직렬화 소유 World 참조를 Outer에서 다시 구성한다.
+void ULevel::PostDuplicate()
+{
+	Super::PostDuplicate();
+	panic(GetOuter() && GetOuter()->IsA(UWorld::StaticClass()));
+	OwningWorld = static_cast<UWorld*>(GetOuter());
 }
 
 ULevel::~ULevel()
@@ -28,15 +47,154 @@ UWorld& ULevel::GetWorld() const
 // 소유 배열에서 Node를 추가한 뒤 Node의 수명 주기를 실행한다.
 UNode& ULevel::CreateNode(FName Name)
 {
-	UNode* Node = GUObjectManager.Create<UNode>(*this, Name);
+	return CreateNode(*UNode::StaticClass(), std::move(Name));
+}
+
+// 지정한 UNode 파생 클래스의 CDO 기본값과 Default Component를 복사해 Level에 배치한다.
+UNode& ULevel::CreateNode(const UClass& NodeClass, FName Name)
+{
+	panic(NodeClass.IsChildOf(UNode::StaticClass()) && NodeClass.CanCreateObject());
+	UNode* Node = static_cast<UNode*>(GUObjectManager.NewObject(*const_cast<UClass*>(&NodeClass)));
+	Node->OwningLevel = this;
+	Node->Name = std::move(Name);
 	Node->LevelIndex = Nodes.size();
 	Nodes.emplace_back(Node);
 	InsertRootNode(*Node, RootNodes.size());
+	Node->RegisterComponents();
 	if (GetWorld().GetPlayState() != EPlayState::Stopped)
 	{
 		Node->BeginPlay();
 	}
 	return *Node;
+}
+
+// 선택된 Node 계층을 한 Instancing Context로 복제하고 내부 UObject 참조와 부모 관계를 새 객체로 재매핑한다.
+TArray<UNode*> ULevel::DuplicateNodes(const TArray<UNode*>& SourceNodes)
+{
+	FObjectInstancingContext InstancingContext;
+	TMap<UNode*, FName> DuplicateNames;
+	TArray<UNode*> SourceRoots;
+
+	for (UNode* SourceNode : SourceNodes)
+	{
+		if (!SourceNode || &SourceNode->GetLevel() != this || std::find(SourceRoots.begin(), SourceRoots.end(), SourceNode) != SourceRoots.end())
+		{
+			continue;
+		}
+
+		bool bHasSelectedAncestor = false;
+		for (UTransformComponent* Parent = SourceNode->GetParent(); Parent; Parent = Parent->GetParent())
+		{
+			if (std::find(SourceNodes.begin(), SourceNodes.end(), &Parent->GetOwner()) != SourceNodes.end())
+			{
+				bHasSelectedAncestor = true;
+				break;
+			}
+		}
+		if (!bHasSelectedAncestor)
+		{
+			SourceRoots.push_back(SourceNode);
+		}
+	}
+
+	const std::function<void(UNode&)> DuplicateHierarchy = [&](UNode& SourceNode)
+	{
+		const FName DuplicateName = GetWorld().GetNodeName(SourceNode.GetName().ToString());
+		UNode& DuplicateNode = CreateNode(*SourceNode.GetClass(), DuplicateName);
+		DuplicateNames.emplace(&DuplicateNode, DuplicateName);
+		InstancingContext.Add(SourceNode, DuplicateNode);
+
+		for (const TObjectPtr<UComponent>& DuplicateComponent : DuplicateNode.Components)
+		{
+			DuplicateComponent->UnregisterComponent();
+		}
+		for (const TObjectPtr<UComponent>& SourceComponent : SourceNode.Components)
+		{
+			if (SourceComponent->HasAnyFlags(EObjectFlags::DefaultSubobject))
+			{
+				UObject* DuplicateSubobject = DuplicateNode.GetDefaultSubobject(SourceComponent->GetObjectName());
+				panic(DuplicateSubobject && DuplicateSubobject->GetClass() == SourceComponent->GetClass());
+				InstancingContext.Add(*SourceComponent, *DuplicateSubobject);
+				continue;
+			}
+
+			UComponent& DuplicateComponent = DuplicateNode.AddComponent(*SourceComponent->GetClass(), SourceComponent->GetObjectName());
+			DuplicateComponent.UnregisterComponent();
+			InstancingContext.Add(*SourceComponent, DuplicateComponent);
+		}
+
+		for (const TObjectPtr<UTransformComponent>& Child : SourceNode.GetChildren())
+		{
+			DuplicateHierarchy(Child->GetOwner());
+		}
+	};
+	for (UNode* SourceRoot : SourceRoots)
+	{
+		DuplicateHierarchy(*SourceRoot);
+	}
+
+	for (const auto& [Source, Destination] : InstancingContext.GetObjects())
+	{
+		Source->GetClass()->CopyProperties(Destination, Source, InstancingContext);
+	}
+	for (const auto& [DuplicateNode, DuplicateName] : DuplicateNames)
+	{
+		DuplicateNode->Name = DuplicateName;
+	}
+
+	for (UNode* SourceRoot : SourceRoots)
+	{
+		TArray<UNode*> Hierarchy{ SourceRoot };
+		for (SIZE_T Index = 0; Index < Hierarchy.size(); ++Index)
+		{
+			UNode& SourceNode = *Hierarchy[Index];
+			auto* DuplicateNode = static_cast<UNode*>(InstancingContext.Find(&SourceNode));
+			check(DuplicateNode);
+			UTransformComponent* SourceParent = SourceNode.GetParent();
+			UTransformComponent* DuplicateParent = nullptr;
+			if (SourceParent)
+			{
+				if (UObject* MappedParent = InstancingContext.Find(&SourceParent->GetOwner()))
+				{
+					DuplicateParent = &static_cast<UNode*>(MappedParent)->GetTransform();
+				}
+				else
+				{
+					DuplicateParent = SourceParent;
+				}
+			}
+			panic(DuplicateNode->GetTransform().SetParentRelative(DuplicateParent));
+
+			for (const TObjectPtr<UTransformComponent>& Child : SourceNode.GetChildren())
+			{
+				Hierarchy.push_back(&Child->GetOwner());
+			}
+		}
+	}
+
+	for (const auto& [Source, Destination] : InstancingContext.GetObjects())
+	{
+		Destination->PostDuplicate();
+	}
+	for (const auto& [DuplicateNode, DuplicateName] : DuplicateNames)
+	{
+		DuplicateNode->RegisterComponents();
+		if (GetWorld().GetPlayState() != EPlayState::Stopped)
+		{
+			DuplicateNode->BeginPlay();
+		}
+	}
+
+	TArray<UNode*> Result;
+	Result.reserve(SourceNodes.size());
+	for (UNode* SourceNode : SourceNodes)
+	{
+		if (UObject* Duplicate = InstancingContext.Find(SourceNode))
+		{
+			Result.push_back(static_cast<UNode*>(Duplicate));
+		}
+	}
+	return Result;
 }
 
 // 소유 배열에서 Node를 제거한 뒤 Node와 Component의 수명 주기를 종료한다.

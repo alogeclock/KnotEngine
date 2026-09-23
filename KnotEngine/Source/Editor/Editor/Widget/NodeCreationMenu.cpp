@@ -1,7 +1,7 @@
 #include "Editor/Widget/NodeCreationMenu.h"
 
 #include "Component/Component.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 #include "Object/Reflection/ReflectionRegistry.h"
 #include "World/Level.h"
 #include "World/Node.h"
@@ -15,7 +15,7 @@ UNode& FNodeCreationMenu::CreateNode(UWorld& World, const FString& BaseName)
 	return World.GetPersistentLevel().CreateNode(World.GetNodeName(BaseName));
 }
 
-// 선택한 Component Class를 가진 Node를 생성한다.
+// 선택한 Component Class를 가진 기본 Node를 생성한다.
 UNode* FNodeCreationMenu::DrawComponentNode(UWorld& World, const UClass& ComponentClass)
 {
 	const FString& DisplayName = ComponentClass.GetMetadata().GetDisplayName();
@@ -47,7 +47,7 @@ UNode* FNodeCreationMenu::DrawItems(UWorld& World)
 	UNode* CreatedNode = nullptr;
 	if (ImGui::MenuItem("Empty"))
 	{
-		CreatedNode = &CreateNode(World, "Node");
+		return &CreateNode(World, "Node");
 	}
 
 	check(GReflectionRegistry);

@@ -57,6 +57,7 @@ public:
 
 	bool HasMouseInput(const IInputTarget& Target) const;
 	bool HasKeyboardInput(const IInputTarget& Target) const;
+	bool IsImGuiCapturingKeyboard() const { return bImGuiWantsKeyboard || bImGuiWantsTextInput; }
 	bool ShouldHideCursor() const;
 
 	const TArray<bool>& GetHandledEvents() const { return HandledEvents; }

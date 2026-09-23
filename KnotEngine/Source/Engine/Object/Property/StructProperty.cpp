@@ -1,7 +1,7 @@
 #include "StructProperty.h"
 
 #include "Core/Archive/StructuredArchive.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 
 #include <limits>
 
@@ -37,6 +37,12 @@ void FStructProperty::DestroyElement(void* Value) const
 void FStructProperty::CopyElement(void* Dst, const void* Src) const
 {
 	Struct->Copy(Dst, Src);
+}
+
+// 구조체가 가진 반영 프로퍼티를 객체 참조 재매핑과 함께 재귀 복사한다.
+void FStructProperty::CopyElement(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const
+{
+	Struct->CopyProperties(Dst, Src, InstancingContext);
 }
 
 // 상속을 포함한 구조체 프로퍼티를 순회하며 Transient가 아닌 멤버를 직렬화한다.

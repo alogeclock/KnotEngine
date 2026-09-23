@@ -17,10 +17,10 @@ int Launch(HINSTANCE Instance, int ShowCmd)
 	FRenderSystem RenderSystem;
 	RenderSystem.Startup(EngineLoop.GetApplication().GetWindow().GetHwnd());
 
-	UEditorEngine* EditorEngine = GUObjectManager.Create<UEditorEngine>(EngineLoop.GetApplication(), RenderSystem);
+	UEditorEngine* EditorEngine = NewObject<UEditorEngine>();
 	GEngine = EditorEngine;
 
-	EditorEngine->Startup(EngineLoop.GetApplication());
+	EditorEngine->Startup(EngineLoop.GetApplication(), RenderSystem);
 	EngineLoop.GetApplication().Show();
 
 	const int32 Result = EngineLoop.Run(*EditorEngine);

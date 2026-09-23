@@ -1,6 +1,7 @@
-#include "Class.h"
+#include "Object/Reflection/Class.h"
 
-#include "Object/Function.h"
+#include "Object/Reflection/Function.h"
+#include "Object/ObjectInstancingContext.h"
 #include "Object/Property.h"
 #include "Core/Archive/StructuredArchive.h"
 
@@ -116,6 +117,20 @@ void UStruct::SerializeProperties(FStructuredArchiveRecord Record, void* Contain
 	}
 }
 
+// CDO 또는 복제 원본의 비 Transient 프로퍼티를 객체 참조 재매핑과 함께 목적지에 복사한다.
+void UStruct::CopyProperties(void* Destination, const void* Source, const FObjectInstancingContext& InstancingContext) const
+{
+	TArray<const FProperty*> AllProperties;
+	GetAllProperties(AllProperties);
+	for (const FProperty* Property : AllProperties)
+	{
+		if (!Property->HasAnyPropertyFlags(EPropertyFlags::Transient))
+		{
+			Property->CopyValue(Property->ContainerPtrToValuePtr(Destination), Property->ContainerPtrToValuePtr(Source), InstancingContext);
+		}
+	}
+}
+
 // 클래스의 상속 정보, 메모리 크기, 플래그와 객체 생성 함수를 저장한다.
 UClass::UClass(FName InName, UClass* InSuperClass, SIZE_T InClassSize, SIZE_T InMinAlignment, EClassFlags InClassFlags, FCreateObjectFunc InCreateFunc)
 	: UStruct(std::move(InName), nullptr, InSuperClass, InClassSize, InMinAlignment), ClassFlags(InClassFlags), CreateFunc(InCreateFunc)
@@ -124,7 +139,10 @@ UClass::UClass(FName InName, UClass* InSuperClass, SIZE_T InClassSize, SIZE_T In
 }
 
 // 전방 선언된 UFunction의 소유 컨테이너가 완전한 타입인 위치에서 소멸자를 정의한다.
-UClass::~UClass() = default;
+UClass::~UClass()
+{
+	GUObjectManager.Destroy(ClassDefaultObject);
+}
 
 // 자신부터 상위 클래스까지 순회하며 지정한 클래스와의 상속 관계를 확인한다.
 bool UClass::IsChildOf(const UClass* Other) const
@@ -145,15 +163,29 @@ bool UClass::IsChildOf(const UClass* Other) const
 	return false;
 }
 
-// 추상 클래스가 아닌지 확인한 뒤 등록된 생성 함수로 UObject 인스턴스를 만든다.
-UObject* UClass::CreateObject() const
+// 등록된 native 생성 함수를 사용해 아직 Template 값이 복사되지 않은 객체를 만든다.
+UObject* UClass::ConstructObject(UObject* Outer, FName Name, UObject* Template, EObjectFlags Flags) const
 {
 	panic(CreateFunc && !HasAnyClassFlags(EClassFlags::Abstract));
-
-	UObject* Object = CreateFunc(const_cast<UClass*>(this));
-	panic(Object);
-	panic(Object->GetClass() == this);
+	UObject* Object = CreateFunc(*const_cast<UClass*>(this), Outer, std::move(Name), Template, Flags);
+	panic(Object && Object->GetClass() == this);
 	return Object;
+}
+
+// 부모 클래스 CDO를 먼저 준비한 뒤 이 클래스 생성자의 기본값을 보관하는 CDO를 지연 생성한다.
+UObject* UClass::GetDefaultObject() const
+{
+	panic(CanCreateObject());
+	if (!ClassDefaultObject)
+	{
+		if (const UClass* SuperClass = GetSuperClass(); SuperClass && SuperClass->CanCreateObject())
+		{
+			SuperClass->GetDefaultObject();
+		}
+		ClassDefaultObject = GUObjectManager.NewObject(*const_cast<UClass*>(this), nullptr, FName(), nullptr, EObjectFlags::ClassDefaultObject);
+		ClassDefaultObject->PostInitProperties();
+	}
+	return ClassDefaultObject;
 }
 
 // 소유자가 일치하고 이름이 중복되지 않는 함수의 소유권을 클래스에 등록한다.

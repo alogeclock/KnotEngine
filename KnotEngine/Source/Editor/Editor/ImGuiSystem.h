@@ -49,6 +49,7 @@ private:
 	void ProcessLevelDialogs();
 	void LoadLevel();
 	void SaveLevel(bool bSaveAs);
+	void DuplicateSelection();
 	std::optional<std::filesystem::path> OpenLevelDialog(bool bSave) const;
 
 	void UpdateCursor();

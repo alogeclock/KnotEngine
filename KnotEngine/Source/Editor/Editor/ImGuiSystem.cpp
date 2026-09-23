@@ -17,6 +17,8 @@
 #include "Runtime/EditorEngine.h"
 #include "Asset/Resource/resource.h"
 #include "World/World.h"
+#include "World/Level.h"
+#include "World/Node.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -262,6 +264,13 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		}
 		return FInputReply::Handled();
 	}
+	if (!InputRouter.IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::D &&
+	    HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control) &&
+	    !HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
+	{
+		DuplicateSelection();
+		return FInputReply::Handled();
+	}
 	if (KeyEvent->Key != EKeyboardKey::Space)
 	{
 		return FInputReply::Unhandled();
@@ -284,6 +293,42 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 	}
 #endif
 	return FInputReply::Unhandled();
+}
+
+// 현재 선택을 Level별로 한 번에 복제하고 원본의 활성 선택에 대응하는 복제 Node를 새 활성 선택으로 지정한다.
+void FImGuiSystem::DuplicateSelection()
+{
+	const TArray<UNode*> SourceSelection = Selection.GetSelectedNodes();
+	if (SourceSelection.empty())
+	{
+		return;
+	}
+
+	TMap<ULevel*, TArray<UNode*>> NodesByLevel;
+	for (UNode* Node : SourceSelection)
+	{
+		if (Node)
+		{
+			NodesByLevel[&Node->GetLevel()].push_back(Node);
+		}
+	}
+
+	TArray<UNode*> Duplicates;
+	UNode* ActiveDuplicate = nullptr;
+	for (auto& [Level, LevelSources] : NodesByLevel)
+	{
+		TArray<UNode*> LevelDuplicates = Level->DuplicateNodes(LevelSources);
+		check(LevelDuplicates.size() == LevelSources.size());
+		for (SIZE_T Index = 0; Index < LevelDuplicates.size(); ++Index)
+		{
+			Duplicates.push_back(LevelDuplicates[Index]);
+			if (LevelSources[Index] == Selection.SelectedNode)
+			{
+				ActiveDuplicate = LevelDuplicates[Index];
+			}
+		}
+	}
+	Selection.Select(Duplicates, ActiveDuplicate);
 }
 
 // Main Viewport 하단에 비동기 작업 상태를 표시하고 Dockspace에서 Toolbar 영역을 제외한다.

@@ -1,7 +1,7 @@
 #include "EnumProperty.h"
 
 #include "Core/Archive/StructuredArchive.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 
 #include <cstring>
 

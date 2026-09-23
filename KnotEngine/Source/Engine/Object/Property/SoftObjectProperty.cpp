@@ -1,7 +1,7 @@
 #include "SoftObjectProperty.h"
 
 #include "Core/Archive/StructuredArchive.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 
 // 참조할 클래스와 TSoftObjectPtr 저장 형식의 연산을 사용하는 소프트 객체 참조 프로퍼티를 생성한다.
 FSoftObjectProperty::FSoftObjectProperty(

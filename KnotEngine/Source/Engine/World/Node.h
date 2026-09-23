@@ -18,12 +18,12 @@ struct FEditorSelection;
 // 모든 Node는 생성과 함께 정확히 하나의 TransformComponent를 소유하며, 이를 제거하거나 추가할 수 없다.
 // TransformComponent도 Components 배열에 포함되고, 렌더링과 게임 동작은 함께 소유한 다른 Component를 조합하여 구성한다.
 UCLASS()
-class ENGINE_API UNode final : public UObject
+class ENGINE_API UNode : public UObject
 {
 	GENERATED_CLASS(UNode, UObject)
 
 public:
-	explicit UNode(ULevel& Level, FName InName);
+	UNode();
 	~UNode() override;
 
 	ULevel& GetLevel() const;
@@ -36,17 +36,17 @@ public:
 	void BeginPlay();
 	void EndPlay();
 
-	template <typename T, typename... Args>
-	T& AddComponent(Args&&... Arguments)
+	template <typename T>
+	T& AddComponent(FName Name = FName())
 	{
 		static_assert(std::is_base_of_v<UComponent, T>);
 		static_assert(!std::is_same_v<UTransformComponent, T>, "Nodes already own their only TransformComponent.");
-		T* Component = GUObjectManager.Create<T>(std::forward<Args>(Arguments)...);
+		T* Component = NewObject<T>(this, std::move(Name));
 		AttachComponent(*Component);
 		return *Component;
 	}
 
-	UComponent& AddComponent(const UClass& ComponentClass);
+	UComponent& AddComponent(const UClass& ComponentClass, FName Name = FName());
 	void RemoveComponent(UComponent& Component);
 
 	bool IsSelected() const { return bSelected; }
@@ -60,7 +60,20 @@ private:
 	static constexpr SIZE_T InvalidLevelIndex = static_cast<SIZE_T>(-1);
 
 	void AttachComponent(UComponent& Component);
+	void RegisterComponents();
 	void SetSelected(bool bSelected);
+
+protected:
+	template <typename T>
+	T* CreateDefaultSubobject(FName Name)
+	{
+		static_assert(std::is_base_of_v<UComponent, T>);
+		T* Component = UObject::CreateDefaultSubobject<T>(Name);
+		AttachComponent(*Component);
+		return Component;
+	}
+
+private:
 
 	UTransformComponent* GetParent() const;
 	const TArray<TObjectPtr<UTransformComponent>>& GetChildren() const;

@@ -13,6 +13,8 @@ class FProperty;
 class UFunction;
 class FArchive;
 class FStructuredArchiveRecord;
+class FObjectInstancingContext;
+struct FObjectConstructionParameters;
 
 enum class EClassFlags : uint32
 {
@@ -86,6 +88,7 @@ public:
 	void GetEditorProperties(TArray<const FProperty*>& OutProperties) const;
 	void SerializeProperties(FArchive& Ar, void* Container) const;
 	void SerializeProperties(FStructuredArchiveRecord Record, void* Container) const;
+	void CopyProperties(void* Destination, const void* Source, const FObjectInstancingContext& InstancingContext) const;
 
 protected:
 	const UStruct* SuperStruct = nullptr;
@@ -103,7 +106,7 @@ class ENGINE_API UClass : public UStruct
 {
 public:
 	using ThisClass = UClass;
-	using FCreateObjectFunc = UObject* (*)(UClass* Class);
+	using FCreateObjectFunc = UObject* (*)(UClass& Class, UObject* Outer, FName Name, UObject* Template, EObjectFlags Flags);
 
 	UClass(FName InName, UClass* InSuperClass, SIZE_T InClassSize, SIZE_T InMinAlignment, EClassFlags InClassFlags, FCreateObjectFunc InCreateFunc = nullptr);
 	~UClass() override;
@@ -121,7 +124,8 @@ public:
 	bool IsChildOf(const UClass* Other) const;
 	bool HasAnyClassFlags(EClassFlags Flags) const { return (ClassFlags & Flags) != EClassFlags::None; }
 	bool CanCreateObject() const { return CreateFunc && !HasAnyClassFlags(EClassFlags::Abstract); }
-	UObject* CreateObject() const;
+	UObject* ConstructObject(UObject* Outer, FName Name, UObject* Template, EObjectFlags Flags) const;
+	UObject* GetDefaultObject() const;
 
 	UFunction* AddFunction(std::unique_ptr<UFunction> Function);
 	const UFunction* FindFunction(const FName& FunctionName) const;
@@ -134,6 +138,7 @@ private:
 
 	EClassFlags ClassFlags = EClassFlags::None;
 	FCreateObjectFunc CreateFunc = nullptr;
+	mutable UObject* ClassDefaultObject = nullptr;
 	TArray<std::unique_ptr<UFunction>> Functions;
 };
 

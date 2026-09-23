@@ -6,7 +6,7 @@
 #include "Core/Archive/StructuredArchive.h"
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 #include "Object/Property.h"
 #include "Object/Reflection/ReflectionRegistry.h"
 #include "World/Level.h"
@@ -144,13 +144,15 @@ bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& 
 			FString ClassName;
 			NodeRecord.EnterField("UUID") << NodeDefinition.UUID;
 			NodeRecord.EnterField("Class") << ClassName;
+			NodeDefinition.Class = GReflectionRegistry ? GReflectionRegistry->FindClass(FName(ClassName)) : nullptr;
 			NodeDefinition.Properties = NodeRecord.EnterField("Properties").EnterRecord();
 			std::optional<FStructuredArchiveSlot> NameField = NodeDefinition.Properties->TryEnterField("Name");
 			if (NameField)
 			{
 				*NameField << NodeDefinition.Name;
 			}
-			if (!NameField || NodeDefinition.UUID == 0 || NodeDefinition.Name.empty() || ClassName != UNode::StaticClass()->GetName() ||
+			if (!NameField || NodeDefinition.UUID == 0 || NodeDefinition.Name.empty() || !NodeDefinition.Class ||
+			    !NodeDefinition.Class->IsChildOf(UNode::StaticClass()) || !NodeDefinition.Class->CanCreateObject() ||
 			    !ObjectUUIDs.emplace(NodeDefinition.UUID).second || !NodeNames.emplace(NodeDefinition.Name).second)
 			{
 				return false;
@@ -173,7 +175,9 @@ bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& 
 			{
 				FStructuredArchiveRecord ComponentRecord = Components.EnterElement().EnterRecord();
 				ComponentRecord.EnterField("UUID") << ComponentDefinition.UUID;
+				ComponentRecord.EnterField("Name") << ComponentDefinition.Name;
 				ComponentRecord.EnterField("Class") << ClassName;
+				ComponentRecord.EnterField("DefaultSubobject") << ComponentDefinition.bDefaultSubobject;
 				ComponentDefinition.Class = GReflectionRegistry ? GReflectionRegistry->FindClass(FName(ClassName)) : nullptr;
 				if (ComponentDefinition.UUID == 0 || !ObjectUUIDs.emplace(ComponentDefinition.UUID).second || !ComponentDefinition.Class ||
 				    !ComponentDefinition.Class->IsChildOf(UComponent::StaticClass()) || !ComponentDefinition.Class->CanCreateObject())
@@ -329,9 +333,13 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 				FStructuredArchiveRecord ComponentRecord = Components.EnterElement().EnterRecord();
 				uint32 ComponentUUID = 0;
 				ClassName = Component->GetClass()->GetName();
+				FString ComponentName = Component->GetObjectName().ToString();
+				bool bDefaultSubobject = Component->HasAnyFlags(EObjectFlags::DefaultSubobject);
 				Resolver.GetObjectUUID(*Component, ComponentUUID);
 				ComponentRecord.EnterField("UUID") << ComponentUUID;
+				ComponentRecord.EnterField("Name") << ComponentName;
 				ComponentRecord.EnterField("Class") << ClassName;
+				ComponentRecord.EnterField("DefaultSubobject") << bDefaultSubobject;
 				SerializeObjects(ComponentRecord.EnterField("Properties").EnterRecord(), *Component);
 			}
 		}
@@ -371,7 +379,7 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 		return false;
 	}
 
-	UWorld* LoadedWorld = GUObjectManager.Create<UWorld>();
+	UWorld* LoadedWorld = NewObject<UWorld>();
 
 	for (SIZE_T LevelIndex = 0; LevelIndex < LevelDefinitions.size(); ++LevelIndex)
 	{
@@ -385,28 +393,42 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 
 		for (FMapNodeDefinition& NodeDefinition : LevelDefinition.Nodes)
 		{
-			NodeDefinition.Object = &LevelDefinition.Object->CreateNode(FName(NodeDefinition.Name));
+			NodeDefinition.Object = &LevelDefinition.Object->CreateNode(*NodeDefinition.Class, FName(NodeDefinition.Name));
 			if (!Resolver.Register(NodeDefinition.UUID, *NodeDefinition.Object))
 			{
 				Archive.SetError();
 				break;
 			}
 
+			SIZE_T DefaultSubobjectCount = 0;
 			for (FMapComponentDefinition& ComponentDefinition : NodeDefinition.Components)
 			{
-				if (ComponentDefinition.Class == UTransformComponent::StaticClass())
+				if (ComponentDefinition.bDefaultSubobject)
 				{
-					ComponentDefinition.Object = &NodeDefinition.Object->GetTransform();
+					++DefaultSubobjectCount;
+					UObject* DefaultSubobject = NodeDefinition.Object->GetDefaultSubobject(FName(ComponentDefinition.Name));
+					if (!DefaultSubobject || DefaultSubobject->GetClass() != ComponentDefinition.Class ||
+					    !DefaultSubobject->IsA(UComponent::StaticClass()))
+					{
+						Archive.SetError();
+						break;
+					}
+					ComponentDefinition.Object = static_cast<UComponent*>(DefaultSubobject);
 				}
 				else
 				{
-					ComponentDefinition.Object = &NodeDefinition.Object->AddComponent(*ComponentDefinition.Class);
+					ComponentDefinition.Object = &NodeDefinition.Object->AddComponent(*ComponentDefinition.Class, FName(ComponentDefinition.Name));
 				}
 				if (!Resolver.Register(ComponentDefinition.UUID, *ComponentDefinition.Object))
 				{
 					Archive.SetError();
 					break;
 				}
+			}
+			if (DefaultSubobjectCount != NodeDefinition.Object->GetDefaultSubobjects().size())
+			{
+				Archive.SetError();
+				break;
 			}
 		}
 	}

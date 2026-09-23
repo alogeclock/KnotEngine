@@ -2,7 +2,8 @@
 
 #include "Core/Archive/StructuredArchive.h"
 
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
+#include "Object/ObjectInstancingContext.h"
 
 #include <cstddef>
 
@@ -61,6 +62,24 @@ void FProperty::CopyValue(void* Dst, const void* Src) const
 		const SIZE_T ElementOffset = static_cast<SIZE_T>(ElementSize) * Index;
 		CopyElement(static_cast<std::byte*>(Dst) + ElementOffset, static_cast<const std::byte*>(Src) + ElementOffset);
 	}
+}
+
+// 프로퍼티의 모든 고정 배열 원소를 객체 참조 재매핑과 함께 복사한다.
+void FProperty::CopyValue(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const
+{
+	check(Dst);
+	check(Src);
+	for (uint32 Index = 0; Index < ArrayDimension; ++Index)
+	{
+		const SIZE_T ElementOffset = static_cast<SIZE_T>(ElementSize) * Index;
+		CopyElement(static_cast<std::byte*>(Dst) + ElementOffset, static_cast<const std::byte*>(Src) + ElementOffset, InstancingContext);
+	}
+}
+
+// 객체 참조를 포함하지 않는 프로퍼티는 기존 값 복사를 그대로 사용한다.
+void FProperty::CopyElement(void* Dst, const void* Src, const FObjectInstancingContext&) const
+{
+	CopyElement(Dst, Src);
 }
 
 // 프로퍼티의 모든 고정 배열 원소를 타입별 직렬화 구현으로 처리한다.

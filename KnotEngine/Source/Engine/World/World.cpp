@@ -4,6 +4,24 @@
 
 UWorld::UWorld()
 {
+}
+
+// CDO가 아닌 실제 World에만 런타임 Persistent Level을 생성한다.
+void UWorld::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (!IsTemplate())
+	{
+		check(Levels.empty() && !PersistentLevel);
+		PersistentLevel = &CreateLevel();
+	}
+}
+
+// 복제 시 제외된 런타임 Level 상태를 새 Persistent Level로 초기화한다.
+void UWorld::PostDuplicate()
+{
+	Super::PostDuplicate();
+	check(Levels.empty() && !PersistentLevel);
 	PersistentLevel = &CreateLevel();
 }
 
@@ -18,7 +36,7 @@ UWorld::~UWorld()
 
 ULevel& UWorld::CreateLevel()
 {
-	ULevel* Level = GUObjectManager.Create<ULevel>(*this);
+	ULevel* Level = NewObject<ULevel>(this);
 	Levels.emplace_back(Level);
 	return *Level;
 }

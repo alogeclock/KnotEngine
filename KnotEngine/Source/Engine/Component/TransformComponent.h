@@ -18,6 +18,8 @@ public:
 
 	void SetRelativeTransform(const FTransform& Transform);
 	void SetRelativeRotation(const FRotator& InRotation);
+	void PostInitProperties() override;
+	void PostDuplicate() override;
 	void PostEditProperty(const FProperty& Property) override;
 
 	FMatrix GetWorldMatrix() const;

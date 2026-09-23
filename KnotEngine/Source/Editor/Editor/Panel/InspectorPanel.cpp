@@ -12,7 +12,7 @@
 #include "Core/Input/InputSnapshot.h"
 #include "Core/Math/Rotator.h"
 
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 #include "Object/Property.h"
 #include "Object/Property/ArrayProperty.h"
 #include "Object/Property/EnumProperty.h"
@@ -127,7 +127,7 @@ bool FInspectorPanel::DrawComponentHeader(UComponent& Component, const FString& 
 // Component의 편집 가능한 프로퍼티를 미등록 복사본에 저장한다.
 void FInspectorPanel::CopyComponent(const UComponent& Component)
 {
-	UObject* CopiedObject = Component.GetClass()->CreateObject();
+	UObject* CopiedObject = GUObjectManager.NewObject(*Component.GetClass());
 	panic(CopiedObject && CopiedObject->IsA(UComponent::StaticClass()));
 	UComponent* NewCopiedComponent = static_cast<UComponent*>(CopiedObject);
 

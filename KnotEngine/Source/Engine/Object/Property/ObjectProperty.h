@@ -27,6 +27,7 @@ protected:
 	void InitializeElement(void* Value) const override;
 	void DestroyElement(void* Value) const override;
 	void CopyElement(void* Dst, const void* Src) const override;
+	void CopyElement(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const override;
 	void SerializeElement(FArchive& Ar, void* Value) const override;
 	void SerializeElement(FStructuredArchiveSlot Slot, void* Value) const override;
 	void VisitElementReferences(void* Value, FReferenceCollector& Collector) const override;

@@ -28,6 +28,20 @@ void UTransformComponent::SetRelativeRotation(const FRotator& InRotation)
 	OnTransformChanged();
 }
 
+// CDO에서 복사된 편집용 Euler 값으로 실제 회전 Quaternion 캐시를 초기화한다.
+void UTransformComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+	CachedRotation = Rotation.Quaternion().GetNormalized();
+}
+
+// 복제된 Euler 회전과 생성자에서 만든 Quaternion 캐시를 다시 일치시킨다.
+void UTransformComponent::PostDuplicate()
+{
+	Super::PostDuplicate();
+	CachedRotation = Rotation.Quaternion().GetNormalized();
+}
+
 void UTransformComponent::PostEditProperty(const FProperty& Property)
 {
 	Super::PostEditProperty(Property);

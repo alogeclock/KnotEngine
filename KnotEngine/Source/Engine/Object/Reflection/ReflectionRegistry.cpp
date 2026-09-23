@@ -1,8 +1,8 @@
 #include "ReflectionRegistry.h"
 #include "EngineReflection.h"
 
-#include "Object/Class.h"
-#include "Object/Function.h"
+#include "Object/Reflection/Class.h"
+#include "Object/Reflection/Function.h"
 
 #include <algorithm>
 
@@ -47,7 +47,14 @@ void FReflectionRegistry::Startup()
 	GReflectionRegistry = this;
 	auto UObjectClass = std::make_unique<UClass>(
 		FName("UObject"), nullptr, sizeof(UObject), alignof(UObject), EClassFlags::None,
-		[](UClass* Class) -> UObject* { panic(Class == UObject::StaticClass()); return GUObjectManager.Create<UObject>(); });
+		[](UClass& Class, UObject* Outer, FName Name, UObject* Template, EObjectFlags Flags) -> UObject*
+		{
+			panic(&Class == UObject::StaticClass());
+			FObjectInitializer& Initializer = FObjectInitializer::Get();
+			check(&Initializer.GetClass() == &Class && Initializer.GetOuter() == Outer && Initializer.GetTemplate() == Template &&
+			      Initializer.GetName() == Name && Initializer.GetFlags() == Flags);
+			return new UObject();
+		});
 	auto UFieldClass = std::make_unique<UClass>(
 		FName("UField"), UObjectClass.get(), sizeof(UField), alignof(UField), EClassFlags::None);
 	auto UStructClass = std::make_unique<UClass>(

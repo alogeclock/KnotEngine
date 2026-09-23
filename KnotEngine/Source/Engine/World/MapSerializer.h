@@ -40,7 +40,9 @@ private:
 	struct FMapComponentDefinition
 	{
 		uint32 UUID = 0;
+		FString Name;
 		const UClass* Class = nullptr;
+		bool bDefaultSubobject = false;
 		std::optional<FStructuredArchiveRecord> Properties;
 		UComponent* Object = nullptr;
 	};
@@ -52,6 +54,7 @@ private:
 		uint32 ParentUUID = 0;
 		uint32 SiblingIndex = 0;
 		FString Name;
+		const UClass* Class = nullptr;
 		std::optional<FStructuredArchiveRecord> Properties;
 		TArray<FMapComponentDefinition> Components;
 		UNode* Object = nullptr;

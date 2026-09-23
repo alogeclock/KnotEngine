@@ -2,7 +2,7 @@
 
 #include "EngineAPI.h"
 
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 
 // 리플렉션에 등록된 함수의 호출 방식과 C++ 함수 특성을 나타낸다.
 enum class EFunctionFlags : uint32

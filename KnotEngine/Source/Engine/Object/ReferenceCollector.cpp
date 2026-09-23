@@ -1,6 +1,6 @@
 #include "ReferenceCollector.h"
 
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 #include "Object/Property.h"
 
 // 이전 결과를 지우고 지정한 루트 객체에서 도달 가능한 모든 강한 참조를 수집한다.

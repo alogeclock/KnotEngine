@@ -6,7 +6,6 @@ UEngine* GEngine = nullptr;
 
 UEngine::UEngine()
 {
-	AssetManager.Create();
 }
 
 UEngine::~UEngine()
@@ -28,6 +27,13 @@ void UEngine::AddReferencedObjects(FReferenceCollector& Collector)
 	AssetManager.AddReferencedObjects(Collector); // FAssetManager는 UObject가 아니라 일반 C++ 객체이므로, 자동으로 수집되지 않는다.
 }
 
+// 실제 Engine 인스턴스의 Asset 서비스를 시작하며 CDO 생성자에서는 런타임 작업을 수행하지 않는다.
+void UEngine::Startup(FWindowsApplication&)
+{
+	check(!IsTemplate());
+	AssetManager.Create();
+}
+
 void UEngine::Shutdown()
 {
 	AssetManager.Release();
@@ -35,7 +41,7 @@ void UEngine::Shutdown()
 
 uint64 UEngine::CreateWorldContext(EWorldType WorldType)
 {
-	UWorld* World = GUObjectManager.Create<UWorld>();
+	UWorld* World = NewObject<UWorld>(this);
 	const uint64 Id = NextContextId++;
 	WorldContexts.push_back({ Id, WorldType, World });
 	return Id;

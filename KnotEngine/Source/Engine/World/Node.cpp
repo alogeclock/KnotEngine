@@ -1,14 +1,13 @@
 #include "World/Node.h"
 #include "Component/Component.h"
 #include "Component/PrimitiveComponent.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 #include "World/Level.h"
 #include "World/World.h"
 
-UNode::UNode(ULevel& Level, FName InName) : OwningLevel(&Level), Name(InName)
+UNode::UNode()
 {
-	Transform = GUObjectManager.Create<UTransformComponent>();
-	AttachComponent(*Transform);
+	Transform = CreateDefaultSubobject<UTransformComponent>(FName("Transform"));
 }
 
 UNode::~UNode()
@@ -17,6 +16,10 @@ UNode::~UNode()
 	for (auto Iterator = Components.rbegin(); Iterator != Components.rend(); ++Iterator)
 	{
 		(*Iterator)->UnregisterComponent();
+		if ((*Iterator)->HasAnyFlags(EObjectFlags::DefaultSubobject))
+		{
+			RemoveDefaultSubobject(*Iterator->Get());
+		}
 		GUObjectManager.Destroy(Iterator->Get());
 	}
 }
@@ -73,13 +76,13 @@ void UNode::SetSelected(bool bInSelected)
 }
 
 // 기본 생성 가능한 리플렉션 클래스로 Component를 생성하여 이 Node의 수명 주기에 연결한다.
-UComponent& UNode::AddComponent(const UClass& ComponentClass)
+UComponent& UNode::AddComponent(const UClass& ComponentClass, FName Name)
 {
 	panic(ComponentClass.IsChildOf(UComponent::StaticClass()));
 	panic(&ComponentClass != UTransformComponent::StaticClass());
 	panic(ComponentClass.CanCreateObject());
 
-	UObject* Object = ComponentClass.CreateObject();
+	UObject* Object = GUObjectManager.NewObject(*const_cast<UClass*>(&ComponentClass), this, std::move(Name));
 	UComponent* Component = static_cast<UComponent*>(Object);
 	AttachComponent(*Component);
 	return *Component;
@@ -112,14 +115,30 @@ void UNode::RemoveComponent(UComponent& Component)
 void UNode::AttachComponent(UComponent& Component)
 {
 	check(!Component.IsOwned() && !Component.IsRegistered());
+	check(!Component.GetOuter() || Component.GetOuter() == this);
 
 	Component.Owner = this;
 	Components.emplace_back(&Component);
+	if (!OwningLevel)
+	{
+		return;
+	}
 	Component.RegisterComponent();
 
 	if (GetWorld().GetPlayState() != EPlayState::Stopped)
 	{
 		Component.BeginPlay();
+	}
+}
+
+// 완전히 초기화된 Node가 Level에 연결된 뒤 모든 생성자 Component를 World에 등록한다.
+void UNode::RegisterComponents()
+{
+	check(OwningLevel);
+	for (const TObjectPtr<UComponent>& Component : Components)
+	{
+		check(Component && Component->Owner.Get() == this && !Component->IsRegistered());
+		Component->RegisterComponent();
 	}
 }
 

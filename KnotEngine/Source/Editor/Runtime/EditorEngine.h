@@ -8,6 +8,7 @@
 #include "Editor/Setting/EditorSettings.h"
 
 #include <filesystem>
+#include <memory>
 
 class FEditorViewportClient;
 class FRenderSystem;
@@ -18,14 +19,14 @@ class UEditorEngine : public UEngine
 	GENERATED_CLASS(UEditorEngine, UEngine)
 
 public:
-	UEditorEngine(FWindowsApplication& Application, FRenderSystem& InRenderSystem);
+	UEditorEngine() = default;
 	~UEditorEngine() override = default;
 
 	// Editor 모듈 전체의 리플렉션 등록/해제 진입점. 구현은 Reflection.gen.cpp에서 생성한다.
 	static void RegisterTypes(FReflectionRegistry& Registry);
 	static void ResetTypes();
 
-	void Startup(FWindowsApplication& Application) override;
+	void Startup(FWindowsApplication& Application, FRenderSystem& InRenderSystem);
 	void ProcessInput(const FInputSnapshot& InputSnapshot) override;
 	void OnWindowResized(FWindowSize Size) override;
 	void Tick(float DeltaTime) override;
@@ -39,7 +40,7 @@ public:
 	bool SaveLevel(const std::filesystem::path& FilePath = {});
 
 	UWorld* GetWorld() const override { return FindWorld(EditorContextId); }
-	FRenderSystem& GetRenderSystem() { return RenderSystem; }
+	FRenderSystem& GetRenderSystem() { check(RenderSystem); return *RenderSystem; }
 	FAssetImportManager& GetAssetImportManager() { return AssetImportManager; }
 	FInputRouter& GetInputRouter() { return InputRouter; }
 	FEditorSelection& GetEditorSelection() { return EditorSelection; }
@@ -49,7 +50,7 @@ private:
 	void ProcessAssetImports();
 	void Render();
 
-	FRenderSystem& RenderSystem;
+	FRenderSystem* RenderSystem = nullptr;
 
 	TArray<FEditorViewportClient*> AllViewportClients;
 
@@ -57,7 +58,7 @@ private:
 	FInputRouter InputRouter;
 	FEditorSelection EditorSelection;
 	FEditorSettings EditorSettings;
-	FImGuiSystem ImGuiSystem;
+	std::unique_ptr<FImGuiSystem> ImGuiSystem;
 
 	std::filesystem::path CurrentLevelPath;
 	uint64 EditorContextId = 0;

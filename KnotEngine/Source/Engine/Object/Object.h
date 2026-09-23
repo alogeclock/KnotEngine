@@ -3,6 +3,7 @@
 #include "EngineAPI.h"
 
 #include "Core/CoreTypes.h"
+#include "Object/ObjectInitializer.h"
 #include "Object/Reflection/ReflectionMacros.h"
 #include "Object/Reflection/ReflectionRegistry.h"
 
@@ -13,6 +14,7 @@ class FReferenceCollector;
 class FReflectionRegistry;
 class FArchive;
 class FProperty;
+class FObjectInstancingContext;
 
 // 엔진 런타임 객체의 공통 기반 클래스.
 // GUObjectArray 등록/해제와 생명주기를 함께하며 UUID 기반 식별.
@@ -37,12 +39,29 @@ public:
 
 	UClass* GetClass() const;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
+	virtual void PostInitProperties() {}
+	virtual void PostDuplicate() {}
 	virtual void PostEditProperty(const FProperty& Property) {}
+	UObject* Duplicate(UObject* NewOuter = nullptr, FName NewName = FName()) const;
 	bool IsA(const UClass* Class) const;
 	void Serialize(FArchive& Ar);
 
+	bool HasAnyFlags(EObjectFlags Flags) const { return (Flags & Flags) != EObjectFlags::None; }
+	bool IsTemplate() const { return HasAnyFlags(EObjectFlags::ClassDefaultObject | EObjectFlags::DefaultSubobject) && (!Outer || Outer->IsTemplate()); }
+	
+	UObject* GetOuter() const { return Outer; }
+	const FName& GetObjectName() const { return Name; }
+	UObject* GetDefaultSubobject(const FName& Name) const;
+	const TArray<UObject*>& GetDefaultSubobjects() const { return DefaultSubobjects; }
+
 	uint32 GetUUID() const { return UUID; }
 	uint32 GetInternalIndex() const { return InternalIndex; }
+
+protected:
+	template <typename T>
+	T* CreateDefaultSubobject(FName Name);
+	UObject* CreateDefaultSubobject(UClass& SubobjectClass, FName Name);
+	void RemoveDefaultSubobject(UObject& Subobject);
 
 private:
 	friend class FUObjectManager;
@@ -50,9 +69,17 @@ private:
 	friend class UClass;
 
 	void SetClass(UClass* InClass);
+	static uint32 GenerateUUID();
 
 	static UClass* StaticClassPrivate;
+	static uint32 NextUUID;
+
 	UClass* ClassPrivate = nullptr;
+	UObject* Outer = nullptr;
+	
+	FName Name;
+	EObjectFlags Flags = EObjectFlags::None;
+	TArray<UObject*> DefaultSubobjects;
 
 	uint32 UUID;
 	uint32 InternalIndex;
@@ -64,17 +91,9 @@ extern ENGINE_API TArray<UObject*> GUObjectArray;
 class ENGINE_API FUObjectManager
 {
 public:
-	template <typename T, typename... Args>
-	T* Create(Args&&... Arguments)
-	{
-		static_assert(std::is_base_of_v<UObject, T>, "T must derive from UObject");
-		static_assert(std::is_same_v<typename T::ThisClass, T>, "UObject subclasses require GENERATED_CLASS");
-		panic(GReflectionRegistry);
-		UClass* Class = T::StaticClass();
-		T* Object = new T(std::forward<Args>(Arguments)...);
-		Object->SetClass(Class);
-		return Object;
-	}
+	UObject* NewObject(UClass& Class, UObject* Outer = nullptr, FName Name = FName(), UObject* Template = nullptr,
+	                 EObjectFlags Flags = EObjectFlags::None, FObjectInstancingContext* ExistingContext = nullptr);
+	UObject* DuplicateObject(const UObject& Source, UObject* NewOuter = nullptr, FName NewName = FName());
 
 	void Destroy(UObject* Object)
 	{
@@ -113,4 +132,21 @@ public:
 
 extern ENGINE_API FUObjectManager GUObjectManager;
 
+template <typename T>
+T* NewObject(UObject* Outer = nullptr, FName Name = FName(), UObject* Template = nullptr, EObjectFlags Flags = EObjectFlags::None,
+             FObjectInstancingContext* ExistingContext = nullptr)
+{
+	static_assert(std::is_base_of_v<UObject, T>, "T must derive from UObject");
+	static_assert(std::is_same_v<typename T::ThisClass, T>, "UObject subclasses require GENERATED_CLASS");
+	panic(GReflectionRegistry);
+	return static_cast<T*>(GUObjectManager.NewObject(*T::StaticClass(), Outer, std::move(Name), Template, Flags, ExistingContext));
+}
+
 #include "Object/ObjectPtr.h"
+
+template <typename T>
+T* UObject::CreateDefaultSubobject(FName Name)
+{
+	static_assert(std::is_base_of_v<UObject, T>);
+	return static_cast<T*>(CreateDefaultSubobject(*T::StaticClass(), std::move(Name)));
+}

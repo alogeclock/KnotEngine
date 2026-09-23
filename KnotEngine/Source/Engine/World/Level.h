@@ -14,12 +14,17 @@ class ENGINE_API ULevel : public UObject
 	GENERATED_CLASS(ULevel, UObject)
 
 public:
-	explicit ULevel(UWorld& World);
+	ULevel() = default;
 	~ULevel() override;
+	
+	void PostInitProperties() override;
+	void PostDuplicate() override;
 	
 	UWorld& GetWorld() const;
 
 	UNode& CreateNode(FName Name);
+	UNode& CreateNode(const UClass& NodeClass, FName Name);
+	TArray<UNode*> DuplicateNodes(const TArray<UNode*>& SourceNodes);
 	void RemoveNode(UNode& Node);
 	const TArray<TObjectPtr<UNode>>& GetNodes() const { return Nodes; }
 

@@ -3,8 +3,9 @@
 #include "Asset/Asset/Asset.h"
 #include "Asset/AssetManager.h"
 #include "Core/Archive/StructuredArchive.h"
-#include "Object/Class.h"
+#include "Object/Reflection/Class.h"
 #include "Object/Object.h"
+#include "Object/ObjectInstancingContext.h"
 
 // 참조할 클래스와 실제 포인터 저장 형식의 연산을 사용하는 강한 객체 참조 프로퍼티를 생성한다.
 FObjectProperty::FObjectProperty(
@@ -39,6 +40,14 @@ void FObjectProperty::DestroyElement(void* Value) const
 void FObjectProperty::CopyElement(void* Dst, const void* Src) const
 {
 	ObjectPtrOps->CopyValue(Dst, Src);
+}
+
+// Instancing Context 안의 UObject 참조는 대응 Instance로 바꾸고 외부 참조는 공유한다.
+void FObjectProperty::CopyElement(void* Dst, const void* Src, const FObjectInstancingContext& InstancingContext) const
+{
+	UObject* SourceObject = ObjectPtrOps->GetObject(Src);
+	UObject* DestinationObject = InstancingContext.Find(SourceObject);
+	ObjectPtrOps->SetObject(Dst, DestinationObject ? DestinationObject : SourceObject);
 }
 
 // UAsset 강한 참조는 영속 ID로, 그 외 UObject 강한 참조는 현재 실행의 UUID로 저장하고 실제 객체로 복원한다.
