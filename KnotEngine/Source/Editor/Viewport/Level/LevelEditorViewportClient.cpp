@@ -32,13 +32,30 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 {
 	TransformGizmo.UpdateSelection(Selection);
+	const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
+	if (PointerEvent && bTrackingRightClick && PointerEvent->Type == EPointerInputEventType::MouseMoved)
+	{
+		RightClickTravelSquared += PointerEvent->Delta.SizeSquared();
+	}
 
 	if (IsCameraDragging())
 	{
-		return FEditorViewportClient::OnInputEvent(Event);
+		const bool bRightButtonReleased = PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonUp &&
+			PointerEvent->Button == EMouseButton::Right;
+		const bool bOpenContextMenu = bRightButtonReleased && bTrackingRightClick &&
+			RightClickTravelSquared <= ContextMenuDragThresholdSquared && PointerEvent->Modifiers == EModifierKeyMask::None;
+		const FInputReply Reply = FEditorViewportClient::OnInputEvent(Event);
+		if (bRightButtonReleased)
+		{
+			bTrackingRightClick = false;
+			if (bOpenContextMenu)
+			{
+				RequestContextMenu(RightClickStartPosition);
+			}
+		}
+		return Reply;
 	}
 
-	const FPointerInputEvent* PointerEvent = std::get_if<FPointerInputEvent>(&Event);
 	if (PointerEvent && (PointerEvent->Type == EPointerInputEventType::ButtonDown || PointerEvent->Type == EPointerInputEventType::Wheel))
 	{
 		bFocusAnimating = false;
@@ -54,6 +71,22 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	if (GizmoReply.IsHandled())
 	{
 		return GizmoReply;
+	}
+	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Right)
+	{
+		RightClickStartPosition = PointerEvent->Position;
+		RightClickTravelSquared = 0.0f;
+		bTrackingRightClick = true;
+	}
+	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonUp && PointerEvent->Button == EMouseButton::Right)
+	{
+		const bool bOpenContextMenu = bTrackingRightClick && RightClickTravelSquared <= ContextMenuDragThresholdSquared &&
+			PointerEvent->Modifiers == EModifierKeyMask::None;
+		bTrackingRightClick = false;
+		if (bOpenContextMenu)
+		{
+			RequestContextMenu(RightClickStartPosition);
+		}
 	}
 
 	if (const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event))
@@ -86,6 +119,7 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 void FLevelEditorViewportClient::OnKeyboardFocusLost()
 {
 	bFocusAnimating = false;
+	bTrackingRightClick = false;
 	TransformGizmo.OnKeyboardFocusLost();
 	FEditorViewportClient::OnKeyboardFocusLost();
 }
@@ -94,8 +128,21 @@ void FLevelEditorViewportClient::OnKeyboardFocusLost()
 void FLevelEditorViewportClient::OnMouseCaptureLost()
 {
 	bFocusAnimating = false;
+	bTrackingRightClick = false;
 	TransformGizmo.OnMouseCaptureLost();
 	FEditorViewportClient::OnMouseCaptureLost();
+}
+
+// Viewport Panel이 보류된 Context Menu 배치 위치를 한 번 소비한다.
+bool FLevelEditorViewportClient::ConsumeContextMenuRequest(FVector& OutPlacementLocation)
+{
+	if (!bContextMenuRequested)
+	{
+		return false;
+	}
+	OutPlacementLocation = ContextMenuPlacementLocation;
+	bContextMenuRequested = false;
+	return true;
 }
 
 // 기본 Scene View에 현재 선택의 View별 Gizmo Render 값을 복사한다.
@@ -192,8 +239,12 @@ void FLevelEditorViewportClient::UpdateFocusAnimation(float DeltaTime)
 }
 
 // 입력 위치에서 만든 World Ray로 모든 LOD0 Triangle을 순회하여 가장 가까운 Node를 반환한다.
-UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition)
+UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVector* OutHitPosition)
 {
+	if (OutHitPosition)
+	{
+		*OutHitPosition = FVector::ZeroVector;
+	}
 	FVector2 PixelPosition;
 	UWorld* World = GetWorld();
 	if (!World || !ContainsInputPosition(InputPosition) || !GetViewportPixelPosition(InputPosition, PixelPosition))
@@ -263,5 +314,44 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition)
 			}
 		}
 	}
+	if (ClosestNode && OutHitPosition)
+	{
+		*OutHitPosition = WorldRay.Origin + WorldRay.Direction * ClosestDistance;
+	}
 	return ClosestNode;
+}
+
+// 실제 Mesh 교차점, World Grid, Camera 전방 순서로 Node 배치 위치를 결정한다.
+FVector FLevelEditorViewportClient::FindPlacementLocation(const FVector2& InputPosition)
+{
+	FVector HitPosition;
+	if (Raycast(InputPosition, &HitPosition))
+	{
+		return HitPosition;
+	}
+
+	FVector2 PixelPosition;
+	if (!GetViewportPixelPosition(InputPosition, PixelPosition) || !GetViewport().IsValid())
+	{
+		return FVector::ZeroVector;
+	}
+	const FSceneView View = FEditorViewportClient::BuildSceneView();
+	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	if (std::fabs(WorldRay.Direction.Z) > KMath::Epsilon)
+	{
+		const float Distance = -WorldRay.Origin.Z / WorldRay.Direction.Z;
+		if (Distance > 0.0f)
+		{
+			return WorldRay.Origin + WorldRay.Direction * Distance;
+		}
+	}
+	static constexpr float DefaultPlacementDistance = 1000.0f;
+	return WorldRay.Origin + WorldRay.Direction * DefaultPlacementDistance;
+}
+
+// 우클릭 시작 위치에서 배치 지점을 계산하고 다음 UI Frame에 Context Menu를 요청한다.
+void FLevelEditorViewportClient::RequestContextMenu(const FVector2& InputPosition)
+{
+	ContextMenuPlacementLocation = FindPlacementLocation(InputPosition);
+	bContextMenuRequested = true;
 }

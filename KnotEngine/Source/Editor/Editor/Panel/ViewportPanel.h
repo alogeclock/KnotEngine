@@ -25,7 +25,12 @@ public:
 	FLevelEditorViewportClient& GetViewportClient() { return ViewportClient; }
 
 private:
+	void DrawContextMenu();
+
 	FViewportWidget ViewportWidget;
 	FLevelEditorViewportClient ViewportClient;
 	FViewportOverlayWidget ViewportOverlayWidget;
+	FEditorSelection& Selection;
+
+	FVector ContextMenuPlacementLocation = FVector::ZeroVector;
 };

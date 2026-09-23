@@ -1,6 +1,11 @@
 #include "Editor/Panel/ViewportPanel.h"
 
+#include "Component/TransformComponent.h"
+#include "Editor/EditorSelection.h"
 #include "Editor/Toolbar/ViewportToolbar.h"
+#include "Editor/Widget/NodeCreationMenu.h"
+#include "World/Node.h"
+#include "World/World.h"
 
 #include <imgui.h>
 
@@ -9,7 +14,8 @@ FViewportPanel::FViewportPanel(
 	FInputRouter& InInputRouter,
 	const FViewportStatState& InStatState,
 	FEditorSelection& InSelection)
-	: ViewportWidget(InRenderSystem, InInputRouter), ViewportClient(ViewportWidget.GetViewport(), InSelection), ViewportOverlayWidget(InStatState)
+	: ViewportWidget(InRenderSystem, InInputRouter), ViewportClient(ViewportWidget.GetViewport(), InSelection), ViewportOverlayWidget(InStatState),
+	  Selection(InSelection)
 {
 }
 
@@ -53,7 +59,35 @@ void FViewportPanel::Draw(bool bVisible, float DeltaTime, FViewportToolbar& Tool
 	{
 		ViewportOverlayWidget.Draw();
 	}
+	ImGui::PopStyleVar();
+	DrawContextMenu();
 
 	ImGui::End();
-	ImGui::PopStyleVar();
+}
+
+// 짧은 Viewport 우클릭에 Node 생성 메뉴를 열고 선택한 Node를 Raycast 위치에 배치한다.
+void FViewportPanel::DrawContextMenu()
+{
+	if (ViewportClient.ConsumeContextMenuRequest(ContextMenuPlacementLocation))
+	{
+		ImGui::OpenPopup("##ViewportNodeContextMenu");
+	}
+	if (!ImGui::BeginPopup("##ViewportNodeContextMenu"))
+	{
+		return;
+	}
+
+	ImGui::TextDisabled("Place Node");
+	ImGui::Separator();
+	if (UWorld* World = ViewportClient.GetWorld())
+	{
+		if (UNode* CreatedNode = FNodeCreationMenu::DrawItems(*World))
+		{
+			FTransform Transform = CreatedNode->GetTransform().GetRelativeTransform();
+			Transform.Translation = ContextMenuPlacementLocation;
+			CreatedNode->GetTransform().SetRelativeTransform(Transform);
+			Selection.Select(CreatedNode);
+		}
+	}
+	ImGui::EndPopup();
 }

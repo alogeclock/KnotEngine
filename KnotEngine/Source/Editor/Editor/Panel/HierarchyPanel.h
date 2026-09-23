@@ -39,8 +39,6 @@ private:
 		bool bValid = false;
 	};
 
-	static UNode& CreateNode(UWorld& World, const FString& BaseName);
-	static bool DrawNode(UWorld& World, FEditorSelection& Selection, const UClass& ComponentClass);
 	static void RemoveSelectedNodes(FEditorSelection& Selection);
 
 	void BuildVisibleNodes(UNode& Node, uint32 Depth);
