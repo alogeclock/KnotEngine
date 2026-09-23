@@ -38,6 +38,14 @@ public:
 	void SetLocalSpace(bool bInLocalSpace);
 
 private:
+	struct FDragTarget
+	{
+		FTransform StartRelativeTransform;
+		FMatrix StartWorldMatrix = FMatrix::Identity;
+		FMatrix StartParentWorldInverse = FMatrix::Identity;
+		uint32 NodeUUID = 0;
+	};
+
 	FVector GetAxisVector(ETransformGizmoAxis Axis) const;
 	static FVector GetViewRotationAxis(const FSceneView& View, const FVector& Origin);
 	static FVector MapTrackballVector(const FSceneView& View, const FVector& Origin, const FVector2& PixelPosition);
@@ -50,16 +58,19 @@ private:
 
 	ETransformGizmoAxis HitTest(const FSceneView& View, const FVector2& PixelPosition, const FVector& Origin) const;
 
-	void ApplyTranslation(UNode& Node, const FSceneView& View, const FVector2& PixelPosition);
-	void ApplyRotation(UNode& Node, const FSceneView& View, const FVector2& PixelPosition);
-	void ApplyScale(UNode& Node, const FSceneView& View, const FVector2& PixelPosition);
+	void ApplyTranslation(const FSceneView& View, const FVector2& PixelPosition);
+	void ApplyRotation(const FSceneView& View, const FVector2& PixelPosition);
+	void ApplyScale(const FSceneView& View, const FVector2& PixelPosition);
+	bool ApplyWorldDelta(const FMatrix& WorldDelta);
+	void RestoreDragTargets();
 
-	bool BeginDrag(UNode& Node, ETransformGizmoAxis Axis, const FSceneView& View, const FVector2& PixelPosition);
+	bool BeginDrag(const FEditorSelection& Selection, ETransformGizmoAxis Axis, const FSceneView& View, const FVector2& PixelPosition);
 	void UpdateDrag(const FEditorSelection& Selection, const FSceneView& View, const FVector2& PixelPosition);
 	void CancelDrag();
 	void EndDrag();
 
-	UNode* ResolveDragTarget() const;
+	UNode* ResolveNode(uint32 NodeUUID) const;
+	bool IsDragSelectionValid(const FEditorSelection& Selection) const;
 
 	static constexpr float GizmoLengthPixels = 88.0f;
 	static constexpr float HitRadiusPixels = 8.0f;
@@ -73,8 +84,8 @@ private:
 	ETransformGizmoAxis ActiveAxis = ETransformGizmoAxis::None;
 
 	// 기즈모 드래그 조작 시 시작값 대비 결과값을 계산하기 위해 사용하는 파라미터.
-	FTransform StartRelativeTransform;
-	FMatrix StartWorldMatrix = FMatrix::Identity;
+	TArray<FDragTarget> DragTargets;
+	TArray<uint32> DragSelectionUUIDs;
 	FVector StartWorldOrigin;
 	FVector StartRotationVector; // 축 회전 평면 또는 Trackball 가상 구에서 구한 드래그 시작 방향.
 	FVector StartPlanePosition; // 자유 이동을 시작할 때 Cursor Ray와 View 평면이 교차한 World Position.
@@ -82,6 +93,6 @@ private:
 
 	FVector2 DragStartPixel = FVector2::ZeroVector; // Dead Zone과 Uniform Scale Delta 계산에 사용하는 드래그 시작 Pixel 좌표.
 	FVector DragRotationAxis; // 축 회전 또는 View 회전에 사용하는 World Space 회전축.
-	uint32 DragTargetUUID = 0; // 드래그 도중 선택이 바뀌거나 대상이 삭제되었는지 검사할 대상 UUID.
+	uint32 DragPivotUUID = 0; // 마지막 활성 선택이며 기즈모가 표시되는 Pivot Node의 UUID.
 	bool bDragging = false;
 };

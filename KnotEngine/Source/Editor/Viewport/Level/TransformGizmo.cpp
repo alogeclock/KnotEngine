@@ -72,7 +72,7 @@ FInputReply FTransformGizmo::OnInputEvent(const FInputEvent& Event, const FEdito
 	if (PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
 		const ETransformGizmoAxis Axis = HitTest(View, PixelPosition, SelectedNode->GetTransform().GetWorldLocation());
-		if (Axis != ETransformGizmoAxis::None && BeginDrag(*SelectedNode, Axis, View, PixelPosition))
+		if (Axis != ETransformGizmoAxis::None && BeginDrag(Selection, Axis, View, PixelPosition))
 		{
 			return FInputReply::Handled().SetKeyboardFocus().CaptureMouse();
 		}
@@ -112,7 +112,7 @@ void FTransformGizmo::SetLocalSpace(bool bInLocalSpace)
 // 선택 변경을 반영하고 드래그 중이 아닐 때 선택 객체의 회전 축을 갱신한다.
 void FTransformGizmo::UpdateSelection(const FEditorSelection& Selection)
 {
-	if (bDragging && (!Selection.SelectedNode || Selection.SelectedNode->GetUUID() != DragTargetUUID))
+	if (bDragging && !IsDragSelectionValid(Selection))
 	{
 		CancelDrag();
 	}
@@ -393,7 +393,7 @@ ETransformGizmoAxis FTransformGizmo::HitTest(const FSceneView& View, const FVect
 }
 
 // 축 위의 시작 교차점부터 현재 교차점까지의 월드 이동량을 적용한다.
-void FTransformGizmo::ApplyTranslation(UNode& Node, const FSceneView& View, const FVector2& PixelPosition)
+void FTransformGizmo::ApplyTranslation(const FSceneView& View, const FVector2& PixelPosition)
 {
 	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 	FVector WorldPosition;
@@ -416,20 +416,14 @@ void FTransformGizmo::ApplyTranslation(UNode& Node, const FSceneView& View, cons
 		}
 		WorldPosition = StartWorldOrigin + Axis * (AxisParameter - StartAxisParameter);
 	}
-	FTransform Result = StartRelativeTransform;
-	if (UTransformComponent* Parent = Node.GetTransform().GetParent())
+	if (!ApplyWorldDelta(FMatrix::MakeTranslation(WorldPosition - StartWorldOrigin)))
 	{
-		Result.Translation = Parent->GetWorldMatrix().GetInverse().TransformPosition(WorldPosition);
+		CancelDrag();
 	}
-	else
-	{
-		Result.Translation = WorldPosition;
-	}
-	Node.GetTransform().SetRelativeTransform(Result);
 }
 
 // 회전 평면의 시작 벡터와 현재 벡터 사이 각도로 시작 World Transform을 회전한다.
-void FTransformGizmo::ApplyRotation(UNode& Node, const FSceneView& View, const FVector2& PixelPosition)
+void FTransformGizmo::ApplyRotation(const FSceneView& View, const FVector2& PixelPosition)
 {
 	FVector RotationAxis = DragRotationAxis;
 	FVector CurrentVector;
@@ -461,22 +455,14 @@ void FTransformGizmo::ApplyRotation(UNode& Node, const FSceneView& View, const F
 		return;
 	}
 	const FMatrix DeltaRotation = FQuat(RotationAxis, Angle).ToMatrix();
-	FMatrix RelativeMatrix = StartWorldMatrix * FMatrix::MakeTranslation(-StartWorldOrigin) * DeltaRotation * FMatrix::MakeTranslation(StartWorldOrigin);
-	if (UTransformComponent* Parent = Node.GetTransform().GetParent())
+	if (!ApplyWorldDelta(FMatrix::MakeTranslation(-StartWorldOrigin) * DeltaRotation * FMatrix::MakeTranslation(StartWorldOrigin)))
 	{
-		RelativeMatrix *= Parent->GetWorldMatrix().GetInverse();
-	}
-	FVector Translation;
-	FVector Scale;
-	FMatrix Rotation;
-	if (RelativeMatrix.Decompose(Translation, Rotation, Scale))
-	{
-		Node.GetTransform().SetRelativeTransform(FTransform(FQuat(Rotation), Translation, Scale));
+		CancelDrag();
 	}
 }
 
 // 축 위의 시작 교차점부터 현재 교차점까지의 이동을 시작 Scale의 축 배율로 변환한다.
-void FTransformGizmo::ApplyScale(UNode& Node, const FSceneView& View, const FVector2& PixelPosition)
+void FTransformGizmo::ApplyScale(const FSceneView& View, const FVector2& PixelPosition)
 {
 	float Factor = 1.0f;
 	if (ActiveAxis == ETransformGizmoAxis::Center)
@@ -500,26 +486,83 @@ void FTransformGizmo::ApplyScale(UNode& Node, const FSceneView& View, const FVec
 		}
 		Factor = std::max(0.01f, 1.0f + (AxisParameter - StartAxisParameter) / GizmoLength);
 	}
-	FTransform Result = StartRelativeTransform;
+	FVector Scale = FVector::OneVector;
 	if (ActiveAxis == ETransformGizmoAxis::Center)
 	{
-		Result.Scale = StartRelativeTransform.Scale * Factor;
+		Scale *= Factor;
 	}
 	else
 	{
-		Result.Scale[static_cast<int32>(ActiveAxis)] = StartRelativeTransform.Scale[static_cast<int32>(ActiveAxis)] * Factor;
+		Scale[static_cast<int32>(ActiveAxis)] = Factor;
 	}
-	Node.GetTransform().SetRelativeTransform(Result);
+	const FMatrix WorldDelta = FMatrix::MakeTranslation(-StartWorldOrigin) * AxisRotation.GetInverse() * FMatrix::MakeScale(Scale) * AxisRotation *
+		FMatrix::MakeTranslation(StartWorldOrigin);
+	if (!ApplyWorldDelta(WorldDelta))
+	{
+		CancelDrag();
+	}
+}
+
+// 모든 실제 조작 대상의 시작 World Transform에 동일한 Pivot 기준 Delta를 적용한다.
+bool FTransformGizmo::ApplyWorldDelta(const FMatrix& WorldDelta)
+{
+	struct FPendingTransform
+	{
+		UNode* Node = nullptr;
+		FTransform RelativeTransform;
+	};
+
+	TArray<FPendingTransform> PendingTransforms;
+	PendingTransforms.reserve(DragTargets.size());
+	for (const FDragTarget& Target : DragTargets)
+	{
+		UNode* Node = ResolveNode(Target.NodeUUID);
+		if (!Node)
+		{
+			return false;
+		}
+
+		const FMatrix RelativeMatrix = Target.StartWorldMatrix * WorldDelta * Target.StartParentWorldInverse;
+		FVector Translation;
+		FVector Scale;
+		FMatrix Rotation;
+		if (!RelativeMatrix.Decompose(Translation, Rotation, Scale))
+		{
+			return false;
+		}
+		PendingTransforms.push_back({ Node, FTransform(FQuat(Rotation), Translation, Scale) });
+	}
+
+	for (const FPendingTransform& Pending : PendingTransforms)
+	{
+		Pending.Node->GetTransform().SetRelativeTransform(Pending.RelativeTransform);
+	}
+	return true;
+}
+
+// 취소 또는 Dead Zone 복귀 시 모든 실제 조작 대상을 드래그 시작 상태로 되돌린다.
+void FTransformGizmo::RestoreDragTargets()
+{
+	for (const FDragTarget& Target : DragTargets)
+	{
+		if (UNode* Node = ResolveNode(Target.NodeUUID))
+		{
+			Node->GetTransform().SetRelativeTransform(Target.StartRelativeTransform);
+		}
+	}
 }
 
 // 조작 시작 시 대상과 기준 Transform 및 기하 교차값을 고정한다.
-bool FTransformGizmo::BeginDrag(UNode& Node, ETransformGizmoAxis Axis, const FSceneView& View, const FVector2& PixelPosition)
+bool FTransformGizmo::BeginDrag(const FEditorSelection& Selection, ETransformGizmoAxis Axis, const FSceneView& View, const FVector2& PixelPosition)
 {
-	StartRelativeTransform = Node.GetTransform().GetRelativeTransform();
-	StartWorldMatrix = Node.GetTransform().GetWorldMatrix();
-	StartWorldOrigin = Node.GetTransform().GetWorldLocation();
+	UNode* PivotNode = Selection.SelectedNode;
+	if (!PivotNode)
+	{
+		return false;
+	}
+	StartWorldOrigin = PivotNode->GetTransform().GetWorldLocation();
 	DragStartPixel = PixelPosition;
-	DragTargetUUID = Node.GetUUID();
+	DragPivotUUID = PivotNode->GetUUID();
 	ActiveAxis = Axis;
 	HoveredAxis = Axis;
 
@@ -533,20 +576,20 @@ bool FTransformGizmo::BeginDrag(UNode& Node, ETransformGizmoAxis Axis, const FSc
 			{
 				return false;
 			}
-			bDragging = true;
-			return true;
 		}
-
-		DragRotationAxis = Axis == ETransformGizmoAxis::View ? GetViewRotationAxis(View, StartWorldOrigin) : GetAxisVector(Axis);
-		FVector Position;
-		if (!IntersectPlane(Ray, StartWorldOrigin, DragRotationAxis, Position))
+		else
 		{
-			return false;
-		}
-		StartRotationVector = (Position - StartWorldOrigin).GetSafeNormal();
-		if (StartRotationVector.IsNearlyZero())
-		{
-			return false;
+			DragRotationAxis = Axis == ETransformGizmoAxis::View ? GetViewRotationAxis(View, StartWorldOrigin) : GetAxisVector(Axis);
+			FVector Position;
+			if (!IntersectPlane(Ray, StartWorldOrigin, DragRotationAxis, Position))
+			{
+				return false;
+			}
+			StartRotationVector = (Position - StartWorldOrigin).GetSafeNormal();
+			if (StartRotationVector.IsNearlyZero())
+			{
+				return false;
+			}
 		}
 	}
 	else if (Axis == ETransformGizmoAxis::Center && Mode == EGizmoViewMode::Translate)
@@ -565,6 +608,59 @@ bool FTransformGizmo::BeginDrag(UNode& Node, ETransformGizmoAxis Axis, const FSc
 	{
 		StartAxisParameter = 0.0f;
 	}
+
+	DragTargets.clear();
+	DragSelectionUUIDs.clear();
+	const TArray<UNode*>& SelectedNodes = Selection.GetSelectedNodes();
+	DragSelectionUUIDs.reserve(SelectedNodes.size());
+	DragTargets.reserve(SelectedNodes.size());
+	for (UNode* Node : SelectedNodes)
+	{
+		if (!Node)
+		{
+			continue;
+		}
+		DragSelectionUUIDs.push_back(Node->GetUUID());
+
+		bool bHasSelectedAncestor = false;
+		for (UTransformComponent* Parent = Node->GetTransform().GetParent(); Parent; Parent = Parent->GetParent())
+		{
+			UNode* ParentNode = &Parent->GetOwner();
+			if (std::find(SelectedNodes.begin(), SelectedNodes.end(), ParentNode) != SelectedNodes.end())
+			{
+				bHasSelectedAncestor = true;
+				break;
+			}
+		}
+		if (bHasSelectedAncestor)
+		{
+			continue;
+		}
+
+		FDragTarget Target;
+		Target.NodeUUID = Node->GetUUID();
+		Target.StartRelativeTransform = Node->GetTransform().GetRelativeTransform();
+		Target.StartWorldMatrix = Node->GetTransform().GetWorldMatrix();
+		if (UTransformComponent* Parent = Node->GetTransform().GetParent())
+		{
+			const FMatrix ParentWorldMatrix = Parent->GetWorldMatrix();
+			if (std::fabs(ParentWorldMatrix.GetDeterminant()) <= KMath::Epsilon)
+			{
+				DragTargets.clear();
+				DragSelectionUUIDs.clear();
+				DragPivotUUID = 0;
+				return false;
+			}
+			Target.StartParentWorldInverse = ParentWorldMatrix.GetInverse();
+		}
+		DragTargets.push_back(Target);
+	}
+	if (DragTargets.empty())
+	{
+		DragSelectionUUIDs.clear();
+		DragPivotUUID = 0;
+		return false;
+	}
 	bDragging = true;
 	return true;
 }
@@ -572,8 +668,7 @@ bool FTransformGizmo::BeginDrag(UNode& Node, ETransformGizmoAxis Axis, const FSc
 // 시작점 Dead Zone을 넘은 커서 목표로부터 시작 Transform 기준 결과를 다시 계산한다.
 void FTransformGizmo::UpdateDrag(const FEditorSelection& Selection, const FSceneView& View, const FVector2& PixelPosition)
 {
-	UNode* Node = ResolveDragTarget();
-	if (!Node || Selection.SelectedNode != Node)
+	if (!IsDragSelectionValid(Selection))
 	{
 		CancelDrag();
 		return;
@@ -587,30 +682,27 @@ void FTransformGizmo::UpdateDrag(const FEditorSelection& Selection, const FScene
 	const FVector2 PixelDelta = TargetPixelPosition - DragStartPixel;
 	if (PixelDelta.X * PixelDelta.X + PixelDelta.Y * PixelDelta.Y <= DragDeadZonePixels * DragDeadZonePixels)
 	{
-		Node->GetTransform().SetRelativeTransform(StartRelativeTransform);
+		RestoreDragTargets();
 		return;
 	}
 	if (Mode == EGizmoViewMode::Translate)
 	{
-		ApplyTranslation(*Node, View, TargetPixelPosition);
+		ApplyTranslation(View, TargetPixelPosition);
 	}
 	else if (Mode == EGizmoViewMode::Rotate)
 	{
-		ApplyRotation(*Node, View, PixelPosition);
+		ApplyRotation(View, PixelPosition);
 	}
 	else
 	{
-		ApplyScale(*Node, View, TargetPixelPosition);
+		ApplyScale(View, TargetPixelPosition);
 	}
 }
 
 // 취소 가능한 대상이 남아 있으면 시작 Transform을 복원하고 상태를 해제한다.
 void FTransformGizmo::CancelDrag()
 {
-	if (UNode* Node = ResolveDragTarget())
-	{
-		Node->GetTransform().SetRelativeTransform(StartRelativeTransform);
-	}
+	RestoreDragTargets();
 	EndDrag();
 }
 
@@ -619,12 +711,36 @@ void FTransformGizmo::EndDrag()
 {
 	bDragging = false;
 	ActiveAxis = ETransformGizmoAxis::None;
-	DragTargetUUID = 0;
+	DragPivotUUID = 0;
+	DragTargets.clear();
+	DragSelectionUUIDs.clear();
 }
 
-// UUID로 현재도 살아 있는 드래그 대상을 안전하게 다시 찾는다.
-UNode* FTransformGizmo::ResolveDragTarget() const
+// UUID로 현재도 살아 있는 Node를 안전하게 다시 찾는다.
+UNode* FTransformGizmo::ResolveNode(uint32 NodeUUID) const
 {
-	UObject* Object = DragTargetUUID != 0 ? GUObjectManager.FindByUUID(DragTargetUUID) : nullptr;
+	UObject* Object = NodeUUID != 0 ? GUObjectManager.FindByUUID(NodeUUID) : nullptr;
 	return Object && Object->IsA(UNode::StaticClass()) ? static_cast<UNode*>(Object) : nullptr;
+}
+
+// 드래그 시작 당시의 마지막 활성 선택과 전체 선택 목록이 그대로 유지되는지 검사한다.
+bool FTransformGizmo::IsDragSelectionValid(const FEditorSelection& Selection) const
+{
+	if (!Selection.SelectedNode || Selection.SelectedNode->GetUUID() != DragPivotUUID)
+	{
+		return false;
+	}
+	const TArray<UNode*>& SelectedNodes = Selection.GetSelectedNodes();
+	if (SelectedNodes.size() != DragSelectionUUIDs.size())
+	{
+		return false;
+	}
+	for (SIZE_T Index = 0; Index < SelectedNodes.size(); ++Index)
+	{
+		if (!SelectedNodes[Index] || SelectedNodes[Index]->GetUUID() != DragSelectionUUIDs[Index])
+		{
+			return false;
+		}
+	}
+	return ResolveNode(DragPivotUUID) == Selection.SelectedNode;
 }
