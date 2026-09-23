@@ -7,6 +7,7 @@
 #include "World/Node.h"
 #include "World/World.h"
 
+#include <algorithm>
 #include <imgui.h>
 
 FViewportPanel::FViewportPanel(
@@ -57,7 +58,10 @@ void FViewportPanel::Draw(bool bVisible, float DeltaTime, FViewportToolbar& Tool
 	});
 	if (ViewportWidget.Draw(ViewportClient))
 	{
+		const ImVec2 ImageMinimum = ImGui::GetItemRectMin();
+		const ImVec2 ImageMaximum = ImGui::GetItemRectMax();
 		ViewportOverlayWidget.Draw();
+		DrawBoxSelection(ImageMinimum, ImageMaximum);
 	}
 	ImGui::PopStyleVar();
 	DrawContextMenu();
@@ -90,4 +94,26 @@ void FViewportPanel::DrawContextMenu()
 		}
 	}
 	ImGui::EndPopup();
+}
+
+// Viewport 영역으로 Clip한 반투명 박스 선택 사각형을 표시한다.
+void FViewportPanel::DrawBoxSelection(const ImVec2& ImageMinimum, const ImVec2& ImageMaximum) const
+{
+	FVector2 Start;
+	FVector2 End;
+	bool bAdditive = false;
+	if (!ViewportClient.GetBoxSelection(Start, End, bAdditive))
+	{
+		return;
+	}
+
+	const ImVec2 Minimum(std::min(Start.X, End.X), std::min(Start.Y, End.Y));
+	const ImVec2 Maximum(std::max(Start.X, End.X), std::max(Start.Y, End.Y));
+	const ImU32 OutlineColor = bAdditive ? IM_COL32(128, 240, 128, 220) : IM_COL32(128, 192, 255, 220);
+	const ImU32 FillColor = bAdditive ? IM_COL32(64, 180, 64, 40) : IM_COL32(64, 128, 220, 40);
+	ImDrawList* DrawList = ImGui::GetForegroundDrawList();
+	DrawList->PushClipRect(ImageMinimum, ImageMaximum, true);
+	DrawList->AddRectFilled(Minimum, Maximum, FillColor);
+	DrawList->AddRect(Minimum, Maximum, OutlineColor, 0.0f, 0, 1.5f);
+	DrawList->PopClipRect();
 }

@@ -55,6 +55,59 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 		}
 		return Reply;
 	}
+	if (const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event))
+	{
+		if (bTrackingBoxSelection && KeyEvent->bDown && !KeyEvent->bRepeat && KeyEvent->Key == EKeyboardKey::Escape)
+		{
+			bTrackingBoxSelection = false;
+			bBoxSelecting = false;
+			return FInputReply::Handled().ReleaseMouse();
+		}
+	}
+	if (PointerEvent && bTrackingBoxSelection)
+	{
+		if (PointerEvent->Type == EPointerInputEventType::CursorMoved)
+		{
+			BoxSelectionEnd = PointerEvent->Position;
+			bBoxSelecting = FVector2::DistSquared(BoxSelectionStart, BoxSelectionEnd) >= BoxSelectionDragThresholdSquared;
+			return FInputReply::Handled();
+		}
+		if (PointerEvent->Type == EPointerInputEventType::ButtonUp && PointerEvent->Button == EMouseButton::Left)
+		{
+			BoxSelectionEnd = PointerEvent->Position;
+			bBoxSelecting = FVector2::DistSquared(BoxSelectionStart, BoxSelectionEnd) >= BoxSelectionDragThresholdSquared;
+			if (bBoxSelecting)
+			{
+				ApplyBoxSelection();
+			}
+			else
+			{
+				UNode* HitNode = Raycast(BoxSelectionStart);
+				if (HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Control))
+				{
+					if (HitNode)
+					{
+						Selection.Toggle(*HitNode);
+					}
+				}
+				else if (HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Shift))
+				{
+					if (HitNode)
+					{
+						Selection.Add(*HitNode);
+					}
+				}
+				else
+				{
+					Selection.Select(HitNode);
+				}
+			}
+			bTrackingBoxSelection = false;
+			bBoxSelecting = false;
+			return FInputReply::Handled().ReleaseMouse();
+		}
+		return FInputReply::Handled();
+	}
 
 	if (PointerEvent && (PointerEvent->Type == EPointerInputEventType::ButtonDown || PointerEvent->Type == EPointerInputEventType::Wheel))
 	{
@@ -108,26 +161,12 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Left)
 	{
-		UNode* HitNode = Raycast(PointerEvent->Position);
-		if (HasModifierKey(PointerEvent->Modifiers, EModifierKeyMask::Control))
-		{
-			if (HitNode)
-			{
-				Selection.Toggle(*HitNode);
-			}
-		}
-		else if (HasModifierKey(PointerEvent->Modifiers, EModifierKeyMask::Shift))
-		{
-			if (HitNode)
-			{
-				Selection.Add(*HitNode);
-			}
-		}
-		else
-		{
-			Selection.Select(HitNode);
-		}
-		return FInputReply::Handled().SetKeyboardFocus();
+		BoxSelectionStart = PointerEvent->Position;
+		BoxSelectionEnd = PointerEvent->Position;
+		BoxSelectionModifiers = PointerEvent->Modifiers;
+		bTrackingBoxSelection = true;
+		bBoxSelecting = false;
+		return FInputReply::Handled().SetKeyboardFocus().CaptureMouse();
 	}
 
 	return FEditorViewportClient::OnInputEvent(Event);
@@ -137,6 +176,8 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 void FLevelEditorViewportClient::OnKeyboardFocusLost()
 {
 	bFocusAnimating = false;
+	bTrackingBoxSelection = false;
+	bBoxSelecting = false;
 	bTrackingRightClick = false;
 	TransformGizmo.OnKeyboardFocusLost();
 	FEditorViewportClient::OnKeyboardFocusLost();
@@ -146,6 +187,8 @@ void FLevelEditorViewportClient::OnKeyboardFocusLost()
 void FLevelEditorViewportClient::OnMouseCaptureLost()
 {
 	bFocusAnimating = false;
+	bTrackingBoxSelection = false;
+	bBoxSelecting = false;
 	bTrackingRightClick = false;
 	TransformGizmo.OnMouseCaptureLost();
 	FEditorViewportClient::OnMouseCaptureLost();
@@ -160,6 +203,19 @@ bool FLevelEditorViewportClient::ConsumeContextMenuRequest(FVector& OutPlacement
 	}
 	OutPlacementLocation = ContextMenuPlacementLocation;
 	bContextMenuRequested = false;
+	return true;
+}
+
+// 진행 중인 박스 선택의 Application 좌표와 추가 선택 여부를 Viewport Panel에 제공한다.
+bool FLevelEditorViewportClient::GetBoxSelection(FVector2& OutStart, FVector2& OutEnd, bool& bOutAdditive) const
+{
+	if (!bBoxSelecting)
+	{
+		return false;
+	}
+	OutStart = BoxSelectionStart;
+	OutEnd = BoxSelectionEnd;
+	bOutAdditive = HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Shift);
 	return true;
 }
 
@@ -337,6 +393,64 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 		*OutHitPosition = WorldRay.Origin + WorldRay.Direction * ClosestDistance;
 	}
 	return ClosestNode;
+}
+
+// Node의 World 원점을 화면에 투영하여 선택 사각형 안의 Node를 선택 집합에 반영한다.
+void FLevelEditorViewportClient::ApplyBoxSelection()
+{
+	UWorld* World = GetWorld();
+	FVector2 StartPixel;
+	FVector2 EndPixel;
+	if (!World || !GetViewportPixelPosition(BoxSelectionStart, StartPixel) || !GetViewportPixelPosition(BoxSelectionEnd, EndPixel))
+	{
+		return;
+	}
+
+	const float MinimumX = std::min(StartPixel.X, EndPixel.X);
+	const float MinimumY = std::min(StartPixel.Y, EndPixel.Y);
+	const float MaximumX = std::max(StartPixel.X, EndPixel.X);
+	const float MaximumY = std::max(StartPixel.Y, EndPixel.Y);
+	const FSceneView View = FEditorViewportClient::BuildSceneView();
+	TArray<UNode*> NodesInBox;
+	for (const TObjectPtr<ULevel>& Level : World->GetLevels())
+	{
+		for (const TObjectPtr<UNode>& Node : Level->GetNodes())
+		{
+			const FVector4 Clip = FVector4(Node->GetTransform().GetWorldLocation(), 1.0f) * View.ViewProjectionMatrix;
+			if (Clip.W <= KMath::Epsilon)
+			{
+				continue;
+			}
+
+			const float InverseW = 1.0f / Clip.W;
+			const float Depth = Clip.Z * InverseW;
+			const float PixelX = (Clip.X * InverseW * 0.5f + 0.5f) * View.Viewport.Width;
+			const float PixelY = (0.5f - Clip.Y * InverseW * 0.5f) * View.Viewport.Height;
+			if (Depth >= 0.0f && Depth <= 1.0f && PixelX >= MinimumX && PixelX <= MaximumX && PixelY >= MinimumY && PixelY <= MaximumY)
+			{
+				NodesInBox.push_back(Node.Get());
+			}
+		}
+	}
+
+	if (HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Control))
+	{
+		for (UNode* Node : NodesInBox)
+		{
+			Selection.Toggle(*Node);
+		}
+	}
+	else if (HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Shift))
+	{
+		for (UNode* Node : NodesInBox)
+		{
+			Selection.Add(*Node);
+		}
+	}
+	else
+	{
+		Selection.Select(NodesInBox, NodesInBox.empty() ? nullptr : NodesInBox.back());
+	}
 }
 
 // 실제 Mesh 교차점, World Grid, Camera 전방 순서로 Node 배치 위치를 결정한다.

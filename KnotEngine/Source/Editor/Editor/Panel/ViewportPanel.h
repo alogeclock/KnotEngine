@@ -8,6 +8,7 @@ class FInputRouter;
 class FRenderSystem;
 class FViewportToolbar;
 struct FEditorSelection;
+struct ImVec2;
 
 // ViewportPanel은 Level Editor의 Viewport를 ImGui Window로 감싸서 렌더링하고, InputRouter에 ViewportClient를 등록한다.
 class FViewportPanel
@@ -26,6 +27,7 @@ public:
 
 private:
 	void DrawContextMenu();
+	void DrawBoxSelection(const ImVec2& ImageMinimum, const ImVec2& ImageMaximum) const;
 
 	FViewportWidget ViewportWidget;
 	FLevelEditorViewportClient ViewportClient;
