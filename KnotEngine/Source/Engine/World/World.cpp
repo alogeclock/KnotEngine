@@ -2,6 +2,10 @@
 
 #include "Core/Profiling/CPUProfiler.h"
 
+#include <algorithm>
+#include <charconv>
+#include <limits>
+
 UWorld::UWorld()
 {
 }
@@ -96,12 +100,47 @@ void UWorld::Replace(UWorld& LoadedWorld)
 	NameCounters = std::move(LoadedWorld.NameCounters);
 }
 
-// BaseName별로 증가하는 숫자 접미사를 붙여 새 Node 이름을 생성한다.
+// 이름 끝의 숫자 접미사를 분리하고 같은 Base Name에서 사용할 다음 접미사를 계산한다.
+void UWorld::ParseNodeName(const FString& Name, FString& OutBaseName, uint64& OutNextSuffix)
+{
+	OutBaseName = Name;
+	OutNextSuffix = 1;
+
+	const SIZE_T SuffixOffset = Name.find_last_of(' ');
+	if (SuffixOffset == FString::npos || SuffixOffset + 1 >= Name.size())
+	{
+		return;
+	}
+
+	uint64 Suffix = 0;
+	const char* First = Name.data() + SuffixOffset + 1;
+	const auto Result = std::from_chars(First, Name.data() + Name.size(), Suffix);
+	if (Result.ec == std::errc() && Result.ptr == Name.data() + Name.size() && Suffix < (std::numeric_limits<uint64>::max)())
+	{
+		OutBaseName = Name.substr(0, SuffixOffset);
+		OutNextSuffix = Suffix + 1;
+	}
+}
+
+// 명시적으로 생성되거나 편집된 이름을 Base Name별 다음 접미사 맵에 반영한다.
+void UWorld::RegisterNodeName(const FString& Name)
+{
+	FString BaseName;
+	uint64 NextSuffix = 0;
+	ParseNodeName(Name, BaseName, NextSuffix);
+	NameCounters[BaseName] = (std::max)(NameCounters[BaseName], NextSuffix);
+}
+
+// 이미 숫자 접미사가 있는 이름도 같은 Base Name 계열의 다음 고유 이름으로 발급한다.
 FName UWorld::GetNodeName(const FString& BaseName)
 {
-	uint64& Suffix = NameCounters[BaseName];
-	const FString Name = Suffix == 0 ? BaseName : BaseName + " " + std::to_string(Suffix);
-	++Suffix;
+	FString NormalizedBaseName;
+	uint64 ParsedNextSuffix = 0;
+	ParseNodeName(BaseName, NormalizedBaseName, ParsedNextSuffix);
+
+	uint64& NextSuffix = NameCounters[NormalizedBaseName];
+	const FString Name = NextSuffix == 0 ? NormalizedBaseName : NormalizedBaseName + " " + std::to_string(NextSuffix);
+	++NextSuffix;
 	return FName(Name);
 }
 

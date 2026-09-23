@@ -2,6 +2,7 @@
 #include "Component/Component.h"
 #include "Component/PrimitiveComponent.h"
 #include "Object/Reflection/Class.h"
+#include "Object/Property.h"
 #include "World/Level.h"
 #include "World/World.h"
 
@@ -21,6 +22,17 @@ UNode::~UNode()
 			RemoveDefaultSubobject(*Iterator->Get());
 		}
 		GUObjectManager.Destroy(Iterator->Get());
+	}
+}
+
+// Inspector에서 변경된 Node 이름을 World의 다음 접미사 맵에 반영한다.
+void UNode::PostEditProperty(const FProperty& Property)
+{
+	Super::PostEditProperty(Property);
+	static const FName NamePropertyName("Name");
+	if (OwningLevel && Property.GetFName() == NamePropertyName)
+	{
+		GetWorld().RegisterNodeName(Name.ToString());
 	}
 }
 

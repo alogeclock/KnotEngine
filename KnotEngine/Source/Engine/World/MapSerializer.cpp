@@ -14,7 +14,6 @@
 #include "World/World.h"
 
 #include <algorithm>
-#include <charconv>
 #include <optional>
 
 // Map UUID와 UObject를 양방향으로 등록한다.
@@ -124,7 +123,6 @@ bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& 
 	}
 
 	TSet<uint32> ObjectUUIDs;
-	TSet<FString> NodeNames;
 	OutLevels.resize(LevelCount);
 	for (FMapLevelDefinition& LevelDefinition : OutLevels)
 	{
@@ -153,7 +151,7 @@ bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& 
 			}
 			if (!NameField || NodeDefinition.UUID == 0 || NodeDefinition.Name.empty() || !NodeDefinition.Class ||
 			    !NodeDefinition.Class->IsChildOf(UNode::StaticClass()) || !NodeDefinition.Class->CanCreateObject() ||
-			    !ObjectUUIDs.emplace(NodeDefinition.UUID).second || !NodeNames.emplace(NodeDefinition.Name).second)
+			    !ObjectUUIDs.emplace(NodeDefinition.UUID).second)
 			{
 				return false;
 			}
@@ -491,29 +489,6 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 		if (!NodeDefinition->Object->GetTransform().SetSiblingIndex(NodeDefinition->SiblingIndex))
 		{
 			Archive.SetError();
-		}
-	}
-
-	for (const FMapLevelDefinition& LevelDefinition : LevelDefinitions)
-	{
-		for (const FMapNodeDefinition& NodeDefinition : LevelDefinition.Nodes)
-		{
-			const FString& Name = NodeDefinition.Name;
-			SIZE_T SuffixOffset = Name.find_last_of(' ');
-			uint64 NextSuffix = 1;
-			FString BaseName = Name;
-			if (SuffixOffset != FString::npos && SuffixOffset + 1 < Name.size())
-			{
-				uint64 Suffix = 0;
-				const char* First = Name.data() + SuffixOffset + 1;
-				const auto Result = std::from_chars(First, Name.data() + Name.size(), Suffix);
-				if (Result.ec == std::errc() && Result.ptr == Name.data() + Name.size())
-				{
-					BaseName = Name.substr(0, SuffixOffset);
-					NextSuffix = Suffix + 1;
-				}
-			}
-			LoadedWorld->NameCounters[BaseName] = (std::max)(LoadedWorld->NameCounters[BaseName], NextSuffix);
 		}
 	}
 

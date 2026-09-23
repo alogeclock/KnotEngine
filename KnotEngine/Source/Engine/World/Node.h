@@ -25,6 +25,7 @@ class ENGINE_API UNode : public UObject
 public:
 	UNode();
 	~UNode() override;
+	void PostEditProperty(const FProperty& Property) override;
 
 	ULevel& GetLevel() const;
 	UWorld& GetWorld() const; // GetWorld()가 유효하도록 외부에 공개된 Node는 반드시 Level에 속한다.

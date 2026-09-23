@@ -49,6 +49,8 @@ public:
 private:
 	friend class FMapSerializer;
 	friend class UEditorEngine;
+	friend class ULevel;
+	friend class UNode;
 
 	void BeginPlay();
 	void PausePlay();
@@ -56,6 +58,8 @@ private:
 	void EndPlay();
 
 	void Replace(UWorld& LoadedWorld);
+	void RegisterNodeName(const FString& Name);
+	static void ParseNodeName(const FString& Name, FString& OutBaseName, uint64& OutNextSuffix);
 
 	FScene Scene;
 	TMap<FString, uint64> NameCounters;

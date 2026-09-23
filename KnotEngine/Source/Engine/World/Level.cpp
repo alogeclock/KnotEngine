@@ -57,9 +57,13 @@ UNode& ULevel::CreateNode(const UClass& NodeClass, FName Name)
 	UNode* Node = static_cast<UNode*>(GUObjectManager.NewObject(*const_cast<UClass*>(&NodeClass)));
 	Node->OwningLevel = this;
 	Node->Name = std::move(Name);
+
+	GetWorld().RegisterNodeName(Node->Name.ToString());
 	Node->LevelIndex = Nodes.size();
 	Nodes.emplace_back(Node);
+
 	InsertRootNode(*Node, RootNodes.size());
+
 	Node->RegisterComponents();
 	if (GetWorld().GetPlayState() != EPlayState::Stopped)
 	{
