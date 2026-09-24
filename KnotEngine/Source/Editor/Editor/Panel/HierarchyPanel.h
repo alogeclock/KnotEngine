@@ -5,7 +5,9 @@
 struct FEditorSelection;
 class FInputSnapshot;
 class FEditorTransaction;
+
 class UClass;
+
 class ULevel;
 class UNode;
 class UWorld;
@@ -49,11 +51,12 @@ private:
 	void DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot);
 	bool DrawContextMenu(UWorld& World, FEditorSelection& Selection);
 
-	void ApplyPendingDrop();
+	void ApplyPendingDrop(const FEditorSelection& Selection);
 
-	FEditorTransaction& TransactionManager;
+	FEditorTransaction& EditorTransaction;
 	TArray<FVisibleNode> VisibleNodes;
 	UNode* SelectionAnchor = nullptr;
+	UNode* PendingSelectionClick = nullptr;
 	FPendingDropNode PendingDrop;
 
 	TSet<uint32> CollapsedNodeUUIDs;

@@ -46,7 +46,7 @@ public:
 	FInputRouter& GetInputRouter() { return InputRouter; }
 	FEditorSelection& GetEditorSelection() { return EditorSelection; }
 	FEditorSettings& GetEditorSettings() { return EditorSettings; }
-	FEditorTransaction& GetTransactionManager() { return TransactionManager; }
+	FEditorTransaction& GetEditorTransaction() { return EditorTransaction; }
 
 private:
 	void ProcessAssetImports();
@@ -60,7 +60,7 @@ private:
 	FInputRouter InputRouter;
 	FEditorSelection EditorSelection;
 	FEditorSettings EditorSettings;
-	FEditorTransaction TransactionManager;
+	FEditorTransaction EditorTransaction;
 	std::unique_ptr<FImGuiSystem> ImGuiSystem;
 
 	std::filesystem::path CurrentLevelPath;

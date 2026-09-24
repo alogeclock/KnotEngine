@@ -85,13 +85,13 @@ void FViewportPanel::DrawContextMenu()
 	{
 		if (UNode* CreatedNode = FNodeCreationMenu::DrawItems(*World))
 		{
-			FEditorTransaction& TransactionManager = GetEditor().GetTransactionManager();
-			TransactionManager.Begin(FName("Add Node"));
-			TransactionManager.TrackNode(*CreatedNode);
+			FEditorTransaction& EditorTransaction = GetEditor().GetEditorTransaction();
+			EditorTransaction.Begin(FName("Add Node"));
+			EditorTransaction.TrackNode(*CreatedNode);
 			FTransform Transform = CreatedNode->GetTransform().GetRelativeTransform();
 			Transform.Translation = ContextMenuPlacementLocation;
 			CreatedNode->GetTransform().SetRelativeTransform(Transform);
-			TransactionManager.End();
+			EditorTransaction.End();
 			Selection.Select(CreatedNode);
 		}
 	}

@@ -102,19 +102,19 @@ void FEditorTransaction::SaveObject(UObject& Object, TArray<uint8> BeforeState)
 	Transaction.Records.emplace_back(FObjectTransactionRecord{ &Object, std::move(BeforeState), {} });
 }
 
-// Node의 부모, 형제 순서와 상대 Transform을 변경 전 상태로 한 번만 저장한다.
-void FEditorTransaction::SaveHierarchy(UNode& Node)
+// 이동할 Node들의 계층 상태를 변경 전에 한 Transaction으로 저장한다.
+void FEditorTransaction::SaveHierarchy(const TArray<UNode*>& Nodes)
 {
-	check(IsActive() && !bApplying && !History.empty());
-	FTransaction& Transaction = History.back();
-	for (const FTransactionRecord& Variant : Transaction.Records)
+	check(IsActive() && !bApplying);
+	FHierarchyMoveTransactionRecord Record;
+	Record.Nodes = Nodes;
+	Record.BeforeStates.reserve(Nodes.size());
+	for (UNode* Node : Nodes)
 	{
-		if (const auto* Record = std::get_if<FHierarchyTransactionRecord>(&Variant); Record && Record->Node == &Node)
-		{
-			return;
-		}
+		check(Node && Node->IsInLevel());
+		Record.BeforeStates.push_back(CaptureHierarchyMove(*Node));
 	}
-	Transaction.Records.emplace_back(FHierarchyTransactionRecord{ &Node, CaptureHierarchy(Node), {} });
+	History.back().Records.emplace_back(std::move(Record));
 }
 
 // 이미 Level에 연결된 새 Node를 Undo 시 분리할 수 있도록 생성 기록을 추가한다.
@@ -215,6 +215,19 @@ FNodeHierarchyState FEditorTransaction::CaptureHierarchy(UNode& Node)
 		Transform.GetRelativeTransform() };
 }
 
+// Node의 계층 상태와 현재 위치 바로 앞의 형제를 함께 캡처한다.
+FHierarchyMoveState FEditorTransaction::CaptureHierarchyMove(UNode& Node)
+{
+	UTransformComponent& Transform = Node.GetTransform();
+	UNode* PreviousSibling = nullptr;
+	if (const SIZE_T SiblingIndex = Transform.GetSiblingIndex(); SiblingIndex > 0)
+	{
+		PreviousSibling = Transform.GetParent() ? &Transform.GetParent()->GetChildren()[SiblingIndex - 1]->GetOwner() :
+			Node.GetLevel().GetRootNodes()[SiblingIndex - 1];
+	}
+	return FHierarchyMoveState{ CaptureHierarchy(Node), PreviousSibling };
+}
+
 // 지정 방향의 객체 상태를 역직렬화한다.
 void FEditorTransaction::RestoreObject(FObjectTransactionRecord& Record, bool bUndo)
 {
@@ -225,14 +238,34 @@ void FEditorTransaction::RestoreObject(FObjectTransactionRecord& Record, bool bU
 	panic(!Reader.HasError());
 }
 
-// 지정 방향의 부모와 형제 순서를 공개 계층 API로 복원한다.
-void FEditorTransaction::RestoreHierarchy(FHierarchyTransactionRecord& Record, bool bUndo)
+// 목표 형제 순서대로 앞에서부터 배치하여 이동한 Node의 부모와 상대 Transform을 복원한다.
+void FEditorTransaction::RestoreHierarchy(FHierarchyMoveTransactionRecord& Record, bool bUndo)
 {
-	check(Record.Node && Record.Node->IsInLevel());
-	const FNodeHierarchyState& State = bUndo ? Record.BeforeState : Record.AfterState;
-	UTransformComponent* Parent = State.Placement.Parent ? &State.Placement.Parent->GetTransform() : nullptr;
-	panic(Record.Node->GetTransform().SetParentRelative(Parent, State.Placement.SiblingIndex));
-	Record.Node->GetTransform().SetRelativeTransform(State.RelativeTransform);
+	const TArray<FHierarchyMoveState>& States = bUndo ? Record.BeforeStates : Record.AfterStates;
+	TArray<SIZE_T> Indices;
+	Indices.reserve(Record.Nodes.size());
+	for (SIZE_T Index = 0; Index < Record.Nodes.size(); ++Index)
+	{
+		Indices.push_back(Index);
+	}
+	std::sort(Indices.begin(), Indices.end(), [&States](SIZE_T Left, SIZE_T Right)
+	{
+		return States[Left].Hierarchy.Placement.SiblingIndex < States[Right].Hierarchy.Placement.SiblingIndex;
+	});
+	for (SIZE_T Index : Indices)
+	{
+		const FHierarchyMoveState& State = States[Index];
+		UTransformComponent* Parent = State.Hierarchy.Placement.Parent ? &State.Hierarchy.Placement.Parent->GetTransform() : nullptr;
+		UTransformComponent& Transform = Record.Nodes[Index]->GetTransform();
+		check(!State.PreviousSibling || State.PreviousSibling->GetTransform().GetParent() == Parent);
+		SIZE_T SiblingIndex = State.PreviousSibling ? State.PreviousSibling->GetTransform().GetSiblingIndex() + 1 : 0;
+		if (Transform.GetParent() == Parent && Transform.GetSiblingIndex() < SiblingIndex)
+		{
+			--SiblingIndex;
+		}
+		panic(Transform.SetParentRelative(Parent, SiblingIndex));
+		Transform.SetRelativeTransform(State.Hierarchy.RelativeTransform);
+	}
 }
 
 // 지정 방향에 따라 Node 계층을 Level에 다시 연결하거나 파괴하지 않고 분리한다.
@@ -298,7 +331,7 @@ void FEditorTransaction::Apply(FTransaction& Transaction, bool bUndo)
 		{
 			using T = std::decay_t<decltype(Record)>;
 			if constexpr (std::is_same_v<T, FObjectTransactionRecord>) RestoreObject(Record, bUndo);
-			else if constexpr (std::is_same_v<T, FHierarchyTransactionRecord>) RestoreHierarchy(Record, bUndo);
+			else if constexpr (std::is_same_v<T, FHierarchyMoveTransactionRecord>) RestoreHierarchy(Record, bUndo);
 			else if constexpr (std::is_same_v<T, FNodeAttachmentRecord>) RestoreNodeAttachment(Record, bUndo);
 			else RestoreComponentAttachment(Record, bUndo);
 		}, Variant);
@@ -335,9 +368,13 @@ void FEditorTransaction::FinalizeTransaction()
 		{
 			Record->AfterState = SerializeObject(*Record->Object);
 		}
-		else if (auto* Record = std::get_if<FHierarchyTransactionRecord>(&Variant))
+		else if (auto* Record = std::get_if<FHierarchyMoveTransactionRecord>(&Variant))
 		{
-			Record->AfterState = CaptureHierarchy(*Record->Node);
+			Record->AfterStates.reserve(Record->Nodes.size());
+			for (UNode* Node : Record->Nodes)
+			{
+				Record->AfterStates.push_back(CaptureHierarchyMove(*Node));
+			}
 		}
 	}
 	std::erase_if(Transaction.Records, [](const FTransactionRecord& Variant)
@@ -346,11 +383,20 @@ void FEditorTransaction::FinalizeTransaction()
 		{
 			return Record->BeforeState == Record->AfterState;
 		}
-		if (const auto* Record = std::get_if<FHierarchyTransactionRecord>(&Variant))
+		if (const auto* Record = std::get_if<FHierarchyMoveTransactionRecord>(&Variant))
 		{
-			return Record->BeforeState.Placement.Parent == Record->AfterState.Placement.Parent &&
-				Record->BeforeState.Placement.SiblingIndex == Record->AfterState.Placement.SiblingIndex &&
-				Record->BeforeState.RelativeTransform.ToMatrix().Equals(Record->AfterState.RelativeTransform.ToMatrix());
+			for (SIZE_T Index = 0; Index < Record->Nodes.size(); ++Index)
+			{
+				const FHierarchyMoveState& Before = Record->BeforeStates[Index];
+				const FHierarchyMoveState& After = Record->AfterStates[Index];
+				if (Before.Hierarchy.Placement.Parent != After.Hierarchy.Placement.Parent ||
+					Before.Hierarchy.Placement.SiblingIndex != After.Hierarchy.Placement.SiblingIndex ||
+					!Before.Hierarchy.RelativeTransform.ToMatrix().Equals(After.Hierarchy.RelativeTransform.ToMatrix()))
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 		return false;
 	});

@@ -33,12 +33,19 @@ struct FNodeHierarchyState
 	FTransform RelativeTransform;
 };
 
-// Node의 계층 변경 전후 상태를 보관한다.
-struct FHierarchyTransactionRecord
+// 이동한 Node의 계층 상태와 목표 위치 바로 앞의 형제를 보관한다.
+struct FHierarchyMoveState
 {
-	UNode* Node = nullptr;
-	FNodeHierarchyState BeforeState;
-	FNodeHierarchyState AfterState;
+	FNodeHierarchyState Hierarchy;
+	UNode* PreviousSibling = nullptr;
+};
+
+// 단일 또는 다중 Node 이동의 변경 전후 위치를 한 Undo/Redo 단계로 보관한다.
+struct FHierarchyMoveTransactionRecord
+{
+	TArray<UNode*> Nodes;
+	TArray<FHierarchyMoveState> BeforeStates;
+	TArray<FHierarchyMoveState> AfterStates;
 };
 
 // Redo 방향에서 객체가 계층에 연결되는지 분리되는지 나타낸다.
@@ -67,7 +74,7 @@ struct FComponentAttachmentRecord
 };
 
 // 한 편집 작업에서 순서대로 적용할 수 있는 Record 종류를 묶는다.
-using FTransactionRecord = std::variant<FObjectTransactionRecord, FHierarchyTransactionRecord, FNodeAttachmentRecord, FComponentAttachmentRecord>;
+using FTransactionRecord = std::variant<FObjectTransactionRecord, FHierarchyMoveTransactionRecord, FNodeAttachmentRecord, FComponentAttachmentRecord>;
 
 // 하나의 Undo/Redo 단계에 포함되는 Record와 표시 이름을 보관한다.
 struct FTransaction

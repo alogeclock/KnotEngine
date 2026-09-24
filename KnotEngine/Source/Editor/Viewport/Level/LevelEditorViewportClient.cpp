@@ -18,7 +18,7 @@
 
 FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport)
 	: FEditorViewportClient(InViewport), Selection(GetEditor().GetEditorSelection()),
-	  TransformGizmo(GetEditor().GetTransactionManager())
+	  TransformGizmo(GetEditor().GetEditorTransaction())
 {
 }
 

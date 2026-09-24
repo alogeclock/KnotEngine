@@ -30,7 +30,10 @@ public:
 	void DetachNode(UNode& Node);
 	void AttachNode(UNode& Node, UNode* Parent, SIZE_T SiblingIndex);
 	void DestroyDetachedNode(UNode& Node);
+	bool ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* NewParent, SIZE_T SiblingIndex);
+
 	const TArray<TObjectPtr<UNode>>& GetNodes() const { return Nodes; }
+	const TArray<UNode*>& GetRootNodes() const { return RootNodes; }
 
 	void BeginPlay();
 	void EndPlay();

@@ -144,7 +144,7 @@ ULevel::Nodes
 
 `CreateNode()`로 만든 Node는 즉시 배열에 들어간다. World가 `Stopped` 상태가 아니면 새 Node도 곧바로 BeginPlay를 받는다. Level의 Node 배열은 밀집 저장소이며 제거 시 내부 인덱스로 swap-pop한다. 따라서 UUID와 객체 주소는 식별에 사용할 수 있지만 배열 순서는 안정적이지 않다. World는 BaseName별 접미사 카운터로 새 Node의 표시 이름을 만든다.
 
-Transform의 `Children` 배열과 Level의 비소유 `RootNodes` 배열이 Hierarchy 순서를 관리한다. 각 Transform은 배열상의 `SiblingIndex`를 캐시하므로 조회와 저장은 O(1)이며, 부모 변경이나 순서 변경 때 영향받은 형제 구간만 인덱스를 갱신한다. `Nodes`는 계속 모든 Node를 평탄하게 소유하고 제거 시 swap-pop하므로 Hierarchy 순서와 분리된다. `RemoveNode()`는 Transform 자손을 먼저 재귀적으로 제거하고 대상 Node를 제거한다.
+Transform의 `Children` 배열과 Level의 비소유 `RootNodes` 배열이 Hierarchy 순서를 관리한다. 각 Transform은 배열상의 `SiblingIndex`를 캐시하므로 조회와 저장은 O(1)이다. 단일 부모·순서 변경은 영향받은 형제 구간의 인덱스를 갱신하고, `ReparentNodesAbsolute()`는 같은 Level의 여러 Node를 이동 전에 검증한 뒤 원본 형제 배열에서 일괄 제거하고 목적지에 한 번 삽입한다. `Nodes`는 계속 모든 Node를 평탄하게 소유하고 제거 시 swap-pop하므로 Hierarchy 순서와 분리된다. `RemoveNode()`는 Transform 자손을 먼저 재귀적으로 제거하고 대상 Node를 제거한다.
 
 Node의 일반 생성은 `AttachNode()`로 Level에 연결하고, 일반 삭제는 `DetachNode()`로 계층과 Component 등록을 해제한 뒤 `DestroyDetachedNode()`로 즉시 파괴한다. Editor Undo/Redo도 같은 연결·분리 경로를 사용하지만 파괴만 미룬다. 분리된 Node는 Level의 밀집 배열에서 빠지고 `LevelIndex`가 무효화되며, 복원 시 같은 객체와 UUID를 다시 연결한다. History에서 다시 연결할 가능성이 사라졌을 때만 실제로 파괴한다. Component의 일반 삭제와 Undo/Redo도 `DetachComponent()`·`AttachComponent()`를 공유한다. 자세한 수명 규칙은 [Editor-Architecture.md](Editor-Architecture.md#undoredo-transaction)를 따른다.
 

@@ -11,7 +11,7 @@ public:
 
 	void SaveObject(UObject& Object);
 	void SaveObject(UObject& Object, TArray<uint8> BeforeState);
-	void SaveHierarchy(UNode& Node);
+	void SaveHierarchy(const TArray<UNode*>& Nodes);
 
 	void TrackNode(UNode& Node);
 	void DeleteNode(UNode& Node);
@@ -31,8 +31,9 @@ private:
 
 	static TArray<uint8> SerializeObject(UObject& Object);
 	static FNodeHierarchyState CaptureHierarchy(UNode& Node);
+	static FHierarchyMoveState CaptureHierarchyMove(UNode& Node);
 	static void RestoreObject(FObjectTransactionRecord& Record, bool bUndo);
-	static void RestoreHierarchy(FHierarchyTransactionRecord& Record, bool bUndo);
+	static void RestoreHierarchy(FHierarchyMoveTransactionRecord& Record, bool bUndo);
 	void RestoreNodeAttachment(FNodeAttachmentRecord& Record, bool bUndo);
 	void RestoreComponentAttachment(FComponentAttachmentRecord& Record, bool bUndo);
 

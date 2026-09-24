@@ -173,11 +173,11 @@ Inspector는 Engine의 public Reflection API만 사용한다. 편집 가능 여�
 | Record | 기록 내용 | 사용 예 |
 |---|---|---|
 | `FObjectTransactionRecord` | `UObject::Serialize()`로 얻은 변경 전후 바이트 | Inspector 프로퍼티, Component 붙여넣기, Gizmo Transform |
-| `FHierarchyTransactionRecord` | 부모, Sibling Index와 상대 Transform의 변경 전후 값 | Hierarchy 재부모화·형제 순서 변경 |
+| `FHierarchyMoveTransactionRecord` | 이동한 Node별 부모, Sibling Index, 직전 형제와 상대 Transform의 변경 전후 값 | Hierarchy 단일·다중 Drag & Drop |
 | `FNodeAttachmentRecord` | Level, Node, 다시 연결할 위치와 `Added`/`Removed` | Node 생성·삭제·복제 |
 | `FComponentAttachmentRecord` | Owner Node, Component, 다시 연결할 순서와 `Added`/`Removed` | Component 생성·삭제 |
 
-`SaveObject()`와 `SaveHierarchy()`는 같은 작업에서 같은 대상을 중복 기록하지 않는다. `End()`는 객체·계층의 변경 후 상태를 캡처하고 변경 전과 같은 Record를 제거한다. Record가 하나도 남지 않으면 Undo 단계도 만들지 않는다. Undo 후 새 작업을 시작할 때 기존 Redo 기록은 `RemovedTransactions`에 잠시 옮겨 두며, 새 작업이 취소되거나 변경 없이 끝나면 복원하고 실제 변경으로 확정되면 폐기한다.
+`SaveObject()`는 같은 작업에서 같은 대상을 중복 기록하지 않는다. `SaveHierarchy()`는 이동할 Node들의 변경 전 상태를 저장한다. `End()`는 객체와 계층의 변경 후 상태를 캡처하고 변경 전과 같은 Record를 제거한다. Record가 하나도 남지 않으면 Undo 단계도 만들지 않는다. Undo 후 새 작업을 시작할 때 기존 Redo 기록은 `RemovedTransactions`에 잠시 옮겨 두며, 새 작업이 취소되거나 변경 없이 끝나면 복원하고 실제 변경으로 확정되면 폐기한다.
 
 생성된 Node와 Component는 연결된 상태에서 `TrackNode()` 또는 `TrackComponent()`로 기록한다. 삭제는 일반 제거 함수를 직접 호출하지 않고 `DeleteNode()` 또는 `DeleteComponent()`를 사용한다. 일반 제거와 Transaction은 같은 연결·분리 생명주기를 공유하며, Transaction은 객체의 최종 파괴만 미룬다. Hierarchy의 다중 삭제는 선택된 자손을 중복 제거한 뒤 최상위 Node만 기록한다.
 
@@ -189,7 +189,7 @@ History는 최대 128개 작업을 보관하고 한도를 넘으면 오래된 �
 
 - Inspector는 처음 변경하기 전의 객체 상태를 저장하고 연속된 위젯 편집을 하나의 작업으로 확정한다.
 - Gizmo는 드래그 시작 시 선택된 Node들의 Transform을 저장한다. 정상 종료는 `End()`, Escape·오른쪽 클릭·캡처 또는 선택 상실은 `Cancel()` 경로를 사용한다.
-- Hierarchy에서 부모나 형제 순서를 바꾸기 전에는 `SaveHierarchy()`를 호출한다. 생성·삭제에는 Attachment 기록을 사용한다.
+- Hierarchy의 단일·다중 Drag & Drop은 같은 이동 경로를 사용한다. 선택된 최상위 Node만 `ULevel::ReparentNodesAbsolute()`로 일괄 이동하고, 각 Node의 직전 형제를 기록해 형제 목록 전체를 복사하지 않고 Undo/Redo한다. 생성·삭제에는 Attachment 기록을 사용한다.
 - `FImGuiSystem`은 `Ctrl+Z`와 `Ctrl+Shift+Z`를 각각 Undo·Redo에 연결한다. 복원 후 Level에서 분리된 Node는 현재 선택에서 제외하지만, 선택 상태 자체를 별도의 Transaction Record로 보관하지는 않는다.
 
 새 편집 기능은 변경 전에 적절한 Record를 남기고 정상 확정·취소·Undo·Redo·반복 Undo/Redo를 확인해야 한다. 직렬화 대상 프로퍼티는 `SaveObject()`를 재사용할 수 있지만, 새로운 객체 관계나 외부 자원 변경은 별도의 복원 규칙이 필요하다. 현재 `Apply()`는 실패 시 부분 적용을 롤백하는 일반적인 복구 절차를 제공하지 않으므로, 부모 관계와 객체 수명 계약을 적용 전에 지켜야 한다.

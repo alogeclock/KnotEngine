@@ -274,11 +274,11 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		bool bApplied = false;
 		if (HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
 		{
-			bApplied = GetEditor().GetTransactionManager().Redo();
+			bApplied = GetEditor().GetEditorTransaction().Redo();
 		}
 		else
 		{
-			bApplied = GetEditor().GetTransactionManager().Undo();
+			bApplied = GetEditor().GetEditorTransaction().Undo();
 		}
 		if (bApplied)
 		{
@@ -323,7 +323,7 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 void FImGuiSystem::DuplicateSelection()
 {
 	FEditorSelection& Selection = GetEditor().GetEditorSelection();
-	FEditorTransaction& TransactionManager = GetEditor().GetTransactionManager();
+	FEditorTransaction& EditorTransaction = GetEditor().GetEditorTransaction();
 	const TArray<UNode*> SourceSelection = Selection.GetSelectedNodes();
 	if (SourceSelection.empty())
 	{
@@ -339,7 +339,7 @@ void FImGuiSystem::DuplicateSelection()
 		}
 	}
 
-	TransactionManager.Begin(FName("Duplicate Nodes"));
+	EditorTransaction.Begin(FName("Duplicate Nodes"));
 	TArray<UNode*> Duplicates;
 	UNode* ActiveDuplicate = nullptr;
 	for (auto& [Level, LevelSources] : NodesByLevel)
@@ -360,11 +360,11 @@ void FImGuiSystem::DuplicateSelection()
 			UTransformComponent* Parent = Duplicate->GetTransform().GetParent();
 			if (!Parent || !DuplicateLookup.contains(&Parent->GetOwner()))
 			{
-				TransactionManager.TrackNode(*Duplicate);
+				EditorTransaction.TrackNode(*Duplicate);
 			}
 		}
 	}
-	TransactionManager.End();
+	EditorTransaction.End();
 	Selection.Select(Duplicates, ActiveDuplicate);
 }
 

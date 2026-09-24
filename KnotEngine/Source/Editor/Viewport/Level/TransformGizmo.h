@@ -27,7 +27,7 @@ enum class ETransformGizmoAxis : int8
 class FTransformGizmo final
 {
 public:
-	explicit FTransformGizmo(FEditorTransaction& InTransactionManager) : TransactionManager(InTransactionManager) {}
+	explicit FTransformGizmo(FEditorTransaction& InEditorTransaction) : EditorTransaction(InEditorTransaction) {}
 	FInputReply OnInputEvent(const FInputEvent& Event, const FEditorSelection& Selection, const FSceneView& View, const FVector2& PixelPosition);
 	void OnMouseCaptureLost();
 	void OnKeyboardFocusLost();
@@ -79,7 +79,7 @@ private:
 	static constexpr float CenterHandleRadiusPixels = 17.0f;
 	static constexpr float DragDeadZonePixels = 2.0f;
 
-	FEditorTransaction& TransactionManager;
+	FEditorTransaction& EditorTransaction;
 	EGizmoViewMode Mode = EGizmoViewMode::Translate;
 	bool bLocalSpace = false;
 	FMatrix AxisRotation = FMatrix::Identity;

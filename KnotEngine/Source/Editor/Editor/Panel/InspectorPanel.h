@@ -4,21 +4,25 @@
 #include "Core/Math/Vector2.h"
 #include <optional>
 
+class FAssetRegistry;
+class FInputSnapshot;
+class FEditorTransaction;
 struct FEditorSelection;
+
 struct FQuat;
 struct FRotator;
 struct FTransform;
 struct FVector;
+
 struct ImFont;
+
 class UComponent;
 class UStaticMeshComponent;
+
 class FProperty;
 class UObject;
 class UNode;
 class UClass;
-class FAssetRegistry;
-class FInputSnapshot;
-class FEditorTransaction;
 
 class FInspectorPanel
 {
@@ -65,7 +69,7 @@ private:
 	bool DrawStaticMeshMaterials(UStaticMeshComponent& Component);
 
 	FAssetRegistry& AssetRegistry;
-	FEditorTransaction& TransactionManager;
+	FEditorTransaction& EditorTransaction;
 	UObject* TransactionObject = nullptr;
 
 	ImFont* BoldFont = nullptr;

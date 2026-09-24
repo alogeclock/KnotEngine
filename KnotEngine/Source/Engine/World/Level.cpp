@@ -5,6 +5,7 @@
 #include "World/World.h"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <utility>
 
@@ -278,6 +279,198 @@ void ULevel::DestroyDetachedNode(UNode& Node)
 		DestroyDetachedNode(Child);
 	}
 	GUObjectManager.Destroy(&Node);
+}
+
+// 같은 Level의 Node들을 순서대로 옮기면서 World Transform과 입력 순서를 유지한다.
+bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* NewParent, SIZE_T SiblingIndex)
+{
+	// 대상과 목적지가 같은 Level에 있으며 계층 순환이 생기지 않는지 먼저 검증한다.
+	if (NodesToMove.empty())
+	{
+		return true;
+	}
+	if (NewParent && (&NewParent->GetLevel() != this || !NewParent->IsInLevel()))
+	{
+		return false;
+	}
+	UTransformComponent* ParentTransform = NewParent ? &NewParent->GetTransform() : nullptr;
+	const SIZE_T DestinationCount = ParentTransform ? ParentTransform->Children.size() : RootNodes.size();
+	if (SiblingIndex > DestinationCount)
+	{
+		return false;
+	}
+
+	TSet<UTransformComponent*> MovingTransforms;
+	MovingTransforms.reserve(NodesToMove.size());
+	bool bChangesParent = false;
+	for (UNode* Node : NodesToMove)
+	{
+		if (!Node || &Node->GetLevel() != this || !Node->IsInLevel())
+		{
+			return false;
+		}
+		UTransformComponent& Transform = Node->GetTransform();
+		if (!MovingTransforms.emplace(&Transform).second)
+		{
+			return false;
+		}
+		bChangesParent |= Transform.Parent.Get() != ParentTransform;
+	}
+	for (UTransformComponent* Transform : MovingTransforms)
+	{
+		for (UTransformComponent* Ancestor = Transform->Parent; Ancestor; Ancestor = Ancestor->Parent)
+		{
+			if (MovingTransforms.contains(Ancestor))
+			{
+				return false;
+			}
+		}
+	}
+	for (UTransformComponent* Ancestor = ParentTransform; Ancestor; Ancestor = Ancestor->Parent)
+	{
+		if (MovingTransforms.contains(Ancestor))
+		{
+			return false;
+		}
+	}
+
+	// 모든 World Transform을 변경 전에 새 부모 기준 상대 Transform으로 변환한다.
+	FMatrix ParentInverse = FMatrix::Identity;
+	if (bChangesParent && ParentTransform)
+	{
+		const FMatrix ParentWorld = ParentTransform->GetWorldMatrix();
+		if (std::fabs(ParentWorld.GetDeterminant()) <= KMath::Epsilon)
+		{
+			return false;
+		}
+		ParentInverse = ParentWorld.GetInverse();
+	}
+	TArray<FTransform> RelativeTransforms;
+	TArray<bool> ParentChanges;
+	RelativeTransforms.reserve(NodesToMove.size());
+	ParentChanges.reserve(NodesToMove.size());
+	for (UNode* Node : NodesToMove)
+	{
+		UTransformComponent& Transform = Node->GetTransform();
+		const bool bParentChanged = Transform.Parent.Get() != ParentTransform;
+		ParentChanges.push_back(bParentChanged);
+		if (!bParentChanged)
+		{
+			RelativeTransforms.push_back(Transform.GetRelativeTransform());
+			continue;
+		}
+		FMatrix RelativeMatrix = Transform.GetWorldMatrix();
+		if (ParentTransform)
+		{
+			RelativeMatrix *= ParentInverse;
+		}
+		FVector Translation;
+		FMatrix Rotation;
+		FVector Scale;
+		if (!RelativeMatrix.Decompose(Translation, Rotation, Scale))
+		{
+			return false;
+		}
+		RelativeTransforms.emplace_back(FQuat(Rotation), Translation, Scale);
+	}
+
+	// 같은 목적지 배열에서 빠질 Node를 고려해 삽입 지점을 보정한다.
+	SIZE_T DestinationIndex = SiblingIndex;
+	bool bRootAffected = ParentTransform == nullptr;
+	TSet<UTransformComponent*> AffectedParents;
+	if (ParentTransform)
+	{
+		AffectedParents.emplace(ParentTransform);
+	}
+	for (UNode* Node : NodesToMove)
+	{
+		UTransformComponent& Transform = Node->GetTransform();
+		if (Transform.Parent.Get() == ParentTransform && Transform.SiblingIndex < SiblingIndex)
+		{
+			--DestinationIndex;
+		}
+		if (Transform.Parent)
+		{
+			AffectedParents.emplace(Transform.Parent.Get());
+		}
+		else
+		{
+			bRootAffected = true;
+		}
+	}
+	if (!bChangesParent)
+	{
+		bool bAlreadyPlaced = true;
+		for (SIZE_T Index = 0; Index < NodesToMove.size(); ++Index)
+		{
+			if (NodesToMove[Index]->GetTransform().SiblingIndex != DestinationIndex + Index)
+			{
+				bAlreadyPlaced = false;
+				break;
+			}
+		}
+		if (bAlreadyPlaced)
+		{
+			return true;
+		}
+	}
+	// 각 원본 형제 배열에서 이동 대상을 한 번에 제거하고 목적지에 입력 순서로 삽입한다.
+	if (bRootAffected)
+	{
+		std::erase_if(RootNodes, [&MovingTransforms](UNode* Node)
+		{
+			return MovingTransforms.contains(&Node->GetTransform());
+		});
+	}
+	for (UTransformComponent* Parent : AffectedParents)
+	{
+		std::erase_if(Parent->Children, [&MovingTransforms](const TObjectPtr<UTransformComponent>& Child)
+		{
+			return MovingTransforms.contains(Child.Get());
+		});
+	}
+	for (UNode* Node : NodesToMove)
+	{
+		Node->GetTransform().Parent = ParentTransform;
+	}
+	if (ParentTransform)
+	{
+		TArray<TObjectPtr<UTransformComponent>> InsertedTransforms;
+		InsertedTransforms.reserve(NodesToMove.size());
+		for (UNode* Node : NodesToMove)
+		{
+			InsertedTransforms.emplace_back(&Node->GetTransform());
+		}
+		ParentTransform->Children.insert(ParentTransform->Children.begin() + DestinationIndex, InsertedTransforms.begin(), InsertedTransforms.end());
+	}
+	else
+	{
+		RootNodes.insert(RootNodes.begin() + DestinationIndex, NodesToMove.begin(), NodesToMove.end());
+	}
+	// 영향받은 배열의 SiblingIndex를 한 번씩 갱신한 뒤 변경된 Transform을 전파한다.
+	if (bRootAffected)
+	{
+		for (SIZE_T Index = 0; Index < RootNodes.size(); ++Index)
+		{
+			RootNodes[Index]->GetTransform().SiblingIndex = Index;
+		}
+	}
+	for (UTransformComponent* Parent : AffectedParents)
+	{
+		for (SIZE_T Index = 0; Index < Parent->Children.size(); ++Index)
+		{
+			Parent->Children[Index]->SiblingIndex = Index;
+		}
+	}
+	for (SIZE_T Index = 0; Index < NodesToMove.size(); ++Index)
+	{
+		if (!ParentChanges[Index])
+		{
+			continue;
+		}
+		NodesToMove[Index]->GetTransform().SetRelativeTransform(RelativeTransforms[Index]);
+	}
+	return true;
 }
 
 // 지정한 순서에 Root Node를 추가하고 영향받은 Sibling Index를 갱신한다.

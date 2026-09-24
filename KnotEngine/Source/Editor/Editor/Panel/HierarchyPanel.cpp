@@ -4,6 +4,7 @@
 #include "Editor/Context/EditorSelection.h"
 #include "Editor/Widget/NodeCreationMenu.h"
 #include "Editor/Context/EditorTransaction.h"
+#include "Component/TransformComponent.h"
 #include "Runtime/EditorEngine.h"
 #include "World/Level.h"
 #include "World/Node.h"
@@ -15,7 +16,7 @@
 #include <limits>
 
 FHierarchyPanel::FHierarchyPanel()
-	: TransactionManager(GetEditor().GetTransactionManager())
+    : EditorTransaction(GetEditor().GetEditorTransaction())
 {
 }
 
@@ -42,13 +43,13 @@ void FHierarchyPanel::RemoveSelectedNodes(FEditorSelection& Selection)
 		}
 	}
 
-	TransactionManager.Begin(FName(RemovalRoots.size() > 1 ? "Remove Nodes" : "Remove Node"));
+	EditorTransaction.Begin(FName(RemovalRoots.size() > 1 ? "Remove Nodes" : "Remove Node"));
 	Selection.Deselect();
 	for (UNode* Node : RemovalRoots)
 	{
-		TransactionManager.DeleteNode(*Node);
+		EditorTransaction.DeleteNode(*Node);
 	}
-	TransactionManager.End();
+	EditorTransaction.End();
 }
 
 // 펼쳐진 Node와 자손만 화면 표시 순서의 평탄 목록에 추가한다.
@@ -152,7 +153,15 @@ void FHierarchyPanel::DrawVisibleNode(const FVisibleNode& VisibleNode, FEditorSe
 	}
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen())
 	{
-		SelectVisibleNode(Node, Selection, InputSnapshot);
+		if (Selection.IsSelected(&Node) && Selection.GetSelectedNodes().size() > 1 && InputSnapshot.GetModifiers() == EModifierKeyMask::None)
+		{
+			PendingSelectionClick = &Node;
+		}
+		else
+		{
+			PendingSelectionClick = nullptr;
+			SelectVisibleNode(Node, Selection, InputSnapshot);
+		}
 	}
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && !Selection.IsSelected(&Node))
 	{
@@ -162,6 +171,7 @@ void FHierarchyPanel::DrawVisibleNode(const FVisibleNode& VisibleNode, FEditorSe
 
 	if (ImGui::BeginDragDropSource())
 	{
+		PendingSelectionClick = nullptr;
 		if (!Selection.IsSelected(&Node))
 		{
 			Selection.Select(&Node);
@@ -263,45 +273,109 @@ void FHierarchyPanel::DrawLevel(UWorld& World, ULevel& Level, SIZE_T LevelIndex,
 }
 
 // 보류한 Drop을 계층 순회가 끝난 뒤 적용하여 가시 목록과 자식 배열의 무효화를 피한다.
-void FHierarchyPanel::ApplyPendingDrop()
+void FHierarchyPanel::ApplyPendingDrop(const FEditorSelection& Selection)
 {
+	// 유효한 Drop이며 드래그한 Node와 대상 Level이 일치하는지 확인한다.
 	if (!PendingDrop.bValid || !PendingDrop.DraggedNode || !PendingDrop.TargetLevel ||
 		&PendingDrop.DraggedNode->GetLevel() != PendingDrop.TargetLevel)
 	{
 		return;
 	}
 
-	UTransformComponent& DraggedTransform = PendingDrop.DraggedNode->GetTransform();
-	UTransformComponent* NewParent = nullptr;
-	SIZE_T NewSiblingIndex = 0;
-	if (PendingDrop.Position == ENodeDropPosition::Root)
+	// 선택된 자손을 제외하고 실제로 이동할 최상위 Node만 모은다.
+	const TArray<UNode*>& SelectedNodes = Selection.GetSelectedNodes();
+	TSet<UNode*> SelectedLookup(SelectedNodes.begin(), SelectedNodes.end());
+	TArray<UNode*> DragRoots;
+	DragRoots.reserve(SelectedNodes.size());
+	for (UNode* Node : SelectedNodes)
 	{
-		NewSiblingIndex = PendingDrop.TargetLevel->RootNodes.size();
-	}
-	else
-	{
-		check(PendingDrop.TargetNode);
-		if (PendingDrop.Position == ENodeDropPosition::Into)
+		if (&Node->GetLevel() != PendingDrop.TargetLevel)
 		{
-			NewParent = &PendingDrop.TargetNode->GetTransform();
-			NewSiblingIndex = PendingDrop.TargetNode->GetChildren().size();
+			return;
 		}
-		else
+		bool bSelectedAncestor = false;
+		for (UTransformComponent* Parent = Node->GetParent(); Parent; Parent = Parent->GetParent())
 		{
-			NewParent = PendingDrop.TargetNode->GetParent();
-			NewSiblingIndex = PendingDrop.TargetNode->GetSiblingIndex();
-			NewSiblingIndex += PendingDrop.Position == ENodeDropPosition::After ? 1 : 0;
+			if (SelectedLookup.contains(&Parent->GetOwner()))
+			{
+				bSelectedAncestor = true;
+				break;
+			}
+		}
+		if (!bSelectedAncestor)
+		{
+			DragRoots.push_back(Node);
 		}
 	}
 
-	if (DraggedTransform.GetParent() == NewParent && DraggedTransform.GetSiblingIndex() < NewSiblingIndex)
+	// 다중 이동은 Node별 계층 경로를 한 번만 계산해 Hierarchy 표시 순서로 정렬한다.
+	if (DragRoots.size() > 1)
 	{
-		--NewSiblingIndex;
+		struct FSortedDragRoot
+		{
+			UNode* Node = nullptr;
+			TArray<SIZE_T> Path;
+		};
+		TArray<FSortedDragRoot> SortedRoots;
+		SortedRoots.reserve(DragRoots.size());
+		for (UNode* Root : DragRoots)
+		{
+			FSortedDragRoot& Entry = SortedRoots.emplace_back();
+			Entry.Node = Root;
+			for (const UNode* Node = Root; Node; Node = Node->GetParent() ? &Node->GetParent()->GetOwner() : nullptr)
+			{
+				Entry.Path.push_back(Node->GetSiblingIndex());
+			}
+			std::reverse(Entry.Path.begin(), Entry.Path.end());
+		}
+		std::sort(SortedRoots.begin(), SortedRoots.end(), [](const FSortedDragRoot& Left, const FSortedDragRoot& Right)
+		{
+			return std::lexicographical_compare(Left.Path.begin(), Left.Path.end(), Right.Path.begin(), Right.Path.end());
+		});
+		DragRoots.clear();
+		for (const FSortedDragRoot& Entry : SortedRoots)
+		{
+			DragRoots.push_back(Entry.Node);
+		}
 	}
-	TransactionManager.Begin(FName("Reparent Node"));
-	TransactionManager.SaveHierarchy(*PendingDrop.DraggedNode);
-	DraggedTransform.SetParentAbsolute(NewParent, NewSiblingIndex);
-	TransactionManager.End();
+
+	// 선택된 Node 또는 그 자손 아래로 옮겨 순환 계층이 생기는 것을 막는다.
+	for (UNode* Target = PendingDrop.TargetNode; Target; Target = Target->GetParent() ? &Target->GetParent()->GetOwner() : nullptr)
+	{
+		if (SelectedLookup.contains(Target))
+		{
+			return;
+		}
+	}
+
+	// Drop 위치에 따른 새 부모를 정하고 각 이동 Node의 원래 위치를 기록한다.
+	UNode* DestinationParent = PendingDrop.Position == ENodeDropPosition::Into ? PendingDrop.TargetNode :
+		(PendingDrop.TargetNode && PendingDrop.TargetNode->GetParent() ? &PendingDrop.TargetNode->GetParent()->GetOwner() : nullptr);
+	SIZE_T NewSiblingIndex = 0;
+	if (PendingDrop.Position == ENodeDropPosition::Into)
+	{
+		NewSiblingIndex = DestinationParent->GetChildren().size();
+	}
+	else if (PendingDrop.Position == ENodeDropPosition::Root)
+	{
+		NewSiblingIndex = PendingDrop.TargetLevel->GetRootNodes().size();
+	}
+	else
+	{
+		NewSiblingIndex = PendingDrop.TargetNode->GetSiblingIndex() + (PendingDrop.Position == ENodeDropPosition::After ? 1 : 0);
+	}
+	EditorTransaction.Begin(FName(DragRoots.size() > 1 ? "Reparent Nodes" : "Reparent Node"));
+	EditorTransaction.SaveHierarchy(DragRoots);
+
+	// World Transform을 유지한 채 형제 배열을 일괄 갱신하고 결과를 확정한다.
+	if (PendingDrop.TargetLevel->ReparentNodesAbsolute(DragRoots, DestinationParent, NewSiblingIndex))
+	{
+		EditorTransaction.End();
+	}
+	else
+	{
+		EditorTransaction.Cancel();
+	}
 }
 
 // Hierarchy 어디에서나 Node 생성과 현재 선택 Node 제거 메뉴를 표시한다.
@@ -314,9 +388,9 @@ bool FHierarchyPanel::DrawContextMenu(UWorld& World, FEditorSelection& Selection
 
 	if (UNode* CreatedNode = FNodeCreationMenu::Draw(World))
 	{
-		TransactionManager.Begin(FName("Add Node"));
-		TransactionManager.TrackNode(*CreatedNode);
-		TransactionManager.End();
+		EditorTransaction.Begin(FName("Add Node"));
+		EditorTransaction.TrackNode(*CreatedNode);
+		EditorTransaction.End();
 		Selection.Select(CreatedNode);
 	}
 
@@ -345,11 +419,20 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection, const FIn
 		}
 		DrawLevel(World, *Level, LevelIndex, Selection, InputSnapshot);
 	}
-	ApplyPendingDrop();
+	ApplyPendingDrop(Selection);
+
+	if (InputSnapshot.WasMouseButtonReleased(EMouseButton::Left) && PendingSelectionClick)
+	{
+		Selection.Select(PendingSelectionClick);
+		SelectionAnchor = PendingSelectionClick;
+		PendingSelectionClick = nullptr;
+	}
+
 	if (DrawContextMenu(World, Selection))
 	{
 		RemoveSelectedNodes(Selection);
 		SelectionAnchor = nullptr;
 	}
+
 	ImGui::End();
 }

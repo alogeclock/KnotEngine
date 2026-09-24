@@ -37,7 +37,7 @@
 #include <iterator>
 
 FInspectorPanel::FInspectorPanel()
-	: AssetRegistry(GetEditor().GetAssetManager().GetAssetRegistry()), TransactionManager(GetEditor().GetTransactionManager())
+	: AssetRegistry(GetEditor().GetAssetManager().GetAssetRegistry()), EditorTransaction(GetEditor().GetEditorTransaction())
 {
 }
 
@@ -53,10 +53,10 @@ bool FInspectorPanel::DrawComponent(UNode& Node, const UClass& Class)
 	{
 		return false;
 	}
-	TransactionManager.Begin(FName("Add Component"));
+	EditorTransaction.Begin(FName("Add Component"));
 	UComponent& Component = Node.AddComponent(Class);
-	TransactionManager.TrackComponent(Component);
-	TransactionManager.End();
+	EditorTransaction.TrackComponent(Component);
+	EditorTransaction.End();
 	ImGui::CloseCurrentPopup();
 	return true;
 }
@@ -159,8 +159,8 @@ void FInspectorPanel::PasteComponent(UComponent& Component) const
 {
 	check(CopiedComponent && CopiedComponent->GetClass() == Component.GetClass());
 
-	TransactionManager.Begin(FName("Paste Component"));
-	TransactionManager.SaveObject(Component);
+	EditorTransaction.Begin(FName("Paste Component"));
+	EditorTransaction.SaveObject(Component);
 
 	TArray<const FProperty*> Properties;
 	Component.GetClass()->GetEditorProperties(Properties);
@@ -170,7 +170,7 @@ void FInspectorPanel::PasteComponent(UComponent& Component) const
 		Property->CopyValue(Property->ContainerPtrToValuePtr(&Component), Property->ContainerPtrToValuePtr(CopiedComponent));
 		Component.PostEditProperty(*Property);
 	}
-	TransactionManager.End();
+	EditorTransaction.End();
 }
 
 // Editor에서 선택된 객체의 프로퍼티를 그리는 패널을 구현한다.
@@ -188,7 +188,7 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	}
 	if (TransactionObject && !ImGui::IsAnyItemActive())
 	{
-		TransactionManager.End();
+		EditorTransaction.End();
 		TransactionObject = nullptr;
 	}
 	if (!Selection.SelectedNode)
@@ -236,9 +236,9 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	}
 	if (ComponentToRemove)
 	{
-		TransactionManager.Begin(FName("Remove Component"));
-		TransactionManager.DeleteComponent(*ComponentToRemove);
-		TransactionManager.End();
+		EditorTransaction.Begin(FName("Remove Component"));
+		EditorTransaction.DeleteComponent(*ComponentToRemove);
+		EditorTransaction.End();
 	}
 	DrawAddComponent(Node);
 	ImGui::PopID();
@@ -1122,8 +1122,8 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	{
 		if (!TransactionObject)
 		{
-			TransactionManager.Begin(FName("Edit Property"));
-			TransactionManager.SaveObject(Object, std::move(BeforeState));
+			EditorTransaction.Begin(FName("Edit Property"));
+			EditorTransaction.SaveObject(Object, std::move(BeforeState));
 			TransactionObject = &Object;
 		}
 		Object.PostEditProperty(Property);
