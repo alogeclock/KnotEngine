@@ -524,6 +524,19 @@ bool FTransformGizmo::ApplyWorldDelta(const FMatrix& WorldDelta)
 		}
 
 		const FMatrix RelativeMatrix = Target.StartWorldMatrix * WorldDelta * Target.StartParentWorldInverse;
+		if (Mode == EGizmoViewMode::Scale)
+		{
+			// Scale 조작에서 행렬을 회전으로 재분해하면 shear와 오일러 특이점 때문에 기존 회전이 바뀔 수 있다.
+			const FMatrix StartRotation = Target.StartRelativeTransform.Rotation.ToMatrix();
+			const FVector Scale(
+				RelativeMatrix.GetScaledAxis(EAxis::X) | StartRotation.GetScaledAxis(EAxis::X),
+				RelativeMatrix.GetScaledAxis(EAxis::Y) | StartRotation.GetScaledAxis(EAxis::Y),
+				RelativeMatrix.GetScaledAxis(EAxis::Z) | StartRotation.GetScaledAxis(EAxis::Z));
+			const FVector Translation = RelativeMatrix.TransformPosition(FVector::ZeroVector);
+			PendingTransforms.push_back({ Node, FTransform(Target.StartRelativeTransform.Rotation, Translation, Scale) });
+			continue;
+		}
+
 		FVector Translation;
 		FVector Scale;
 		FMatrix Rotation;
