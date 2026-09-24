@@ -49,6 +49,14 @@ void UTransformComponent::PostEditProperty(const FProperty& Property)
 	OnTransformChanged();
 }
 
+// Transaction 복원 후 편집용 Euler 값과 Quaternion 캐시 및 Scene Transform을 다시 동기화한다.
+void UTransformComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+	CachedRotation = Rotation.Quaternion().GetNormalized();
+	OnTransformChanged();
+}
+
 // 계산용 Transform을 편집 원본 값과 Quaternion 캐시로 구성한다.
 FTransform UTransformComponent::GetRelativeTransform() const
 {
@@ -128,7 +136,7 @@ bool UTransformComponent::SetParentRelative(UTransformComponent* NewParent, SIZE
 			return false;
 		}
 	}
-	if (Parent.Get() == NewParent)
+	if (Parent.Get() == NewParent && this->SiblingIndex != InvalidIndex)
 	{
 		return SiblingIndex == LastSiblingIndex || SetSiblingIndex(SiblingIndex);
 	}
@@ -174,7 +182,7 @@ bool UTransformComponent::SetParentAbsolute(UTransformComponent* NewParent, SIZE
 			return false;
 		}
 	}
-	if (Parent.Get() == NewParent)
+	if (Parent.Get() == NewParent && this->SiblingIndex != InvalidIndex)
 	{
 		return SiblingIndex == LastSiblingIndex || SetSiblingIndex(SiblingIndex);
 	}

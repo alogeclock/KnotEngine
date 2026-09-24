@@ -47,7 +47,9 @@ private:
 
 	TArray<std::unique_ptr<FPrimitiveSceneProxy>> Proxies;
 	TMap<uint64, SIZE_T> ProxyIndices;
+
 	TArray<FPrimitiveRenderCommand> PendingRenderCommands;
 	TMap<uint64, SIZE_T> PendingCommandIndices;
+	
 	uint64 NextPrimitiveId = 1;
 };

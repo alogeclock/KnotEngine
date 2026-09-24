@@ -1,4 +1,5 @@
 #include "TransformGizmo.h"
+#include "Editor/Transaction/TransactionManager.h"
 
 #include "Component/TransformComponent.h"
 #include "Core/Geometry/Ray.h"
@@ -661,6 +662,14 @@ bool FTransformGizmo::BeginDrag(const FEditorSelection& Selection, ETransformGiz
 		DragPivotUUID = 0;
 		return false;
 	}
+	TransactionManager.Begin(FName(Mode == EGizmoViewMode::Translate ? "Move Nodes" : Mode == EGizmoViewMode::Rotate ? "Rotate Nodes" : "Scale Nodes"));
+	for (const FDragTarget& Target : DragTargets)
+	{
+		if (UNode* Node = ResolveNode(Target.NodeUUID))
+		{
+			TransactionManager.SaveObject(Node->GetTransform());
+		}
+	}
 	bDragging = true;
 	return true;
 }
@@ -702,16 +711,22 @@ void FTransformGizmo::UpdateDrag(const FEditorSelection& Selection, const FScene
 // 취소 가능한 대상이 남아 있으면 시작 Transform을 복원하고 상태를 해제한다.
 void FTransformGizmo::CancelDrag()
 {
-	RestoreDragTargets();
+	TransactionManager.Cancel();
 	EndDrag();
 }
 
 // 확정된 Transform은 유지하고 드래그 상태만 해제한다.
 void FTransformGizmo::EndDrag()
 {
+	if (bDragging && TransactionManager.IsActive())
+	{
+		TransactionManager.End();
+	}
+
 	bDragging = false;
 	ActiveAxis = ETransformGizmoAxis::None;
 	DragPivotUUID = 0;
+
 	DragTargets.clear();
 	DragSelectionUUIDs.clear();
 }

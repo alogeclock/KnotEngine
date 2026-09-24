@@ -5,6 +5,7 @@
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
 #include "Editor/EditorSelection.h"
+#include "Runtime/EditorEngine.h"
 #include "Viewport/Viewport.h"
 #include "World/World.h"
 #include "World/Level.h"
@@ -15,9 +16,16 @@
 #include <limits>
 #include <variant>
 
-FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport, FEditorSelection& InSelection)
-	: FEditorViewportClient(InViewport), Selection(InSelection)
+FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport, UEditorEngine& InEditorEngine)
+    : FEditorViewportClient(InViewport), Selection(InEditorEngine.GetEditorSelection()),
+      EditorEngine(InEditorEngine), TransformGizmo(InEditorEngine.GetTransactionManager())
 {
+}
+
+// Level Editor가 소유한 Editor World를 반환한다.
+UWorld* FLevelEditorViewportClient::GetWorld() const
+{
+	return EditorEngine.GetWorld();
 }
 
 // 입력 이벤트가 없는 프레임에도 선택 변경과 대상 제거를 반영하고 일반 Viewport Tick을 수행한다.
@@ -41,9 +49,9 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	if (IsCameraDragging())
 	{
 		const bool bRightButtonReleased = PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonUp &&
-			PointerEvent->Button == EMouseButton::Right;
+		                                  PointerEvent->Button == EMouseButton::Right;
 		const bool bOpenContextMenu = bRightButtonReleased && bTrackingRightClick &&
-			RightClickTravelSquared <= ContextMenuDragThresholdSquared && PointerEvent->Modifiers == EModifierKeyMask::None;
+		                              RightClickTravelSquared <= ContextMenuDragThresholdSquared && PointerEvent->Modifiers == EModifierKeyMask::None;
 		const FInputReply Reply = FEditorViewportClient::OnInputEvent(Event);
 		if (bRightButtonReleased)
 		{
@@ -134,7 +142,7 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonUp && PointerEvent->Button == EMouseButton::Right)
 	{
 		const bool bOpenContextMenu = bTrackingRightClick && RightClickTravelSquared <= ContextMenuDragThresholdSquared &&
-			PointerEvent->Modifiers == EModifierKeyMask::None;
+		                              PointerEvent->Modifiers == EModifierKeyMask::None;
 		bTrackingRightClick = false;
 		if (bOpenContextMenu)
 		{
@@ -290,9 +298,9 @@ void FLevelEditorViewportClient::UpdateFocusAnimation(float DeltaTime)
 
 	FEditorViewportCameraTransform& Transform = GetCamera().ViewTransform;
 	if (!Selection.SelectedNode || Selection.SelectedNode->GetUUID() != FocusTargetUUID ||
-		IsCameraDragging() || TransformGizmo.IsDragging() ||
-		Transform.ViewLocation != LastFocusTransform.ViewLocation || Transform.ViewRotation != LastFocusTransform.ViewRotation ||
-		Transform.OrthoZoom != LastFocusTransform.OrthoZoom || Transform.FOV != LastFocusTransform.FOV || Transform.bIsOrtho != LastFocusTransform.bIsOrtho)
+	    IsCameraDragging() || TransformGizmo.IsDragging() ||
+	    Transform.ViewLocation != LastFocusTransform.ViewLocation || Transform.ViewRotation != LastFocusTransform.ViewRotation ||
+	    Transform.OrthoZoom != LastFocusTransform.OrthoZoom || Transform.FOV != LastFocusTransform.FOV || Transform.bIsOrtho != LastFocusTransform.bIsOrtho)
 	{
 		bFocusAnimating = false;
 		return;

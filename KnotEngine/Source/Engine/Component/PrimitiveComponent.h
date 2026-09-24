@@ -16,7 +16,9 @@ public:
 	bool IsVisible() const { return bVisible; }
 	void SetVisible(bool bInVisible);
 	void PushSelection(bool bSelected);
+
 	void PostEditProperty(const FProperty& Property) override;
+	void PostEditUndo() override;
 
 	void EnqueueRenderCommand(ERenderCommandType Type = ERenderCommandType::All);
 	virtual FPrimitiveRenderData BuildPrimitiveRenderData(ERenderCommandType Type) const = 0;

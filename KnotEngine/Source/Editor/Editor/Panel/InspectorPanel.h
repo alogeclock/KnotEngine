@@ -18,11 +18,13 @@ class UNode;
 class UClass;
 class FAssetRegistry;
 class FInputSnapshot;
+class FTransactionManager;
 
 class FInspectorPanel
 {
 public:
-	explicit FInspectorPanel(FAssetRegistry& InAssetRegistry) : AssetRegistry(InAssetRegistry) {}
+	FInspectorPanel(FAssetRegistry& InAssetRegistry, FTransactionManager& InTransactionManager)
+		: AssetRegistry(InAssetRegistry), TransactionManager(InTransactionManager) {}
 	~FInspectorPanel();
 
 	void SetBoldFont(ImFont& InBoldFont) { BoldFont = &InBoldFont; }
@@ -34,7 +36,7 @@ public:
 private:
 	bool DragFloat(const char* Label, float* Value, float Speed, float Min = 0.0f, float Max = 0.0f, const char* Format = "%.3f");
 	void TrackCursorDrag();
-	static bool DrawComponent(UNode& Node, const UClass& Class);
+	bool DrawComponent(UNode& Node, const UClass& Class);
 
 	bool DrawComponentHeader(UComponent& Component, const FString& HeaderName, bool& bRemoveComponent);
 	void DrawObject(UObject& Object);
@@ -44,8 +46,8 @@ private:
 	void PasteComponent(UComponent& Component) const;
 
 	static bool ContainsText(const FString& Text, const FString& FilterText);
-	static bool DrawFilteredAddComponents(UNode& Node, const TArray<const UClass*>& ComponentClasses, const FString& FilterText, bool& bHasMatch);
-	static bool DrawAddComponentMenus(UNode& Node, const TArray<const UClass*>& ComponentClasses);
+	bool DrawFilteredAddComponents(UNode& Node, const TArray<const UClass*>& ComponentClasses, const FString& FilterText, bool& bHasMatch);
+	bool DrawAddComponentMenus(UNode& Node, const TArray<const UClass*>& ComponentClasses);
 
 	void BeginCategory(const FString& CategoryName) const;
 	static void EndCategory();
@@ -64,6 +66,8 @@ private:
 	bool DrawStaticMeshMaterials(UStaticMeshComponent& Component);
 
 	FAssetRegistry& AssetRegistry;
+	FTransactionManager& TransactionManager;
+	UObject* TransactionObject = nullptr;
 
 	ImFont* BoldFont = nullptr;
 	UComponent* CopiedComponent = nullptr;

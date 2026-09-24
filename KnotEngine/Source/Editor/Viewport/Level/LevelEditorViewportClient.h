@@ -5,18 +5,20 @@
 
 class FRenderer;
 class UNode;
+class UEditorEngine;
 struct FEditorSelection;
 
 class FLevelEditorViewportClient : public FEditorViewportClient
 {
 public:
-	FLevelEditorViewportClient(FViewport& InViewport, FEditorSelection& InSelection);
+	FLevelEditorViewportClient(FViewport& InViewport, UEditorEngine& InEditorEngine);
 
 	void Tick(float DeltaTime) override;
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
 
 	void OnKeyboardFocusLost() override;
 	void OnMouseCaptureLost() override;
+	UWorld* GetWorld() const override;
 
 	FSceneView BuildSceneView() override;
 	bool IsGizmoLocalSpace() const { return TransformGizmo.IsLocalSpace(); }
@@ -34,6 +36,7 @@ private:
 	void UpdateFocusAnimation(float DeltaTime);
 
 	FEditorSelection& Selection;
+	UEditorEngine& EditorEngine;
 	FTransformGizmo TransformGizmo;
 
 	static constexpr float FocusAnimationDuration = 0.25f;

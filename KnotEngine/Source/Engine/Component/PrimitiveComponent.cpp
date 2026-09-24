@@ -45,3 +45,10 @@ void UPrimitiveComponent::PostEditProperty(const FProperty& Property)
 	Super::PostEditProperty(Property);
 	EnqueueRenderCommand();
 }
+
+// Transaction으로 복원된 Primitive 프로퍼티 전체를 Scene Proxy에 다시 전송한다.
+void UPrimitiveComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+	EnqueueRenderCommand();
+}

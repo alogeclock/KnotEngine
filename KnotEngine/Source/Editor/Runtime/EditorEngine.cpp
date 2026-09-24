@@ -196,6 +196,7 @@ void UEditorEngine::NewLevel()
 	}
 
 	EditorSelection.Deselect();
+	TransactionManager.Reset();
 	World->EndPlay();
 	World->Reset();
 	World->BeginPlay();
@@ -212,6 +213,7 @@ bool UEditorEngine::LoadLevel(const std::filesystem::path& FilePath)
 	}
 
 	EditorSelection.Deselect();
+	TransactionManager.Reset();
 	World->EndPlay();
 	FMapSerializer Serializer;
 	const bool bLoaded = Serializer.Load(*World, FilePath);
@@ -246,6 +248,7 @@ void UEditorEngine::Shutdown()
 {
 	check(ImGuiSystem && RenderSystem);
 	EditorSelection.Deselect();
+	TransactionManager.Reset();
 	AssetImportManager.Shutdown();
 	InputRouter.Reset();
 	ImGuiSystem->Shutdown();

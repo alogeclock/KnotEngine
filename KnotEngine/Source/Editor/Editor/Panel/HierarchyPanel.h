@@ -4,6 +4,7 @@
 
 struct FEditorSelection;
 class FInputSnapshot;
+class FTransactionManager;
 class UClass;
 class ULevel;
 class UNode;
@@ -12,6 +13,7 @@ class UWorld;
 class FHierarchyPanel
 {
 public:
+	explicit FHierarchyPanel(FTransactionManager& InTransactionManager) : TransactionManager(InTransactionManager) {}
 	void Draw(UWorld& World, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot);
 
 private:
@@ -39,7 +41,7 @@ private:
 		bool bValid = false;
 	};
 
-	static void RemoveSelectedNodes(FEditorSelection& Selection);
+	void RemoveSelectedNodes(FEditorSelection& Selection);
 
 	void BuildVisibleNodes(UNode& Node, uint32 Depth);
 	void SelectVisibleNode(UNode& Node, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot);
@@ -49,6 +51,7 @@ private:
 
 	void ApplyPendingDrop();
 
+	FTransactionManager& TransactionManager;
 	TArray<FVisibleNode> VisibleNodes;
 	UNode* SelectionAnchor = nullptr;
 	FPendingDropNode PendingDrop;

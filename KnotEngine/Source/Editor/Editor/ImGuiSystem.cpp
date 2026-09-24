@@ -33,14 +33,21 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
 FImGuiSystem::FImGuiSystem(FWindowsApplication& InApplication, UEditorEngine& InEditorEngine)
-	: Application(InApplication), EditorEngine(InEditorEngine), AssetImportManager(InEditorEngine.GetAssetImportManager()),
-	  RenderSystem(InEditorEngine.GetRenderSystem()), InputRouter(InEditorEngine.GetInputRouter()), Selection(InEditorEngine.GetEditorSelection()),
-	  ViewportToolbar(RenderSystem), InspectorPanel(InEditorEngine.GetAssetManager().GetAssetRegistry()),
-	  ViewportPanel(RenderSystem, InputRouter, ViewportStatState, Selection), ConsolePanel(ViewportStatState),
-	  ContentPanel(InEditorEngine.GetAssetManager().GetAssetRegistry(), AssetImportManager, RenderSystem), SettingsPanel(InEditorEngine.GetEditorSettings())
+	: Application(InApplication)
+	, EditorEngine(InEditorEngine)
+	, AssetImportManager(InEditorEngine.GetAssetImportManager())
+	, RenderSystem(InEditorEngine.GetRenderSystem())
+	, InputRouter(InEditorEngine.GetInputRouter())
+	, Selection(InEditorEngine.GetEditorSelection())
+	, ViewportToolbar(RenderSystem)
+	, HierarchyPanel(InEditorEngine.GetTransactionManager())
+	, InspectorPanel(InEditorEngine.GetAssetManager().GetAssetRegistry(), InEditorEngine.GetTransactionManager())
+	, ViewportPanel(RenderSystem, InputRouter, ViewportStatState, Selection, InEditorEngine)
+	, ConsolePanel(ViewportStatState)
+	, ContentPanel(InEditorEngine.GetAssetManager().GetAssetRegistry(), AssetImportManager, RenderSystem)
+	, SettingsPanel(InEditorEngine.GetEditorSettings())
 #if KNOT_CPU_PROFILER_ENABLED
-      ,
-	  ProfilePanel(RenderSystem)
+	, ProfilePanel(RenderSystem)
 #endif
 {
 	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
@@ -271,6 +278,33 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		DuplicateSelection();
 		return FInputReply::Handled();
 	}
+	if (!InputRouter.IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::Z &&
+	    HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control))
+	{
+		bool bApplied = false;
+		if (HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
+		{
+			bApplied = EditorEngine.GetTransactionManager().Redo();
+		}
+		else
+		{
+			bApplied = EditorEngine.GetTransactionManager().Undo();
+		}
+		if (bApplied)
+		{
+			TArray<UNode*> AttachedSelection;
+			for (UNode* Node : Selection.GetSelectedNodes())
+			{
+				if (Node && Node->IsInLevel())
+				{
+					AttachedSelection.push_back(Node);
+				}
+			}
+			UNode* ActiveNode = Selection.SelectedNode && Selection.SelectedNode->IsInLevel() ? Selection.SelectedNode : nullptr;
+			Selection.Select(AttachedSelection, ActiveNode);
+		}
+		return FInputReply::Handled();
+	}
 	if (KeyEvent->Key != EKeyboardKey::Space)
 	{
 		return FInputReply::Unhandled();
@@ -313,6 +347,7 @@ void FImGuiSystem::DuplicateSelection()
 		}
 	}
 
+	EditorEngine.GetTransactionManager().Begin(FName("Duplicate Nodes"));
 	TArray<UNode*> Duplicates;
 	UNode* ActiveDuplicate = nullptr;
 	for (auto& [Level, LevelSources] : NodesByLevel)
@@ -327,7 +362,17 @@ void FImGuiSystem::DuplicateSelection()
 				ActiveDuplicate = LevelDuplicates[Index];
 			}
 		}
+		TSet<UNode*> DuplicateLookup(LevelDuplicates.begin(), LevelDuplicates.end());
+		for (UNode* Duplicate : LevelDuplicates)
+		{
+			UTransformComponent* Parent = Duplicate->GetTransform().GetParent();
+			if (!Parent || !DuplicateLookup.contains(&Parent->GetOwner()))
+			{
+				EditorEngine.GetTransactionManager().TrackNode(*Duplicate);
+			}
+		}
 	}
+	EditorEngine.GetTransactionManager().End();
 	Selection.Select(Duplicates, ActiveDuplicate);
 }
 

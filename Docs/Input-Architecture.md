@@ -395,7 +395,7 @@ Capture 해제
 
 `FInputRouter`와 엔진 프레임 연결, Level Editor Viewport 입력 대상 등록과 Transform Gizmo는 구현되어 있다. 추가 Viewport layout도 같은 target 등록 방식으로 확장한다.
 
-Level Editor Viewport는 `FTransformGizmo`를 직접 소유한다. 입력은 진행 중인 Gizmo 조작, Gizmo Hit Test, Scene Picking, Camera 순서로 처리한다. Gizmo는 선택 Node의 UUID와 조작 시작 Transform을 보관하며 이동·회전·스케일 결과를 이전 프레임에 누적하지 않고 시작 상태와 현재 커서 목표로부터 매번 다시 계산한다. 작은 커서 이동은 Dead Zone으로 무시하고, Escape·오른쪽 클릭·포커스 또는 캡처 상실·선택 변경 시 시작 Transform을 복원한다. Translate Gizmo의 중앙 Handle은 View 평면 위 자유 이동, Scale Gizmo의 중앙 Handle은 균일 Scale을 수행한다. Rotation Gizmo의 X/Y/Z 링은 각 월드축, 흰색 외곽 링은 카메라 시선축, 내부 영역은 가상 구 기반 Trackball 회전을 수행한다.
+Level Editor Viewport는 `FTransformGizmo`를 직접 소유한다. 입력은 진행 중인 Gizmo 조작, Gizmo Hit Test, Scene Picking, Camera 순서로 처리한다. Gizmo는 선택 Node의 UUID와 조작 시작 Transform을 보관하며 이동·회전·스케일 결과를 이전 프레임에 누적하지 않고 시작 상태와 현재 커서 목표로부터 매번 다시 계산한다. 작은 커서 이동은 Dead Zone으로 무시한다. 드래그 시작 시 선택 Node들의 Transform을 하나의 Editor Transaction에 기록하고 정상 종료 시 확정하며, Escape·오른쪽 클릭·포커스 또는 캡처 상실·선택 변경 시 Transaction을 취소해 시작 Transform으로 복원한다. Translate Gizmo의 중앙 Handle은 View 평면 위 자유 이동, Scale Gizmo의 중앙 Handle은 균일 Scale을 수행한다. Rotation Gizmo의 X/Y/Z 링은 각 월드축, 흰색 외곽 링은 카메라 시선축, 내부 영역은 가상 구 기반 Trackball 회전을 수행한다.
 
 선택된 Node가 있고 Gizmo를 조작 중이지 않을 때 `Space`를 누르면 Translate, Rotate, Scale 모드를 순서대로 전환한다. 개별 모드 전환 키는 사용하지 않는다.
 

@@ -3,6 +3,7 @@
 #include "Core/Input/InputSnapshot.h"
 #include "Editor/EditorSelection.h"
 #include "Editor/Widget/NodeCreationMenu.h"
+#include "Editor/Transaction/TransactionManager.h"
 #include "World/Level.h"
 #include "World/Node.h"
 #include "World/World.h"
@@ -35,11 +36,13 @@ void FHierarchyPanel::RemoveSelectedNodes(FEditorSelection& Selection)
 		}
 	}
 
+	TransactionManager.Begin(FName(RemovalRoots.size() > 1 ? "Remove Nodes" : "Remove Node"));
 	Selection.Deselect();
 	for (UNode* Node : RemovalRoots)
 	{
-		Node->GetLevel().RemoveNode(*Node);
+		TransactionManager.DeleteNode(*Node);
 	}
+	TransactionManager.End();
 }
 
 // 펼쳐진 Node와 자손만 화면 표시 순서의 평탄 목록에 추가한다.
@@ -289,7 +292,10 @@ void FHierarchyPanel::ApplyPendingDrop()
 	{
 		--NewSiblingIndex;
 	}
+	TransactionManager.Begin(FName("Reparent Node"));
+	TransactionManager.SaveHierarchy(*PendingDrop.DraggedNode);
 	DraggedTransform.SetParentAbsolute(NewParent, NewSiblingIndex);
+	TransactionManager.End();
 }
 
 // Hierarchy 어디에서나 Node 생성과 현재 선택 Node 제거 메뉴를 표시한다.
@@ -302,6 +308,9 @@ bool FHierarchyPanel::DrawContextMenu(UWorld& World, FEditorSelection& Selection
 
 	if (UNode* CreatedNode = FNodeCreationMenu::Draw(World))
 	{
+		TransactionManager.Begin(FName("Add Node"));
+		TransactionManager.TrackNode(*CreatedNode);
+		TransactionManager.End();
 		Selection.Select(CreatedNode);
 	}
 

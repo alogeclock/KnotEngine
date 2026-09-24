@@ -101,6 +101,13 @@ void UComponent::PostEditProperty(const FProperty& Property)
 	}
 }
 
+// Transaction 복원 후 Tick Registry를 현재 프로퍼티 상태와 다시 일치시킨다.
+void UComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+	UpdateTickRegistration();
+}
+
 // 실제로 이번 Play Session에서 Tick할 수 있는 Component만 Level에 등록한다.
 void UComponent::UpdateTickRegistration()
 {

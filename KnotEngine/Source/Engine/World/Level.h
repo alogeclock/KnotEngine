@@ -26,6 +26,10 @@ public:
 	UNode& CreateNode(const UClass& NodeClass, FName Name);
 	TArray<UNode*> DuplicateNodes(const TArray<UNode*>& SourceNodes);
 	void RemoveNode(UNode& Node);
+
+	void DetachNode(UNode& Node);
+	void AttachNode(UNode& Node, UNode* Parent, SIZE_T SiblingIndex);
+	void DestroyDetachedNode(UNode& Node);
 	const TArray<TObjectPtr<UNode>>& GetNodes() const { return Nodes; }
 
 	void BeginPlay();

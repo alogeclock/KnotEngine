@@ -8,6 +8,7 @@
 #include "Render/Scene/SceneView.h"
 
 class FInputReply;
+class FTransactionManager;
 class UNode;
 struct FEditorSelection;
 
@@ -26,6 +27,7 @@ enum class ETransformGizmoAxis : int8
 class FTransformGizmo final
 {
 public:
+	explicit FTransformGizmo(FTransactionManager& InTransactionManager) : TransactionManager(InTransactionManager) {}
 	FInputReply OnInputEvent(const FInputEvent& Event, const FEditorSelection& Selection, const FSceneView& View, const FVector2& PixelPosition);
 	void OnMouseCaptureLost();
 	void OnKeyboardFocusLost();
@@ -77,6 +79,7 @@ private:
 	static constexpr float CenterHandleRadiusPixels = 17.0f;
 	static constexpr float DragDeadZonePixels = 2.0f;
 
+	FTransactionManager& TransactionManager;
 	EGizmoViewMode Mode = EGizmoViewMode::Translate;
 	bool bLocalSpace = false;
 	FMatrix AxisRotation = FMatrix::Identity;

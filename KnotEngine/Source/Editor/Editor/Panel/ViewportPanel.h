@@ -7,6 +7,7 @@
 class FInputRouter;
 class FRenderSystem;
 class FViewportToolbar;
+class UEditorEngine;
 struct FEditorSelection;
 struct ImVec2;
 
@@ -18,7 +19,8 @@ public:
 		FRenderSystem& InRenderSystem,
 		FInputRouter& InInputRouter,
 		const FViewportStatState& InStatState,
-		FEditorSelection& InSelection);
+		FEditorSelection& InSelection,
+		UEditorEngine& InEditorEngine);
 	~FViewportPanel();
 
 	void Draw(bool bVisible, float DeltaTime, FViewportToolbar& Toolbar);
@@ -33,6 +35,7 @@ private:
 	FLevelEditorViewportClient ViewportClient;
 	FViewportOverlayWidget ViewportOverlayWidget;
 	FEditorSelection& Selection;
+	UEditorEngine& EditorEngine;
 
 	FVector ContextMenuPlacementLocation = FVector::ZeroVector;
 };

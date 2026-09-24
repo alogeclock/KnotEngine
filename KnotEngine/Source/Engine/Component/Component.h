@@ -31,6 +31,7 @@ public:
 	void Activate();
 	void Deactivate();
 	void PostEditProperty(const FProperty& Property) override;
+	void PostEditUndo() override;
 
 	virtual void BeginPlay();
 	virtual void EndPlay();

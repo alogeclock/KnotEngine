@@ -27,7 +27,7 @@ public:
 
 	virtual void Tick(float DeltaTime);
 
-	virtual UWorld* GetWorld() const;
+	virtual UWorld* GetWorld() const = 0;
 	FScene* GetScene() const;
 
 	// Render State

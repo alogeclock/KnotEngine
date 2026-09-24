@@ -40,9 +40,13 @@ public:
 
 	UClass* GetClass() const;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
+
 	virtual void PostInitProperties() {}
 	virtual void PostDuplicate() {}
 	virtual void PostEditProperty(const FProperty& Property) {}
+	virtual void PreEditUndo() {}
+	virtual void PostEditUndo() {}
+
 	UObject* Duplicate(UObject* NewOuter = nullptr, FName NewName = FName()) const;
 	bool IsA(const UClass* Class) const;
 	void Serialize(FArchive& Ar);

@@ -4,6 +4,7 @@
 #include "Editor/EditorSelection.h"
 #include "Editor/Toolbar/ViewportToolbar.h"
 #include "Editor/Widget/NodeCreationMenu.h"
+#include "Runtime/EditorEngine.h"
 #include "World/Node.h"
 #include "World/World.h"
 
@@ -11,12 +12,10 @@
 #include <imgui.h>
 
 FViewportPanel::FViewportPanel(
-	FRenderSystem& InRenderSystem,
-	FInputRouter& InInputRouter,
-	const FViewportStatState& InStatState,
-	FEditorSelection& InSelection)
-	: ViewportWidget(InRenderSystem, InInputRouter), ViewportClient(ViewportWidget.GetViewport(), InSelection), ViewportOverlayWidget(InStatState),
-	  Selection(InSelection)
+	FRenderSystem& InRenderSystem, FInputRouter& InInputRouter, const FViewportStatState& InStatState,
+	FEditorSelection& InSelection, UEditorEngine& InEditorEngine)
+	: ViewportWidget(InRenderSystem, InInputRouter), ViewportClient(ViewportWidget.GetViewport(), InEditorEngine),
+	  ViewportOverlayWidget(InStatState), Selection(InSelection), EditorEngine(InEditorEngine)
 {
 }
 
@@ -87,9 +86,13 @@ void FViewportPanel::DrawContextMenu()
 	{
 		if (UNode* CreatedNode = FNodeCreationMenu::DrawItems(*World))
 		{
+			FTransactionManager& TransactionManager = EditorEngine.GetTransactionManager();
+			TransactionManager.Begin(FName("Add Node"));
+			TransactionManager.TrackNode(*CreatedNode);
 			FTransform Transform = CreatedNode->GetTransform().GetRelativeTransform();
 			Transform.Translation = ContextMenuPlacementLocation;
 			CreatedNode->GetTransform().SetRelativeTransform(Transform);
+			TransactionManager.End();
 			Selection.Select(CreatedNode);
 		}
 	}

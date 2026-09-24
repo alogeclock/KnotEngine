@@ -21,6 +21,7 @@ public:
 	void PostInitProperties() override;
 	void PostDuplicate() override;
 	void PostEditProperty(const FProperty& Property) override;
+	void PostEditUndo() override;
 
 	FMatrix GetWorldMatrix() const;
 	FVector GetWorldLocation() const;

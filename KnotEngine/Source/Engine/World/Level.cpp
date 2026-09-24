@@ -59,16 +59,7 @@ UNode& ULevel::CreateNode(const UClass& NodeClass, FName Name)
 	Node->Name = std::move(Name);
 
 	GetWorld().RegisterNodeName(Node->Name.ToString());
-	Node->LevelIndex = Nodes.size();
-	Nodes.emplace_back(Node);
-
-	InsertRootNode(*Node, RootNodes.size());
-
-	Node->RegisterComponents();
-	if (GetWorld().GetPlayState() != EPlayState::Stopped)
-	{
-		Node->BeginPlay();
-	}
+	AttachNode(*Node, nullptr, RootNodes.size());
 	return *Node;
 }
 
@@ -201,29 +192,91 @@ TArray<UNode*> ULevel::DuplicateNodes(const TArray<UNode*>& SourceNodes)
 	return Result;
 }
 
-// 소유 배열에서 Node를 제거한 뒤 Node와 Component의 수명 주기를 종료한다.
+// Node 계층을 Level에서 분리한 뒤 즉시 파괴한다.
 void ULevel::RemoveNode(UNode& Node)
 {
-	check(&Node.GetLevel() == this);
-	check(Node.LevelIndex < Nodes.size());
-	check(Nodes[Node.LevelIndex].Get() == &Node);
+	DetachNode(Node);
+	DestroyDetachedNode(Node);
+}
 
+// Node 계층을 파괴하지 않고 World 실행 및 Level 소유 배열에서 분리한다.
+void ULevel::DetachNode(UNode& Node)
+{
+	check(&Node.GetLevel() == this && Node.IsInLevel());
+	Node.GetTransform().Detach();
+
+	TArray<UNode*> Hierarchy{ &Node };
+	for (SIZE_T Index = 0; Index < Hierarchy.size(); ++Index)
+	{
+		for (const TObjectPtr<UTransformComponent>& Child : Hierarchy[Index]->GetChildren())
+		{
+			Hierarchy.push_back(&Child->GetOwner());
+		}
+	}
+
+	for (auto Iterator = Hierarchy.rbegin(); Iterator != Hierarchy.rend(); ++Iterator)
+	{
+		UNode* HierarchyNode = *Iterator;
+		for (const TObjectPtr<UComponent>& Component : HierarchyNode->Components)
+		{
+			Component->UnregisterComponent();
+		}
+		check(HierarchyNode->LevelIndex < Nodes.size() && Nodes[HierarchyNode->LevelIndex].Get() == HierarchyNode);
+		const SIZE_T RemoveIndex = HierarchyNode->LevelIndex;
+		const SIZE_T LastIndex = Nodes.size() - 1;
+		if (RemoveIndex != LastIndex)
+		{
+			Nodes[RemoveIndex] = Nodes[LastIndex];
+			Nodes[RemoveIndex]->LevelIndex = RemoveIndex;
+		}
+		Nodes.pop_back();
+		HierarchyNode->LevelIndex = UNode::InvalidLevelIndex;
+	}
+}
+
+// 분리된 Node 계층을 같은 객체와 UUID로 Level에 다시 연결한다.
+void ULevel::AttachNode(UNode& Node, UNode* Parent, SIZE_T SiblingIndex)
+{
+	check(&Node.GetLevel() == this && !Node.IsInLevel());
+	check(!Parent || (&Parent->GetLevel() == this && Parent->IsInLevel()));
+
+	TArray<UNode*> Hierarchy{ &Node };
+	for (SIZE_T Index = 0; Index < Hierarchy.size(); ++Index)
+	{
+		for (const TObjectPtr<UTransformComponent>& Child : Hierarchy[Index]->GetChildren())
+		{
+			Hierarchy.push_back(&Child->GetOwner());
+		}
+	}
+
+	for (UNode* HierarchyNode : Hierarchy)
+	{
+		check(&HierarchyNode->GetLevel() == this && !HierarchyNode->IsInLevel());
+		HierarchyNode->LevelIndex = Nodes.size();
+		Nodes.emplace_back(HierarchyNode);
+	}
+
+	panic(Node.GetTransform().SetParentRelative(Parent ? &Parent->GetTransform() : nullptr, SiblingIndex));
+	for (UNode* HierarchyNode : Hierarchy)
+	{
+		HierarchyNode->RegisterComponents();
+		if (GetWorld().GetPlayState() != EPlayState::Stopped)
+		{
+			HierarchyNode->BeginPlay();
+		}
+	}
+}
+
+// Level에서 분리된 Node 계층을 실제로 파괴한다.
+void ULevel::DestroyDetachedNode(UNode& Node)
+{
+	check(&Node.GetLevel() == this && !Node.IsInLevel() && !Node.GetParent());
 	while (!Node.GetChildren().empty())
 	{
 		UNode& Child = Node.GetChildren().back()->GetOwner();
-		RemoveNode(Child);
+		Child.GetTransform().Detach();
+		DestroyDetachedNode(Child);
 	}
-	Node.GetTransform().Detach();
-
-	const SIZE_T RemoveIndex = Node.LevelIndex;
-	const SIZE_T LastIndex = Nodes.size() - 1;
-	if (RemoveIndex != LastIndex)
-	{
-		Nodes[RemoveIndex] = Nodes[LastIndex];
-		Nodes[RemoveIndex]->LevelIndex = RemoveIndex;
-	}
-	Nodes.pop_back();
-	Node.LevelIndex = UNode::InvalidLevelIndex;
 	GUObjectManager.Destroy(&Node);
 }
 

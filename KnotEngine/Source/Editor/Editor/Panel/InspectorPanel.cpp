@@ -9,6 +9,7 @@
 #include "Component/Mesh/StaticMeshComponent.h"
 
 #include "Core/Geometry/Transform.h"
+#include "Core/Archive/MemoryArchive.h"
 #include "Core/Input/InputSnapshot.h"
 #include "Core/Math/Rotator.h"
 
@@ -22,6 +23,7 @@
 #include "Object/Reflection/ReflectionRegistry.h"
 
 #include "Editor/EditorSelection.h"
+#include "Editor/Transaction/TransactionManager.h"
 #include "World/Node.h"
 
 #include <imgui.h>
@@ -45,7 +47,10 @@ bool FInspectorPanel::DrawComponent(UNode& Node, const UClass& Class)
 	{
 		return false;
 	}
-	Node.AddComponent(Class);
+	TransactionManager.Begin(FName("Add Component"));
+	UComponent& Component = Node.AddComponent(Class);
+	TransactionManager.TrackComponent(Component);
+	TransactionManager.End();
 	ImGui::CloseCurrentPopup();
 	return true;
 }
@@ -147,6 +152,10 @@ void FInspectorPanel::CopyComponent(const UComponent& Component)
 void FInspectorPanel::PasteComponent(UComponent& Component) const
 {
 	check(CopiedComponent && CopiedComponent->GetClass() == Component.GetClass());
+
+	TransactionManager.Begin(FName("Paste Component"));
+	TransactionManager.SaveObject(Component);
+
 	TArray<const FProperty*> Properties;
 	Component.GetClass()->GetEditorProperties(Properties);
 	for (const FProperty* Property : Properties)
@@ -155,6 +164,7 @@ void FInspectorPanel::PasteComponent(UComponent& Component) const
 		Property->CopyValue(Property->ContainerPtrToValuePtr(&Component), Property->ContainerPtrToValuePtr(CopiedComponent));
 		Component.PostEditProperty(*Property);
 	}
+	TransactionManager.End();
 }
 
 // Editor에서 선택된 객체의 프로퍼티를 그리는 패널을 구현한다.
@@ -169,6 +179,11 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	{
 		ImGui::End();
 		return;
+	}
+	if (TransactionObject && !ImGui::IsAnyItemActive())
+	{
+		TransactionManager.End();
+		TransactionObject = nullptr;
 	}
 	if (!Selection.SelectedNode)
 	{
@@ -215,7 +230,9 @@ void FInspectorPanel::Draw(const FEditorSelection& Selection)
 	}
 	if (ComponentToRemove)
 	{
-		Node.RemoveComponent(*ComponentToRemove);
+		TransactionManager.Begin(FName("Remove Component"));
+		TransactionManager.DeleteComponent(*ComponentToRemove);
+		TransactionManager.End();
 	}
 	DrawAddComponent(Node);
 	ImGui::PopID();
@@ -761,6 +778,13 @@ bool FInspectorPanel::DrawStaticMeshMaterials(UStaticMeshComponent& Component)
 // ImGui를 사용하여 다양한 속성 타입에 따라 적절한 UI 위젯을 생성하고, 값이 변경되면 해당 값을 업데이트한다.
 bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, void* Container, bool bNotifyObject, const char* LabelOverride)
 {
+	TArray<uint8> BeforeState;
+	if (!TransactionObject)
+	{
+		FMemoryWriter Writer(BeforeState);
+		Object.Serialize(Writer);
+		panic(!Writer.HasError());
+	}
 	void* Value = Property.ContainerPtrToValuePtr(Container);
 	const FReflectionMetadata& Metadata = Property.GetMetadata();
 	const FString Label = LabelOverride ? FString(LabelOverride) : Metadata.GetDisplayName().empty() ? Property.GetName() : Metadata.GetDisplayName();
@@ -1090,6 +1114,12 @@ bool FInspectorPanel::DrawProperty(UObject& Object, const FProperty& Property, v
 	}
 	if (bChanged && bNotifyObject)
 	{
+		if (!TransactionObject)
+		{
+			TransactionManager.Begin(FName("Edit Property"));
+			TransactionManager.SaveObject(Object, std::move(BeforeState));
+			TransactionObject = &Object;
+		}
 		Object.PostEditProperty(Property);
 	}
 	ImGui::PopID();

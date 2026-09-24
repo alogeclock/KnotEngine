@@ -6,6 +6,7 @@
 #include "Input/InputRouter.h"
 #include "Editor/ImGuiSystem.h"
 #include "Editor/Setting/EditorSettings.h"
+#include "Editor/Transaction/TransactionManager.h"
 
 #include <filesystem>
 #include <memory>
@@ -45,6 +46,7 @@ public:
 	FInputRouter& GetInputRouter() { return InputRouter; }
 	FEditorSelection& GetEditorSelection() { return EditorSelection; }
 	FEditorSettings& GetEditorSettings() { return EditorSettings; }
+	FTransactionManager& GetTransactionManager() { return TransactionManager; }
 
 private:
 	void ProcessAssetImports();
@@ -58,6 +60,7 @@ private:
 	FInputRouter InputRouter;
 	FEditorSelection EditorSelection;
 	FEditorSettings EditorSettings;
+	FTransactionManager TransactionManager;
 	std::unique_ptr<FImGuiSystem> ImGuiSystem;
 
 	std::filesystem::path CurrentLevelPath;

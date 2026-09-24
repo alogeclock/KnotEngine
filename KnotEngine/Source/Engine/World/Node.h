@@ -26,6 +26,7 @@ public:
 	UNode();
 	~UNode() override;
 	void PostEditProperty(const FProperty& Property) override;
+	void PostEditUndo() override;
 
 	ULevel& GetLevel() const;
 	UWorld& GetWorld() const; // GetWorld()가 유효하도록 외부에 공개된 Node는 반드시 Level에 속한다.
@@ -43,14 +44,18 @@ public:
 		static_assert(std::is_base_of_v<UComponent, T>);
 		static_assert(!std::is_same_v<UTransformComponent, T>, "Nodes already own their only TransformComponent.");
 		T* Component = NewObject<T>(this, std::move(Name));
-		AttachComponent(*Component);
+		AttachComponent(*Component, Components.size());
 		return *Component;
 	}
 
 	UComponent& AddComponent(const UClass& ComponentClass, FName Name = FName());
 	void RemoveComponent(UComponent& Component);
+	SIZE_T DetachComponent(UComponent& Component);
+	void AttachComponent(UComponent& Component, SIZE_T ComponentIndex);
+	void DestroyDetachedComponent(UComponent& Component);
 
 	bool IsSelected() const { return bSelected; }
+	bool IsInLevel() const { return LevelIndex != InvalidLevelIndex; }
 
 private:
 	friend class FMapSerializer;
@@ -60,7 +65,6 @@ private:
 
 	static constexpr SIZE_T InvalidLevelIndex = static_cast<SIZE_T>(-1);
 
-	void AttachComponent(UComponent& Component);
 	void RegisterComponents();
 	void SetSelected(bool bSelected);
 
@@ -70,7 +74,7 @@ protected:
 	{
 		static_assert(std::is_base_of_v<UComponent, T>);
 		T* Component = UObject::CreateDefaultSubobject<T>(Name);
-		AttachComponent(*Component);
+		AttachComponent(*Component, Components.size());
 		return Component;
 	}
 

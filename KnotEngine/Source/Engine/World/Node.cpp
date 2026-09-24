@@ -36,6 +36,16 @@ void UNode::PostEditProperty(const FProperty& Property)
 	}
 }
 
+// Transaction으로 복원된 이름을 World의 고유 이름 카운터에 다시 반영한다.
+void UNode::PostEditUndo()
+{
+	Super::PostEditUndo();
+	if (OwningLevel)
+	{
+		GetWorld().RegisterNodeName(Name.ToString());
+	}
+}
+
 ULevel& UNode::GetLevel() const
 {
 	check(OwningLevel);
@@ -96,51 +106,62 @@ UComponent& UNode::AddComponent(const UClass& ComponentClass, FName Name)
 
 	UObject* Object = GUObjectManager.NewObject(*const_cast<UClass*>(&ComponentClass), this, std::move(Name));
 	UComponent* Component = static_cast<UComponent*>(Object);
-	AttachComponent(*Component);
+	AttachComponent(*Component, Components.size());
 	return *Component;
 }
 
-// Transform을 제외한 소유 Component를 등록 해제하고 파괴한다.
+// Transform을 제외한 소유 Component를 분리하고 즉시 파괴한다.
 void UNode::RemoveComponent(UComponent& Component)
+{
+	DetachComponent(Component);
+	DestroyDetachedComponent(Component);
+}
+
+// Component를 파괴하지 않고 Node와 World 실행 상태에서 분리하고 기존 배열 위치를 반환한다.
+SIZE_T UNode::DetachComponent(UComponent& Component)
 {
 	panic(&Component != Transform.Get());
 	check(Component.Owner.Get() == this);
-
-	for (auto Iterator = Components.begin(); Iterator != Components.end(); ++Iterator)
+	for (SIZE_T Index = 0; Index < Components.size(); ++Index)
 	{
-		if (Iterator->Get() != &Component)
+		if (Components[Index].Get() != &Component)
 		{
 			continue;
 		}
-
 		Component.UnregisterComponent();
 		Component.Owner = nullptr;
-		Components.erase(Iterator);
-		GUObjectManager.Destroy(&Component);
-		return;
+		Components.erase(Components.begin() + Index);
+		return Index;
 	}
-
-	panicf(false, "이 Node가 소유하지 않은 Component를 제거할 수 없다.");
+	panicf(false, "이 Node가 소유하지 않은 Component를 분리할 수 없다.");
 }
 
-// Node에 이미 생성된 컴포넌트를 추가한다. 컴포넌트는 반드시 Node에 속하지 않은 상태여야 한다.
-void UNode::AttachComponent(UComponent& Component)
+// Component를 지정한 배열 위치에 연결하고 Node가 Level에 있으면 World에 등록한다.
+void UNode::AttachComponent(UComponent& Component, SIZE_T ComponentIndex)
 {
-	check(!Component.IsOwned() && !Component.IsRegistered());
+	check(!Component.IsOwned() && !Component.IsRegistered() && ComponentIndex <= Components.size());
 	check(!Component.GetOuter() || Component.GetOuter() == this);
-
 	Component.Owner = this;
-	Components.emplace_back(&Component);
-	if (!OwningLevel)
+	Components.insert(Components.begin() + ComponentIndex, &Component);
+	if (OwningLevel && IsInLevel())
 	{
-		return;
+		Component.RegisterComponent();
+		if (GetWorld().GetPlayState() != EPlayState::Stopped)
+		{
+			Component.BeginPlay();
+		}
 	}
-	Component.RegisterComponent();
+}
 
-	if (GetWorld().GetPlayState() != EPlayState::Stopped)
+// 분리된 Component를 Default Subobject 목록에서도 제거한 뒤 파괴한다.
+void UNode::DestroyDetachedComponent(UComponent& Component)
+{
+	check(!Component.Owner && !Component.IsRegistered());
+	if (Component.HasAnyFlags(EObjectFlags::DefaultSubobject))
 	{
-		Component.BeginPlay();
+		RemoveDefaultSubobject(Component);
 	}
+	GUObjectManager.Destroy(&Component);
 }
 
 // 완전히 초기화된 Node가 Level에 연결된 뒤 모든 생성자 Component를 World에 등록한다.

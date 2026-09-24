@@ -29,9 +29,10 @@ UEditorEngine
 ├─ FRenderer
 ├─ FAssetRegistry
 ├─ FInputRouter
+├─ FEditorSelection
+├─ FTransactionManager
 ├─ FEditorViewportClient 목록
 └─ FImGuiSystem
-   ├─ FEditorSelection
    ├─ Hierarchy / Inspector
    ├─ Viewport
    ├─ Console / Profile / Content
@@ -65,6 +66,7 @@ KnotEngine/Source/Editor/
 │  ├─ Panel/      독립 Editor 창
 │  ├─ Widget/     Viewport와 Overlay 등 재사용하는 UI 조각
 │  ├─ Toolbar/    공유 Toolbar
+│  ├─ Transaction/ 편집 기록과 Undo/Redo 적용
 │  └─ Setting/    Editor 설정 데이터
 └─ Viewport/      Viewport surface, Camera와 ViewportClient
 ```
@@ -75,6 +77,7 @@ KnotEngine/Source/Editor/
 | `FImGuiSystem` | ImGui 수명, DockSpace, Panel 소유와 UI 프레임 구성 | World 렌더 패스 구현 |
 | Panel | 한 Editor 창의 상태와 표시 | 다른 Panel의 수명 관리 |
 | `FEditorSelection` | Panel이 공유하는 현재 선택 | 선택 객체의 소유권 |
+| `FTransactionManager` | 편집 기록, Undo/Redo와 분리된 객체의 수명 관리 | World 전체 저장·재로드 |
 | `FInputRouter` | Viewport 등 Engine 입력 대상 선택 | ImGui 위젯 처리, Win32 입력 수집 |
 | `FViewportWidget` | Viewport surface 표시와 이미지 영역의 입력 등록 | Camera와 World 선택 정책 |
 | `FViewport` | offscreen 출력 surface와 크기 | Camera와 World 선택 정책 |
@@ -82,9 +85,9 @@ KnotEngine/Source/Editor/
 
 ## 소유권과 수명
 
-`UEditorEngine`은 Renderer를 참조하고 Input Router와 ImGui System을 소유한다. Editor World는 `UEngine`의 WorldContext를 통해 관리한다.
+`UEditorEngine`은 Renderer를 참조하고 Input Router, Editor Selection, Transaction Manager와 ImGui System을 소유한다. Editor World는 `UEngine`의 WorldContext를 통해 관리한다.
 
-`FImGuiSystem`은 공유 Viewport Toolbar와 concrete Panel을 소유한다. Level Viewport Panel과 Asset Editor는 각각 `FViewportWidget`과 concrete ViewportClient를 소유하며, `UEditorEngine`은 등록된 ViewportClient를 non-owning 목록으로 순회한다. Selection은 `UEditorEngine`이 소유하고 필요한 Panel에 참조로 전달한다.
+`FImGuiSystem`은 공유 Viewport Toolbar와 concrete Panel을 소유한다. Level Viewport Panel과 Asset Editor는 각각 `FViewportWidget`과 concrete ViewportClient를 소유하며, `UEditorEngine`은 등록된 ViewportClient를 non-owning 목록으로 순회한다. Selection은 `UEditorEngine`이 소유하고 Panel과 Level ViewportClient가 공유한다.
 
 ```text
 FImGuiSystem
@@ -159,9 +162,39 @@ Inspector는 Engine의 public Reflection API만 사용한다. 편집 가능 여�
 
 `PostEditProperty()`는 변경된 값을 바탕으로 cache나 dirty 상태를 갱신하는 통지 지점이다. Render 또는 Physics container를 순회하는 중에 위험한 구조 변경이 필요하면 각 subsystem의 안전한 시점으로 미룬다.
 
+## Undo/Redo Transaction
+
+`UEditorEngine`이 소유한 `FTransactionManager`는 World 전체 스냅샷 대신 변경된 객체와 계층만 기록한다. 현재 대상은 Inspector 프로퍼티와 Component 편집, Hierarchy의 Node 생성·삭제·재부모화, Viewport의 Node 생성·복제, Transform Gizmo 조작이다. 에셋 파일 변경과 Editor 설정은 이 History의 대상이 아니다.
+
+`Begin(Description)`으로 작업을 열고 변경 전에 필요한 상태를 기록한 다음 `End()`로 확정한다. `Description`은 작업의 설명이며 현재 UI에는 표시하지 않는다. 중첩된 Begin/End는 가장 바깥 작업 하나로 합쳐진다. 진행 중인 작업을 버릴 때는 `Cancel()`이 변경 전 상태를 적용한다.
+
+| Record | 기록 내용 | 사용 예 |
+|---|---|---|
+| `FObjectTransactionRecord` | `UObject::Serialize()`로 얻은 변경 전후 바이트 | Inspector 프로퍼티, Component 붙여넣기, Gizmo Transform |
+| `FHierarchyTransactionRecord` | 부모, Sibling Index와 상대 Transform의 변경 전후 값 | Hierarchy 재부모화·형제 순서 변경 |
+| `FNodeAttachmentRecord` | Level, Node, 다시 연결할 위치와 `Added`/`Removed` | Node 생성·삭제·복제 |
+| `FComponentAttachmentRecord` | Owner Node, Component, 다시 연결할 순서와 `Added`/`Removed` | Component 생성·삭제 |
+
+`SaveObject()`와 `SaveHierarchy()`는 같은 작업에서 같은 대상을 중복 기록하지 않는다. `End()`는 객체·계층의 변경 후 상태를 캡처하고 변경 전과 같은 Record를 제거한다. Record가 하나도 남지 않으면 Undo 단계도 만들지 않는다. Undo 후 새 작업을 시작할 때 기존 Redo 기록은 `RemovedTransactions`에 잠시 옮겨 두며, 새 작업이 취소되거나 변경 없이 끝나면 복원하고 실제 변경으로 확정되면 폐기한다.
+
+생성된 Node와 Component는 연결된 상태에서 `TrackNode()` 또는 `TrackComponent()`로 기록한다. 삭제는 일반 제거 함수를 직접 호출하지 않고 `DeleteNode()` 또는 `DeleteComponent()`를 사용한다. 일반 제거와 Transaction은 같은 연결·분리 생명주기를 공유하며, Transaction은 객체의 최종 파괴만 미룬다. Hierarchy의 다중 삭제는 선택된 자손을 중복 제거한 뒤 최상위 Node만 기록한다.
+
+Undo는 작업 안의 Record를 역순으로, Redo는 정순으로 적용한다. 프로퍼티 Record의 복원 전후에는 대상 객체의 `PreEditUndo()`와 `PostEditUndo()`를 호출한다. Component는 Tick 등록 상태를, Transform Component는 편집용 회전값에서 Quaternion 캐시와 Scene Transform을, Primitive Component는 Render 데이터를 다시 동기화한다. Node는 복원된 이름을 World의 이름 카운터에 반영한다. 계층 Record는 공개 부모 변경 API를 거쳐 상대 Transform을 복원한다.
+
+Node 삭제·생성 취소 시에는 해당 계층을 Level의 `Nodes`·`RootNodes`와 부모의 `Children` 목록에서 빼고 Component 등록을 해제한다. 이를 **분리된 Node**라고 부른다. 장면에는 나타나지 않지만 UNode 객체와 UUID는 아직 살아 있으므로 Undo가 같은 객체를 다시 연결할 수 있다. `DetachedNodes`는 이런 객체의 포인터를 추적하며, History의 Attachment Record는 다시 연결할 정보를 보관한다. History가 C++ 객체를 소유하는 것은 아니다. 복원 시 같은 객체를 Level에 다시 붙이고 Component를 재등록한다. 분리된 Node·Component를 참조하는 기록이 모두 사라졌을 때 `GUObjectManager`를 통해 실제 파괴한다. 따라서 History에 포함된 객체를 다른 경로에서 임의로 파괴하면 안 된다.
+
+History는 최대 128개 작업을 보관하고 한도를 넘으면 오래된 작업부터 제거한다. `NextTransactionIndex`가 Undo/Redo 경계를 나타낸다. 새 Level 생성, Level Load와 Editor 종료 시 `Reset()`을 호출해 이전 World의 객체 참조와 분리 객체를 정리한다. `.kmap` 저장·로드는 영속 World 직렬화이며 이 메모리 내 Transaction 기록과 별개다.
+
+- Inspector는 처음 변경하기 전의 객체 상태를 저장하고 연속된 위젯 편집을 하나의 작업으로 확정한다.
+- Gizmo는 드래그 시작 시 선택된 Node들의 Transform을 저장한다. 정상 종료는 `End()`, Escape·오른쪽 클릭·캡처 또는 선택 상실은 `Cancel()` 경로를 사용한다.
+- Hierarchy에서 부모나 형제 순서를 바꾸기 전에는 `SaveHierarchy()`를 호출한다. 생성·삭제에는 Attachment 기록을 사용한다.
+- `FImGuiSystem`은 `Ctrl+Z`와 `Ctrl+Shift+Z`를 각각 Undo·Redo에 연결한다. 복원 후 Level에서 분리된 Node는 현재 선택에서 제외하지만, 선택 상태 자체를 별도의 Transaction Record로 보관하지는 않는다.
+
+새 편집 기능은 변경 전에 적절한 Record를 남기고 정상 확정·취소·Undo·Redo·반복 Undo/Redo를 확인해야 한다. 직렬화 대상 프로퍼티는 `SaveObject()`를 재사용할 수 있지만, 새로운 객체 관계나 외부 자원 변경은 별도의 복원 규칙이 필요하다. 현재 `Apply()`는 실패 시 부분 적용을 롤백하는 일반적인 복구 절차를 제공하지 않으므로, 부모 관계와 객체 수명 계약을 적용 전에 지켜야 한다.
+
 ## Viewport와 Rendering
 
-Viewport Panel은 ImGui 창 안에 `FViewport`의 offscreen texture를 표시한다. ViewportClient는 어떤 World와 Camera를 사용할지 결정하고 `FSceneViewFamily`를 만든다.
+Viewport Panel은 ImGui 창 안에 `FViewport`의 offscreen texture를 표시한다. `FEditorViewportClient`는 공통 Camera·View 기능만 제공하고 `GetWorld()`의 구현은 구체 ViewportClient에 맡긴다. Level ViewportClient는 생성 시 전달받은 `UEditorEngine`에서 Editor World와 공유 Selection·Transaction Manager를 사용한다. ViewportClient는 해당 World와 Camera로 `FSceneViewFamily`를 만든다.
 
 ```text
 Viewport Panel
@@ -213,7 +246,7 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - 같은 UI 조각이 반복될 때만 재사용 함수나 Widget을 추출한다.
 - runtime 등록, 플러그인 확장 또는 공통 lifecycle 요구가 확인될 때만 Panel registry와 기반 클래스를 검토한다.
 - Inspector customization과 Editor command도 실제로 여러 호출 지점에서 공유될 때 도입한다.
-- Undo/Redo는 Reflection 값 변경 경로 위에 transaction 계층으로 추가하며 Inspector에 임시 복사 기능을 중복 구현하지 않는다.
+- Undo/Redo 대상인 새 편집 기능은 조작 전에 Transaction을 기록하고 취소·반복 Undo/Redo 경로를 확인한다.
 
 ## 현재 구현 상태
 
@@ -223,6 +256,7 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - ImGui context, DockSpace, Main MenuBar와 Panel 수명 관리
 - Hierarchy 선택과 Reflection 기반 Inspector 편집
 - Hierarchy와 Inspector의 Reflection 기반 Node·Component 생성 메뉴
+- Node·Component 생성·삭제, 계층, Transform과 Inspector 프로퍼티의 Undo/Redo
 - Viewport offscreen rendering과 Editor Camera
 - Viewport 입력 라우팅
 - Console log sink와 명령 입력
@@ -236,7 +270,7 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 
 - Source Asset Import와 Reimport
 - Component 단위 선택과 기즈모
-- Undo/Redo와 범용 Editor command
+- 범용 Editor command
 - PIE Game Viewport
 
 ## 관련 문서
@@ -255,3 +289,6 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
+- [EditorTransaction.h](../KnotEngine/Source/Editor/Editor/Transaction/EditorTransaction.h)
+- [TransactionManager.h](../KnotEngine/Source/Editor/Editor/Transaction/TransactionManager.h)
+- [TransactionManager.cpp](../KnotEngine/Source/Editor/Editor/Transaction/TransactionManager.cpp)

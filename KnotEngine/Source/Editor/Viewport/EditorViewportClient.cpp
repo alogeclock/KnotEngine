@@ -1,7 +1,6 @@
 #include "EditorViewportClient.h"
 
 #include "Core/Math/Matrix.h"
-#include "Runtime/Engine.h"
 #include "World/World.h"
 #include "Viewport/Viewport.h"
 
@@ -80,11 +79,6 @@ std::optional<FSceneViewFamily> FEditorViewportClient::BuildSceneViewFamily()
 	Family.Views.push_back(BuildSceneView());
 	Family.Views.back().ViewMode = ViewMode;
 	return Family;
-}
-
-UWorld* FEditorViewportClient::GetWorld() const
-{
-	return GEngine ? GEngine->GetWorld() : nullptr;
 }
 
 // Application Client 좌표의 Viewport 이미지 영역을 입력 좌표 변환에 사용하도록 저장한다.
