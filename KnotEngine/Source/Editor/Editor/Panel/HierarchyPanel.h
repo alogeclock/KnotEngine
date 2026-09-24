@@ -4,7 +4,7 @@
 
 struct FEditorSelection;
 class FInputSnapshot;
-class FTransactionManager;
+class FEditorTransaction;
 class UClass;
 class ULevel;
 class UNode;
@@ -13,7 +13,7 @@ class UWorld;
 class FHierarchyPanel
 {
 public:
-	explicit FHierarchyPanel(FTransactionManager& InTransactionManager) : TransactionManager(InTransactionManager) {}
+	FHierarchyPanel();
 	void Draw(UWorld& World, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot);
 
 private:
@@ -51,7 +51,7 @@ private:
 
 	void ApplyPendingDrop();
 
-	FTransactionManager& TransactionManager;
+	FEditorTransaction& TransactionManager;
 	TArray<FVisibleNode> VisibleNodes;
 	UNode* SelectionAnchor = nullptr;
 	FPendingDropNode PendingDrop;

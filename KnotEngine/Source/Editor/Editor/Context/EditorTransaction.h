@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Editor/Transaction/EditorTransaction.h"
+#include "Editor/Context/Transaction.h"
 
-class FTransactionManager final
+class FEditorTransaction final
 {
 public:
 	void Begin(FName Description);
@@ -36,12 +36,12 @@ private:
 	void RestoreNodeAttachment(FNodeAttachmentRecord& Record, bool bUndo);
 	void RestoreComponentAttachment(FComponentAttachmentRecord& Record, bool bUndo);
 
-	void Apply(FEditorTransaction& Transaction, bool bUndo);
+	void Apply(FTransaction& Transaction, bool bUndo);
 	void FinalizeTransaction();
 	void DestroyDetachedNodes();
 
-	TArray<FEditorTransaction> History; // Transaction History 기록
-	TArray<FEditorTransaction> RemovedTransactions; // Undo 후 새 편집을 시작할 때, Redo 기록을 잠시 보관하는 배열
+	TArray<FTransaction> History; // Transaction History 기록
+	TArray<FTransaction> RemovedTransactions; // Undo 후 새 편집을 시작할 때, Redo 기록을 잠시 보관하는 배열
 
 	SIZE_T NextTransactionIndex = 0;
 	uint32 ActiveDepth = 0;

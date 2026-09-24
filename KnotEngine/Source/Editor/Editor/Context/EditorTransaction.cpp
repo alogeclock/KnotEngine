@@ -1,4 +1,4 @@
-#include "Editor/Transaction/TransactionManager.h"
+#include "Editor/Context/EditorTransaction.h"
 
 #include "Component/TransformComponent.h"
 #include "Component/Component.h"
@@ -10,7 +10,7 @@
 #include <algorithm>
 
 // 새 편집 작업을 시작하고 중첩 작업은 최상위 Transaction에 합친다.
-void FTransactionManager::Begin(FName Description)
+void FEditorTransaction::Begin(FName Description)
 {
 	check(!bApplying);
 	if (ActiveDepth++ > 0)
@@ -28,11 +28,11 @@ void FTransactionManager::Begin(FName Description)
 		}
 		History.erase(History.begin() + NextTransactionIndex, History.end());
 	}
-	History.push_back(FEditorTransaction{ std::move(Description) });
+	History.push_back(FTransaction{ std::move(Description) });
 }
 
 // 최상위 편집 작업을 확정하고 변경이 없는 기록과 빈 Transaction을 제거한다.
-void FTransactionManager::End()
+void FEditorTransaction::End()
 {
 	check(ActiveDepth > 0 && !bApplying);
 	if (--ActiveDepth > 0) // 바깥 Transaction이 아직 진행 중이라면, 마지막 End()에서 확정한다.
@@ -44,7 +44,7 @@ void FTransactionManager::End()
 	if (History.back().Records.empty())
 	{
 		History.pop_back();
-		for (FEditorTransaction& Transaction : RemovedTransactions)
+		for (FTransaction& Transaction : RemovedTransactions)
 		{
 			History.push_back(std::move(Transaction));
 		}
@@ -64,7 +64,7 @@ void FTransactionManager::End()
 }
 
 // 진행 중인 최상위 작업을 변경 전 상태로 복원하고 기록을 제거한다.
-void FTransactionManager::Cancel()
+void FEditorTransaction::Cancel()
 {
 	check(ActiveDepth > 0 && !bApplying && !History.empty());
 	ActiveDepth = 0;
@@ -73,7 +73,7 @@ void FTransactionManager::Cancel()
 
 	Apply(History.back(), true);
 	History.pop_back();
-	for (FEditorTransaction& Transaction : RemovedTransactions)
+	for (FTransaction& Transaction : RemovedTransactions)
 	{
 		History.push_back(std::move(Transaction));
 	}
@@ -82,17 +82,17 @@ void FTransactionManager::Cancel()
 }
 
 // 현재 객체 상태를 Transaction의 변경 전 상태로 한 번만 저장한다.
-void FTransactionManager::SaveObject(UObject& Object)
+void FEditorTransaction::SaveObject(UObject& Object)
 {
 	SaveObject(Object, SerializeObject(Object));
 }
 
 // 호출자가 변경 전에 확보한 객체 상태를 Transaction에 한 번만 저장한다.
-void FTransactionManager::SaveObject(UObject& Object, TArray<uint8> BeforeState)
+void FEditorTransaction::SaveObject(UObject& Object, TArray<uint8> BeforeState)
 {
 	check(IsActive() && !bApplying && !History.empty());
-	FEditorTransaction& Transaction = History.back();
-	for (const FEditorTransactionRecord& Variant : Transaction.Records)
+	FTransaction& Transaction = History.back();
+	for (const FTransactionRecord& Variant : Transaction.Records)
 	{
 		if (const auto* Record = std::get_if<FObjectTransactionRecord>(&Variant); Record && Record->Object == &Object)
 		{
@@ -103,11 +103,11 @@ void FTransactionManager::SaveObject(UObject& Object, TArray<uint8> BeforeState)
 }
 
 // Node의 부모, 형제 순서와 상대 Transform을 변경 전 상태로 한 번만 저장한다.
-void FTransactionManager::SaveHierarchy(UNode& Node)
+void FEditorTransaction::SaveHierarchy(UNode& Node)
 {
 	check(IsActive() && !bApplying && !History.empty());
-	FEditorTransaction& Transaction = History.back();
-	for (const FEditorTransactionRecord& Variant : Transaction.Records)
+	FTransaction& Transaction = History.back();
+	for (const FTransactionRecord& Variant : Transaction.Records)
 	{
 		if (const auto* Record = std::get_if<FHierarchyTransactionRecord>(&Variant); Record && Record->Node == &Node)
 		{
@@ -118,7 +118,7 @@ void FTransactionManager::SaveHierarchy(UNode& Node)
 }
 
 // 이미 Level에 연결된 새 Node를 Undo 시 분리할 수 있도록 생성 기록을 추가한다.
-void FTransactionManager::TrackNode(UNode& Node)
+void FEditorTransaction::TrackNode(UNode& Node)
 {
 	check(IsActive() && Node.IsInLevel());
 	const FNodeHierarchyState State = CaptureHierarchy(Node);
@@ -126,7 +126,7 @@ void FTransactionManager::TrackNode(UNode& Node)
 }
 
 // Node 계층을 파괴하지 않고 Level에서 분리하여 Undo 가능한 삭제 기록을 추가한다.
-void FTransactionManager::DeleteNode(UNode& Node)
+void FEditorTransaction::DeleteNode(UNode& Node)
 {
 	check(IsActive() && Node.IsInLevel());
 	const FNodeHierarchyState State = CaptureHierarchy(Node);
@@ -137,7 +137,7 @@ void FTransactionManager::DeleteNode(UNode& Node)
 }
 
 // 이미 Node에 연결된 새 Component를 Undo 시 분리할 수 있도록 생성 기록을 추가한다.
-void FTransactionManager::TrackComponent(UComponent& Component)
+void FEditorTransaction::TrackComponent(UComponent& Component)
 {
 	check(IsActive() && Component.IsOwned());
 	UNode& Node = Component.GetOwner();
@@ -151,7 +151,7 @@ void FTransactionManager::TrackComponent(UComponent& Component)
 }
 
 // Component를 파괴하지 않고 Node에서 분리하여 Undo 가능한 삭제 기록을 추가한다.
-void FTransactionManager::DeleteComponent(UComponent& Component)
+void FEditorTransaction::DeleteComponent(UComponent& Component)
 {
 	check(IsActive() && Component.IsOwned());
 	UNode& Node = Component.GetOwner();
@@ -161,7 +161,7 @@ void FTransactionManager::DeleteComponent(UComponent& Component)
 }
 
 // 직전 Transaction을 역방향으로 적용한다.
-bool FTransactionManager::Undo()
+bool FEditorTransaction::Undo()
 {
 	if (IsActive() || bApplying || NextTransactionIndex == 0)
 	{
@@ -172,7 +172,7 @@ bool FTransactionManager::Undo()
 }
 
 // 다음 Transaction을 정방향으로 적용한다.
-bool FTransactionManager::Redo()
+bool FEditorTransaction::Redo()
 {
 	if (IsActive() || bApplying || NextTransactionIndex >= History.size())
 	{
@@ -183,7 +183,7 @@ bool FTransactionManager::Redo()
 }
 
 // 편집 기록을 비우고 History만 소유하던 분리 Node를 실제로 파괴한다.
-void FTransactionManager::Reset()
+void FEditorTransaction::Reset()
 {
 	check(!bApplying);
 	if (IsActive())
@@ -197,7 +197,7 @@ void FTransactionManager::Reset()
 }
 
 // 객체의 비 Transient 리플렉션 프로퍼티를 메모리 Byte 배열로 저장한다.
-TArray<uint8> FTransactionManager::SerializeObject(UObject& Object)
+TArray<uint8> FEditorTransaction::SerializeObject(UObject& Object)
 {
 	TArray<uint8> State;
 	FMemoryWriter Writer(State);
@@ -207,7 +207,7 @@ TArray<uint8> FTransactionManager::SerializeObject(UObject& Object)
 }
 
 // Node의 직렬화되지 않는 계층 상태를 별도 값으로 캡처한다.
-FNodeHierarchyState FTransactionManager::CaptureHierarchy(UNode& Node)
+FNodeHierarchyState FEditorTransaction::CaptureHierarchy(UNode& Node)
 {
 	UTransformComponent& Transform = Node.GetTransform();
 	return FNodeHierarchyState{
@@ -216,7 +216,7 @@ FNodeHierarchyState FTransactionManager::CaptureHierarchy(UNode& Node)
 }
 
 // 지정 방향의 객체 상태를 역직렬화한다.
-void FTransactionManager::RestoreObject(FObjectTransactionRecord& Record, bool bUndo)
+void FEditorTransaction::RestoreObject(FObjectTransactionRecord& Record, bool bUndo)
 {
 	check(Record.Object);
 	TArray<uint8>& State = bUndo ? Record.BeforeState : Record.AfterState;
@@ -226,7 +226,7 @@ void FTransactionManager::RestoreObject(FObjectTransactionRecord& Record, bool b
 }
 
 // 지정 방향의 부모와 형제 순서를 공개 계층 API로 복원한다.
-void FTransactionManager::RestoreHierarchy(FHierarchyTransactionRecord& Record, bool bUndo)
+void FEditorTransaction::RestoreHierarchy(FHierarchyTransactionRecord& Record, bool bUndo)
 {
 	check(Record.Node && Record.Node->IsInLevel());
 	const FNodeHierarchyState& State = bUndo ? Record.BeforeState : Record.AfterState;
@@ -236,7 +236,7 @@ void FTransactionManager::RestoreHierarchy(FHierarchyTransactionRecord& Record, 
 }
 
 // 지정 방향에 따라 Node 계층을 Level에 다시 연결하거나 파괴하지 않고 분리한다.
-void FTransactionManager::RestoreNodeAttachment(FNodeAttachmentRecord& Record, bool bUndo)
+void FEditorTransaction::RestoreNodeAttachment(FNodeAttachmentRecord& Record, bool bUndo)
 {
 	check(Record.Level && Record.Node);
 	const bool bShouldBeAttached = (Record.Change == EAttachmentChange::Added) != bUndo;
@@ -257,7 +257,7 @@ void FTransactionManager::RestoreNodeAttachment(FNodeAttachmentRecord& Record, b
 }
 
 // 지정 방향에 따라 Component를 원래 Node에 연결하거나 파괴하지 않고 분리한다.
-void FTransactionManager::RestoreComponentAttachment(FComponentAttachmentRecord& Record, bool bUndo)
+void FEditorTransaction::RestoreComponentAttachment(FComponentAttachmentRecord& Record, bool bUndo)
 {
 	check(Record.Owner && Record.Component);
 	const bool bShouldBeAttached = (Record.Change == EAttachmentChange::Added) != bUndo;
@@ -278,12 +278,12 @@ void FTransactionManager::RestoreComponentAttachment(FComponentAttachmentRecord&
 }
 
 // Transaction 레코드를 Undo는 역순, Redo는 정순으로 적용한다.
-void FTransactionManager::Apply(FEditorTransaction& Transaction, bool bUndo)
+void FEditorTransaction::Apply(FTransaction& Transaction, bool bUndo)
 {
 	check(!bApplying);
 	bApplying = true;
 	TArray<UObject*> ChangedObjects;
-	for (FEditorTransactionRecord& Variant : Transaction.Records)
+	for (FTransactionRecord& Variant : Transaction.Records)
 	{
 		if (auto* Record = std::get_if<FObjectTransactionRecord>(&Variant);
 		    Record && std::find(ChangedObjects.begin(), ChangedObjects.end(), Record->Object) == ChangedObjects.end())
@@ -292,7 +292,7 @@ void FTransactionManager::Apply(FEditorTransaction& Transaction, bool bUndo)
 			Record->Object->PreEditUndo();
 		}
 	}
-	const auto ApplyRecord = [this, bUndo](FEditorTransactionRecord& Variant)
+	const auto ApplyRecord = [this, bUndo](FTransactionRecord& Variant)
 	{
 		std::visit([this, bUndo](auto& Record)
 		{
@@ -312,7 +312,7 @@ void FTransactionManager::Apply(FEditorTransaction& Transaction, bool bUndo)
 	}
 	else
 	{
-		for (FEditorTransactionRecord& Record : Transaction.Records)
+		for (FTransactionRecord& Record : Transaction.Records)
 		{
 			ApplyRecord(Record);
 		}
@@ -325,11 +325,11 @@ void FTransactionManager::Apply(FEditorTransaction& Transaction, bool bUndo)
 }
 
 // 활성 Transaction의 변경 후 상태를 기록하고 동일한 객체 상태는 제거한다.
-void FTransactionManager::FinalizeTransaction()
+void FEditorTransaction::FinalizeTransaction()
 {
 	check(!History.empty());
-	FEditorTransaction& Transaction = History.back();
-	for (FEditorTransactionRecord& Variant : Transaction.Records)
+	FTransaction& Transaction = History.back();
+	for (FTransactionRecord& Variant : Transaction.Records)
 	{
 		if (auto* Record = std::get_if<FObjectTransactionRecord>(&Variant))
 		{
@@ -340,7 +340,7 @@ void FTransactionManager::FinalizeTransaction()
 			Record->AfterState = CaptureHierarchy(*Record->Node);
 		}
 	}
-	std::erase_if(Transaction.Records, [](const FEditorTransactionRecord& Variant)
+	std::erase_if(Transaction.Records, [](const FTransactionRecord& Variant)
 	{
 		if (const auto* Record = std::get_if<FObjectTransactionRecord>(&Variant))
 		{
@@ -357,13 +357,13 @@ void FTransactionManager::FinalizeTransaction()
 }
 
 // Transaction에 더 이상 보존되지 않는 분리 Component와 Node를 실제로 파괴한다.
-void FTransactionManager::DestroyDetachedNodes()
+void FEditorTransaction::DestroyDetachedNodes()
 {
 	TSet<UNode*> ReferencedNodes;
 	TSet<UComponent*> ReferencedComponents;
-	for (const FEditorTransaction& Transaction : History)
+	for (const FTransaction& Transaction : History)
 	{
-		for (const FEditorTransactionRecord& Variant : Transaction.Records)
+		for (const FTransactionRecord& Variant : Transaction.Records)
 		{
 			if (const auto* Record = std::get_if<FNodeAttachmentRecord>(&Variant))
 			{

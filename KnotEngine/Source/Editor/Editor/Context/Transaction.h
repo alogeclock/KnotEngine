@@ -67,11 +67,11 @@ struct FComponentAttachmentRecord
 };
 
 // 한 편집 작업에서 순서대로 적용할 수 있는 Record 종류를 묶는다.
-using FEditorTransactionRecord = std::variant<FObjectTransactionRecord, FHierarchyTransactionRecord, FNodeAttachmentRecord, FComponentAttachmentRecord>;
+using FTransactionRecord = std::variant<FObjectTransactionRecord, FHierarchyTransactionRecord, FNodeAttachmentRecord, FComponentAttachmentRecord>;
 
 // 하나의 Undo/Redo 단계에 포함되는 Record와 표시 이름을 보관한다.
-struct FEditorTransaction
+struct FTransaction
 {
 	FName Description;
-	TArray<FEditorTransactionRecord> Records;
+	TArray<FTransactionRecord> Records;
 };

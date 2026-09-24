@@ -10,14 +10,13 @@
 #include <string_view>
 
 class FRenderSystem;
-class FAssetImportManager;
 struct ImVec2;
 
 // Asset Registry의 폴더와 Asset 메타데이터를 탐색하고 Content 파일 작업을 제공하는 Editor 창이다.
 class FContentPanel final
 {
 public:
-	FContentPanel(FAssetRegistry& InAssetRegistry, FAssetImportManager& InAssetImportManager, FRenderSystem& InRenderSystem);
+	explicit FContentPanel(FRenderSystem& InRenderSystem);
 
 	void Startup();
 	void Draw();
@@ -77,7 +76,6 @@ private:
 	std::filesystem::path MakeUniquePath(const std::filesystem::path& DesiredPath, bool bDirectory) const;
 
 	FAssetRegistry& AssetRegistry;
-	FAssetImportManager& AssetImportManager;
 	FRenderSystem& RenderSystem;
 
 	FTextureHandle FolderIcon;

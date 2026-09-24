@@ -18,13 +18,12 @@ class UNode;
 class UClass;
 class FAssetRegistry;
 class FInputSnapshot;
-class FTransactionManager;
+class FEditorTransaction;
 
 class FInspectorPanel
 {
 public:
-	FInspectorPanel(FAssetRegistry& InAssetRegistry, FTransactionManager& InTransactionManager)
-		: AssetRegistry(InAssetRegistry), TransactionManager(InTransactionManager) {}
+	FInspectorPanel();
 	~FInspectorPanel();
 
 	void SetBoldFont(ImFont& InBoldFont) { BoldFont = &InBoldFont; }
@@ -66,7 +65,7 @@ private:
 	bool DrawStaticMeshMaterials(UStaticMeshComponent& Component);
 
 	FAssetRegistry& AssetRegistry;
-	FTransactionManager& TransactionManager;
+	FEditorTransaction& TransactionManager;
 	UObject* TransactionObject = nullptr;
 
 	ImFont* BoldFont = nullptr;

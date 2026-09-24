@@ -5,13 +5,12 @@
 
 class FRenderer;
 class UNode;
-class UEditorEngine;
 struct FEditorSelection;
 
 class FLevelEditorViewportClient : public FEditorViewportClient
 {
 public:
-	FLevelEditorViewportClient(FViewport& InViewport, UEditorEngine& InEditorEngine);
+	explicit FLevelEditorViewportClient(FViewport& InViewport);
 
 	void Tick(float DeltaTime) override;
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
@@ -36,7 +35,6 @@ private:
 	void UpdateFocusAnimation(float DeltaTime);
 
 	FEditorSelection& Selection;
-	UEditorEngine& EditorEngine;
 	FTransformGizmo TransformGizmo;
 
 	static constexpr float FocusAnimationDuration = 0.25f;

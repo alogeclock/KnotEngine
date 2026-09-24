@@ -2,7 +2,7 @@
 
 #include "Render/RHI/RenderTypes.h"
 #include "Render/ImGui/ImGuiDrawDataCopy.h"
-#include "Editor/EditorSelection.h"
+#include "Editor/Context/EditorSelection.h"
 #include "Input/InputRouter.h"
 #include "Editor/Panel/ConsolePanel.h"
 #include "Editor/Panel/ContentPanel.h"
@@ -20,19 +20,15 @@
 
 class FRenderSystem;
 class FAssetEditor;
-class FAssetImportManager;
-class FAssetRegistry;
-class FEditorSettings;
 struct ImFont;
 struct ImDrawData;
-class UEditorEngine;
 class FWindowsApplication;
 
 // Editor의 ImGui Context와 Panel 수명주기 및 Frame 렌더링을 관리한다.
 class FImGuiSystem : public IInputTarget
 {
 public:
-	FImGuiSystem(FWindowsApplication& InApplication, UEditorEngine& InEditorEngine);
+	explicit FImGuiSystem(FWindowsApplication& InApplication);
 	~FImGuiSystem();
 
 	void Startup();
@@ -64,11 +60,6 @@ private:
 	void BuildLayout(std::uint32_t DockspaceId);
 
 	FWindowsApplication& Application;
-	UEditorEngine& EditorEngine;
-	FAssetImportManager& AssetImportManager;
-	FRenderSystem& RenderSystem;
-	FInputRouter& InputRouter;
-	FEditorSelection& Selection;
 
 	TArray<std::unique_ptr<FAssetEditor>> AssetEditors;
 

@@ -8,7 +8,7 @@ class FEditorSettings;
 class FSettingsPanel final
 {
 public:
-	explicit FSettingsPanel(FEditorSettings& InSettings) : Settings(InSettings) {}
+	FSettingsPanel();
 
 	void Open() { bOpenRequested = true; }
 	void Draw();

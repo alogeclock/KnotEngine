@@ -1,9 +1,15 @@
 #include "Editor/Panel/SettingsPanel.h"
 
 #include "Editor/Setting/EditorSettings.h"
+#include "Runtime/EditorEngine.h"
 
 #include <algorithm>
 #include <imgui.h>
+
+FSettingsPanel::FSettingsPanel()
+	: Settings(GetEditor().GetEditorSettings())
+{
+}
 
 void FSettingsPanel::Draw()
 {

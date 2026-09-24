@@ -1,9 +1,10 @@
 #include "Editor/Panel/HierarchyPanel.h"
 
 #include "Core/Input/InputSnapshot.h"
-#include "Editor/EditorSelection.h"
+#include "Editor/Context/EditorSelection.h"
 #include "Editor/Widget/NodeCreationMenu.h"
-#include "Editor/Transaction/TransactionManager.h"
+#include "Editor/Context/EditorTransaction.h"
+#include "Runtime/EditorEngine.h"
 #include "World/Level.h"
 #include "World/Node.h"
 #include "World/World.h"
@@ -12,6 +13,11 @@
 
 #include <algorithm>
 #include <limits>
+
+FHierarchyPanel::FHierarchyPanel()
+	: TransactionManager(GetEditor().GetTransactionManager())
+{
+}
 
 // 선택된 자손을 중복 제거한 뒤 선택 계층의 최상위 Node부터 제거한다.
 void FHierarchyPanel::RemoveSelectedNodes(FEditorSelection& Selection)

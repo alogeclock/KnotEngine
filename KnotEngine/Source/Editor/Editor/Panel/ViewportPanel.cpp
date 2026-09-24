@@ -1,7 +1,7 @@
 #include "Editor/Panel/ViewportPanel.h"
 
 #include "Component/TransformComponent.h"
-#include "Editor/EditorSelection.h"
+#include "Editor/Context/EditorSelection.h"
 #include "Editor/Toolbar/ViewportToolbar.h"
 #include "Editor/Widget/NodeCreationMenu.h"
 #include "Runtime/EditorEngine.h"
@@ -12,10 +12,9 @@
 #include <imgui.h>
 
 FViewportPanel::FViewportPanel(
-	FRenderSystem& InRenderSystem, FInputRouter& InInputRouter, const FViewportStatState& InStatState,
-	FEditorSelection& InSelection, UEditorEngine& InEditorEngine)
-	: ViewportWidget(InRenderSystem, InInputRouter), ViewportClient(ViewportWidget.GetViewport(), InEditorEngine),
-	  ViewportOverlayWidget(InStatState), Selection(InSelection), EditorEngine(InEditorEngine)
+	FRenderSystem& InRenderSystem, FInputRouter& InInputRouter, const FViewportStatState& InStatState)
+	: ViewportWidget(InRenderSystem, InInputRouter), ViewportClient(ViewportWidget.GetViewport()),
+	  ViewportOverlayWidget(InStatState), Selection(GetEditor().GetEditorSelection())
 {
 }
 
@@ -86,7 +85,7 @@ void FViewportPanel::DrawContextMenu()
 	{
 		if (UNode* CreatedNode = FNodeCreationMenu::DrawItems(*World))
 		{
-			FTransactionManager& TransactionManager = EditorEngine.GetTransactionManager();
+			FEditorTransaction& TransactionManager = GetEditor().GetTransactionManager();
 			TransactionManager.Begin(FName("Add Node"));
 			TransactionManager.TrackNode(*CreatedNode);
 			FTransform Transform = CreatedNode->GetTransform().GetRelativeTransform();

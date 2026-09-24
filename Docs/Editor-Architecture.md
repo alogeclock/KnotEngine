@@ -30,7 +30,7 @@ UEditorEngine
 ├─ FAssetRegistry
 ├─ FInputRouter
 ├─ FEditorSelection
-├─ FTransactionManager
+├─ FEditorTransaction
 ├─ FEditorViewportClient 목록
 └─ FImGuiSystem
    ├─ Hierarchy / Inspector
@@ -66,7 +66,7 @@ KnotEngine/Source/Editor/
 │  ├─ Panel/      독립 Editor 창
 │  ├─ Widget/     Viewport와 Overlay 등 재사용하는 UI 조각
 │  ├─ Toolbar/    공유 Toolbar
-│  ├─ Transaction/ 편집 기록과 Undo/Redo 적용
+│  ├─ Context/   공유 Selection과 Undo/Redo 편집 기록
 │  └─ Setting/    Editor 설정 데이터
 └─ Viewport/      Viewport surface, Camera와 ViewportClient
 ```
@@ -77,7 +77,7 @@ KnotEngine/Source/Editor/
 | `FImGuiSystem` | ImGui 수명, DockSpace, Panel 소유와 UI 프레임 구성 | World 렌더 패스 구현 |
 | Panel | 한 Editor 창의 상태와 표시 | 다른 Panel의 수명 관리 |
 | `FEditorSelection` | Panel이 공유하는 현재 선택 | 선택 객체의 소유권 |
-| `FTransactionManager` | 편집 기록, Undo/Redo와 분리된 객체의 수명 관리 | World 전체 저장·재로드 |
+| `FEditorTransaction` | 편집 기록, Undo/Redo와 분리된 객체의 수명 관리 | World 전체 저장·재로드 |
 | `FInputRouter` | Viewport 등 Engine 입력 대상 선택 | ImGui 위젯 처리, Win32 입력 수집 |
 | `FViewportWidget` | Viewport surface 표시와 이미지 영역의 입력 등록 | Camera와 World 선택 정책 |
 | `FViewport` | offscreen 출력 surface와 크기 | Camera와 World 선택 정책 |
@@ -88,6 +88,8 @@ KnotEngine/Source/Editor/
 `UEditorEngine`은 Renderer를 참조하고 Input Router, Editor Selection, Transaction Manager와 ImGui System을 소유한다. Editor World는 `UEngine`의 WorldContext를 통해 관리한다.
 
 `FImGuiSystem`은 공유 Viewport Toolbar와 concrete Panel을 소유한다. Level Viewport Panel과 Asset Editor는 각각 `FViewportWidget`과 concrete ViewportClient를 소유하며, `UEditorEngine`은 등록된 ViewportClient를 non-owning 목록으로 순회한다. Selection은 `UEditorEngine`이 소유하고 Panel과 Level ViewportClient가 공유한다.
+
+`Launch()`가 Editor Engine을 `GEngine`에 등록한 뒤 `UEditorEngine::Startup()`을 호출한다. Startup은 Renderer를 연결하고 설정을 로드하며 Asset Import Manager를 시작한 다음 `FImGuiSystem`을 생성·시작한다. Editor 전용 UI는 `GetEditor()`로 필요한 서비스를 조회하거나 생성 시 한 번 참조를 확보한다. Asset Import Manager는 UI가 소유하거나 시작하지 않는다. 종료할 때는 UI의 입력 대상 등록과 렌더 자원을 먼저 해제한 후 Import Manager와 Input Router를 종료한다. Game Thread와 생성·종료 시점의 접근 제한은 [Conventions.md](Conventions.md#editor-전역-접근)를 따른다.
 
 ```text
 FImGuiSystem
@@ -164,7 +166,7 @@ Inspector는 Engine의 public Reflection API만 사용한다. 편집 가능 여�
 
 ## Undo/Redo Transaction
 
-`UEditorEngine`이 소유한 `FTransactionManager`는 World 전체 스냅샷 대신 변경된 객체와 계층만 기록한다. 현재 대상은 Inspector 프로퍼티와 Component 편집, Hierarchy의 Node 생성·삭제·재부모화, Viewport의 Node 생성·복제, Transform Gizmo 조작이다. 에셋 파일 변경과 Editor 설정은 이 History의 대상이 아니다.
+`UEditorEngine`이 소유한 `FEditorTransaction`는 World 전체 스냅샷 대신 변경된 객체와 계층만 기록한다. 현재 대상은 Inspector 프로퍼티와 Component 편집, Hierarchy의 Node 생성·삭제·재부모화, Viewport의 Node 생성·복제, Transform Gizmo 조작이다. 에셋 파일 변경과 Editor 설정은 이 History의 대상이 아니다.
 
 `Begin(Description)`으로 작업을 열고 변경 전에 필요한 상태를 기록한 다음 `End()`로 확정한다. `Description`은 작업의 설명이며 현재 UI에는 표시하지 않는다. 중첩된 Begin/End는 가장 바깥 작업 하나로 합쳐진다. 진행 중인 작업을 버릴 때는 `Cancel()`이 변경 전 상태를 적용한다.
 
@@ -194,7 +196,7 @@ History는 최대 128개 작업을 보관하고 한도를 넘으면 오래된 �
 
 ## Viewport와 Rendering
 
-Viewport Panel은 ImGui 창 안에 `FViewport`의 offscreen texture를 표시한다. `FEditorViewportClient`는 공통 Camera·View 기능만 제공하고 `GetWorld()`의 구현은 구체 ViewportClient에 맡긴다. Level ViewportClient는 생성 시 전달받은 `UEditorEngine`에서 Editor World와 공유 Selection·Transaction Manager를 사용한다. ViewportClient는 해당 World와 Camera로 `FSceneViewFamily`를 만든다.
+Viewport Panel은 ImGui 창 안에 `FViewport`의 offscreen texture를 표시한다. `FEditorViewportClient`는 공통 Camera·View 기능만 제공하고 `GetWorld()`의 구현은 구체 ViewportClient에 맡긴다. Level ViewportClient는 `GetEditor()`에서 현재 Editor World를 조회하고 공유 Selection·Transaction Manager를 사용한다. Asset Viewport는 별도의 Preview World를 사용한다. ViewportClient는 해당 World와 Camera로 `FSceneViewFamily`를 만든다.
 
 ```text
 Viewport Panel
@@ -285,10 +287,10 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 
 - [EditorEngine.h](../KnotEngine/Source/Editor/Runtime/EditorEngine.h)
 - [ImGuiSystem.h](../KnotEngine/Source/Editor/Editor/ImGuiSystem.h)
-- [EditorSelection.h](../KnotEngine/Source/Editor/Editor/EditorSelection.h)
+- [EditorSelection.h](../KnotEngine/Source/Editor/Editor/Context/EditorSelection.h)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
-- [EditorTransaction.h](../KnotEngine/Source/Editor/Editor/Transaction/EditorTransaction.h)
-- [TransactionManager.h](../KnotEngine/Source/Editor/Editor/Transaction/TransactionManager.h)
-- [TransactionManager.cpp](../KnotEngine/Source/Editor/Editor/Transaction/TransactionManager.cpp)
+- [Transaction.h](../KnotEngine/Source/Editor/Editor/Context/Transaction.h)
+- [EditorTransaction.h](../KnotEngine/Source/Editor/Editor/Context/EditorTransaction.h)
+- [EditorTransaction.cpp](../KnotEngine/Source/Editor/Editor/Context/EditorTransaction.cpp)

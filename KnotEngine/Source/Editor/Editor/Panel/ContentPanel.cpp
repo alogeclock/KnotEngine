@@ -4,6 +4,7 @@
 #include "Core/IO/Paths.h"
 #include "Core/Log.h"
 #include "Render/RenderSystem.h"
+#include "Runtime/EditorEngine.h"
 
 #include <Windows.h>
 #include <Shellapi.h>
@@ -97,11 +98,8 @@ FString FContentPanel::MakeTileLabel(const FString& Label, float Width)
 	return Result + "...";
 }
 
-FContentPanel::FContentPanel(
-	FAssetRegistry& InAssetRegistry,
-	FAssetImportManager& InAssetImportManager,
-	FRenderSystem& InRenderSystem)
-    : AssetRegistry(InAssetRegistry), AssetImportManager(InAssetImportManager), RenderSystem(InRenderSystem)
+FContentPanel::FContentPanel(FRenderSystem& InRenderSystem)
+	: AssetRegistry(GetEditor().GetAssetManager().GetAssetRegistry()), RenderSystem(InRenderSystem)
 {
 }
 
@@ -259,10 +257,10 @@ void FContentPanel::DrawImportOptions()
 	}
 
 	ImGui::Separator();
-	ImGui::BeginDisabled(!bScaleValid || !bLODRatiosValid || AssetImportManager.HasActiveImports());
+	ImGui::BeginDisabled(!bScaleValid || !bLODRatiosValid || GetEditor().GetAssetImportManager().HasActiveImports());
 	if (ImGui::Button("Import"))
 	{
-		if (AssetImportManager.EnqueueGLB(PendingImportSourceFilePath, PendingImportDestinationAssetPath, PendingImportOptions))
+		if (GetEditor().GetAssetImportManager().EnqueueGLB(PendingImportSourceFilePath, PendingImportDestinationAssetPath, PendingImportOptions))
 		{
 			PendingImportSourceFilePath.clear();
 			PendingImportDestinationAssetPath.clear();
@@ -665,10 +663,10 @@ void FContentPanel::DrawContextMenu()
 	if (ImGui::BeginPopup("ContentContext"))
 	{
 		const FAssetData* ContextAsset = ContextAssetPath.empty() ? nullptr : AssetRegistry.FindAsset(ContextAssetPath);
-		const bool bHasActiveImports = AssetImportManager.HasActiveImports();
+		const bool bHasActiveImports = GetEditor().GetAssetImportManager().HasActiveImports();
 		if (ContextAsset && ContextAsset->HasSourceFile())
 		{
-			const bool bImporting = AssetImportManager.IsImporting(ContextAsset->SourceFilePath);
+			const bool bImporting = GetEditor().GetAssetImportManager().IsImporting(ContextAsset->SourceFilePath);
 			if (ImGui::MenuItem(bImporting ? "Importing..." : "Import", nullptr, false, !bImporting))
 			{
 				ImportAsset();
@@ -813,7 +811,7 @@ void FContentPanel::OpenContextMenu(const FString& FolderPath, const FString& As
 // 대상 Folder 아래에 충돌하지 않는 New Folder를 만든다.
 void FContentPanel::CreateFolder(const FString& ParentFolderPath)
 {
-	if (AssetImportManager.HasActiveImports())
+	if (GetEditor().GetAssetImportManager().HasActiveImports())
 	{
 		return;
 	}
@@ -895,7 +893,7 @@ void FContentPanel::CopyItem()
 // Copy Clipboard의 Asset 또는 Folder를 대상 Folder에 복제한다.
 void FContentPanel::PasteItem(const FString& FolderPath)
 {
-	if (AssetImportManager.HasActiveImports())
+	if (GetEditor().GetAssetImportManager().HasActiveImports())
 	{
 		return;
 	}
@@ -962,7 +960,7 @@ void FContentPanel::PasteItem(const FString& FolderPath)
 // Context 대상 Asset의 파일명 또는 Folder 이름을 검증하고 실제 경로에 반영한다.
 bool FContentPanel::RenameItem()
 {
-	if (AssetImportManager.HasActiveImports())
+	if (GetEditor().GetAssetImportManager().HasActiveImports())
 	{
 		return false;
 	}
@@ -1080,7 +1078,7 @@ bool FContentPanel::RenameItem()
 // Context 대상 Asset의 모든 파일 또는 Folder 전체를 확인 후 삭제한다.
 void FContentPanel::DeleteItem()
 {
-	if (AssetImportManager.HasActiveImports())
+	if (GetEditor().GetAssetImportManager().HasActiveImports())
 	{
 		return;
 	}
@@ -1133,7 +1131,7 @@ void FContentPanel::DeleteItem()
 // Content 항목 종류에 따라 논리 Asset 또는 Folder를 대상 Folder 아래로 이동한다.
 void FContentPanel::MoveItem(EItemType ItemType, const FString& SourcePath, const FString& DestinationFolderPath)
 {
-	if (AssetImportManager.HasActiveImports())
+	if (GetEditor().GetAssetImportManager().HasActiveImports())
 	{
 		return;
 	}

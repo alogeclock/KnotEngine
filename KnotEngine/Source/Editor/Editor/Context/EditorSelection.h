@@ -12,6 +12,7 @@ struct FEditorSelection
 	void Add(UNode& Node);
 	void Toggle(UNode& Node);
 	void Deselect();
+
 	bool IsSelected(const UNode* Node) const;
 	const TArray<UNode*>& GetSelectedNodes() const { return SelectedNodes; }
 

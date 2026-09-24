@@ -32,32 +32,20 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
-FImGuiSystem::FImGuiSystem(FWindowsApplication& InApplication, UEditorEngine& InEditorEngine)
+FImGuiSystem::FImGuiSystem(FWindowsApplication& InApplication)
 	: Application(InApplication)
-	, EditorEngine(InEditorEngine)
-	, AssetImportManager(InEditorEngine.GetAssetImportManager())
-	, RenderSystem(InEditorEngine.GetRenderSystem())
-	, InputRouter(InEditorEngine.GetInputRouter())
-	, Selection(InEditorEngine.GetEditorSelection())
-	, ViewportToolbar(RenderSystem)
-	, HierarchyPanel(InEditorEngine.GetTransactionManager())
-	, InspectorPanel(InEditorEngine.GetAssetManager().GetAssetRegistry(), InEditorEngine.GetTransactionManager())
-	, ViewportPanel(RenderSystem, InputRouter, ViewportStatState, Selection, InEditorEngine)
+	, ViewportToolbar(GetEditor().GetRenderSystem())
+	, ViewportPanel(GetEditor().GetRenderSystem(), GetEditor().GetInputRouter(), ViewportStatState)
 	, ConsolePanel(ViewportStatState)
-	, ContentPanel(InEditorEngine.GetAssetManager().GetAssetRegistry(), AssetImportManager, RenderSystem)
-	, SettingsPanel(InEditorEngine.GetEditorSettings())
+	, ContentPanel(GetEditor().GetRenderSystem())
 #if KNOT_CPU_PROFILER_ENABLED
-	, ProfilePanel(RenderSystem)
+	, ProfilePanel(GetEditor().GetRenderSystem())
 #endif
 {
-	EditorEngine.RegisterViewportClient(ViewportPanel.GetViewportClient());
+	GetEditor().RegisterViewportClient(ViewportPanel.GetViewportClient());
 }
 
-FImGuiSystem::~FImGuiSystem()
-{
-	InputRouter.UnregisterTarget(*this);
-	EditorEngine.UnregisterViewportClient(ViewportPanel.GetViewportClient());
-}
+FImGuiSystem::~FImGuiSystem() = default;
 
 void FImGuiSystem::Startup()
 {
@@ -112,7 +100,7 @@ void FImGuiSystem::Startup()
 	IO.Fonts->GetTexDataAsRGBA32(&FontPixels, &FontWidth, &FontHeight);
 	check(FontPixels && FontWidth > 0 && FontHeight > 0);
 	const SIZE_T FontDataSize = static_cast<SIZE_T>(FontWidth) * static_cast<SIZE_T>(FontHeight) * 4;
-	const ImTextureID FontTextureId = RenderSystem.StartupImGui(std::span<const uint8>(FontPixels, FontDataSize), static_cast<uint32>(FontWidth), static_cast<uint32>(FontHeight));
+	const ImTextureID FontTextureId = GetEditor().GetRenderSystem().StartupImGui(std::span<const uint8>(FontPixels, FontDataSize), static_cast<uint32>(FontWidth), static_cast<uint32>(FontHeight));
 	IO.Fonts->SetTexID(FontTextureId);
 	IO.BackendRendererName = "KnotEngine_D3D11";
 	IO.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
@@ -130,14 +118,15 @@ void FImGuiSystem::BeginFrame()
 	ImGui::NewFrame();
 
 	const ImGuiIO& IO = ImGui::GetIO();
-	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
+	GetEditor().GetInputRouter().SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
 void FImGuiSystem::Draw(float DeltaTime)
 {
 	KNOT_PROFILE_SCOPE("Tick", "FImGuiSystem::Draw");
 
-	InputRouter.RegisterGlobalKeyTarget(*this);
+	FEditorSelection& Selection = GetEditor().GetEditorSelection();
+	GetEditor().GetInputRouter().RegisterGlobalKeyTarget(*this);
 	DrawMenuBar();
 	SettingsPanel.Draw();
 	DrawBottomToolbar();
@@ -150,7 +139,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	}
 	if (bShowHierarchy)
 	{
-		if (UWorld* World = EditorEngine.GetWorld())
+		if (UWorld* World = GetEditor().GetWorld())
 		{
 			HierarchyPanel.Draw(*World, Selection, Application.GetInputSnapshot());
 		}
@@ -192,7 +181,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 	DrawAssetEditors(DeltaTime);
 
 	const ImGuiIO& IO = ImGui::GetIO();
-	InputRouter.SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
+	GetEditor().GetInputRouter().SetImGuiCaptureState(IO.WantCaptureMouse, IO.WantCaptureKeyboard, IO.WantTextInput);
 }
 
 // 동일 Asset Editor가 이미 열려 있으면 포커스하고, 없으면 Asset 종류에 맞는 Document Panel을 생성한다.
@@ -207,7 +196,7 @@ void FImGuiSystem::OpenAssetEditor(const FAssetId& AssetId)
 		}
 	}
 
-	UAsset* Asset = EditorEngine.GetAssetManager().LoadAsset(AssetId);
+	UAsset* Asset = GetEditor().GetAssetManager().LoadAsset(AssetId);
 	if (!Asset)
 	{
 		KE_LOG(LogEditor, Error, "Asset Editor에서 Asset을 불러오지 못했다. AssetId={}", AssetId.ToString());
@@ -218,10 +207,10 @@ void FImGuiSystem::OpenAssetEditor(const FAssetId& AssetId)
 	switch (Asset->GetAssetType())
 	{
 	case EAssetType::StaticMesh:
-		Editor = std::make_unique<FStaticMeshEditor>(EditorEngine, *static_cast<UStaticMesh*>(Asset));
+		Editor = std::make_unique<FStaticMeshEditor>(GetEditor(), *static_cast<UStaticMesh*>(Asset));
 		break;
 	case EAssetType::Material:
-		Editor = std::make_unique<FMaterialEditor>(EditorEngine, *static_cast<UMaterial*>(Asset));
+		Editor = std::make_unique<FMaterialEditor>(GetEditor(), *static_cast<UMaterial*>(Asset));
 		break;
 	default:
 		return;
@@ -257,6 +246,7 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 	{
 		return FInputReply::Unhandled();
 	}
+	FEditorSelection& Selection = GetEditor().GetEditorSelection();
 
 	if (KeyEvent->Key == EKeyboardKey::Tilde && HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control))
 	{
@@ -271,24 +261,24 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		}
 		return FInputReply::Handled();
 	}
-	if (!InputRouter.IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::D &&
+	if (!GetEditor().GetInputRouter().IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::D &&
 	    HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control) &&
 	    !HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
 	{
 		DuplicateSelection();
 		return FInputReply::Handled();
 	}
-	if (!InputRouter.IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::Z &&
+	if (!GetEditor().GetInputRouter().IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::Z &&
 	    HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control))
 	{
 		bool bApplied = false;
 		if (HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
 		{
-			bApplied = EditorEngine.GetTransactionManager().Redo();
+			bApplied = GetEditor().GetTransactionManager().Redo();
 		}
 		else
 		{
-			bApplied = EditorEngine.GetTransactionManager().Undo();
+			bApplied = GetEditor().GetTransactionManager().Undo();
 		}
 		if (bApplied)
 		{
@@ -332,6 +322,8 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 // 현재 선택을 Level별로 한 번에 복제하고 원본의 활성 선택에 대응하는 복제 Node를 새 활성 선택으로 지정한다.
 void FImGuiSystem::DuplicateSelection()
 {
+	FEditorSelection& Selection = GetEditor().GetEditorSelection();
+	FEditorTransaction& TransactionManager = GetEditor().GetTransactionManager();
 	const TArray<UNode*> SourceSelection = Selection.GetSelectedNodes();
 	if (SourceSelection.empty())
 	{
@@ -347,7 +339,7 @@ void FImGuiSystem::DuplicateSelection()
 		}
 	}
 
-	EditorEngine.GetTransactionManager().Begin(FName("Duplicate Nodes"));
+	TransactionManager.Begin(FName("Duplicate Nodes"));
 	TArray<UNode*> Duplicates;
 	UNode* ActiveDuplicate = nullptr;
 	for (auto& [Level, LevelSources] : NodesByLevel)
@@ -368,11 +360,11 @@ void FImGuiSystem::DuplicateSelection()
 			UTransformComponent* Parent = Duplicate->GetTransform().GetParent();
 			if (!Parent || !DuplicateLookup.contains(&Parent->GetOwner()))
 			{
-				EditorEngine.GetTransactionManager().TrackNode(*Duplicate);
+				TransactionManager.TrackNode(*Duplicate);
 			}
 		}
 	}
-	EditorEngine.GetTransactionManager().End();
+	TransactionManager.End();
 	Selection.Select(Duplicates, ActiveDuplicate);
 }
 
@@ -396,7 +388,7 @@ void FImGuiSystem::DrawBottomToolbar()
 				bShowPanel = !bShowPanel;
 				bFocusRequested = bShowPanel;
 			};
-			const FAssetImportStatus Status = AssetImportManager.GetStatus();
+			const FAssetImportStatus Status = GetEditor().GetAssetImportManager().GetStatus();
 			FString StatusText;
 			float ImportStatusWidth = 0.0f;
 			if (Status.bRunning)
@@ -540,7 +532,7 @@ void FImGuiSystem::UpdateCursor()
 
 	// 드래그 조작 시 매 프레임 커서의 위치를 드래그 시작 위치로 초기화한다.
 	std::optional<FVector2> CursorPosition;
-	const bool bLockViewportCursor = InputRouter.ShouldHideCursor();
+	const bool bLockViewportCursor = GetEditor().GetInputRouter().ShouldHideCursor();
 	if (bLockViewportCursor)
 	{
 		if (!ViewportCursorOrigin && InputSnapshot.HasPointerPosition())
@@ -589,6 +581,8 @@ FImGuiDrawDataCopy FImGuiSystem::Consume()
 void FImGuiSystem::Shutdown()
 {
 	check(bStarted);
+	GetEditor().GetInputRouter().UnregisterTarget(*this);
+	GetEditor().UnregisterViewportClient(ViewportPanel.GetViewportClient());
 	ViewportCursorOrigin.reset();
 	bViewportCursorLocked = false;
 	Application.SetCursorVisible(true);
@@ -603,7 +597,7 @@ void FImGuiSystem::Shutdown()
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
 	ViewportToolbar.Release();
-	RenderSystem.ShutdownImGui();
+	GetEditor().GetRenderSystem().ShutdownImGui();
 	ImGuiIO& IO = ImGui::GetIO();
 	IO.BackendRendererName = nullptr;
 	IO.BackendFlags &= ~ImGuiBackendFlags_RendererHasVtxOffset;
@@ -650,7 +644,7 @@ void FImGuiSystem::DrawMenuBar()
 	{
 		if (ImGui::MenuItem("New Level"))
 		{
-			EditorEngine.NewLevel();
+			GetEditor().NewLevel();
 		}
 		if (ImGui::MenuItem("Load Level"))
 		{
@@ -658,7 +652,7 @@ void FImGuiSystem::DrawMenuBar()
 		}
 		if (ImGui::MenuItem("Save Level"))
 		{
-			if (!EditorEngine.SaveLevel())
+			if (!GetEditor().SaveLevel())
 			{
 				bSaveLevelDialogRequested = true;
 			}
@@ -720,20 +714,20 @@ void FImGuiSystem::LoadLevel()
 {
 	if (const std::optional<std::filesystem::path> FilePath = OpenLevelDialog(false))
 	{
-		EditorEngine.LoadLevel(*FilePath);
+		GetEditor().LoadLevel(*FilePath);
 	}
 }
 
 // 현재 경로에 저장하거나 Save As 대화상자에서 선택한 경로를 Editor Engine에 전달한다.
 void FImGuiSystem::SaveLevel(bool bSaveAs)
 {
-	if (!bSaveAs && EditorEngine.SaveLevel())
+	if (!bSaveAs && GetEditor().SaveLevel())
 	{
 		return;
 	}
 	if (const std::optional<std::filesystem::path> FilePath = OpenLevelDialog(true))
 	{
-		EditorEngine.SaveLevel(*FilePath);
+		GetEditor().SaveLevel(*FilePath);
 	}
 }
 

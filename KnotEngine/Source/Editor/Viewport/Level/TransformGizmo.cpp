@@ -1,11 +1,11 @@
 #include "TransformGizmo.h"
-#include "Editor/Transaction/TransactionManager.h"
+#include "Editor/Context/EditorTransaction.h"
 
 #include "Component/TransformComponent.h"
 #include "Core/Geometry/Ray.h"
 #include "Core/Math/Math.h"
 #include "Core/Math/Matrix.h"
-#include "Editor/EditorSelection.h"
+#include "Editor/Context/EditorSelection.h"
 #include "Input/InputRouter.h"
 #include "Object/Object.h"
 #include "World/Node.h"

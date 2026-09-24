@@ -22,8 +22,9 @@
 #include "Object/Property/StructProperty.h"
 #include "Object/Reflection/ReflectionRegistry.h"
 
-#include "Editor/EditorSelection.h"
-#include "Editor/Transaction/TransactionManager.h"
+#include "Editor/Context/EditorSelection.h"
+#include "Editor/Context/EditorTransaction.h"
+#include "Runtime/EditorEngine.h"
 #include "World/Node.h"
 
 #include <imgui.h>
@@ -34,6 +35,11 @@
 #include <cfloat>
 #include <cstring>
 #include <iterator>
+
+FInspectorPanel::FInspectorPanel()
+	: AssetRegistry(GetEditor().GetAssetManager().GetAssetRegistry()), TransactionManager(GetEditor().GetTransactionManager())
+{
+}
 
 FInspectorPanel::~FInspectorPanel()
 {

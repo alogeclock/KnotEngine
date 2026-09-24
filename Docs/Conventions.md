@@ -33,3 +33,10 @@
 - 모든 `UObject`의 생성, 복제, 조회와 파괴는 Game Thread에서만 수행한다. `NewObject()`, `Duplicate()`, `GUObjectManager`와 `GUObjectArray`를 Worker Thread 또는 Render Thread에서 호출하거나 접근하지 않는다.
 - Render Thread는 Game Thread가 추출한 Scene, Resource Command와 값 복사본만 사용하며 `UObject` 및 `UComponent`를 직접 조회하지 않는다.
 - Asset Import Worker는 소스 파일 해석, 일반 데이터 가공과 `.kasset` 출력만 수행한다. Import 결과의 Asset Registry 반영과 Asset `UObject` 생성·갱신은 Game Thread에서 수행한다.
+
+## Editor Access
+
+- `UEditorEngine`이 Editor Selection, Settings, Transaction Manager, Asset Import Manager를 소유하고 `Startup()`·`Shutdown()`에서 수명을 관리한다. 
+- Editor 전용 UI는 필요한 시점에 `GetEditor()`로 접근하거나, `GEngine` 등록 후 생성되는 객체에서 한 번 조회한다. 호출부에서 `GEngine`을 직접 캐스팅하지 않는다.
+- `GetEditor()`는 Game Thread의 정상 실행 중, Editor/Editor/ 폴더 내의 편집기에서만 사용한다. `GEngine` 등록 전의 타입 등록·CDO 생성과 종료 중 소멸자에서는 호출하지 않는다.
+- Engine·Renderer 계층은 Editor Engine을 참조하지 않는다. 

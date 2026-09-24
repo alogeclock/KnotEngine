@@ -6,7 +6,7 @@
 #include "Input/InputRouter.h"
 #include "Editor/ImGuiSystem.h"
 #include "Editor/Setting/EditorSettings.h"
-#include "Editor/Transaction/TransactionManager.h"
+#include "Editor/Context/EditorTransaction.h"
 
 #include <filesystem>
 #include <memory>
@@ -46,7 +46,7 @@ public:
 	FInputRouter& GetInputRouter() { return InputRouter; }
 	FEditorSelection& GetEditorSelection() { return EditorSelection; }
 	FEditorSettings& GetEditorSettings() { return EditorSettings; }
-	FTransactionManager& GetTransactionManager() { return TransactionManager; }
+	FEditorTransaction& GetTransactionManager() { return TransactionManager; }
 
 private:
 	void ProcessAssetImports();
@@ -60,9 +60,17 @@ private:
 	FInputRouter InputRouter;
 	FEditorSelection EditorSelection;
 	FEditorSettings EditorSettings;
-	FTransactionManager TransactionManager;
+	FEditorTransaction TransactionManager;
 	std::unique_ptr<FImGuiSystem> ImGuiSystem;
 
 	std::filesystem::path CurrentLevelPath;
 	uint64 EditorContextId = 0;
 };
+
+// 실행 중인 Editor의 Game Thread에서만 전역 Engine을 Editor 타입으로 조회한다.
+inline UEditorEngine& GetEditor()
+{
+	check(GUObjectManager.IsInGameThread());
+	panic(GEngine && GEngine->IsA(UEditorEngine::StaticClass()));
+	return *static_cast<UEditorEngine*>(GEngine);
+}

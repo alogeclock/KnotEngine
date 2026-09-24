@@ -4,7 +4,7 @@
 #include "Core/Math/Matrix.h"
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
-#include "Editor/EditorSelection.h"
+#include "Editor/Context/EditorSelection.h"
 #include "Runtime/EditorEngine.h"
 #include "Viewport/Viewport.h"
 #include "World/World.h"
@@ -16,16 +16,16 @@
 #include <limits>
 #include <variant>
 
-FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport, UEditorEngine& InEditorEngine)
-    : FEditorViewportClient(InViewport), Selection(InEditorEngine.GetEditorSelection()),
-      EditorEngine(InEditorEngine), TransformGizmo(InEditorEngine.GetTransactionManager())
+FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport)
+	: FEditorViewportClient(InViewport), Selection(GetEditor().GetEditorSelection()),
+	  TransformGizmo(GetEditor().GetTransactionManager())
 {
 }
 
 // Level Editor가 소유한 Editor World를 반환한다.
 UWorld* FLevelEditorViewportClient::GetWorld() const
 {
-	return EditorEngine.GetWorld();
+	return GetEditor().GetWorld();
 }
 
 // 입력 이벤트가 없는 프레임에도 선택 변경과 대상 제거를 반영하고 일반 Viewport Tick을 수행한다.

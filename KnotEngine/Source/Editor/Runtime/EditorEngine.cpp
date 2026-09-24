@@ -18,16 +18,17 @@
 void UEditorEngine::Startup(FWindowsApplication& Application, FRenderSystem& InRenderSystem)
 {
 	check(EditorContextId == 0 && !RenderSystem && !ImGuiSystem);
+	check(GEngine == this);
 	checkf(Application.GetWindow().GetHwnd(), "창 생성이 끝나기 전에 UEditorEngine::Startup() 호출.");
 	Super::Startup(Application);
 	RenderSystem = &InRenderSystem;
-	ImGuiSystem = std::make_unique<FImGuiSystem>(Application, *this);
 
 	if (!EditorSettings.Load())
 	{
 		KE_LOG(LogEditor, Error, "Editor Settings를 불러오거나 저장하지 못했다. Path={}", FPaths::ToUtf8(FPaths::EditorSettingsPath()));
 	}
 	AssetImportManager.Startup();
+	ImGuiSystem = std::make_unique<FImGuiSystem>(Application);
 	ImGuiSystem->Startup();
 
 	EditorContextId = CreateWorldContext(EWorldType::Editor);
@@ -249,9 +250,9 @@ void UEditorEngine::Shutdown()
 	check(ImGuiSystem && RenderSystem);
 	EditorSelection.Deselect();
 	TransactionManager.Reset();
+	ImGuiSystem->Shutdown();
 	AssetImportManager.Shutdown();
 	InputRouter.Reset();
-	ImGuiSystem->Shutdown();
 
 	if (UWorld* World = GetWorld())
 	{
