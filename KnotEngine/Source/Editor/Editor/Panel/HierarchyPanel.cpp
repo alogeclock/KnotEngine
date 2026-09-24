@@ -288,6 +288,11 @@ void FHierarchyPanel::ApplyPendingDrop(const FEditorSelection& Selection)
 	{
 		return;
 	}
+	UNode* TargetNode = PendingDrop.TargetNode;
+	if (PendingDrop.Position != ENodeDropPosition::Root && !TargetNode)
+	{
+		return;
+	}
 
 	// 선택된 자손을 제외하고 실제로 이동할 최상위 Node만 모은다.
 	const TArray<UNode*>& SelectedNodes = Selection.GetSelectedNodes();
@@ -347,7 +352,7 @@ void FHierarchyPanel::ApplyPendingDrop(const FEditorSelection& Selection)
 	}
 
 	// 선택된 Node 또는 그 자손 아래로 옮겨 순환 계층이 생기는 것을 막는다.
-	for (UNode* Target = PendingDrop.TargetNode; Target; Target = Target->GetParent() ? &Target->GetParent()->GetOwner() : nullptr)
+	for (UNode* Target = TargetNode; Target; Target = Target->GetParent() ? &Target->GetParent()->GetOwner() : nullptr)
 	{
 		if (SelectedLookup.contains(Target))
 		{
@@ -356,12 +361,12 @@ void FHierarchyPanel::ApplyPendingDrop(const FEditorSelection& Selection)
 	}
 
 	// Drop 위치에 따른 새 부모를 정하고 각 이동 Node의 원래 위치를 기록한다.
-	UNode* DestinationParent = PendingDrop.Position == ENodeDropPosition::Into ? PendingDrop.TargetNode :
-		(PendingDrop.TargetNode && PendingDrop.TargetNode->GetParent() ? &PendingDrop.TargetNode->GetParent()->GetOwner() : nullptr);
+	UNode* DestinationParent = nullptr;
 	SIZE_T NewSiblingIndex = 0;
 	if (PendingDrop.Position == ENodeDropPosition::Into)
 	{
-		NewSiblingIndex = DestinationParent->GetChildren().size();
+		DestinationParent = TargetNode;
+		NewSiblingIndex = TargetNode->GetChildren().size();
 	}
 	else if (PendingDrop.Position == ENodeDropPosition::Root)
 	{
@@ -369,7 +374,8 @@ void FHierarchyPanel::ApplyPendingDrop(const FEditorSelection& Selection)
 	}
 	else
 	{
-		NewSiblingIndex = PendingDrop.TargetNode->GetSiblingIndex() + (PendingDrop.Position == ENodeDropPosition::After ? 1 : 0);
+		DestinationParent = TargetNode->GetParent() ? &TargetNode->GetParent()->GetOwner() : nullptr;
+		NewSiblingIndex = TargetNode->GetSiblingIndex() + (PendingDrop.Position == ENodeDropPosition::After ? 1 : 0);
 	}
 	EditorTransaction.Begin(FName(DragRoots.size() > 1 ? "Reparent Nodes" : "Reparent Node"));
 	EditorTransaction.SaveHierarchy(DragRoots);
