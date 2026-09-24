@@ -16,7 +16,10 @@ class FHierarchyPanel
 {
 public:
 	FHierarchyPanel();
+
 	void Draw(UWorld& World, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot);
+
+	void RemoveSelectedNodes(FEditorSelection& Selection);
 
 private:
 	enum class ENodeDropPosition : uint8
@@ -42,8 +45,6 @@ private:
 		ENodeDropPosition Position = ENodeDropPosition::Into;
 		bool bValid = false;
 	};
-
-	void RemoveSelectedNodes(FEditorSelection& Selection);
 
 	void BuildVisibleNodes(UNode& Node, uint32 Depth);
 	void SelectVisibleNode(UNode& Node, FEditorSelection& Selection, const FInputSnapshot& InputSnapshot);

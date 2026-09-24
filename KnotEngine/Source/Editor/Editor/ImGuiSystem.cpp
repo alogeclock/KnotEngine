@@ -238,7 +238,7 @@ void FImGuiSystem::DrawAssetEditors(float DeltaTime)
 	}
 }
 
-// Snapshot에서 Router가 전달한 전역 단축키로 Bottom Panel을 토글한다.
+// Snapshot에서 Router가 전달한 전역 단축키로 편집 작업과 Panel 토글을 처리한다.
 FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 {
 	const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event);
@@ -266,6 +266,12 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 	    !HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
 	{
 		DuplicateSelection();
+		return FInputReply::Handled();
+	}
+	if (!GetEditor().GetInputRouter().IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::Delete &&
+	    KeyEvent->Modifiers == EModifierKeyMask::None && !Selection.GetSelectedNodes().empty())
+	{
+		HierarchyPanel.RemoveSelectedNodes(Selection);
 		return FInputReply::Handled();
 	}
 	if (!GetEditor().GetInputRouter().IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::Z &&

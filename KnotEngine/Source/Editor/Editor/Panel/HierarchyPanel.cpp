@@ -24,6 +24,11 @@ FHierarchyPanel::FHierarchyPanel()
 void FHierarchyPanel::RemoveSelectedNodes(FEditorSelection& Selection)
 {
 	const TArray<UNode*>& SelectedNodes = Selection.GetSelectedNodes();
+	if (SelectedNodes.empty())
+	{
+		return;
+	}
+
 	TSet<UNode*> SelectedLookup(SelectedNodes.begin(), SelectedNodes.end());
 	TArray<UNode*> RemovalRoots;
 	for (UNode* Node : SelectedNodes)
@@ -50,6 +55,8 @@ void FHierarchyPanel::RemoveSelectedNodes(FEditorSelection& Selection)
 		EditorTransaction.DeleteNode(*Node);
 	}
 	EditorTransaction.End();
+	SelectionAnchor = nullptr;
+	PendingSelectionClick = nullptr;
 }
 
 // 펼쳐진 Node와 자손만 화면 표시 순서의 평탄 목록에 추가한다.
@@ -431,7 +438,6 @@ void FHierarchyPanel::Draw(UWorld& World, FEditorSelection& Selection, const FIn
 	if (DrawContextMenu(World, Selection))
 	{
 		RemoveSelectedNodes(Selection);
-		SelectionAnchor = nullptr;
 	}
 
 	ImGui::End();
