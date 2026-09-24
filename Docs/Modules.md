@@ -37,7 +37,7 @@ Scene·SceneView·SceneRenderer는 `Engine/Render/Scene/`, PrimitiveSceneProxy�
 
 EnginePCH.h, RendererPCH.h, EditorPCH.h는 각 타깃의 PRIVATE PCH다. PCH 산출물은 타깃 사이에서 공유하지 않는다. DLL 경계를 통과하는 Engine과 Renderer 선언에 각각 `ENGINE_API`, `RENDERER_API`를 붙인다.
 
-리플렉션 코드는 Engine과 Editor에 대해 별도로 생성한다. Editor 생성기는 Engine 타입 선언을 참조해 검증하며 Editor 소유 타입만 출력한다.
+리플렉션 코드는 Engine과 Editor에 대해 별도로 생성한다. Editor 생성기는 Engine 타입 선언을 참조해 검증하며 Editor 소유 타입만 출력한다. 생성 파일은 `Intermediate/Reflection/<Module>/<Configuration>/` 아래에서 원본 헤더의 폴더 구조를 유지하고, 모듈별 `Registration.gen.cpp`가 등록 순서를 연결한다.
 
 ## 빌드 결과
 

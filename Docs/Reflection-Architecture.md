@@ -33,10 +33,13 @@ KnotHeaderTool.py
     ├─ 전처리 기록과 토큰으로 마커 해석
     └─ 옵션, 상속, 지원 타입 검증
             ↓
-Reflection.gen.cpp
-    ├─ 타입 스키마 생성
-    ├─ 프로퍼티와 함수 연결
-    └─ native 함수 invoker 생성
+Intermediate/Reflection/<Module>/<Config>/
+    ├─ 원본 헤더 경로/<Header>.gen.cpp
+    │   ├─ 타입 스키마 생성
+    │   ├─ 프로퍼티와 함수 연결
+    │   └─ native 함수 invoker 생성
+    └─ Registration.gen.cpp
+        └─ 모듈 타입 등록·연결·해제 순서 구성
             ↓
 FReflectionRegistry::Startup
             ↓
@@ -116,7 +119,7 @@ KnotEngine/Build/CMake/
 | `FReflectionRegistry` | 최상위 스키마 소유, `FName` 기반 조회, 코어 타입 등록과 `EditorSpawnable` 클래스 캐시 |
 | `FReferenceCollector` | 강한 객체 참조의 도달 가능 집합 계산 |
 | `KnotHeaderTool.py` | 마커가 붙은 C++ 선언 검증과 코드 생성 |
-| `Reflection.cmake` | 생성기를 빌드의 `PRE_BUILD` 단계에 연결 |
+| `Reflection.cmake` | Reflection 입력·산출물을 CMake 증분 빌드 그래프에 연결 |
 
 ## 선언과 조회
 
@@ -242,9 +245,13 @@ public:
 
 `UPROPERTY() float X, Y;`처럼 한 선언에 여러 필드를 묶는 것은 허용하지 않는다. 잘못된 옵션, 미지원 타입과 연결되지 않은 마커는 원본 파일과 줄 위치를 포함한 오류를 낸다.
 
-[Reflection.cmake](../KnotEngine/Build/CMake/Reflection.cmake)는 MSVC/SDK, include·define, PCH와 구성별 플래그를 생성기에 전달한다. `Engine`과 `Editor`의 `PRE_BUILD`에서 각각 입력을 확인하고 `Intermediate/Reflection/<모듈>/<구성>/Reflection.gen.cpp`를 생성한다. 모듈별 PCH, include 경로, export/import 정의를 사용하며 Editor 생성기는 Engine 선언도 검증하지만 Editor 소유 타입만 출력한다. 별도 솔루션 프로젝트는 추가하지 않으며 크기, 정렬과 오프셋은 생성된 C++의 `sizeof`, `alignof`, `offsetof`로 계산한다.
+[Reflection.cmake](../KnotEngine/Build/CMake/Reflection.cmake)는 MSVC/SDK, include·define, PCH와 구성별 플래그를 생성기에 전달한다. 전체 모듈 헤더 중 `UCLASS`, `USTRUCT`, `UENUM` 마커를 선언한 헤더만 Clang의 직접 입력으로 사용하며, 전이 Include는 실제 분석 종속성으로 추적한다. Editor 생성기는 Engine의 Reflection 선언을 함께 검증하지만 Editor가 소유한 타입만 출력한다.
 
-[Toolchain.py](../Scripts/Toolchain.py)는 LLVM 배포본의 해시를 검증하고 필요한 도구만 `Intermediate`에 추출해 재사용한다. 매 빌드에서 헤더, 전이 include, 도구, 환경과 산출물의 해시를 확인한다. 변경 없는 파일은 다시 쓰지 않으며 생성 실패 시 빌드를 중단한다.
+생성 코드는 `Intermediate/Reflection/<모듈>/<구성>/` 아래에서 원본 헤더의 모듈 상대 경로를 유지한다. 예를 들어 `Source/Engine/Component/MovementComponent.h`의 코드는 `Intermediate/Reflection/Engine/Development/Component/MovementComponent.gen.cpp`에 생성된다. 헤더별 파일은 타입 구현과 로컬 등록 함수를 포함하고 `Registration.gen.cpp`는 상속 순서에 따라 모듈 전체 등록, 연결과 역순 해제를 호출한다. 크기, 정렬과 오프셋은 생성된 C++의 `sizeof`, `alignof`, `offsetof`로 계산한다.
+
+Reflection 생성은 `PRE_BUILD` 이벤트가 아니라 `Reflection.stamp`를 Output으로 갖는 CMake Custom Command다. Stamp와 헤더별 생성 파일을 해당 모듈 Target의 입력으로 직접 연결한다. 입력 헤더, 환경 또는 도구가 바뀐 경우에만 실행되며 내용이 같은 헤더별 산출물은 다시 쓰지 않는다. 따라서 한 헤더의 Reflection 결과만 달라지면 해당 `.gen.cpp`만 다시 컴파일한다.
+
+[Toolchain.py](../Scripts/Toolchain.py)는 LLVM 배포본의 해시를 검증하고 필요한 도구만 `Intermediate`에 추출해 재사용한다. 생성 명령이 실행되면 마커 헤더, 전이 Include, 도구, 환경과 산출물의 해시를 확인한다. 변경 없는 파일은 다시 쓰지 않으며 생성 실패 시 빌드를 중단한다.
 
 ```powershell
 # 저장소 루트에서 프로젝트 생성 및 모든 구성 빌드

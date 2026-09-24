@@ -126,16 +126,22 @@ target_compile_definitions(Editor PRIVATE WITH_EDITOR=1)
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT Editor)
 set_target_properties(Editor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Editor>")
 
-add_custom_command(TARGET Editor POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_directory "${KNOTENGINE_ROOT}/Content/" "$<TARGET_FILE_DIR:Editor>/Content/"
-)
-
 include("${CMAKE_CURRENT_LIST_DIR}/Reflection.cmake")
 
-# Content 파일은 런타임에서 로드하며 Visual Studio에서 원래 폴더 구조로 표시한다.
-foreach(DATA_DIR Content)
-    file(GLOB_RECURSE RUNTIME_RESOURCE_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/${DATA_DIR}/*")
-    set_source_files_properties(${RUNTIME_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
-    target_sources(Editor PRIVATE ${RUNTIME_RESOURCE_FILES})
-    source_group(TREE "${KNOTENGINE_ROOT}/${DATA_DIR}" PREFIX "${DATA_DIR}" FILES ${RUNTIME_RESOURCE_FILES})
-endforeach()
+# Content가 바뀐 경우에만 실행 파일 폴더를 동기화하고 별도 Target에서 원본 폴더 구조로 표시한다.
+file(GLOB_RECURSE RUNTIME_RESOURCE_FILES CONFIGURE_DEPENDS "${KNOTENGINE_ROOT}/Content/*")
+set_source_files_properties(${RUNTIME_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE VS_TOOL_OVERRIDE "None")
+set(CONTENT_OUTPUT_DIR "${KNOTENGINE_BIN_DIR}/$<CONFIG>/Content")
+set(CONTENT_STAMP "${CONTENT_OUTPUT_DIR}/.knot-content.stamp")
+add_custom_command(
+    OUTPUT "${CONTENT_STAMP}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CONTENT_OUTPUT_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${KNOTENGINE_ROOT}/Content" "${CONTENT_OUTPUT_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${CONTENT_STAMP}"
+    DEPENDS ${RUNTIME_RESOURCE_FILES}
+    COMMENT "Synchronizing Content files"
+    VERBATIM
+)
+add_custom_target(Content DEPENDS "${CONTENT_STAMP}" SOURCES ${RUNTIME_RESOURCE_FILES})
+add_dependencies(Editor Content)
+source_group(TREE "${KNOTENGINE_ROOT}/Content" PREFIX "Content" FILES ${RUNTIME_RESOURCE_FILES})
