@@ -440,7 +440,7 @@ Directory Watcher가 안정된 파일 변경 확정 [GT]
     ↓
 Shader와 PSO 후보 생성 [RT]
     ↓
-Reflection 비교: 같으면 PSO 후보만 연결, 다르면 Material Resource 후보 생성 [RT]
+Material Layout 비교: 같으면 PSO 후보만 연결, 다르면 Material Resource 후보 생성 [RT]
     ↓
 이전 GPU 작업 완료 확인
     ↓
@@ -456,9 +456,9 @@ Shader, PSO와 필요한 Material 바인딩을 일괄 교체 [RT]
 
 실패한 HLSL 파일 자체는 복원하지 않는다. 오류를 로그에 기록하고 런타임은 마지막으로 성공한 렌더 상태를 계속 사용하며, 다음 파일 변경에서 다시 시도한다.
 
-`FAssetManager::PrepareMaterialShaderReload()`는 이미 Resource가 요청된 Material 중 변경된 Shader Key를 사용하는 대상만 선별하고 현재 Revision의 값 명령을 만든다. `FRenderer::ReloadShaders()`는 기존 Shader와 준비된 Shader의 Reflection을 비교한다. Reflection이 동일하면 Material Resource의 PSO Handle과 Descriptor만 교체하고, 달라지면 새 상수 배치와 Texture/Sampler 바인딩까지 후보 Resource에 다시 구성한다. Shader 변경만으로 UObject Revision이나 요청 기록은 증가하지 않는다.
+`FAssetManager::PrepareMaterialShaderReload()`는 이미 Resource가 요청된 Material 중 변경된 Shader Key를 사용하는 대상만 선별하고 현재 Revision의 값 명령을 만든다. `FRenderer::ReloadShaders()`는 전체 Reflection이 아니라 `MaterialConstants`와 Texture/Sampler 배치만 비교한다. Material Layout이 동일하면 Material Resource의 PSO Handle과 Descriptor만 교체하고, 달라지면 새 상수 배치와 Texture/Sampler 바인딩까지 후보 Resource에 다시 구성한다. View/Pass Constant처럼 Material Resource가 소비하지 않는 Reflection 변경은 재패킹 조건에 포함하지 않는다. Shader 변경만으로 UObject Revision이나 요청 기록은 증가하지 않는다.
 
-기존 `FMaterialResource` 객체의 주소는 유지한다. Reflection이 같으면 PSO 참조만 갱신하고, 달라지면 후보와 내부 Pipeline·상수·Texture 바인딩을 `Swap()`한다. 따라서 `FStaticMeshSceneProxy`가 가진 비소유 `FMaterialResource*`를 다시 제출할 필요가 없으며 Shader Hot Reload는 `FScene`의 Primitive Command 경로를 사용하지 않는다.
+기존 `FMaterialResource` 객체의 주소는 유지한다. Material Layout이 같으면 PSO 참조만 갱신하고, 달라지면 후보와 내부 Pipeline·상수·Texture 바인딩을 `Swap()`한다. 따라서 `FStaticMeshSceneProxy`가 가진 비소유 `FMaterialResource*`를 다시 제출할 필요가 없으며 Shader Hot Reload는 `FScene`의 Primitive Command 경로를 사용하지 않는다.
 
 교체 직전의 `WaitForIdle()`은 GT/RT 동기화와 별개다. `EnqueueAndWait()`는 RT의 CPU 작업 완료를 기다리고, `WaitForIdle()`은 이전 Shader와 PSO를 참조한 GPU 작업의 완료를 확인하여 예전 GPU 객체를 안전하게 파괴한다.
 
@@ -568,8 +568,8 @@ CPU Profiler는 Game Thread와 Render Thread를 별도로 수집한다. GPU Quer
 - Render Thread가 Asset UObject나 Component를 조회하지 않는다.
 - Mesh 재임포트 후 AssetId는 유지되고 Revision 변경으로 GPU LOD Resource가 갱신된다.
 - Shader 컴파일 또는 후보 Resource 생성 실패 시 기존 Shader, PSO, Material Resource와 Revision이 유지된다.
-- Shader Hot Reload 성공 시 Material Revision은 유지되고, Reflection이 같은 Material은 PSO만 갱신된다.
-- Reflection이 변경된 Material만 현재 Revision의 값으로 상수·Texture 바인딩을 다시 구성한다.
+- Shader Hot Reload 성공 시 Material Revision은 유지되고, Material Layout이 같은 Material은 PSO만 갱신된다.
+- `MaterialConstants` 또는 Texture/Sampler 배치가 변경된 Material만 현재 Revision의 값으로 바인딩을 다시 구성한다.
 - Material Resource 교체 후에도 Scene Proxy가 보관한 `FMaterialResource*` 주소가 유지된다.
 - 부모 Transform과 Inspector 편집이 다음 Render 제출의 Proxy에 반영된다.
 - World 종료 시 Remove Command 적용 후 Proxy와 Pending Command가 남지 않는다.

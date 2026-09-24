@@ -242,7 +242,7 @@ bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const 
 		for (bool bInstanced : { false, true })
 		{
 			const FPipelineStateDesc& Desc = Material.GetPipelineStateDesc(bInstanced);
-			if (ShaderRegistry.HasStagedReflectionChange(Desc.VertexShader) || ShaderRegistry.HasStagedReflectionChange(Desc.PixelShader))
+			if (ShaderRegistry.HasStagedMaterialLayoutChange(Desc.VertexShader) || ShaderRegistry.HasStagedMaterialLayoutChange(Desc.PixelShader))
 			{
 				return true;
 			}

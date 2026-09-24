@@ -37,7 +37,7 @@ public:
 	
 	TArray<FShaderHandle> GetReplacedHandles() const;
 	TArray<std::pair<FShaderHandle, FShaderHandle>> GetStagedReplacements() const;
-	bool HasStagedReflectionChange(FShaderHandle ExistingHandle) const;
+	bool HasStagedMaterialLayoutChange(FShaderHandle ExistingHandle) const;
 	
 	void ReleaseReplacedShaders();
 	bool HasStagedShaders() const { return !StagedEntries.empty(); }
@@ -51,6 +51,7 @@ private:
 	};
 
 	FEntry& GetOrCreateEntry(const FShaderKey& Key);
+	static bool HasMaterialLayoutChange(const FShaderReflection& Existing, const FShaderReflection& Staged);
 
 	IRenderDevice& RenderDevice;
 	FShaderCompiler& ShaderCompiler;

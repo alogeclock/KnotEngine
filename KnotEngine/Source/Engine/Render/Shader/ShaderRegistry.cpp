@@ -4,6 +4,8 @@
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Shader/ShaderCompiler.h"
 
+#include <algorithm>
+
 FShaderRegistry::FShaderRegistry(IRenderDevice& InRenderDevice, FShaderCompiler& InShaderCompiler)
 	: RenderDevice(InRenderDevice), ShaderCompiler(InShaderCompiler)
 {
@@ -122,8 +124,8 @@ TArray<std::pair<FShaderHandle, FShaderHandle>> FShaderRegistry::GetStagedReplac
 	return Replacements;
 }
 
-// 교체 예정 Shader의 Reflection이 기존 Shader와 다른지 확인한다.
-bool FShaderRegistry::HasStagedReflectionChange(FShaderHandle ExistingHandle) const
+// 교체 예정 Shader의 MaterialConstants와 Texture/Sampler 배치가 기존 Shader와 다른지 확인한다.
+bool FShaderRegistry::HasStagedMaterialLayoutChange(FShaderHandle ExistingHandle) const
 {
 	for (const FEntry& Existing : Entries)
 	{
@@ -135,10 +137,109 @@ bool FShaderRegistry::HasStagedReflectionChange(FShaderHandle ExistingHandle) co
 		{
 			if (Staged.Key == Existing.Key)
 			{
-				return Staged.Reflection != Existing.Reflection;
+				return HasMaterialLayoutChange(Existing.Reflection, Staged.Reflection);
 			}
 		}
 		return false;
+	}
+	return false;
+}
+
+// Material Resource 재패킹에 관여하는 Reflection만 순서와 무관하게 구조적으로 비교한다.
+bool FShaderRegistry::HasMaterialLayoutChange(const FShaderReflection& Existing, const FShaderReflection& Staged)
+{
+	static const FName MaterialConstantsName("MaterialConstants");
+
+	const auto IsMaterialConstants = [](const FShaderConstantBufferDesc& Buffer)
+	{
+		return Buffer.Name == MaterialConstantsName;
+	};
+
+	const auto HasSameParameter = [](const FShaderParameterDesc& Left, const FShaderParameterDesc& Right)
+	{
+		return Left.Name == Right.Name && Left.BaseType == Right.BaseType && Left.Class == Right.Class && Left.Offset == Right.Offset &&
+			Left.Size == Right.Size && Left.Columns == Right.Columns && Left.Elements == Right.Elements;
+	};
+
+	const auto HasSameParameters = [&HasSameParameter](const FShaderConstantBufferDesc& Left, const FShaderConstantBufferDesc& Right)
+	{
+		if (Left.Parameters.size() != Right.Parameters.size())
+		{
+			return false;
+		}
+		return std::all_of(Left.Parameters.begin(), Left.Parameters.end(), [&Right, &HasSameParameter](const FShaderParameterDesc& Parameter)
+		{
+			return std::any_of(Right.Parameters.begin(), Right.Parameters.end(), [&Parameter, &HasSameParameter](const FShaderParameterDesc& Candidate)
+			{
+				return HasSameParameter(Parameter, Candidate);
+			});
+		});
+	};
+
+	const auto HasSameConstantBuffer = [&HasSameParameters](const FShaderConstantBufferDesc& Left, const FShaderConstantBufferDesc& Right)
+	{
+		return Left.Name == Right.Name && Left.Stage == Right.Stage && Left.Slot == Right.Slot && Left.Size == Right.Size &&
+			HasSameParameters(Left, Right);
+	};
+
+	const SIZE_T ExistingBufferCount = static_cast<SIZE_T>(
+		std::count_if(Existing.ConstantBuffers.begin(), Existing.ConstantBuffers.end(), IsMaterialConstants));
+	const SIZE_T StagedBufferCount = static_cast<SIZE_T>(
+		std::count_if(Staged.ConstantBuffers.begin(), Staged.ConstantBuffers.end(), IsMaterialConstants));
+	if (ExistingBufferCount != StagedBufferCount)
+	{
+		return true;
+	}
+	for (const FShaderConstantBufferDesc& ExistingBuffer : Existing.ConstantBuffers)
+	{
+		if (!IsMaterialConstants(ExistingBuffer))
+		{
+			continue;
+		}
+		const bool bFound = std::any_of(
+			Staged.ConstantBuffers.begin(),
+			Staged.ConstantBuffers.end(),
+			[&ExistingBuffer, &HasSameConstantBuffer](const FShaderConstantBufferDesc& StagedBuffer)
+			{
+				return HasSameConstantBuffer(ExistingBuffer, StagedBuffer);
+			});
+		if (!bFound)
+		{
+			return true;
+		}
+	}
+
+	const auto IsTexture = [](const FShaderResourceBindingDesc& Resource)
+	{
+		return Resource.Type == EShaderResourceType::Texture2D || Resource.Type == EShaderResourceType::TextureCube;
+	};
+
+	const auto HasSampler = [](const FShaderReflection& Reflection, const FShaderResourceBindingDesc& Texture)
+	{
+		return std::any_of(Reflection.Resources.begin(), Reflection.Resources.end(), [&Texture](const FShaderResourceBindingDesc& Resource)
+		{
+			return Resource.Type == EShaderResourceType::Sampler && Resource.Stage == Texture.Stage && Resource.Slot == Texture.Slot;
+		});
+	};
+
+	const SIZE_T ExistingTextureCount = static_cast<SIZE_T>(std::count_if(Existing.Resources.begin(), Existing.Resources.end(), IsTexture));
+	const SIZE_T StagedTextureCount = static_cast<SIZE_T>(std::count_if(Staged.Resources.begin(), Staged.Resources.end(), IsTexture));
+	if (ExistingTextureCount != StagedTextureCount)
+	{
+		return true;
+	}
+
+	for (const FShaderResourceBindingDesc& ExistingTexture : Existing.Resources)
+	{
+		if (!IsTexture(ExistingTexture))
+		{
+			continue;
+		}
+		const auto StagedTexture = std::find(Staged.Resources.begin(), Staged.Resources.end(), ExistingTexture);
+		if (StagedTexture == Staged.Resources.end() || HasSampler(Existing, ExistingTexture) != HasSampler(Staged, *StagedTexture))
+		{
+			return true;
+		}
 	}
 	return false;
 }
