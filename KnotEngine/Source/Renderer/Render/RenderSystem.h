@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RendererAPI.h"
+#include "Core/IO/DirectoryWatcher.h"
 #include "Render/ImGui/ImGuiDrawDataCopy.h"
 #include "Render/RenderThread.h"
 #include "Render/RHI/RenderTypes.h"
@@ -55,6 +56,13 @@ public:
 	void ReleaseAssetResources();
 
 private:
+	bool ReloadShaders(const FString& SourcePath, FString& Diagnostics, std::span<const uint8> SourceSnapshot);
+	
+	void PublishShaderSourcePaths();
+	TArray<FString> GetShaderSourcePaths();
+	
+	void PollShaderChanges();
+
 	struct FSceneCommandBatch
 	{
 		FScene* Scene = nullptr;
@@ -64,6 +72,7 @@ private:
 	std::unique_ptr<IRenderBackend> RenderBackend;
 	std::unique_ptr<FRenderer> Renderer;
 	FRenderThread RenderThread;
+	FDirectoryWatcher DirectoryWatcher;
 
 	std::mutex FrameMutex;
 	std::condition_variable FrameCondition;
@@ -71,6 +80,10 @@ private:
 	uint64 CompletedRenderFrames = 0;
 	static constexpr uint64 MaxFramesInFlight = 2;
 
+	mutable std::mutex ShaderSourcesMutex;
+	TArray<FString> ShaderSourcePaths;
+	SIZE_T PublishedShaderCount = 0; // RT 전용. 등록된 Key 수가 바뀔 때에만 경로 스냅샷을 갱신한다.
+	
 	mutable std::mutex FrameStatisticsMutex;
 	FGPUFrameStatistics LastGPUFrameStatistics;
 	FInstancedDrawStatistics LastInstancedDrawStatistics;

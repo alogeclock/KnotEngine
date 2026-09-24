@@ -8,6 +8,7 @@
 #include <span>
 
 class FMaterial;
+class FAssetManager;
 
 // Static Mesh Material Slot이 Base Material과 Material Instance를 동일하게 참조하기 위한 UObject 인터페이스다.
 UCLASS()
@@ -33,7 +34,9 @@ public:
 
 protected:
 	bool Initialize(const FAssetId& InAssetId, FString InAssetPath);
+	void AdvanceRevision();
 
 private:
+	friend class FAssetManager;
 	uint64 Revision = 0;
 };

@@ -5,6 +5,9 @@
 
 #include "Render/RHI/RenderTypes.h"
 
+#include <span>
+#include <utility>
+
 class IRenderDevice;
 
 // 완전한 Pipeline State Description을 비교해 동일한 PSO 생성을 중복하지 않는다.
@@ -20,7 +23,15 @@ public:
 	FPipelineStateCache& operator=(FPipelineStateCache&&) = delete;
 
 	void Create();
+
+	void BeginReload();
+	bool StageAffectedPipelines(std::span<const std::pair<FShaderHandle, FShaderHandle>> Replacements, FString& Diagnostics);
+	void CommitReload(std::span<const FShaderHandle> ReplacedShaders);
+	void CancelReload();
+
 	FPipelineStateHandle GetOrCreate(const FPipelineStateDesc& Desc);
+	bool TryGetOrCreate(const FPipelineStateDesc& Desc, FPipelineStateHandle& Handle, FString& Diagnostics);
+
 	// 콜백은 저장하지 않고 캐시 미스일 때만 즉시 실행한다.
 	template <typename FCreateDesc>
 	FPipelineStateHandle GetOrCreateWireframe(FPipelineStateHandle BasePipeline, bool bOverlay, FCreateDesc&& CreateDesc)
@@ -45,6 +56,8 @@ private:
 
 	IRenderDevice& RenderDevice;
 	TArray<FEntry> Entries;
+	TArray<FEntry> StagedEntries;
+	bool bReloading = false;
 	// 기본 PSO의 Generation과 Index를 키로 사용한다. 변형은 Entries가 소유한다.
 	TMap<uint64, TStaticArray<FPipelineStateHandle, 2>> WireframeVariants;
 };

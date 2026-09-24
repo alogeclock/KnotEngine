@@ -18,5 +18,7 @@ public:
 
 	virtual FName GetName() const = 0;
 	virtual uint32 GetVersion() const = 0;
+
 	virtual FShaderCompilerOutput Compile(const FShaderCompilerInput& Input) = 0;
+	virtual bool TryCompile(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, FString& Diagnostics) = 0;
 };

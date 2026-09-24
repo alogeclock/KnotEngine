@@ -15,6 +15,7 @@
 - Scene Proxy는 Component와 UObject를 참조하지 않는다.
 - Asset의 CPU 데이터와 GPU Resource 갱신을 Primitive Command에 반복해서 복사하지 않는다.
 - Static Mesh, Texture, Material은 Asset별 Resource Command로 한 Revision당 한 번 전송한다.
+- Material Revision은 CPU Material 값의 변경 세대이며 Shader Hot Reload만으로 증가하지 않는다.
 - Primitive Command는 Asset을 `FAssetId`로 연결하고 Render Thread에서 Resource Cache를 조회한다.
 - View별 가시성 판정과 Pass별 Draw Command 생성은 분리한다.
 - 같은 Mesh LOD와 Material 구성을 공유하는 Primitive는 일정 수 이상일 때 자동으로 인스턴싱한다.
@@ -22,6 +23,7 @@
 - Render Graph는 현재 프레임의 실행 순서만 표현하며 GPU Resource 수명이나 상태 전이를 자동 관리하지 않는다.
 - RHI 계약은 Engine 모듈에, D3D11 구현과 Render Thread 소유권은 Renderer 모듈에 둔다.
 - D3D11 Immediate Context와 GPU Resource 생성·파괴는 Render Thread에서만 수행한다.
+- Shader Hot Reload는 빈도가 낮고 실패 시 기존 렌더 상태를 보존해야 하므로 GT가 RT의 원자적 교체 결과를 동기로 기다린다.
 - 최초 구현에서는 실제 DLL 경계 밖의 범용 Factory나 Pass 기반 클래스처럼 불필요한 추상화를 추가하지 않는다.
 
 ## 전체 구조
@@ -90,6 +92,7 @@ KnotEngine/Source/
 │  │  ├─ PrimitiveComponent.h/.cpp
 │  │  └─ Mesh/StaticMeshComponent.h/.cpp
 │  ├─ Asset/AssetManager.h/.cpp
+│  ├─ Core/IO/DirectoryWatcher.h/.cpp
 │  └─ Render/
 │     ├─ Renderer.h/.cpp
 │     ├─ Graph/RenderGraph.h/.cpp
@@ -240,7 +243,7 @@ Asset Resource는 Primitive와 분리하여 Asset별 Revision 단위로 갱신�
 | `FTextureResourceCommand` | AssetId, Revision, Desc, 전체 Mip | `FTextureResource`와 Texture Handle |
 | `FMaterialResourceCommand` | AssetId, Revision, Material 값, Parameter, Texture AssetId, Sampler | `FMaterialResource`와 Pipeline·binding |
 
-`FAssetManager`는 요청한 `AssetId + Revision`을 기억한다. 같은 Revision은 다시 전송하지 않고, 최초 요청이나 Revision 변경만 Pending Resource Command에 추가한다. Primitive 수와 관계없이 Mesh Vertex/Index와 Texture Mip은 한 번만 전달된다.
+`FAssetManager`는 요청한 `AssetId + Revision`을 기억한다. 같은 Revision은 다시 전송하지 않고, 최초 요청이나 Revision 변경만 Pending Resource Command에 추가한다. Primitive 수와 관계없이 Mesh Vertex/Index와 Texture Mip은 한 번만 전달된다. Material Revision은 CPU 값의 변경만 나타내며 Shader Hot Reload는 같은 Revision의 현재 값을 별도 후보 명령으로 전달한다.
 
 `FRenderer`는 `FAssetId`를 키로 Resource를 `unique_ptr`로 소유한다. Map 재해시에도 Resource 주소가 유지되므로 Proxy와 Material binding의 비소유 포인터가 안정적이다.
 
@@ -253,7 +256,7 @@ Asset Resource는 Primitive와 분리하여 Asset별 Revision 단위로 갱신�
 - Shader Reflection으로 만든 Material Constant Layout과 값
 - Texture Resource와 Sampler binding
 - Opaque 정렬용 SortId
-- 원본 Asset Revision
+- 렌더 리소스에 실제 적용된 Source Revision
 
 기본 Material과 1×1 White Texture는 `FRenderer`가 별도로 소유한다. Material이 없으면 Magenta Base Color와 White Texture를 사용한다.
 
@@ -418,6 +421,59 @@ Shader Stage별 Constant Buffer 슬롯은 다음 의미로 사용한다.
 
 Static Mesh 일반 Vertex Shader는 `b0`과 `b3`을 사용한다. Instanced Vertex Shader는 Model Matrix를 Slot 1의 Per-Instance Vertex Input으로 받으므로 `b3`을 사용하지 않는다. Material Constant는 Shader Reflection이 찾은 Stage와 Slot에 바인딩한다.
 
+### Shader Hot Reload
+
+`FDirectoryWatcher`는 Windows 변경 알림 API를 직접 사용하여 Content 디렉터리의 변경을 감지한다. 등록된 Shader 소스만 현재 바이트와 비교하며, 변경된 내용이 0.5초 동안 유지됐을 때 확정된 변경으로 보고한다. Windows 알림 수신은 운영체제가 Push하지만, 확정된 변경의 소비는 GT의 `FRenderSystem`이 `PollChanges()`로 가져가는 Pull 방식이다.
+
+현재 `FRenderSystem::Render()` 시작에서 Shader 변경을 확인한다. 따라서 렌더 호출이 중단된 동안에는 변경 확정과 Reload도 진행되지 않는다. 파일 감시를 렌더 제출과 분리할 필요가 생기면 별도 GT `Tick()`에서 변경 Queue를 Drain하도록 옮긴다. Watcher Thread를 추가하더라도 Worker는 파일 변경만 Queue에 넣고, UObject와 `FAssetManager`를 사용하는 Reload 준비는 GT에서 수행한다.
+
+Shader Hot Reload는 다음 순서로 동기 실행한다.
+
+```text
+Directory Watcher가 안정된 파일 변경 확정 [GT]
+    ↓
+변경 SourcePath에 등록된 Shader Key 조회 [RT, EnqueueAndWait]
+    ↓
+모든 Entry Point와 Stage 컴파일 [GT]
+    ↓
+영향받는 Material의 현재 값 Command 준비 [GT]
+    ↓
+Shader와 PSO 후보 생성 [RT]
+    ↓
+Reflection 비교: 같으면 PSO 후보만 연결, 다르면 Material Resource 후보 생성 [RT]
+    ↓
+이전 GPU 작업 완료 확인
+    ↓
+Shader, PSO와 필요한 Material 바인딩을 일괄 교체 [RT]
+```
+
+`FRenderSystem`은 `EnqueueAndWait()`로 RT의 교체 결과를 기다린다. 이 동기 대기는 Shader 수정 빈도가 낮고 Shader, PSO, Reflection과 Material Layout을 하나의 트랜잭션으로 교체해야 한다는 정책에 따른다. 컴파일이나 후보 생성 중 하나라도 실패하면 다음 상태를 유지한다.
+
+- 기존 GPU Shader와 Reflection
+- 기존 Pipeline State
+- 기존 `FMaterialResource`
+- 기존 Material Revision
+
+실패한 HLSL 파일 자체는 복원하지 않는다. 오류를 로그에 기록하고 런타임은 마지막으로 성공한 렌더 상태를 계속 사용하며, 다음 파일 변경에서 다시 시도한다.
+
+`FAssetManager::PrepareMaterialShaderReload()`는 이미 Resource가 요청된 Material 중 변경된 Shader Key를 사용하는 대상만 선별하고 현재 Revision의 값 명령을 만든다. `FRenderer::ReloadShaders()`는 기존 Shader와 준비된 Shader의 Reflection을 비교한다. Reflection이 동일하면 Material Resource의 PSO Handle과 Descriptor만 교체하고, 달라지면 새 상수 배치와 Texture/Sampler 바인딩까지 후보 Resource에 다시 구성한다. Shader 변경만으로 UObject Revision이나 요청 기록은 증가하지 않는다.
+
+기존 `FMaterialResource` 객체의 주소는 유지한다. Reflection이 같으면 PSO 참조만 갱신하고, 달라지면 후보와 내부 Pipeline·상수·Texture 바인딩을 `Swap()`한다. 따라서 `FStaticMeshSceneProxy`가 가진 비소유 `FMaterialResource*`를 다시 제출할 필요가 없으며 Shader Hot Reload는 `FScene`의 Primitive Command 경로를 사용하지 않는다.
+
+교체 직전의 `WaitForIdle()`은 GT/RT 동기화와 별개다. `EnqueueAndWait()`는 RT의 CPU 작업 완료를 기다리고, `WaitForIdle()`은 이전 Shader와 PSO를 참조한 GPU 작업의 완료를 확인하여 예전 GPU 객체를 안전하게 파괴한다.
+
+### Material 파라미터 변경 정책
+
+Material 파라미터 편집 API는 아직 구현하지 않았다. 구현 시에는 같은 `FMaterialResourceCommand` 생성 및 `FMaterialResource::Initialize()` 경로를 재사용하되 Material Revision을 올리고 일반 프레임의 Pending Resource Command로 비동기 제출한다.
+
+| Revision 위치 | 의미 |
+|---|---|
+| `UMaterialInterface::Revision` | GT의 최신 CPU Material 데이터 세대 |
+| `FAssetManager` 요청 기록 | RT에 Command를 제출한 세대 |
+| `FMaterialResource::SourceRevision` | RT Resource에 성공적으로 적용된 세대 |
+
+Scalar, Vector와 Texture 파라미터는 연속으로 수정될 수 있으므로 매 변경마다 GT가 RT를 기다리지 않는다. RT는 기존 Resource 주소를 유지한 채 후보 생성 성공 후 내부 데이터를 교체한다. Pending 상태의 같은 Material Command를 최신 Revision과 값으로 병합하는 기능은 아직 구현하지 않았으며, 복구 가능한 비동기 실패를 지원할 때 RT 완료 결과와 함께 추가한다. 완료 결과에는 `AssetId`, Revision, 성공 여부와 진단 정보를 담아 GT에 반환하고, 실패한 Revision을 재요청할 수 있어야 한다.
+
 ## RHI와 D3D11 Backend
 
 ### 공통 계약
@@ -484,6 +540,8 @@ CPU Profiler는 Game Thread와 Render Thread를 별도로 수집한다. GPU Quer
 - Opaque, Selection, PostProcess, Overlay와 DebugDraw Pass
 - raw Node Index 의존성 기반 Frame-local Render Graph
 - Shader, Pipeline과 Sampler Cache
+- Content Shader 파일 감시와 동기 Shader Hot Reload
+- Shader, PSO, Reflection의 원자적 교체와 Reflection 변경 시에만 Material 바인딩 재구성
 - 기본 Shader 비투명 Static Mesh의 자동 인스턴싱
 - Per-Instance Vertex Input과 다중 Vertex Buffer RHI 계약
 - Pipeline → Material → Mesh Opaque 정렬과 중복 상태 바인딩 생략
@@ -494,7 +552,7 @@ CPU Profiler는 Game Thread와 Render Thread를 별도로 수집한다. GPU Quer
 
 - Translucency 전용 Pass와 Back-to-Front 정렬
 - Shadow와 Light Pass
-- Material 변경 시 사용 Primitive를 자동 재제출하는 무효화 전파
+- Material 파라미터 편집 API, Pending Command 병합과 비동기 Resource 적용 결과 전달
 - Custom Vertex Shader용 Instanced Variant 생성 정책
 - Skinned Mesh와 Animation 렌더 경로
 - Render Graph Resource read/write와 자동 상태 전이
@@ -509,6 +567,10 @@ CPU Profiler는 Game Thread와 Render Thread를 별도로 수집한다. GPU Quer
 - Resource Command가 Texture → Mesh → Material 순서로 적용되고 Scene Command보다 먼저 완료된다.
 - Render Thread가 Asset UObject나 Component를 조회하지 않는다.
 - Mesh 재임포트 후 AssetId는 유지되고 Revision 변경으로 GPU LOD Resource가 갱신된다.
+- Shader 컴파일 또는 후보 Resource 생성 실패 시 기존 Shader, PSO, Material Resource와 Revision이 유지된다.
+- Shader Hot Reload 성공 시 Material Revision은 유지되고, Reflection이 같은 Material은 PSO만 갱신된다.
+- Reflection이 변경된 Material만 현재 Revision의 값으로 상수·Texture 바인딩을 다시 구성한다.
+- Material Resource 교체 후에도 Scene Proxy가 보관한 `FMaterialResource*` 주소가 유지된다.
 - 부모 Transform과 Inspector 편집이 다음 Render 제출의 Proxy에 반영된다.
 - World 종료 시 Remove Command 적용 후 Proxy와 Pending Command가 남지 않는다.
 - 여러 View가 독립적으로 컬링하고 Family Target은 한 번만 Clear된다.
@@ -524,6 +586,7 @@ CPU Profiler는 Game Thread와 Render Thread를 별도로 수집한다. GPU Quer
 ## 관련 파일
 
 - [AssetManager.cpp](../KnotEngine/Source/Engine/Asset/AssetManager.cpp)
+- [DirectoryWatcher.cpp](../KnotEngine/Source/Engine/Core/IO/DirectoryWatcher.cpp)
 - [PrimitiveComponent.cpp](../KnotEngine/Source/Engine/Component/PrimitiveComponent.cpp)
 - [StaticMeshComponent.cpp](../KnotEngine/Source/Engine/Component/Mesh/StaticMeshComponent.cpp)
 - [PrimitiveSceneProxy.h](../KnotEngine/Source/Engine/Render/Proxy/PrimitiveSceneProxy.h)
@@ -533,6 +596,9 @@ CPU Profiler는 Game Thread와 Render Thread를 별도로 수집한다. GPU Quer
 - [SceneRenderer.cpp](../KnotEngine/Source/Engine/Render/Scene/SceneRenderer.cpp)
 - [ResourceCommand.h](../KnotEngine/Source/Engine/Render/Resource/ResourceCommand.h)
 - [MaterialResource.cpp](../KnotEngine/Source/Engine/Render/Resource/MaterialResource.cpp)
+- [PipelineStateCache.cpp](../KnotEngine/Source/Engine/Render/Resource/State/PipelineStateCache.cpp)
+- [ShaderCompiler.cpp](../KnotEngine/Source/Engine/Render/Shader/ShaderCompiler.cpp)
+- [ShaderRegistry.cpp](../KnotEngine/Source/Engine/Render/Shader/ShaderRegistry.cpp)
 - [StaticMeshResource.cpp](../KnotEngine/Source/Engine/Render/Resource/Mesh/StaticMeshResource.cpp)
 - [Vertex.h](../KnotEngine/Source/Engine/Render/Resource/Mesh/Vertex.h)
 - [OpaquePass.cpp](../KnotEngine/Source/Engine/Render/Pass/OpaquePass.cpp)

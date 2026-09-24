@@ -233,6 +233,8 @@ struct ENGINE_API FShaderParameterDesc
 	uint32 Rows = 0;
 	uint32 Columns = 0;
 	uint32 Elements = 0;
+
+	bool operator==(const FShaderParameterDesc&) const = default;
 };
 
 // Shader Stage의 b 슬롯에 바인딩되는 Constant Buffer와 변수 배치를 나타낸다.
@@ -243,6 +245,8 @@ struct ENGINE_API FShaderConstantBufferDesc
 	uint32 Slot = 0;
 	uint32 Size = 0;
 	TArray<FShaderParameterDesc> Parameters;
+
+	bool operator==(const FShaderConstantBufferDesc&) const = default;
 };
 
 // Shader Stage에서 사용하는 Texture 또는 Sampler 자원 종류다.
@@ -262,6 +266,8 @@ struct ENGINE_API FShaderResourceBindingDesc
 	EShaderResourceType Type = EShaderResourceType::Unknown;
 	uint32 Slot = 0;
 	uint32 Count = 1;
+
+	bool operator==(const FShaderResourceBindingDesc&) const = default;
 };
 
 // D3DReflect 결과를 API 중립 형태로 보관하는 컴파일된 Shader 메타데이터다.
@@ -269,6 +275,8 @@ struct ENGINE_API FShaderReflection
 {
 	TArray<FShaderConstantBufferDesc> ConstantBuffers;
 	TArray<FShaderResourceBindingDesc> Resources;
+
+	bool operator==(const FShaderReflection&) const = default;
 };
 
 // 이미 컴파일된 Shader Bytecode와 Stage를 RHI에 전달한다.

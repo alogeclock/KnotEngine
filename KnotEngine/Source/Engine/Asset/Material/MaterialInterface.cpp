@@ -3,6 +3,7 @@
 #include "Core/Assert.h"
 
 #include <cstring>
+#include <limits>
 
 // Material Interface를 식별하는 논리 Asset 경로를 검증해 저장한다.
 bool UMaterialInterface::Initialize(const FAssetId& InAssetId, FString InAssetPath)
@@ -13,6 +14,13 @@ bool UMaterialInterface::Initialize(const FAssetId& InAssetId, FString InAssetPa
 	}
 	Revision = 1;
 	return true;
+}
+
+// Material 값이나 의존 Shader가 바뀐 뒤 렌더 리소스 세대를 증가시킨다.
+void UMaterialInterface::AdvanceRevision()
+{
+	check(Revision > 0 && Revision < (std::numeric_limits<uint64>::max)());
+	++Revision;
 }
 
 // Reflection Layout의 Offset/Size에 맞춰 Material 및 Instance Parameter 값을 연속 Constant Buffer 데이터로 패킹한다.

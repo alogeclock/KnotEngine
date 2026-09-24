@@ -14,6 +14,9 @@ public:
 	explicit FShaderCompiler(IShaderFormat& InShaderFormat);
 
 	FShaderCompilerOutput GetOrCompile(const FShaderKey& Key);
+	static bool TryLoadSource(const FShaderKey& Key, TArray<uint8>& Source, FString& Diagnostics);
+	bool TryCompile(const FShaderKey& Key, FShaderCompilerOutput& Output, FString& Diagnostics);
+	bool TryCompile(const FShaderKey& Key, std::span<const uint8> Source, FShaderCompilerOutput& Output, FString& Diagnostics);
 
 private:
 	static TArray<uint8> LoadFile(const std::filesystem::path& FilePath);

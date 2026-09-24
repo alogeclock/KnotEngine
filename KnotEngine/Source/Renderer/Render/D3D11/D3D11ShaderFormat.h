@@ -12,8 +12,10 @@ class RENDERER_API FD3D11ShaderFormat final : public IShaderFormat
 public:
 	FName GetName() const override { return FName("D3D11"); }
 	uint32 GetVersion() const override { return 1; }
+
 	FShaderCompilerOutput Compile(const FShaderCompilerInput& Input) override;
+	bool TryCompile(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, FString& Diagnostics) override;
 
 private:
-	static FShaderReflection ReflectShader(ID3D10Blob& Bytecode, EShaderStage Stage);
+	static bool ReflectShader(ID3D10Blob& Bytecode, EShaderStage Stage, FShaderReflection& Reflection, FString& Diagnostics);
 };

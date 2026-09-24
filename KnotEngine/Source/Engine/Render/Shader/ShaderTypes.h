@@ -40,3 +40,10 @@ struct ENGINE_API FShaderCompilerOutput
 	TArray<uint8> Bytecode;
 	FShaderReflection Reflection;
 };
+
+// 핫 리로드가 한 번에 교체할 Key와 컴파일 결과다.
+struct ENGINE_API FShaderReloadEntry
+{
+	FShaderKey Key;
+	FShaderCompilerOutput Output;
+};

@@ -33,6 +33,55 @@ FShaderCompilerOutput FShaderCompiler::GetOrCompile(const FShaderKey& Key)
 	return Output;
 }
 
+// 편집 중인 소스를 캐시 없이 다시 컴파일한다. 실패한 결과는 cooked cache에 기록하지 않는다.
+bool FShaderCompiler::TryCompile(const FShaderKey& Key, FShaderCompilerOutput& Output, FString& Diagnostics)
+{
+	TArray<uint8> Source;
+	return TryLoadSource(Key, Source, Diagnostics) && TryCompile(Key, Source, Output, Diagnostics);
+}
+
+// Shader Key가 가리키는 소스 파일을 읽고 실패 원인을 반환한다.
+bool FShaderCompiler::TryLoadSource(const FShaderKey& Key, TArray<uint8>& Source, FString& Diagnostics)
+{
+	const std::filesystem::path Path = FPaths::ResolveContentPath(Key.SourcePath);
+	std::ifstream Stream(Path, std::ios::binary | std::ios::ate);
+	if (!Stream)
+	{
+		Diagnostics = "Shader 소스 파일을 열 수 없다: " + Key.SourcePath;
+		return false;
+	}
+	const std::streamoff Size = Stream.tellg();
+	if (Size <= 0 || static_cast<uint64>(Size) > (std::numeric_limits<SIZE_T>::max)())
+	{
+		Diagnostics = "Shader 소스 파일 크기가 유효하지 않다: " + Key.SourcePath;
+		return false;
+	}
+	Source.resize(static_cast<SIZE_T>(Size));
+	Stream.seekg(0, std::ios::beg);
+	if (!Stream.read(reinterpret_cast<char*>(Source.data()), Size))
+	{
+		Diagnostics = "Shader 소스 파일을 읽지 못했다: " + Key.SourcePath;
+		return false;
+	}
+	return true;
+}
+
+// 전달된 소스 바이트를 캐시 없이 컴파일하고 성공한 결과만 Output에 저장한다.
+bool FShaderCompiler::TryCompile(const FShaderKey& Key, std::span<const uint8> Source, FShaderCompilerOutput& Output, FString& Diagnostics)
+{
+	FShaderCompilerOutput Compiled;
+	if (!ShaderFormat.TryCompile({ Key, Source }, Compiled, Diagnostics) || Compiled.Bytecode.empty())
+	{
+		if (Diagnostics.empty())
+		{
+			Diagnostics = "Shader Format이 빈 Bytecode를 반환했다: " + Key.SourcePath;
+		}
+		return false;
+	}
+	Output = std::move(Compiled);
+	return true;
+}
+
 TArray<uint8> FShaderCompiler::LoadFile(const std::filesystem::path& FilePath)
 {
 	std::ifstream Stream(FilePath, std::ios::binary | std::ios::ate);

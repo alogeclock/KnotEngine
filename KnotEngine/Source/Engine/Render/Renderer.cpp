@@ -134,6 +134,7 @@ void FRenderer::AccumulateInstancedDrawStatistics(const FInstancedDrawStatistics
 	InstancedDrawStatistics.InstanceUploadTimeMs += Statistics.InstanceUploadTimeMs;
 }
 
+// Asset별 GPU Resource를 해제하고 Renderer가 보관한 참조를 비운다.
 void FRenderer::ReleaseAssetReferences()
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List가 있는 상태에서 Asset 참조를 해제할 수 없다.");
@@ -194,6 +195,177 @@ void FRenderer::UpdateMaterialResource(const FMaterialResourceCommand& Command)
 		const uint32 SortId = Resource->IsValid() ? Resource->GetSortId() : static_cast<uint32>(MaterialResources.size());
 		panicf(Resource->Initialize(*this, Command, SortId), "Material Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
 	}
+}
+
+// 지정한 소스 파일에 등록된 Shader Key를 반환하며 빈 경로이면 전체 Key를 반환한다.
+TArray<FShaderKey> FRenderer::GetShaderKeysForSource(const FString& SourcePath) const
+{
+	return ShaderRegistry.GetKeysForSource(SourcePath);
+}
+
+// 컴파일된 Shader로 GPU Shader와 영향받는 PSO를 준비하고, 필요하면 Material 바인딩까지 Frame 경계에서 교체한다.
+bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const TArray<FMaterialResourceCommand>& MaterialCommands, FString& Diagnostics)
+{
+	checkf(!CommandList.IsValid(), "열린 Render Command List에서 Shader를 교체할 수 없다.");
+	if (!ShaderRegistry.StageReload(Compiled, Diagnostics))
+	{
+		return false;
+	}
+
+	const TArray<std::pair<FShaderHandle, FShaderHandle>> Replacements = ShaderRegistry.GetStagedReplacements();
+	PipelineStateCache.BeginReload();
+	if (!PipelineStateCache.StageAffectedPipelines(Replacements, Diagnostics))
+	{
+		PipelineStateCache.CancelReload();
+		ShaderRegistry.CancelReload();
+		return false;
+	}
+
+	// 기존 Material의 일반/Instanced Pipeline이 교체 대상 Shader를 사용하는지 확인한다.
+	const auto UsesReplacedShader = [&Replacements](const FMaterialResource& Material)
+	{
+		for (bool bInstanced : { false, true })
+		{
+			const FPipelineStateDesc& Desc = Material.GetPipelineStateDesc(bInstanced);
+			for (const auto& Replacement : Replacements)
+			{
+				if (Desc.VertexShader == Replacement.first || Desc.PixelShader == Replacement.first)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+	const auto NeedsBindingRebuild = [this](const FMaterialResource& Material)
+	{
+		for (bool bInstanced : { false, true })
+		{
+			const FPipelineStateDesc& Desc = Material.GetPipelineStateDesc(bInstanced);
+			if (ShaderRegistry.HasStagedReflectionChange(Desc.VertexShader) || ShaderRegistry.HasStagedReflectionChange(Desc.PixelShader))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+	struct FPipelineUpdate
+	{
+		FMaterialResource* Material = nullptr;
+		bool bInstanced = false;
+		FPipelineStateDesc Desc;
+		FPipelineStateHandle Handle;
+	};
+	TArray<FPipelineUpdate> PipelineUpdates;
+	const auto StagePipelineUpdates = [this, &Replacements, &PipelineUpdates, &Diagnostics](FMaterialResource& Material)
+	{
+		for (bool bInstanced : { false, true })
+		{
+			FPipelineStateDesc Desc = Material.GetPipelineStateDesc(bInstanced);
+			bool bChanged = false;
+			for (const auto& [OldShader, NewShader] : Replacements)
+			{
+				if (Desc.VertexShader == OldShader)
+				{
+					Desc.VertexShader = NewShader;
+					bChanged = true;
+				}
+				if (Desc.PixelShader == OldShader)
+				{
+					Desc.PixelShader = NewShader;
+					bChanged = true;
+				}
+			}
+			if (!bChanged)
+			{
+				continue;
+			}
+			FPipelineStateHandle Handle;
+			if (!PipelineStateCache.TryGetOrCreate(Desc, Handle, Diagnostics))
+			{
+				return false;
+			}
+			PipelineUpdates.push_back({ &Material, bInstanced, std::move(Desc), Handle });
+		}
+		return true;
+	};
+
+	FMaterialResource NewDefault;
+	const bool bDefaultAffected = UsesReplacedShader(DefaultMaterialResource);
+	const bool bRebuildDefaultBindings = bDefaultAffected && NeedsBindingRebuild(DefaultMaterialResource);
+	if (bRebuildDefaultBindings)
+	{
+		FMaterialResourceCommand DefaultCommand;
+		DefaultCommand.Revision = DefaultMaterialResource.GetSourceRevision();
+		if (!NewDefault.Initialize(*this, DefaultCommand, 0, &Diagnostics))
+		{
+			PipelineStateCache.CancelReload();
+			ShaderRegistry.CancelReload();
+			return false;
+		}
+	}
+	else if (bDefaultAffected && !StagePipelineUpdates(DefaultMaterialResource))
+	{
+		PipelineStateCache.CancelReload();
+		ShaderRegistry.CancelReload();
+		return false;
+	}
+
+	TMap<FAssetId, std::unique_ptr<FMaterialResource>, FAssetIdHash> PreparedMaterials;
+	for (const FMaterialResourceCommand& Command : MaterialCommands)
+	{
+		const auto Existing = MaterialResources.find(Command.AssetId);
+		check(Existing != MaterialResources.end() && Existing->second);
+		check(Command.Revision == Existing->second->GetSourceRevision());
+		if (!NeedsBindingRebuild(*Existing->second))
+		{
+			if (!StagePipelineUpdates(*Existing->second))
+			{
+				PipelineStateCache.CancelReload();
+				ShaderRegistry.CancelReload();
+				return false;
+			}
+			continue;
+		}
+		auto Candidate = std::make_unique<FMaterialResource>();
+		if (!Candidate->Initialize(*this, Command, Existing->second->GetSortId(), &Diagnostics))
+		{
+			PipelineStateCache.CancelReload();
+			ShaderRegistry.CancelReload();
+			return false;
+		}
+		PreparedMaterials.emplace(Command.AssetId, std::move(Candidate));
+	}
+
+	// D3D11 EVENT Query로 이전 프레임의 실제 GPU 완료를 확인한다. RT CPU Flush만으로는 자원 폐기가 안전하지 않다.
+	if (!RenderDevice.WaitForIdle())
+	{
+		Diagnostics = "이전 GPU 작업 완료를 확인하지 못해 Shader 교체를 취소했다.";
+		PipelineStateCache.CancelReload();
+		ShaderRegistry.CancelReload();
+		return false;
+	}
+
+	ShaderRegistry.CommitReload();
+	const TArray<FShaderHandle> OldHandles = ShaderRegistry.GetReplacedHandles();
+
+	if (bRebuildDefaultBindings)
+	{
+		DefaultMaterialResource.Swap(NewDefault);
+	}
+	for (auto& [AssetId, Candidate] : PreparedMaterials)
+	{
+		MaterialResources.at(AssetId)->Swap(*Candidate);
+	}
+	for (FPipelineUpdate& Update : PipelineUpdates)
+	{
+		Update.Material->SetPipelineState(Update.bInstanced, std::move(Update.Desc), Update.Handle);
+	}
+
+	PipelineStateCache.CommitReload(OldHandles);
+	ShaderRegistry.ReleaseReplacedShaders();
+	Diagnostics.clear();
+	return true;
 }
 
 FTextureResource* FRenderer::FindTextureResource(const FAssetId& AssetId) const

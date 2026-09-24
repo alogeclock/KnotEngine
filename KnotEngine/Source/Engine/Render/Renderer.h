@@ -6,6 +6,7 @@
 #include "Render/RHI/RenderTypes.h"
 #include "Render/DebugDraw/DebugDraw.h"
 #include "Render/Resource/MaterialResource.h"
+#include "Render/Resource/ResourceCommand.h"
 #include "Render/Resource/Mesh/StaticMeshResource.h"
 #include "Render/Resource/State/PipelineStateCache.h"
 #include "Render/Resource/State/SamplerStateCache.h"
@@ -53,6 +54,9 @@ public:
 	FPipelineStateCache& GetPipelineStateCache();
 	FSamplerStateCache& GetSamplerStateCache();
 	FDebugDraw& GetDebugDraw() { return DebugDraw; }
+	
+	TArray<FShaderKey> GetShaderKeysForSource(const FString& SourcePath) const;
+	bool ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const TArray<FMaterialResourceCommand>& MaterialCommands, FString& Diagnostics);
 	
 	void UpdateMaterialResource(const FMaterialResourceCommand& Command);
 	void UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command);

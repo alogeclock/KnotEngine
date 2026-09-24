@@ -21,6 +21,7 @@ public:
 
 	virtual void Create() = 0;
 	virtual void Release() = 0;
+	virtual bool WaitForIdle() = 0;
 
 	// 자원 생성 함수는 네이티브 자원까지 검증한 뒤 유효한 Handle만 반환한다.
 	virtual FBufferHandle CreateBuffer(const FBufferDesc& Desc, std::span<const uint8> InitialData = {}) = 0;
@@ -33,9 +34,11 @@ public:
 	virtual void DestroySampler(FSamplerHandle& Handle) = 0;
 
 	virtual FShaderHandle CreateShader(const FShaderBytecodeDesc& Desc) = 0;
+	virtual bool TryCreateShader(const FShaderBytecodeDesc& Desc, FShaderHandle& Handle, FString& Diagnostics) = 0;
 	virtual void DestroyShader(FShaderHandle& Handle) = 0;
 
 	virtual FPipelineStateHandle CreatePipelineState(const FPipelineStateDesc& Desc) = 0;
+	virtual bool TryCreatePipelineState(const FPipelineStateDesc& Desc, FPipelineStateHandle& Handle, FString& Diagnostics) = 0;
 	virtual void DestroyPipelineState(FPipelineStateHandle& Handle) = 0;
 
 	// Command List는 한 번 Begin한 뒤 End와 Submit을 순서대로 호출해야 한다.

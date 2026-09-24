@@ -5,8 +5,11 @@
 #include <d3d11.h>
 
 #include <array>
+#include <chrono>
 #include <cstring>
+#include <format>
 #include <limits>
+#include <thread>
 
 FD3D11RenderDevice::FD3D11RenderDevice() = default;
 
@@ -279,8 +282,48 @@ void FD3D11RenderDevice::DestroyTexture(FTextureHandle& Handle)
 	Handle.Reset();
 }
 
-// 컴파일된 Bytecode로 네이티브 Shader 객체를 생성한다.
+// D3D11 EVENT Query로 앞선 GPU 명령의 실행 완료를 기다린다.
+bool FD3D11RenderDevice::WaitForIdle()
+{
+	D3D11_QUERY_DESC Desc = {};
+	Desc.Query = D3D11_QUERY_EVENT;
+	Microsoft::WRL::ComPtr<ID3D11Query> Query;
+	if (FAILED(NativeDevice.GetDevice()->CreateQuery(&Desc, Query.GetAddressOf())))
+	{
+		return false;
+	}
+	ID3D11DeviceContext* Context = NativeDevice.GetContext();
+	Context->End(Query.Get());
+	Context->Flush();
+	const auto Deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+	while (std::chrono::steady_clock::now() < Deadline)
+	{
+		BOOL Completed = FALSE;
+		const HRESULT Result = Context->GetData(Query.Get(), &Completed, sizeof(Completed), 0);
+		if (Result == S_OK)
+		{
+			return Completed == TRUE;
+		}
+		if (Result != S_FALSE)
+		{
+			return false;
+		}
+		std::this_thread::yield();
+	}
+	return false;
+}
+
+// 컴파일된 Bytecode로 Shader를 생성하고 실패 시 치명적 오류로 처리한다.
 FShaderHandle FD3D11RenderDevice::CreateShader(const FShaderBytecodeDesc& Desc)
+{
+	FShaderHandle Handle;
+	FString Diagnostics;
+	panicf(TryCreateShader(Desc, Handle, Diagnostics), "D3D11 Shader 생성 실패: {}", Diagnostics);
+	return Handle;
+}
+
+// 컴파일된 Bytecode로 Shader를 생성하고 실패 정보를 반환한다.
+bool FD3D11RenderDevice::TryCreateShader(const FShaderBytecodeDesc& Desc, FShaderHandle& Handle, FString& Diagnostics)
 {
 	panic(NativeDevice.GetDevice());
 	panicf(!Desc.Bytecode.empty(), "Shader Bytecode가 비어 있다. DebugName={}", Desc.DebugName);
@@ -299,11 +342,29 @@ FShaderHandle FD3D11RenderDevice::CreateShader(const FShaderBytecodeDesc& Desc)
 		Result = NativeDevice.GetDevice()->CreatePixelShader(
 			Slot.Bytecode.data(), Slot.Bytecode.size(), nullptr, Slot.PixelShader.GetAddressOf());
 	}
-	panicf(SUCCEEDED(Result), "D3D11 Shader 생성 실패. DebugName={}, HRESULT=0x{:08X}", Desc.DebugName, static_cast<uint32>(Result));
+	if (FAILED(Result))
+	{
+		Diagnostics = std::format("D3D11 Shader 생성 실패. DebugName={}, HRESULT=0x{:08X}", Desc.DebugName, static_cast<uint32>(Result));
+		return false;
+	}
 
+	for (uint32 Index = 0; Index < ShaderSlots.size(); ++Index)
+	{
+		FShaderSlot& Free = ShaderSlots[Index];
+		if (!Free.VertexShader && !Free.PixelShader && Free.Bytecode.empty())
+		{
+			const uint32 Generation = Free.Generation;
+			Free = std::move(Slot);
+			Free.Generation = Generation;
+			Handle = { Index, Generation };
+			return true;
+		}
+	}
+	
 	panicf(ShaderSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Shader 슬롯 수가 uint32 범위를 초과했다.");
 	ShaderSlots.push_back(std::move(Slot));
-	return { static_cast<uint32>(ShaderSlots.size() - 1), ShaderSlots.back().Generation };
+	Handle = { static_cast<uint32>(ShaderSlots.size() - 1), ShaderSlots.back().Generation };
+	return true;
 }
 
 // Shader 객체와 Input Layout 생성에 사용한 Bytecode를 함께 해제한다.
@@ -320,8 +381,17 @@ void FD3D11RenderDevice::DestroyShader(FShaderHandle& Handle)
 	Handle.Reset();
 }
 
-// Shader, Vertex Layout, 출력 형식 및 고정 기능 상태를 하나의 Pipeline State Handle로 묶는다.
+// Pipeline State를 생성하고 실패 시 치명적 오류로 처리한다.
 FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStateDesc& Desc)
+{
+	FPipelineStateHandle Handle;
+	FString Diagnostics;
+	panicf(TryCreatePipelineState(Desc, Handle, Diagnostics), "D3D11 Pipeline State 생성 실패: {}", Diagnostics);
+	return Handle;
+}
+
+// Shader와 고정 기능 상태로 Pipeline을 생성하고 실패 정보를 반환한다.
+bool FD3D11RenderDevice::TryCreatePipelineState(const FPipelineStateDesc& Desc, FPipelineStateHandle& Handle, FString& Diagnostics)
 {
 	FShaderSlot* VertexShader = ResolveShader(Desc.VertexShader);
 	FShaderSlot* PixelShader = ResolveShader(Desc.PixelShader);
@@ -368,7 +438,11 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 		Result = NativeDevice.GetDevice()->CreateInputLayout(
 			LayoutDescs.data(), static_cast<UINT>(LayoutDescs.size()),
 			VertexShader->Bytecode.data(), VertexShader->Bytecode.size(), Slot.InputLayout.GetAddressOf());
-		panicf(SUCCEEDED(Result) && Slot.InputLayout, "ID3D11Device::CreateInputLayout 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		if (FAILED(Result) || !Slot.InputLayout)
+		{
+			Diagnostics = std::format("ID3D11Device::CreateInputLayout 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+			return false;
+		}
 	}
 
 	D3D11_DEPTH_STENCIL_DESC DepthDesc = {};
@@ -393,7 +467,11 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	// Reversed-Z는 카메라에 가까울수록 큰 Depth를 기록한다.
 	DepthDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 	Result = NativeDevice.GetDevice()->CreateDepthStencilState(&DepthDesc, Slot.DepthStencilState.GetAddressOf());
-	panicf(SUCCEEDED(Result), "ID3D11Device::CreateDepthStencilState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	if (FAILED(Result))
+	{
+		Diagnostics = std::format("ID3D11Device::CreateDepthStencilState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		return false;
+	}
 
 	static const auto GetNativeBlendFactor = [](EBlendFactor BlendFactor)
 	{
@@ -439,7 +517,11 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	BlendDesc.RenderTarget[0].BlendOpAlpha = GetNativeBlendOperation(RenderTargetBlend.AlphaBlendOperation);
 	BlendDesc.RenderTarget[0].RenderTargetWriteMask = static_cast<uint8>(RenderTargetBlend.ColorWriteMask);
 	Result = NativeDevice.GetDevice()->CreateBlendState(&BlendDesc, Slot.BlendState.GetAddressOf());
-	panicf(SUCCEEDED(Result), "ID3D11Device::CreateBlendState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	if (FAILED(Result))
+	{
+		Diagnostics = std::format("ID3D11Device::CreateBlendState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		return false;
+	}
 
 	static const auto GetNativeFillMode = [](EFillMode FillMode)
 	{
@@ -474,12 +556,29 @@ FPipelineStateHandle FD3D11RenderDevice::CreatePipelineState(const FPipelineStat
 	RasterizerDesc.MultisampleEnable = Desc.RasterizerState.bMultisampleEnabled;
 	RasterizerDesc.AntialiasedLineEnable = Desc.RasterizerState.bAntialiasedLineEnabled;
 	Result = NativeDevice.GetDevice()->CreateRasterizerState(&RasterizerDesc, Slot.RasterizerState.GetAddressOf());
-	panicf(SUCCEEDED(Result), "ID3D11Device::CreateRasterizerState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+	if (FAILED(Result))
+	{
+		Diagnostics = std::format("ID3D11Device::CreateRasterizerState 실패. HRESULT=0x{:08X}", static_cast<uint32>(Result));
+		return false;
+	}
 
 	Slot.bValid = true;
+	for (uint32 Index = 0; Index < PipelineStateSlots.size(); ++Index)
+	{
+		FPipelineStateSlot& Free = PipelineStateSlots[Index];
+		if (!Free.bValid)
+		{
+			const uint32 Generation = Free.Generation;
+			Free = std::move(Slot);
+			Free.Generation = Generation;
+			Handle = { Index, Generation };
+			return true;
+		}
+	}
 	panicf(PipelineStateSlots.size() < (std::numeric_limits<uint32>::max)(), "D3D11 Pipeline State 슬롯 수가 uint32 범위를 초과했다.");
 	PipelineStateSlots.push_back(std::move(Slot));
-	return { static_cast<uint32>(PipelineStateSlots.size() - 1), PipelineStateSlots.back().Generation };
+	Handle = { static_cast<uint32>(PipelineStateSlots.size() - 1), PipelineStateSlots.back().Generation };
+	return true;
 }
 
 // Pipeline State가 소유한 Input Layout과 고정 기능 상태 객체를 해제한다.

@@ -10,13 +10,53 @@
 #include <algorithm>
 #include <cstring>
 
-// Material의 고정 Pipeline, 상수 및 Texture/Sampler 바인딩을 Renderer Resource로 생성한다.
-bool FMaterialResource::Initialize(
-	FRenderer& Renderer,
-	const FMaterialResourceCommand& Command,
-	uint32 InSortId)
+// Material 후보를 완성한 뒤 기존 Resource의 내부 상태와 교체한다.
+bool FMaterialResource::Initialize(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics)
 {
-	Release();
+	FMaterialResource Candidate;
+	if (!Candidate.Build(Renderer, Command, InSortId, Diagnostics))
+	{
+		return false;
+	}
+	Swap(Candidate);
+	return true;
+}
+
+// Resource 주소를 유지하면서 Pipeline, 상수 및 Texture 바인딩을 후보와 교환한다.
+void FMaterialResource::Swap(FMaterialResource& Other)
+{
+	using std::swap;
+	
+	swap(SortId, Other.SortId);
+	swap(SourceRevision, Other.SourceRevision);
+	swap(PipelineState, Other.PipelineState);
+	swap(InstancedPipelineState, Other.InstancedPipelineState);
+	swap(PipelineStateDesc, Other.PipelineStateDesc);
+	swap(InstancedPipelineStateDesc, Other.InstancedPipelineStateDesc);
+	swap(Constants, Other.Constants);
+	swap(ConstantBuffers, Other.ConstantBuffers);
+	swap(Textures, Other.Textures);
+}
+
+// Shader 교체로 준비된 PSO만 반영하고 Material 값과 바인딩은 유지한다.
+void FMaterialResource::SetPipelineState(bool bInstanced, FPipelineStateDesc Desc, FPipelineStateHandle Handle)
+{
+	check(Handle.IsValid());
+	if (bInstanced)
+	{
+		InstancedPipelineStateDesc = std::move(Desc);
+		InstancedPipelineState = Handle;
+	}
+	else
+	{
+		PipelineStateDesc = std::move(Desc);
+		PipelineState = Handle;
+	}
+}
+
+// Material 명령과 Shader Reflection으로 Pipeline, 상수 및 Texture 바인딩을 준비한다.
+bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics)
+{
 	if (Command.Revision == 0)
 	{
 		return false;
@@ -48,8 +88,9 @@ bool FMaterialResource::Initialize(
 		Blend.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 	}
 	PipelineStateDesc = SurfaceDesc;
-	PipelineState = Renderer.GetPipelineStateCache().GetOrCreate(PipelineStateDesc);
-	if (!PipelineState.IsValid())
+	FString LocalDiagnostics;
+	FString& Error = Diagnostics ? *Diagnostics : LocalDiagnostics;
+	if (!Renderer.GetPipelineStateCache().TryGetOrCreate(PipelineStateDesc, PipelineState, Error))
 	{
 		return false;
 	}
@@ -65,11 +106,17 @@ bool FMaterialResource::Initialize(
 		InstancedPipelineStateDesc = SurfaceDesc;
 		InstancedPipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(InstancedVertexShader);
 		InstancedPipelineStateDesc.VertexLayout = InstancedVertexLayout;
-		InstancedPipelineState = Renderer.GetPipelineStateCache().GetOrCreate(InstancedPipelineStateDesc);
+		if (!Renderer.GetPipelineStateCache().TryGetOrCreate(InstancedPipelineStateDesc, InstancedPipelineState, Error))
+		{
+			return false;
+		}
 	}
 
 	FMaterialParameterLayout Layout;
-	BuildParameterLayout(Layout, ShaderRegistry, Material);
+	if (!BuildParameterLayout(Layout, ShaderRegistry, Material, Diagnostics))
+	{
+		return false;
+	}
 	ConstantBuffers = Layout.ConstantBuffers;
 	if (bHasMaterialAsset)
 	{
@@ -169,15 +216,23 @@ void FMaterialResource::Release()
 }
 
 // Material의 Vertex/Pixel Shader Reflection을 하나의 Parameter Layout으로 합친다.
-void FMaterialResource::BuildParameterLayout(FMaterialParameterLayout& Layout, FShaderRegistry& ShaderRegistry, const FMaterial& Material)
+bool FMaterialResource::BuildParameterLayout(FMaterialParameterLayout& Layout, FShaderRegistry& ShaderRegistry, const FMaterial& Material, FString* Diagnostics)
 {
-	AppendShaderReflection(Layout, ShaderRegistry.GetReflection(Material.GetVertexShader()));
-	AppendShaderReflection(Layout, ShaderRegistry.GetReflection(Material.GetPixelShader()));
+	return AppendShaderReflection(Layout, ShaderRegistry.GetReflection(Material.GetVertexShader()), Diagnostics) &&
+		AppendShaderReflection(Layout, ShaderRegistry.GetReflection(Material.GetPixelShader()), Diagnostics);
 }
 
 // Shader Reflection 데이터를 기반으로 Material Parameter Layout을 생성 및 병합한다.
-void FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout, const FShaderReflection& Reflection)
+bool FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout, const FShaderReflection& Reflection, FString* Diagnostics)
 {
+	const auto Fail = [Diagnostics](const FString& Message)
+	{
+		if (Diagnostics)
+		{
+			*Diagnostics = Message;
+		}
+		return false;
+	};
 	static const FName MaterialConstantsName("MaterialConstants");
 	for (const FShaderConstantBufferDesc& Buffer : Reflection.ConstantBuffers)
 	{
@@ -186,8 +241,10 @@ void FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout,
 			continue;
 		}
 
-		panicf(Layout.ConstantBufferSize == 0 || Layout.ConstantBufferSize == Buffer.Size,
-		       "Vertex/Pixel MaterialConstants 크기가 일치하지 않는다. Existing={}, Incoming={}", Layout.ConstantBufferSize, Buffer.Size);
+		if (Layout.ConstantBufferSize != 0 && Layout.ConstantBufferSize != Buffer.Size)
+		{
+			return Fail("Vertex/Pixel MaterialConstants 크기가 일치하지 않는다.");
+		}
 		Layout.ConstantBufferSize = Buffer.Size;
 		Layout.ConstantBuffers.push_back({ Buffer.Stage, Buffer.Slot });
 		for (const FShaderParameterDesc& ShaderParameter : Buffer.Parameters)
@@ -196,14 +253,17 @@ void FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout,
 			                                   { return Parameter.Name == ShaderParameter.Name; });
 			if (Existing != Layout.Parameters.end())
 			{
-				panicf(Existing->Offset == ShaderParameter.Offset && Existing->Size == ShaderParameter.Size,
-				       "Vertex/Pixel Material Parameter 배치가 일치하지 않는다. Name={}", ShaderParameter.Name.ToString());
+				if (Existing->Offset != ShaderParameter.Offset || Existing->Size != ShaderParameter.Size)
+				{
+					return Fail("Vertex/Pixel Material Parameter 배치가 일치하지 않는다: " + ShaderParameter.Name.ToString());
+				}
 				continue;
 			}
 
-			panicf(ShaderParameter.BaseType == EShaderParameterBaseType::Float,
-			       "Material Parameter는 현재 float Scalar/Vector만 지원한다. Name={}", ShaderParameter.Name.ToString());
-			panicf(ShaderParameter.Elements == 0, "Material Parameter 배열은 아직 지원하지 않는다. Name={}, Count={}", ShaderParameter.Name.ToString(), ShaderParameter.Elements);
+			if (ShaderParameter.BaseType != EShaderParameterBaseType::Float || ShaderParameter.Elements != 0)
+			{
+				return Fail("지원하지 않는 Material Parameter 타입 또는 배열: " + ShaderParameter.Name.ToString());
+			}
 			FMaterialParameterDesc Parameter;
 			Parameter.Name = ShaderParameter.Name;
 			Parameter.Offset = ShaderParameter.Offset;
@@ -218,13 +278,12 @@ void FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout,
 			}
 			else
 			{
-				panicf(false, "지원하지 않는 Material Parameter 형태다. Name={}, Rows={}, Columns={}",
-				       ShaderParameter.Name.ToString(), ShaderParameter.Rows, ShaderParameter.Columns);
+				return Fail("지원하지 않는 Material Parameter 형태: " + ShaderParameter.Name.ToString());
 			}
-			panicf(Parameter.Size == ShaderParameter.Columns * sizeof(float),
-			       "Material Parameter 크기가 Scalar/Vector 형태와 일치하지 않는다. Name={}, Size={}", Parameter.Name.ToString(), Parameter.Size);
-			panicf(Parameter.Offset + Parameter.Size <= Buffer.Size,
-			       "Material Parameter가 Constant Buffer 범위를 벗어났다. Name={}", Parameter.Name.ToString());
+			if (Parameter.Size != ShaderParameter.Columns * sizeof(float) || Parameter.Offset + Parameter.Size > Buffer.Size)
+			{
+				return Fail("Material Parameter 크기 또는 범위가 유효하지 않다: " + Parameter.Name.ToString());
+			}
 			Layout.Parameters.push_back(std::move(Parameter));
 		}
 	}
@@ -235,7 +294,10 @@ void FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout,
 		{
 			continue;
 		}
-		panicf(Resource.Count == 1, "Material Texture 배열은 아직 지원하지 않는다. Name={}, Count={}", Resource.Name.ToString(), Resource.Count);
+		if (Resource.Count != 1)
+		{
+			return Fail("Material Texture 배열은 아직 지원하지 않는다: " + Resource.Name.ToString());
+		}
 
 		FMaterialTextureBinding Binding;
 		Binding.Name = Resource.Name;
@@ -251,4 +313,5 @@ void FMaterialResource::AppendShaderReflection(FMaterialParameterLayout& Layout,
 		}
 		Layout.Textures.push_back(std::move(Binding));
 	}
+	return true;
 }

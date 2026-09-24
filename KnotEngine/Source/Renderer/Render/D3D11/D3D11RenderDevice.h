@@ -33,6 +33,7 @@ public:
 
 	void Create() override;
 	void Release() override;
+	bool WaitForIdle() override;
 
 	FBufferHandle CreateBuffer(const FBufferDesc& Desc, std::span<const uint8> InitialData) override;
 	void UpdateBuffer(FBufferHandle Handle, std::span<const uint8> Data) override;
@@ -45,9 +46,11 @@ public:
 	void DestroySampler(FSamplerHandle& Handle) override;
 
 	FShaderHandle CreateShader(const FShaderBytecodeDesc& Desc) override;
+	bool TryCreateShader(const FShaderBytecodeDesc& Desc, FShaderHandle& Handle, FString& Diagnostics) override;
 	void DestroyShader(FShaderHandle& Handle) override;
 
 	FPipelineStateHandle CreatePipelineState(const FPipelineStateDesc& Desc) override;
+	bool TryCreatePipelineState(const FPipelineStateDesc& Desc, FPipelineStateHandle& Handle, FString& Diagnostics) override;
 	void DestroyPipelineState(FPipelineStateHandle& Handle) override;
 
 	FCommandListHandle BeginCommandList() override;

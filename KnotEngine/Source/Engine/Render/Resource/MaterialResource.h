@@ -49,8 +49,10 @@ public:
 		FSamplerHandle Sampler;
 	};
 
-	bool Initialize(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId);
+	bool Initialize(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics = nullptr);
 	void Release();
+	void Swap(FMaterialResource& Other);
+	void SetPipelineState(bool bInstanced, FPipelineStateDesc Desc, FPipelineStateHandle Handle);
 
 	FPipelineStateHandle GetPipelineState() const { return PipelineState; }
 	FPipelineStateHandle GetInstancedPipelineState() const { return InstancedPipelineState; }
@@ -64,8 +66,9 @@ public:
 	bool IsValid() const { return PipelineState.IsValid() && SourceRevision != 0; }
 
 private:
-	static void BuildParameterLayout(FMaterialParameterLayout& Layout, FShaderRegistry& ShaderRegistry, const FMaterial& Material);
-	static void AppendShaderReflection(FMaterialParameterLayout& Layout, const FShaderReflection& Reflection);
+	bool Build(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics);
+	static bool BuildParameterLayout(FMaterialParameterLayout& Layout, FShaderRegistry& ShaderRegistry, const FMaterial& Material, FString* Diagnostics);
+	static bool AppendShaderReflection(FMaterialParameterLayout& Layout, const FShaderReflection& Reflection, FString* Diagnostics);
 
 	uint32 SortId = 0;
 	uint64 SourceRevision = 0;

@@ -50,7 +50,10 @@ public:
 	UTexture2D* FindTexture2D(const FAssetId& AssetId) const;
 
 	void RequestStaticMeshResource(const UStaticMesh& StaticMesh);
-	void RequestMaterialResource(const UMaterialInterface& Material);
+	void RequestMaterialResource(UMaterialInterface& Material);
+	
+	bool PrepareMaterialShaderReload(const TArray<FShaderKey>& ShaderKeys, TArray<FMaterialResourceCommand>& OutCommands);
+	
 	void DrainRenderResourceCommands(
 		TArray<FStaticMeshResourceCommand>& OutStaticMeshes,
 		TArray<FTextureResourceCommand>& OutTextures,
@@ -59,6 +62,13 @@ public:
 
 private:
 	void RequestTextureResource(const UTexture2D& Texture);
+	bool BuildMaterialResourceCommand(const UMaterialInterface& Material, uint64 Revision, FMaterialResourceCommand& OutCommand);
+
+	struct FMaterialResourceRequest
+	{
+		TObjectPtr<UMaterialInterface> Material;
+		uint64 Revision = 0;
+	};
 
 	FAssetRegistry AssetRegistry;
 	FAssetBinaryLoader BinaryLoader;
@@ -67,7 +77,7 @@ private:
 	TMap<FAssetId, TObjectPtr<UTexture2D>, FAssetIdHash> Textures;
 
 	TMap<FAssetId, uint64, FAssetIdHash> RequestedStaticMeshRevisions;
-	TMap<FAssetId, uint64, FAssetIdHash> RequestedMaterialRevisions;
+	TMap<FAssetId, FMaterialResourceRequest, FAssetIdHash> RequestedMaterialResources;
 	TMap<FAssetId, uint64, FAssetIdHash> RequestedTextureRevisions;
 	TArray<FStaticMeshResourceCommand> PendingStaticMeshResourceCommands;
 	TArray<FMaterialResourceCommand> PendingMaterialResourceCommands;

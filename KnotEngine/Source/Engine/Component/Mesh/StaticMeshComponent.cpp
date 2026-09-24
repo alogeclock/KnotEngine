@@ -81,6 +81,7 @@ SIZE_T UStaticMeshComponent::GetMaterialCount() const
 	return std::max(OverrideMaterials.size(), StaticMesh ? StaticMesh->GetMaterialCount() : SIZE_T{ 0 });
 }
 
+// Component 상태를 렌더 값으로 복사하고 참조할 Mesh와 Material Resource를 요청한다.
 FPrimitiveRenderData UStaticMeshComponent::BuildPrimitiveRenderData(ERenderCommandType Type) const
 {
 	FPrimitiveRenderData RenderData;
@@ -112,7 +113,7 @@ FPrimitiveRenderData UStaticMeshComponent::BuildPrimitiveRenderData(ERenderComma
 		RenderData.MaterialAssetIds.reserve(MaterialCount);
 		for (SIZE_T MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
-			const UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
+			UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
 			if (!MaterialInterface)
 			{
 				RenderData.MaterialAssetIds.emplace_back();
