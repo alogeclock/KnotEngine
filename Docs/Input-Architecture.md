@@ -47,12 +47,15 @@ FInputRouter::BeginFrame
 ImGui Frame 구성 및 입력 대상 등록
         ↓
 FInputRouter::RouteInput
-		├─ Global Key Target
-		├─ ImGui
-		├─ Mouse Capture Target
+        ├─ Key/Button Sequence Owner
+        ├─ Global Key Target
+        ├─ ImGui Capture
+        ├─ Mouse Capture Target
         ├─ Keyboard Focus Target
         └─ Hovered Target
 ```
+
+`RouteInput()`은 위 대상을 모든 이벤트에 같은 순서로 적용하지 않는다. 이벤트 종류와 이미 시작된 Down/Up sequence의 소유권에 따라 실제 대상을 결정한다.
 
 게임 빌드는 에디터 라우터를 통과하지 않는다.
 
@@ -87,9 +90,18 @@ KnotEngine/Source/
 └─ Editor/
    ├─ Input/
    │  └─ InputRouter.h/.cpp
-   ├─ ImGui/
-   │  └─ ImGuiSystem.h/.cpp
+   ├─ Editor/
+   │  ├─ ImGuiSystem.h/.cpp
+   │  ├─ Panel/
+   │  │  └─ ViewportPanel.h/.cpp
+   │  └─ Widget/
+   │     ├─ ViewportWidget.h/.cpp
+   │     └─ LevelViewportLayout.h/.cpp
    └─ Viewport/
+      ├─ EditorViewportClient.h/.cpp
+      └─ Level/
+         ├─ LevelEditorViewportClient.h/.cpp
+         └─ TransformGizmo.h/.cpp
 ```
 
 | 계층 | 책임 | 포함하지 않는 것 |
@@ -290,11 +302,10 @@ ImGuiIO::WantTextInput
 class IInputTarget
 {
 public:
-    virtual FInputReply OnInputEvent(
-        const FInputEvent& Event) = 0;
-
+    virtual FInputReply OnInputEvent(const FInputEvent& Event) = 0;
     virtual void OnKeyboardFocusLost() {}
     virtual void OnMouseCaptureLost() {}
+    virtual bool ShouldHideCursor() const { return false; }
 };
 ```
 
@@ -303,11 +314,11 @@ public:
 ```cpp
 InputRouter.RegisterTarget(
     ViewportClient,
-    ImGui::IsItemHovered(),
-    ImGui::IsWindowFocused());
+    bImageHovered,
+    bActiveViewport && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows));
 ```
 
-등록은 프레임 단위다. 등록 순서는 겹친 대상의 우선순위로 사용하며 마지막에 등록된 hovered/focused 대상이 우선한다. 대상은 `RouteInput()`이 끝날 때까지 살아 있어야 한다.
+등록은 프레임 단위다. `FViewportWidget`은 Viewport 이미지 영역만 hover 대상으로 등록하며 Toolbar와 Splitter는 포함하지 않는다. 현재 활성 Viewport만 focused 대상으로 등록한다. 등록 순서는 겹친 대상의 우선순위로 사용하며 마지막에 등록된 hovered/focused 대상이 우선한다. 대상은 `RouteInput()`이 끝날 때까지 살아 있어야 한다.
 
 Bottom Toolbar처럼 ImGui의 포커스와 무관하게 동작하는 에디터 전역 단축키 대상은 프레임마다 하나를 별도로 등록한다. 이 대상이 처리한 KeyDown은 Down/Up 소유권에 기록되어 ImGui나 Viewport로 다시 전달되지 않는다.
 
@@ -391,9 +402,9 @@ Capture 해제
 - 재배치 시 `FWindowsInput::WarpCursor()`가 Win32 재배치를 수행하고 수집기의 기준 좌표를 갱신한다. 이미 발행한 스냅샷은 변경하지 않으며 재배치를 물리 이동으로 기록하지 않는다. 커서 숨김 복구는 버튼 해제·위젯 소멸·포커스 상실·종료 시 처리한다.
 - 좌표는 현재 단일 네이티브 창의 클라이언트 좌표다. Viewport 포함 검사와 Render Target 픽셀 변환은 분리하며, 변환에 FramebufferScale을 중복 적용하지 않는다.
 
-## 뷰포트 연결 계획
+## 뷰포트 입력 연결
 
-`FInputRouter`와 엔진 프레임 연결, Level Editor Viewport 입력 대상 등록과 Transform Gizmo는 구현되어 있다. 추가 Viewport layout도 같은 target 등록 방식으로 확장한다.
+`FInputRouter`와 엔진 프레임 연결, Level Editor Viewport 입력 대상 등록, 1~4분할 Layout과 Transform Gizmo가 구현되어 있다.
 
 Level Editor Viewport는 `FTransformGizmo`를 직접 소유한다. 입력은 진행 중인 Gizmo 조작, Gizmo Hit Test, Scene Picking, Camera 순서로 처리한다. Gizmo는 선택 Node의 UUID와 조작 시작 Transform을 보관하며 이동·회전·스케일 결과를 이전 프레임에 누적하지 않고 시작 상태와 현재 커서 목표로부터 매번 다시 계산한다. 작은 커서 이동은 Dead Zone으로 무시한다. 드래그 시작 시 선택 Node들의 Transform을 하나의 Editor Transaction에 기록하고 정상 종료 시 확정하며, Escape·오른쪽 클릭·포커스 또는 캡처 상실·선택 변경 시 Transaction을 취소해 시작 Transform으로 복원한다. Translate Gizmo의 중앙 Handle은 View 평면 위 자유 이동, Scale Gizmo의 중앙 Handle은 균일 Scale을 수행한다. Rotation Gizmo의 X/Y/Z 링은 각 월드축, 흰색 외곽 링은 카메라 시선축, 내부 영역은 가상 구 기반 Trackball 회전을 수행한다.
 
@@ -403,32 +414,35 @@ Level Editor Viewport에 키보드 포커스가 있을 때 `F`를 누르면 선�
 
 Gizmo 객체와 UObject 주소는 Render Thread에 전달하지 않는다. `FLevelEditorViewportClient::BuildSceneView()`가 위치, 화면 크기 기반 월드 배율, 모드와 Highlight 축만 `FGizmoView` 값으로 복사하며 Render Thread는 이를 전용 Overlay Pass에서 소비한다.
 
-향후 뷰포트는 다음 경로로 연결한다.
+Viewport는 다음 경로로 연결한다.
 
 ```text
-ImGui Viewport Panel
-        ↓ RegisterTarget
+FViewportPanel
+        ↓ FLevelViewportLayout
+FViewportWidget
+        ↓ 이미지 영역마다 RegisterTarget
 FInputRouter
         ↓ FInputEvent
-FSceneViewport 또는 FEditorViewportClient
+FLevelEditorViewportClient
         ├─ Editor Camera
         ├─ Gizmo
-        └─ PIE Game Viewport
+        ├─ Scene Picking / Box Selection
+        └─ Context Menu Request
 ```
 
-Level Editor의 1/2/3/4분할은 하나의 ImGui `Viewport` 패널 안에 여러 엔진 viewport slot을 두고, 각 slot의 실제 이미지 사각형에 대해 별도의 target을 등록한다.
+Level Editor의 1/2/3/4분할은 하나의 ImGui `Viewport` 패널 안에 네 개의 안정적인 `FLevelViewportSlot`을 보유한다. Layout에 표시되는 slot만 각자의 실제 이미지 사각형을 입력 대상으로 등록하고, 감춰진 slot은 대상 등록과 논리적 소유권을 해제한다.
 
 ```text
 ImGui DockSpace
 └─ ImGui Window "Viewport"
-   └─ FViewportLayout
-      ├─ Perspective target
-      ├─ Top target
-      ├─ Front target
-      └─ Right target
+   └─ FLevelViewportLayout
+      ├─ Visible Slot 0 → FViewportWidget → FLevelEditorViewportClient
+      ├─ Visible Slot 1 → FViewportWidget → FLevelEditorViewportClient
+      ├─ Visible Slot 2 → FViewportWidget → FLevelEditorViewportClient
+      └─ Visible Slot 3 → FViewportWidget → FLevelEditorViewportClient
 ```
 
-패널 도킹은 ImGui Docking이 담당하고, 패널 내부의 월드 뷰포트 분할만 작은 전용 layout으로 구현한다.
+패널 도킹은 ImGui Docking이 담당하고, 패널 내부의 월드 뷰포트 분할만 구체 타입 `FLevelViewportLayout`이 계산한다. 마우스 캡처 대상, 키보드 포커스 대상 또는 마지막으로 클릭한 slot을 Active Viewport로 유지한다. 각 `FViewportWidget`은 자기 이미지 영역을 target으로 등록하며 Active Viewport만 논리적 Focus를 등록한다. Splitter는 ImGui `InvisibleButton`으로 비율을 변경하므로 Viewport target으로 라우팅하지 않는다.
 
 ### 선택 포커스 애니메이션
 
@@ -438,7 +452,7 @@ ImGui DockSpace
 
 `FInputRouter`는 게임 입력 시스템의 기반 클래스가 아니다.
 
-에디터에서 PIE Game Viewport가 입력 대상이면 해당 viewport target이 처리되지 않은 이벤트를 게임 입력 경로로 넘긴다. 에디터가 아닌 게임 빌드에서는 `UGameEngine`이 스냅샷을 `GameViewportClient`, `LocalPlayer`, `PlayerController` 계층으로 직접 전달한다.
+현재 PIE Game Viewport 전달과 게임 빌드의 입력 경로는 구현되어 있지 않다. 이후 PIE를 구현할 때는 해당 viewport target이 처리하지 않은 이벤트만 게임 입력 경로로 명시적으로 전달한다. 에디터가 아닌 게임 빌드에서는 `UGameEngine`이 스냅샷을 `GameViewportClient`, `LocalPlayer`, `PlayerController` 계층으로 직접 전달하도록 구성한다.
 
 런타임 UI와 게임플레이 사이의 라우팅이 필요해지면 해당 계층의 정책으로 구현한다. ImGui 패널, 에디터 기즈모, 에디터 도킹 정책을 범용 엔진 입력 계층에 넣지 않는다.
 
@@ -474,12 +488,20 @@ ImGui DockSpace
 - 키와 버튼의 Down/Up 소유권 추적
 - 포커스 손실과 대상 제거 시 소유권 정리
 - `UEditorEngine` 프레임 흐름 연결
+- ImGui Frame 구성 전후의 capture 상태 반영
+- 네 개의 안정적인 Level Viewport slot과 1~4분할 Layout
+- 개별 Viewport 이미지 영역의 hover 등록과 Active Viewport 포커스
+- ImGui Splitter Drag를 통한 분할 비율 조절
+- 원근·직교 Viewport Camera 입력
+- Scene Picking, Ctrl Toggle, Shift Add와 Box Selection
+- 우클릭 이동 임계값을 적용한 Viewport Context Menu 요청
 - Level Editor Transform Gizmo의 입력 우선순위와 캡처
 - 월드 축 이동·회전·스케일 및 시작 Transform 기반 Drag
+- 선택 Node 카메라 포커스와 중단 가능한 보간 애니메이션
+- 카메라와 Inspector Drag의 커서 숨김 및 원점 복귀
 
 ### 미구현
 
-- 뷰포트 내부 splitter 입력
 - PIE Game Viewport 전달
 - GameViewportClient 이후 게임 입력 경로
 - 게임패드, 터치, 펜, IME composition
@@ -505,4 +527,16 @@ ImGui DockSpace
 - [InputRouter.cpp](../KnotEngine/Source/Editor/Input/InputRouter.cpp)
 - [ImGuiSystem.h](../KnotEngine/Source/Editor/Editor/ImGuiSystem.h)
 - [ImGuiSystem.cpp](../KnotEngine/Source/Editor/Editor/ImGuiSystem.cpp)
+- [ViewportPanel.h](../KnotEngine/Source/Editor/Editor/Panel/ViewportPanel.h)
+- [ViewportPanel.cpp](../KnotEngine/Source/Editor/Editor/Panel/ViewportPanel.cpp)
+- [ViewportWidget.h](../KnotEngine/Source/Editor/Editor/Widget/ViewportWidget.h)
+- [ViewportWidget.cpp](../KnotEngine/Source/Editor/Editor/Widget/ViewportWidget.cpp)
+- [LevelViewportLayout.h](../KnotEngine/Source/Editor/Editor/Widget/LevelViewportLayout.h)
+- [LevelViewportLayout.cpp](../KnotEngine/Source/Editor/Editor/Widget/LevelViewportLayout.cpp)
+- [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
+- [EditorViewportClient.cpp](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.cpp)
+- [LevelEditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/Level/LevelEditorViewportClient.h)
+- [LevelEditorViewportClient.cpp](../KnotEngine/Source/Editor/Viewport/Level/LevelEditorViewportClient.cpp)
+- [TransformGizmo.h](../KnotEngine/Source/Editor/Viewport/Level/TransformGizmo.h)
+- [TransformGizmo.cpp](../KnotEngine/Source/Editor/Viewport/Level/TransformGizmo.cpp)
 - [Conventions.md](Conventions.md)

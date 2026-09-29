@@ -12,7 +12,7 @@ class FViewportWidget final
 public:
 	FViewportWidget(FRenderSystem& InRenderSystem, FInputRouter& InInputRouter);
 
-	bool Draw(FEditorViewportClient& ViewportClient);
+	bool Draw(FEditorViewportClient& ViewportClient, bool bFocused = true);
 	void Release(FEditorViewportClient& ViewportClient);
 
 	FViewport& GetViewport() { return Viewport; }

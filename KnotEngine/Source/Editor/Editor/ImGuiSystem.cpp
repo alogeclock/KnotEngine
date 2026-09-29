@@ -32,6 +32,7 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam);
 
+// Editor UI를 구성하고 네 Level Viewport Client를 Editor Engine에 등록한다.
 FImGuiSystem::FImGuiSystem(FWindowsApplication& InApplication)
 	: Application(InApplication)
 	, ViewportToolbar(GetEditor().GetRenderSystem())
@@ -42,7 +43,10 @@ FImGuiSystem::FImGuiSystem(FWindowsApplication& InApplication)
 	, ProfilePanel(GetEditor().GetRenderSystem())
 #endif
 {
-	GetEditor().RegisterViewportClient(ViewportPanel.GetViewportClient());
+	for (FLevelEditorViewportClient* ViewportClient : ViewportPanel.GetViewportClients())
+	{
+		GetEditor().RegisterViewportClient(*ViewportClient);
+	}
 }
 
 FImGuiSystem::~FImGuiSystem() = default;
@@ -587,28 +591,39 @@ FImGuiDrawDataCopy FImGuiSystem::Consume()
 void FImGuiSystem::Shutdown()
 {
 	check(bStarted);
+
 	GetEditor().GetInputRouter().UnregisterTarget(*this);
-	GetEditor().UnregisterViewportClient(ViewportPanel.GetViewportClient());
+
+	for (FLevelEditorViewportClient* ViewportClient : ViewportPanel.GetViewportClients())
+	{
+		GetEditor().UnregisterViewportClient(*ViewportClient);
+	}
+
 	ViewportCursorOrigin.reset();
 	bViewportCursorLocked = false;
+
 	Application.SetCursorVisible(true);
 	Application.SetMessageHandler(nullptr);
 	bStarted = false;
+
 	for (const std::unique_ptr<FAssetEditor>& Editor : AssetEditors)
 	{
 		Editor->Release();
 	}
+
 	AssetEditors.clear();
 	ContentPanel.Shutdown();
 	ConsolePanel.Shutdown();
 	ViewportPanel.Release();
 	ViewportToolbar.Release();
+
 	GetEditor().GetRenderSystem().ShutdownImGui();
 	ImGuiIO& IO = ImGui::GetIO();
 	IO.BackendRendererName = nullptr;
 	IO.BackendFlags &= ~ImGuiBackendFlags_RendererHasVtxOffset;
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+
 	MediumFont = nullptr;
 	SemiBoldFont = nullptr;
 }

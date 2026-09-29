@@ -83,11 +83,15 @@ KnotEngine/Source/Editor/
 | `FViewport` | offscreen 출력 surface와 크기 | Camera와 World 선택 정책 |
 | `FEditorViewportClient` | Camera 입력, View와 ViewFamily 구성 | Panel layout과 ImGui 렌더링 |
 
+Level Editor의 1~4분할은 `FViewportWidget` 하나가 여러 화면을 소유하는 방식이 아니다. `FViewportPanel`이 네 개의 `FViewportWidget + FLevelEditorViewportClient` Slot을 고정 소유하고 `FLevelViewportLayout`이 배치와 Splitter 비율을 관리한다. 각 Slot은 독립된 offscreen target과 입력 사각형을 가지며 World는 기존 원칙대로 한 번 Tick한다.
+
 ## 소유권과 수명
 
 `UEditorEngine`은 Renderer를 참조하고 Input Router, Editor Selection, Transaction Manager와 ImGui System을 소유한다. Editor World는 `UEngine`의 WorldContext를 통해 관리한다.
 
 `FImGuiSystem`은 공유 Viewport Toolbar와 concrete Panel을 소유한다. Level Viewport Panel과 Asset Editor는 각각 `FViewportWidget`과 concrete ViewportClient를 소유하며, `UEditorEngine`은 등록된 ViewportClient를 non-owning 목록으로 순회한다. Selection은 `UEditorEngine`이 소유하고 Panel과 Level ViewportClient가 공유한다.
+
+Level Viewport Panel은 네 Client를 한 번 등록하고 보이는 Slot만 Render Target과 입력 target을 유지한다. 숨은 Slot도 Client와 Camera 상태는 Panel 수명 동안 유지하므로 다시 표시할 때 이전 편집 상태를 이어간다. 각 Pane은 공유 Toolbar 자원을 자기 Client 상태와 연결해 사용하며 Active Pane 하나만 논리적 Focus와 Viewport Overlay를 가진다.
 
 `Launch()`가 Editor Engine을 `GEngine`에 등록한 뒤 `UEditorEngine::Startup()`을 호출한다. Startup은 Renderer를 연결하고 설정을 로드하며 Asset Import Manager를 시작한 다음 `FImGuiSystem`을 생성·시작한다. Editor 전용 UI는 `GetEditor()`로 필요한 서비스를 조회하거나 생성 시 한 번 참조를 확보한다. Asset Import Manager는 UI가 소유하거나 시작하지 않는다. 종료할 때는 UI의 입력 대상 등록과 렌더 자원을 먼저 해제한 후 Import Manager와 Input Router를 종료한다. Game Thread와 생성·종료 시점의 접근 제한은 [Conventions.md](Conventions.md#editor-전역-접근)를 따른다.
 
@@ -198,19 +202,38 @@ History는 최대 128개 작업을 보관하고 한도를 넘으면 오래된 �
 
 Viewport Panel은 ImGui 창 안에 `FViewport`의 offscreen texture를 표시한다. `FEditorViewportClient`는 공통 Camera·View 기능만 제공하고 `GetWorld()`의 구현은 구체 ViewportClient에 맡긴다. Level ViewportClient는 `GetEditor()`에서 현재 Editor World를 조회하고 공유 Selection·Transaction Manager를 사용한다. Asset Viewport는 별도의 Preview World를 사용한다. ViewportClient는 해당 World와 Camera로 `FSceneViewFamily`를 만든다.
 
+### Level Multi-Viewport
+
+`FViewportPanel`은 주소가 유지되는 네 Slot을 소유한다. Slot 하나는 `FViewportWidget`, `FViewport`와 `FLevelEditorViewportClient` 한 세트이며 독립된 Camera, ViewFamily와 Render Target을 사용한다. Layout을 바꿀 때 Slot을 다시 만들지 않으므로 `UEditorEngine`과 `FInputRouter`가 보관한 non-owning Client 주소도 유효하게 유지된다.
+
+`FLevelViewportLayout`은 1~4분할 배치, Layout별 Splitter 비율과 일시적인 Viewport 최대화 상태를 관리한다. Splitter는 사용자가 드래그할 수 있고 Layout을 전환해도 각 분할 비율을 유지한다. 최대화는 선택한 Slot만 전체 영역에 연결하며 원래 Layout, Camera와 분할 상태를 바꾸지 않는다.
+
+표시 중인 각 이미지 영역은 별도의 `FInputRouter` target이다. Mouse Capture Owner, Keyboard Focus Owner와 마지막으로 클릭한 Pane을 기준으로 Active Slot을 정하고, Active Slot만 논리적으로 Focus된 target과 Overlay를 가진다. Capture 중인 입력은 포인터가 다른 Pane으로 이동해도 시작한 Client가 완료하며, Layout 변경으로 숨겨지는 Slot은 기존 Focus/Capture Lost 경로로 진행 중인 조작을 끝낸다.
+
+보이지 않는 Slot은 입력 등록과 Render Target을 해제하지만 Client와 Camera 상태는 유지한다. 표시 중인 Slot만 ViewFamily를 만들기 때문에 View 수에 따라 Cull과 Draw 작업은 늘어나지만 Editor World의 Tick과 Scene 상태 갱신은 WorldContext마다 한 번만 수행된다. 여러 Viewport texture는 하나의 ImGui Back Buffer에 합성되어 한 번 Present된다. 현재 범위는 단일 Native Window 안의 분할 Viewport이며 여러 HWND와 Swap Chain은 포함하지 않는다.
+
 ```text
-Viewport Panel
-        ↓ 크기와 Camera 상태
-FEditorViewportClient
-        ↓ FSceneViewFamily
-FSceneRenderer
-        ↓
-Viewport Render Target
-        ↓
-ImGui 합성
+FViewportPanel
+└─ FLevelViewportSlot[4] 고정 소유
+   ├─ 표시 중인 Slot 1~4개 ─ FViewportWidget + Client + Render Target
+   └─ 숨은 Slot ─ Client 상태 유지, Render Target 해제
+                         │
+                         ▼ 표시 중인 Client만 ViewFamily 생성
+UEditorEngine
+├─ FSceneViewFamily 배열
+└─ FImGuiDrawDataCopy
+                         │
+                         ▼ FRenderSystem::Render
+Render Thread
+├─ ViewFamily별 FSceneRenderer 실행
+│    └─ 각 Slot의 Render Target 갱신
+└─ ImGui Draw Data 합성
+                         │
+                         ▼
+             Back Buffer / Present 1회
 ```
 
-SceneRenderer는 Panel이나 ViewportClient를 순회하지 않고 완성된 ViewFamily와 Scene data만 사용한다. Render Pass와 GPU 자원의 세부 계약은 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
+`UEditorEngine`은 등록된 ViewportClient 중 유효한 Render Target을 가진 Client의 ViewFamily만 수집한다. Render Thread는 ViewFamily마다 `FSceneRenderer`를 실행한 뒤 모든 Viewport texture를 참조하는 ImGui Draw Data를 Back Buffer에 합성한다. `FSceneRenderer`는 Panel이나 ViewportClient를 순회하지 않고 완성된 ViewFamily와 Scene data만 사용한다. Render Pass와 GPU 자원의 세부 계약은 [Rendering-Architecture.md](Rendering-Architecture.md)를 따른다.
 
 Viewport 입력은 실제 Scene 이미지 영역만 대상으로 한다. Camera, 기즈모와 PIE 입력의 소유권 및 ImGui capture와의 관계는 [Input-Architecture.md](Input-Architecture.md)를 따른다.
 
@@ -261,6 +284,8 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - Node·Component 생성·삭제, 계층, Transform과 Inspector 프로퍼티의 Undo/Redo
 - Viewport offscreen rendering과 Editor Camera
 - Viewport 입력 라우팅
+- 12가지 Level Editor 1~4분할 Viewport Layout과 드래그 가능한 Splitter
+- Pane별 Toolbar와 Active Viewport 기반 Overlay, Context Menu 및 Box Selection
 - Console log sink와 명령 입력
 - CPU Profile 표시와 Viewport 통계 Overlay
 - Content 스캔과 Asset Registry 기반 Content Panel
@@ -289,8 +314,12 @@ Editor 기능을 Engine에 추가하지 않는다. 여러 실행 환경에서 �
 - [ImGuiSystem.h](../KnotEngine/Source/Editor/Editor/ImGuiSystem.h)
 - [EditorSelection.h](../KnotEngine/Source/Editor/Editor/Context/EditorSelection.h)
 - [InputRouter.h](../KnotEngine/Source/Editor/Input/InputRouter.h)
+- [ViewportPanel.h](../KnotEngine/Source/Editor/Editor/Panel/ViewportPanel.h)
+- [LevelViewportLayout.h](../KnotEngine/Source/Editor/Editor/Widget/LevelViewportLayout.h)
+- [ViewportWidget.h](../KnotEngine/Source/Editor/Editor/Widget/ViewportWidget.h)
 - [Viewport.h](../KnotEngine/Source/Editor/Viewport/Viewport.h)
 - [EditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/EditorViewportClient.h)
+- [LevelEditorViewportClient.h](../KnotEngine/Source/Editor/Viewport/Level/LevelEditorViewportClient.h)
 - [Transaction.h](../KnotEngine/Source/Editor/Editor/Context/Transaction.h)
 - [EditorTransaction.h](../KnotEngine/Source/Editor/Editor/Context/EditorTransaction.h)
 - [EditorTransaction.cpp](../KnotEngine/Source/Editor/Editor/Context/EditorTransaction.cpp)

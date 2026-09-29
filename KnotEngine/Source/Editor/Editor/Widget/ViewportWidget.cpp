@@ -11,7 +11,8 @@ FViewportWidget::FViewportWidget(FRenderSystem& InRenderSystem, FInputRouter& In
 {
 }
 
-bool FViewportWidget::Draw(FEditorViewportClient& ViewportClient)
+// offscreen 결과를 표시하고 Active Pane의 이미지 영역만 Focused 입력 대상으로 등록한다.
+bool FViewportWidget::Draw(FEditorViewportClient& ViewportClient, bool bFocused)
 {
 	const ImVec2 ImageSize = ImGui::GetContentRegionAvail();
 	if (ImageSize.x <= 0.0f || ImageSize.y <= 0.0f)
@@ -40,7 +41,7 @@ bool FViewportWidget::Draw(FEditorViewportClient& ViewportClient)
 	const ImVec2 ImagePosition = ImGui::GetItemRectMin();
 	ViewportClient.SetInputRect(FVector2(ImagePosition.x, ImagePosition.y), FVector2(ImageSize.x, ImageSize.y));
 	const bool bImageHovered = ImGui::IsItemHovered();
-	const bool bViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+	const bool bViewportFocused = bFocused && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 	InputRouter.RegisterTarget(ViewportClient, bImageHovered, bViewportFocused);
 	return true;
 }

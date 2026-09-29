@@ -65,7 +65,7 @@ FTextureHandle FViewportToolbar::LoadIconAtlas(const wchar_t* FileName, uint32 A
 	return RenderSystem.CreateTexture(Desc, std::span<const FTextureSubresourceData>(&Data, 1));
 }
 
-// Viewport 공통 메뉴와 선택적인 Editor별 도구를 하나의 Toolbar 행에 배치한다.
+// Viewport 공통 메뉴와 Editor별 도구를 하나의 Toolbar 행에 순서대로 그린다.
 void FViewportToolbar::Draw(FEditorViewportClient& ViewportClient, const std::function<void()>& DrawExtension)
 {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 4.0f));
@@ -213,7 +213,6 @@ void FViewportToolbar::Draw(FEditorViewportClient& ViewportClient, const std::fu
 			ImGui::SameLine();
 			DrawExtension();
 		}
-		DrawViewModeButtons(ViewportClient);
 	}
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
@@ -236,16 +235,20 @@ bool FViewportToolbar::DrawCoordinateSpaceButton(bool bLocalSpace)
 	return bClicked;
 }
 
+// 우측 정렬에 사용할 네 View Mode 버튼과 내부 간격의 전체 폭을 반환한다.
+float FViewportToolbar::GetViewModeButtonsWidth() const
+{
+	const float IconSize = ImGui::GetFontSize() + 2.0f;
+	return (IconSize + 8.0f) * 4.0f + 2.0f * 3.0f;
+}
+
+// 네 View Mode 버튼을 좁은 내부 간격으로 그리고 현재 모드를 갱신한다.
 void FViewportToolbar::DrawViewModeButtons(FEditorViewportClient& ViewportClient)
 {
 	static constexpr const char* Names[] = { "Wireframe", "Shaded Wireframe", "Unlit", "Lit" };
 	static constexpr EViewMode Modes[] = { EViewMode::Wireframe, EViewMode::ShadedWireframe, EViewMode::Unlit };
 	static constexpr float IconCenters[] = { 0.155f, 0.385f, 0.615f, 0.845f };
 	const float IconSize = ImGui::GetFontSize() + 2.0f;
-	const float ButtonWidth = IconSize + 8.0f;
-	const float TotalWidth = ButtonWidth * 4.0f + 2.0f * 3.0f;
-	ImGui::SameLine();
-	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - TotalWidth));
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, ImGui::GetStyle().FramePadding.y - 1.0f));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2.0f, 0.0f));
 	for (SIZE_T Index = 0; Index < 4; ++Index)

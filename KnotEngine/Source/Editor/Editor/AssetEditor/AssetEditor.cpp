@@ -108,12 +108,15 @@ UWorld* FAssetEditor::GetPreviewWorld() const
 
 void FAssetEditor::DrawToolbar(FViewportToolbar& ViewportToolbar)
 {
-	ViewportToolbar.Draw(ViewportClient, [this]
+	ViewportToolbar.Draw(ViewportClient, [this, &ViewportToolbar]
 	{
 		ImGui::TextUnformatted(GetEditorTypeName());
 		ImGui::SameLine();
 		ImGui::TextDisabled("|");
 		ImGui::SameLine();
 		DrawAssetToolbar();
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - ViewportToolbar.GetViewModeButtonsWidth()));
+		ViewportToolbar.DrawViewModeButtons(ViewportClient);
 	});
 }
