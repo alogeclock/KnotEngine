@@ -42,13 +42,12 @@ bool FAssetBinaryLoader::ReadAssetHeader(
 	SIZE_T FileSize,
 	const FAssetData& Asset,
 	EAssetType ExpectedType,
-	uint32 ExpectedPayloadVersion,
 	FAssetFileHeader& OutHeader)
 {
 	Reader << OutHeader;
 	return !Reader.HasError() && std::memcmp(OutHeader.Magic, FAssetFileHeader::MagicValue, sizeof(OutHeader.Magic)) == 0 &&
 		OutHeader.ContainerVersion == FAssetFileHeader::CurrentVersion && OutHeader.AssetType == ExpectedType &&
-		OutHeader.PayloadVersion == ExpectedPayloadVersion && OutHeader.AssetId == Asset.AssetId && FileSize >= sizeof(FAssetFileHeader) &&
+		OutHeader.AssetId == Asset.AssetId && FileSize >= sizeof(FAssetFileHeader) &&
 		OutHeader.PayloadSize == FileSize - sizeof(FAssetFileHeader);
 }
 
@@ -58,7 +57,8 @@ UTexture2D* FAssetBinaryLoader::LoadTexture2D(const FAssetData& Asset) const
 	const TArray<uint8> FileBytes = LoadAssetFile(Asset);
 	FMemoryReader Reader(FileBytes);
 	FAssetFileHeader AssetHeader = {};
-	if (!ReadAssetHeader(Reader, FileBytes.size(), Asset, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, AssetHeader))
+	if (!ReadAssetHeader(Reader, FileBytes.size(), Asset, EAssetType::Texture2D, AssetHeader) ||
+		AssetHeader.PayloadVersion != FTexture2DPayloadHeader::CurrentVersion)
 	{
 		return nullptr;
 	}
@@ -112,7 +112,8 @@ UMaterial* FAssetBinaryLoader::LoadMaterial(const FAssetData& Asset, FAssetManag
 	const TArray<uint8> FileBytes = LoadAssetFile(Asset);
 	FMemoryReader Reader(FileBytes);
 	FAssetFileHeader AssetHeader = {};
-	if (!ReadAssetHeader(Reader, FileBytes.size(), Asset, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, AssetHeader))
+	if (!ReadAssetHeader(Reader, FileBytes.size(), Asset, EAssetType::Material, AssetHeader) ||
+		AssetHeader.PayloadVersion != FMaterialPayloadHeader::CurrentVersion)
 	{
 		KE_LOG(LogAssetBinaryLoader, Error, "Material Header 검증에 실패했다. AssetPath={}, FileSize={}", AssetPath, FileBytes.size());
 		return nullptr;
@@ -211,7 +212,9 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FAssetData& Asset, FAssetM
 	const TArray<uint8> FileBytes = LoadAssetFile(Asset);
 	FMemoryReader Reader(FileBytes);
 	FAssetFileHeader AssetHeader = {};
-	if (!ReadAssetHeader(Reader, FileBytes.size(), Asset, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, AssetHeader))
+	if (!ReadAssetHeader(Reader, FileBytes.size(), Asset, EAssetType::StaticMesh, AssetHeader) ||
+		(AssetHeader.PayloadVersion != FStaticMeshPayloadHeader::CurrentVersion &&
+		 AssetHeader.PayloadVersion != FStaticMeshPayloadHeader::LegacyCentimeterVersion))
 	{
 		return nullptr;
 	}
@@ -256,6 +259,13 @@ UStaticMesh* FAssetBinaryLoader::LoadStaticMesh(const FAssetData& Asset, FAssetM
 		}
 		TArray<FStaticMeshVertex> Vertices(LODHeader.VertexCount);
 		Reader.Serialize(Vertices.data(), static_cast<int64>(Vertices.size() * sizeof(FStaticMeshVertex)));
+		if (AssetHeader.PayloadVersion == FStaticMeshPayloadHeader::LegacyCentimeterVersion)
+		{
+			for (FStaticMeshVertex& Vertex : Vertices)
+			{
+				Vertex.Position *= 0.01f;
+			}
+		}
 		if (Reader.HasError() || !Reader.CanSerialize(static_cast<int64>(LODHeader.IndexCount) * sizeof(uint32)))
 		{
 			return nullptr;

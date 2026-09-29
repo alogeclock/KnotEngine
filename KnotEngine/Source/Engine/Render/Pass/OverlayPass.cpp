@@ -41,7 +41,7 @@ uint32 FOverlayPass::AddPass(
 		PipelineStateDesc.BlendState.RenderTarget.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 		PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 		Parameters.GridPipeline = PipelineStateCache.GetOrCreate(PipelineStateDesc);
-		static constexpr float BaseGridSpacing = 20.0f;
+		static constexpr float BaseGridSpacing = 0.2f;
 		static constexpr float TargetGridLinePixels = 16.0f;
 		Parameters.OverlayConstants.GridSpacing = BaseGridSpacing;
 		Parameters.OverlayConstants.MajorGridInterval = 5.0f;

@@ -2,7 +2,7 @@
 
 - Knot Engine은 왼손 좌표계(Left-Handed Coordinate System)를 사용한다.
 - +X축은 Forward, +Y축은 Right, +Z축은 Up을 의미한다.
-- 월드 거리의 기본 단위는 센티미터(cm)이다.
+- 월드 거리의 기본 단위는 미터(m)이다.
 - 회전 각도의 기본 단위는 도(degree)이다.
 - 양의 회전 방향은 각 축의 규칙에 따라 정의한다.
 - D3D Clip Depth는 `[0, 1]` 범위의 Reversed-Z를 사용하며 Near Plane은 1, Far Plane은 0으로 매핑한다.

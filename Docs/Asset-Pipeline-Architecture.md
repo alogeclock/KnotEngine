@@ -297,7 +297,7 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 
 - Knot Engine은 왼손 좌표계를 사용한다.
 - +X는 Forward, +Y는 Right, +Z는 Up이다.
-- 거리 단위는 센티미터다.
+- 거리 단위는 미터다.
 - 반사 변환이 발생하면 Triangle Winding과 Tangent Handedness를 함께 보정한다.
 - Mesh, Bind Pose와 Animation Transform에 같은 변환 규칙을 적용한다.
 
@@ -313,7 +313,7 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 - GLB의 Static Mesh, Base Color Material과 embedded PNG Texture Import
 - Static Mesh, Material, Texture2D `.kasset` 로드
 - Base Color Texture용 sRGB BC7 Mip 생성
-- glTF 좌표계와 미터 단위를 Knot 좌표계와 센티미터 단위로 변환
+- glTF의 오른손 Y-Up 좌표계를 Knot의 왼손 Z-Up 좌표계로 변환하고 미터 단위는 그대로 유지
 - Unlit `OpaquePS`, Alpha Mask용 `MaskedPS`, Alpha Blend용 `TranslucentPS` 렌더링
 - Source보다 새 출력이 모두 존재하면 Import 생략
 - Skin, Animation과 Morph Target Runtime Data는 아직 지원하지 않음

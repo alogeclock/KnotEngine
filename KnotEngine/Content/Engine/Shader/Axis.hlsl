@@ -29,7 +29,7 @@ cbuffer OverlayConstants : register(b1)
     float4 MajorColor;
 };
 
-static const float FadeDistance = 20000.0f;
+static const float FadeDistance = 5000.0f;
 
 VS_OUTPUT VS(uint VertexId : SV_VertexID)
 {
@@ -64,6 +64,7 @@ float4 PS(VS_OUTPUT Input) : SV_TARGET
     {
         discard;
     }
+
     // 선택 물체의 2 Pixel Outline 위치에서 물체보다 뒤에 있는 Axis만 버린다.
     if (HasSelection != 0)
     {

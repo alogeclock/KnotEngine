@@ -76,6 +76,6 @@ private:
 
 	static void SerializeObjects(FStructuredArchiveRecord Record, UObject& Object);
 	static bool RegisterObjects(UWorld& World, FMapObjectResolver& Resolver);
-	static bool ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels);
+	static bool ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels, uint32& OutVersion);
 	static bool ValidateMap(TArray<FMapLevelDefinition>& Levels);
 };

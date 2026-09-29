@@ -86,7 +86,8 @@ struct ENGINE_API FStaticMaterial
 // Static Mesh .kasset Payload 전체에 한 번 저장되는 고정 크기 헤더다.
 struct FStaticMeshPayloadHeader
 {
-	inline static constexpr uint32 CurrentVersion = 2;
+	inline static constexpr uint32 LegacyCentimeterVersion = 2;
+	inline static constexpr uint32 CurrentVersion = 3;
 	inline static constexpr uint32 MaxLODCount = 5;
 
 	uint32 VertexStride;

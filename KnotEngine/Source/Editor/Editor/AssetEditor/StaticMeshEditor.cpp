@@ -104,7 +104,7 @@ void FStaticMeshEditor::ResetCamera()
 	const FAABB& Bounds = StaticMesh.GetMeshData().GetLocalBounds();
 	const FVector Center = Bounds.GetCenter();
 	const FVector Extent = Bounds.GetExtent();
-	const float Radius = (std::max)({ Extent.X, Extent.Y, Extent.Z, 25.0f });
+	const float Radius = (std::max)({ Extent.X, Extent.Y, Extent.Z, 0.25f });
 	FEditorViewportCameraTransform& ViewTransform = GetAssetViewportClient().GetCamera().ViewTransform;
 	ViewTransform.ViewLocation = Center + FVector(-Radius * 3.0f, Radius * 3.0f, Radius * 2.0f);
 	ViewTransform.LookAt(Center);

@@ -200,9 +200,9 @@ UPROPERTY() FVector2 UV;
 
 /**
  * 이동 속도입니다.
- * 단위는 cm/s입니다.
+ * 단위는 m/s입니다.
  */
-UPROPERTY() float Speed = 600.0f;
+UPROPERTY() float Speed = 6.0f;
 ```
 
 ### 구조체와 익명 union

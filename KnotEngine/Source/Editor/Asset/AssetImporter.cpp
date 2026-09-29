@@ -127,10 +127,10 @@ bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32
 	return true;
 }
 
-// glTF의 오른손 Y-Up 미터 좌표를 Knot Engine의 왼손 Z-Up 센티미터 좌표로 변환한다.
+// glTF의 오른손 Y-Up 좌표를 미터 단위를 유지하며 Knot Engine의 왼손 Z-Up 좌표로 변환한다.
 FVector FAssetImporter::ConvertPosition(const FVector& Value)
 {
-	return FVector(-Value.Z * 100.0f, Value.X * 100.0f, Value.Y * 100.0f);
+	return FVector(-Value.Z, Value.X, Value.Y);
 }
 
 // glTF 방향 벡터를 Knot Engine 좌표계로 변환하고 정규화한다.
@@ -578,7 +578,7 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 		}
 		if (bEngineGeometry)
 		{
-			Normalize(Mesh.Vertices, 100.0f * ImportOptions.UniformScale);
+			Normalize(Mesh.Vertices, ImportOptions.UniformScale);
 		}
 		GenerateTangents(Mesh.Vertices, Mesh.Indices);
 		TArray<FStaticMeshLODBuildData> GeneratedLODs = FMeshSimplifier::GenerateLODs(

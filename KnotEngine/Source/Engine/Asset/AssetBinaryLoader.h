@@ -28,6 +28,5 @@ private:
 		SIZE_T FileSize,
 		const FAssetData& Asset,
 		EAssetType ExpectedType,
-		uint32 ExpectedPayloadVersion,
 		FAssetFileHeader& OutHeader);
 };

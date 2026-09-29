@@ -134,6 +134,6 @@ const char* FMaterialEditor::GetCullModeName(ECullMode CullMode)
 void FMaterialEditor::ResetCamera()
 {
 	FEditorViewportCameraTransform& ViewTransform = GetAssetViewportClient().GetCamera().ViewTransform;
-	ViewTransform.ViewLocation = FVector(-180.0f, 180.0f, 140.0f);
-	ViewTransform.LookAt(FVector(0.0f, 0.0f, 50.0f));
+	ViewTransform.ViewLocation = FVector(-1.8f, 1.8f, 1.4f);
+	ViewTransform.LookAt(FVector(0.0f, 0.0f, 0.5f));
 }

@@ -174,8 +174,8 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 		if (Camera.ViewMode != EEditorViewportViewMode::Perspective)
 		{
 			static constexpr float Step = 0.85f;
-			static constexpr float MinOrthoZoom = 0.1f;
-			static constexpr float MaxOrthoZoom = 1000000.0f;
+			static constexpr float MinOrthoZoom = 0.001f;
+			static constexpr float MaxOrthoZoom = 100000.0f;
 			Camera.ViewTransform.OrthoZoom = std::clamp(Camera.ViewTransform.OrthoZoom * std::pow(Step, WheelDelta), MinOrthoZoom, MaxOrthoZoom);
 		}
 		else
@@ -214,7 +214,7 @@ void FEditorViewportClient::OnCameraStateChanged()
 		return;
 	}
 
-	static constexpr float ViewDistance = 500.0f;
+	static constexpr float ViewDistance = 5.0f;
 	switch (Camera.ViewMode)
 	{
 	case EEditorViewportViewMode::Top:

@@ -104,13 +104,12 @@ bool FMapSerializer::RegisterObjects(UWorld& World, FMapObjectResolver& Resolver
 }
 
 // Binary Record에서 Map 전체 구조와 생성할 클래스 정보를 읽되 World는 아직 변경하지 않는다.
-bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels)
+bool FMapSerializer::ReadMap(FStructuredArchiveRecord Root, FStructuredArchive& Archive, TArray<FMapLevelDefinition>& OutLevels, uint32& OutVersion)
 {
 	FString Format;
-	uint32 Version = 0;
 	Root.EnterField("Format") << Format;
-	Root.EnterField("Version") << Version;
-	if (Archive.HasError() || Format != "KnotMap" || Version != 1)
+	Root.EnterField("Version") << OutVersion;
+	if (Archive.HasError() || Format != "KnotMap" || (OutVersion != 1 && OutVersion != 2))
 	{
 		return false;
 	}
@@ -279,7 +278,7 @@ bool FMapSerializer::Save(UWorld& World, const std::filesystem::path& FilePath) 
 	FStructuredArchive Archive(Formatter, &Resolver);
 	FStructuredArchiveRecord Root = Archive.Open().EnterRecord();
 	FString Format = "KnotMap";
-	uint32 Version = 1;
+	uint32 Version = 2;
 	Root.EnterField("Format") << Format;
 	Root.EnterField("Version") << Version;
 
@@ -371,7 +370,8 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 	FMapObjectResolver Resolver;
 	FStructuredArchive Archive(Formatter, &Resolver);
 	TArray<FMapLevelDefinition> LevelDefinitions;
-	if (!ReadMap(Archive.Open().EnterRecord(), Archive, LevelDefinitions) || !ValidateMap(LevelDefinitions))
+	uint32 MapVersion = 0;
+	if (!ReadMap(Archive.Open().EnterRecord(), Archive, LevelDefinitions, MapVersion) || !ValidateMap(LevelDefinitions))
 	{
 		KE_LOG(LogMapSerializer, Error, "Map 구조, 클래스 또는 계층 검증에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
 		return false;
@@ -445,6 +445,12 @@ bool FMapSerializer::Load(UWorld& World, const std::filesystem::path& FilePath) 
 			for (FMapComponentDefinition& ComponentDefinition : NodeDefinition.Components)
 			{
 				SerializeObjects(*ComponentDefinition.Properties, *ComponentDefinition.Object);
+			}
+			if (MapVersion == 1)
+			{
+				FTransform Transform = NodeDefinition.Object->GetTransform().GetRelativeTransform();
+				Transform.Translation *= 0.01f;
+				NodeDefinition.Object->GetTransform().SetRelativeTransform(Transform);
 			}
 		}
 	}

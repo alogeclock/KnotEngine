@@ -163,7 +163,7 @@ Node의 일반 생성은 `AttachNode()`로 Level에 연결하고, 일반 삭제�
 
 `UTransformComponent`는 상대 위치, `FRotator RelativeRotation`, 상대 크기를 직렬화 원본으로 보관한다. `FQuat CachedRotation`은 `RelativeRotation`에 대응하는 정규화된 계산용 캐시다. Inspector에서 입력한 360도 이상의 회전값은 `RelativeRotation`에 그대로 남고, Gizmo처럼 Quaternion 결과를 적용하는 경로는 기존 회전의 winding과 가까운 동등 표현을 선택한 뒤 실제 변화량만 누적한다. 렌더링과 행렬 계산에는 `CachedRotation`을 사용한다.
 
-Transform 계층은 Parent와 Children 포인터를 Transient로 관리한다. `.kmap` Version 1은 Level별 Node를 평탄하게 저장하고 각 Node에 `ParentUUID`와 `SiblingIndex`를 필수로 기록한다. 이 포맷 이전에 생성된 `.kmap`은 하위 호환하지 않는다. Load는 모든 Parent 참조, Level 경계, 순환과 Sibling Index 연속성을 먼저 검증한 뒤 임시 World에 전체 객체 그래프를 복원한다. 복원이 모두 성공한 경우에만 기존 World의 Level/Node 상태를 교체한다.
+Transform 계층은 Parent와 Children 포인터를 Transient로 관리한다. `.kmap` Version 2는 Level별 Node를 평탄하게 저장하고 각 Node에 `ParentUUID`와 `SiblingIndex`를 필수로 기록하며 Transform 위치를 미터 단위로 저장한다. Version 1의 센티미터 위치는 Load 시 미터로 변환한다. Load는 모든 Parent 참조, Level 경계, 순환과 Sibling Index 연속성을 먼저 검증한 뒤 임시 World에 전체 객체 그래프를 복원한다. 복원이 모두 성공한 경우에만 기존 World의 Level/Node 상태를 교체한다.
 
 ```text
 Cube UNode

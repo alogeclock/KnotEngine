@@ -43,7 +43,7 @@ cbuffer OverlayConstants : register(b1)
 };
 
 static const float GridLineWidth = 1.0f;
-static const float FadeDistance = 20000.0f;
+static const float FadeDistance = 5000.0f;
 
 // 정점 버퍼 없이 현재 Viewport 전체를 덮는 삼각형을 만든다.
 VS_OUTPUT VS(uint VertexId : SV_VertexID)
@@ -128,7 +128,7 @@ PS_OUTPUT PS(VS_OUTPUT Input)
     float2 MajorDistance = abs(frac(MajorCoordinates - 0.5f) - 0.5f) / MajorDerivatives;
     float MajorAlpha = saturate(GridLineWidth - min(MajorDistance.x, MajorDistance.y));
 
-    // Perspective Grid만 원거리에서 페이드한다. Orthographic Grid는 간격을 확대율에 맞춰 조절하므로 항상 유지한다.
+    // Perspective Grid만 고정 거리에서 페이드한다. Orthographic Grid는 간격을 확대율에 맞춰 조절하므로 항상 유지한다.
     float Fade = 1.0f;
     if (IsOrthographic == 0)
     {

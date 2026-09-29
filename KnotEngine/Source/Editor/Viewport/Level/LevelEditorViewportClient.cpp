@@ -259,10 +259,10 @@ void FLevelEditorViewportClient::FocusSelectedNode()
 		}
 	}
 
-	static constexpr float FocusRadius = 50.0f;
+	static constexpr float FocusRadius = 0.5f;
 	static constexpr float FocusMargin = 1.15f;
 	const FVector Center = Bounds.IsValid() ? Bounds.GetCenter() : Node->GetTransform().GetWorldLocation();
-	const float Radius = (Bounds.IsValid() ? std::max(Bounds.GetExtent().Size(), 1.0f) : FocusRadius) * FocusMargin;
+	const float Radius = (Bounds.IsValid() ? std::max(Bounds.GetExtent().Size(), 0.01f) : FocusRadius) * FocusMargin;
 	const FSceneView View = FEditorViewportClient::BuildSceneView();
 	const FVector Forward = View.ViewMatrix.GetInverse().TransformVector(FVector(0.0f, 0.0f, 1.0f)).GetSafeNormal();
 	const FEditorViewportCameraTransform& Transform = GetCamera().ViewTransform;
@@ -485,7 +485,7 @@ FVector FLevelEditorViewportClient::FindPlacementLocation(const FVector2& InputP
 			return WorldRay.Origin + WorldRay.Direction * Distance;
 		}
 	}
-	static constexpr float DefaultPlacementDistance = 1000.0f;
+	static constexpr float DefaultPlacementDistance = 10.0f;
 	return WorldRay.Origin + WorldRay.Direction * DefaultPlacementDistance;
 }
 

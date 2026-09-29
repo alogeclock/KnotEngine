@@ -204,7 +204,7 @@ void FContentPanel::DrawImportOptions()
 		ImGui::TextDisabled("Bake scene node transforms and combine all mesh nodes into one Static Mesh.");
 		ImGui::SetNextItemWidth(180.0f);
 		ImGui::DragFloat("Uniform Scale", &PendingImportOptions.UniformScale, 0.01f, 0.0001f, 1000.0f, "%.4f");
-		ImGui::TextDisabled("1.0 converts glTF meters to Knot Engine centimeters.");
+		ImGui::TextDisabled("1.0 preserves glTF meters as Knot Engine units.");
 
 		ImGui::Spacing();
 		ImGui::TextUnformatted("Generated LODs");
