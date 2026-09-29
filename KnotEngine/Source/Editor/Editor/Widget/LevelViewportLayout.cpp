@@ -288,47 +288,19 @@ void FLevelViewportLayout::DrawSplitters()
 	}
 }
 
-// Layout 선택 버튼에 축소 배치를 그려 클릭 시 해당 Layout으로 전환한다.
-bool FLevelViewportLayout::DrawLayoutOption(ELevelViewportLayout LayoutType, const char* Tooltip)
+// PNG Atlas의 Layout 아이콘을 표시하고 클릭 시 해당 Layout으로 전환한다.
+bool FLevelViewportLayout::DrawLayoutOption(ELevelViewportLayout LayoutType, const char* Tooltip, ImTextureID LayoutIconsId)
 {
 	ImGui::PushID(static_cast<int>(LayoutType));
-	const bool bSelected = Layout == LayoutType;
-	if (bSelected)
-	{
-		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-	}
-	const bool bClicked = ImGui::Button("##Layout", ImVec2(48.0f, 36.0f));
-	if (bSelected)
-	{
-		ImGui::PopStyleColor();
-	}
-
-	const ImVec2 Minimum = ImGui::GetItemRectMin();
-	const ImVec2 Maximum = ImGui::GetItemRectMax();
-	FLayoutState PreviewState;
-	if (LayoutType == ELevelViewportLayout::FourPanesLeft || LayoutType == ELevelViewportLayout::FourPanesRight ||
-	    LayoutType == ELevelViewportLayout::FourPanesTop || LayoutType == ELevelViewportLayout::FourPanesBottom)
-	{
-		PreviewState.Secondary = 1.0f / 3.0f;
-	}
-	TStaticArray<FLevelViewportPaneRect, 4> PreviewPanes = {};
-	TStaticArray<FSplitter, 3> PreviewSplitters = {};
-	uint32 PreviewSplitterCount = 0;
-	const uint32 PaneCount = BuildLayout(
-		LayoutType,
-		PreviewState,
-		FVector2(Minimum.x + 5.0f, Minimum.y + 5.0f),
-		FVector2(Maximum.x - Minimum.x - 10.0f, Maximum.y - Minimum.y - 10.0f),
-		PreviewPanes,
-		PreviewSplitters,
-		PreviewSplitterCount);
-	ImDrawList* DrawList = ImGui::GetWindowDrawList();
-	const ImU32 PaneColor = ImGui::GetColorU32(ImGuiCol_TextDisabled);
-	for (uint32 Index = 0; Index < PaneCount; ++Index)
-	{
-		const FLevelViewportPaneRect& Pane = PreviewPanes[Index];
-		DrawList->AddRect(ImVec2(Pane.Position.X, Pane.Position.Y), ImVec2(Pane.Position.X + Pane.Size.X, Pane.Position.Y + Pane.Size.Y), PaneColor);
-	}
+	static constexpr float IconCount = static_cast<float>(ELevelViewportLayout::Count);
+	const float IconIndex = static_cast<float>(LayoutType);
+	const ImVec2 UV0(IconIndex / IconCount, 0.0f);
+	const ImVec2 UV1((IconIndex + 1.0f) / IconCount, 1.0f);
+	const ImVec4 Transparent(0.0f, 0.0f, 0.0f, 0.0f);
+	const ImVec4 ButtonColor = Layout == LayoutType ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive) : Transparent;
+	ImGui::PushStyleColor(ImGuiCol_Button, ButtonColor);
+	const bool bClicked = ImGui::ImageButton("##Layout", ImTextureRef(LayoutIconsId), ImVec2(48.0f, 36.0f), UV0, UV1);
+	ImGui::PopStyleColor();
 	if (ImGui::IsItemHovered())
 	{
 		ImGui::SetTooltip("%s", Tooltip);
@@ -348,7 +320,12 @@ bool FLevelViewportLayout::DrawLayoutOption(ELevelViewportLayout LayoutType, con
 }
 
 // 같은 Pane 수를 가진 Layout 선택 버튼들을 Popup의 한 그룹으로 그린다.
-void FLevelViewportLayout::DrawLayoutGroup(const char* Label, const ELevelViewportLayout* Layouts, const char* const* Tooltips, SIZE_T Count)
+void FLevelViewportLayout::DrawLayoutGroup(
+	const char* Label,
+	const ELevelViewportLayout* Layouts,
+	const char* const* Tooltips,
+	SIZE_T Count,
+	ImTextureID LayoutIconsId)
 {
 	ImGui::TextDisabled("%s", Label);
 	ImGui::Separator();
@@ -358,13 +335,13 @@ void FLevelViewportLayout::DrawLayoutGroup(const char* Label, const ELevelViewpo
 		{
 			ImGui::SameLine();
 		}
-		DrawLayoutOption(Layouts[Index], Tooltips[Index]);
+		DrawLayoutOption(Layouts[Index], Tooltips[Index], LayoutIconsId);
 	}
 	ImGui::Spacing();
 }
 
 // 지원하는 1~4분할 Layout 선택지를 그룹별 Popup으로 그린다.
-void FLevelViewportLayout::DrawLayoutMenu()
+void FLevelViewportLayout::DrawLayoutMenu(ImTextureID LayoutIconsId)
 {
 	if (!ImGui::BeginPopup("##LevelViewportLayoutMenu"))
 	{
@@ -405,10 +382,10 @@ void FLevelViewportLayout::DrawLayoutMenu()
 		"Four Panes Grid",
 	};
 
-	DrawLayoutGroup("ONE PANE", OnePaneLayouts, OnePaneTooltips, std::size(OnePaneLayouts));
-	DrawLayoutGroup("TWO PANES", TwoPaneLayouts, TwoPaneTooltips, std::size(TwoPaneLayouts));
-	DrawLayoutGroup("THREE PANES", ThreePaneLayouts, ThreePaneTooltips, std::size(ThreePaneLayouts));
-	DrawLayoutGroup("FOUR PANES", FourPaneLayouts, FourPaneTooltips, std::size(FourPaneLayouts));
+	DrawLayoutGroup("One Pane", OnePaneLayouts, OnePaneTooltips, std::size(OnePaneLayouts), LayoutIconsId);
+	DrawLayoutGroup("Two Panes", TwoPaneLayouts, TwoPaneTooltips, std::size(TwoPaneLayouts), LayoutIconsId);
+	DrawLayoutGroup("Three Panes", ThreePaneLayouts, ThreePaneTooltips, std::size(ThreePaneLayouts), LayoutIconsId);
+	DrawLayoutGroup("Four Panes", FourPaneLayouts, FourPaneTooltips, std::size(FourPaneLayouts), LayoutIconsId);
 	ImGui::EndPopup();
 }
 
@@ -433,7 +410,7 @@ void FLevelViewportLayout::ToggleMaximize(SIZE_T SlotIndex)
 }
 
 // Toolbar에 Layout Popup 버튼과 최대화·복원 상태 아이콘을 그린다.
-void FLevelViewportLayout::DrawToolbarButtons(SIZE_T SlotIndex)
+void FLevelViewportLayout::DrawToolbarButtons(SIZE_T SlotIndex, ImTextureID LayoutIconsId)
 {
 	const float ButtonSize = ImGui::GetFrameHeight();
 	if (ImGui::Button("##LevelViewportLayoutMenuButton", ImVec2(ButtonSize, ButtonSize)))
@@ -483,5 +460,5 @@ void FLevelViewportLayout::DrawToolbarButtons(SIZE_T SlotIndex)
 		ImGui::SetTooltip("%s", bSinglePane ? "Restore Viewports" : "Maximize Viewport");
 	}
 	ImGui::SetNextWindowPos(ImVec2(MenuMinimum.x, MenuMaximum.y), ImGuiCond_Appearing);
-	DrawLayoutMenu();
+	DrawLayoutMenu(LayoutIconsId);
 }

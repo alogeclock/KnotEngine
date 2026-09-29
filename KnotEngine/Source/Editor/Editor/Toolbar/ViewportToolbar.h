@@ -21,6 +21,7 @@ public:
 	void DrawViewModeButtons(FEditorViewportClient& ViewportClient);
 
 	float GetViewModeButtonsWidth() const;
+	ImTextureID GetLayoutIconsId() const { return LayoutIconsId; }
 
 private:
 	FTextureHandle LoadIconAtlas(const wchar_t* FileName, uint32 AtlasWidth, uint32 AtlasHeight);
@@ -32,4 +33,7 @@ private:
 
 	FTextureHandle CoordinateSpaceIcons;
 	ImTextureID CoordinateSpaceIconsId = {};
+
+	FTextureHandle LayoutIcons;
+	ImTextureID LayoutIconsId = {};
 };

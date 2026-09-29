@@ -3,6 +3,8 @@
 #include "Core/CoreTypes.h"
 #include "Core/Math/Vector2.h"
 
+#include <imgui.h>
+
 // Level Editor Viewport Panel 안에서 사용할 1~4분할 배치 종류.
 enum class ELevelViewportLayout : uint8
 {
@@ -37,7 +39,7 @@ public:
 
 	uint32 CalculatePaneRects(const FVector2& Position, const FVector2& Size, TStaticArray<FLevelViewportPaneRect, 4>& OutPaneRects);
 	void DrawSplitters();
-	void DrawToolbarButtons(SIZE_T SlotIndex);
+	void DrawToolbarButtons(SIZE_T SlotIndex, ImTextureID LayoutIconsId);
 
 	ELevelViewportLayout GetLayout() const { return Layout; }
 	uint32 GetPaneCount() const;
@@ -86,9 +88,9 @@ private:
 		TStaticArray<FSplitter, 3>& OutSplitters,
 		uint32& OutSplitterCount);
 
-	bool DrawLayoutOption(ELevelViewportLayout LayoutType, const char* Tooltip);
-	void DrawLayoutGroup(const char* Label, const ELevelViewportLayout* Layouts, const char* const* Tooltips, SIZE_T Count);
-	void DrawLayoutMenu();
+	bool DrawLayoutOption(ELevelViewportLayout LayoutType, const char* Tooltip, ImTextureID LayoutIconsId);
+	void DrawLayoutGroup(const char* Label, const ELevelViewportLayout* Layouts, const char* const* Tooltips, SIZE_T Count, ImTextureID LayoutIconsId);
+	void DrawLayoutMenu(ImTextureID LayoutIconsId);
 	void ToggleMaximize(SIZE_T SlotIndex);
 
 	static constexpr float SplitterThickness = 5.0f;

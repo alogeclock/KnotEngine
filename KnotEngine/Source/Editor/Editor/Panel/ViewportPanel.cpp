@@ -202,7 +202,7 @@ void FViewportPanel::DrawViewportSlot(SIZE_T SlotIndex, const FLevelViewportPane
 					ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - RightButtonsWidth));
 				Toolbar.DrawViewModeButtons(Slot.Client);
 				ImGui::SameLine();
-				ViewportLayout.DrawToolbarButtons(SlotIndex);
+				ViewportLayout.DrawToolbarButtons(SlotIndex, Toolbar.GetLayoutIconsId());
 			});
 		const float ToolbarBottom = ImGui::GetItemRectMax().y;
 		ImGui::SetCursorScreenPos(ImVec2(PaneRect.Position.X, ToolbarBottom));

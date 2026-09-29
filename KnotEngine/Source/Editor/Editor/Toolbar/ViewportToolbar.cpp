@@ -25,6 +25,8 @@ void FViewportToolbar::Startup()
 	ViewModeIconsId = RenderSystem.GetImGuiTextureID(ViewModeIcons);
 	CoordinateSpaceIcons = LoadIconAtlas(L"ViewportCoordinateSpaces.png", 512, 256);
 	CoordinateSpaceIconsId = RenderSystem.GetImGuiTextureID(CoordinateSpaceIcons);
+	LayoutIcons = LoadIconAtlas(L"ViewportLayouts.png", 768, 48);
+	LayoutIconsId = RenderSystem.GetImGuiTextureID(LayoutIcons);
 }
 
 // Icon 폴더의 PNG를 RGBA로 디코딩하여 Toolbar용 GPU Texture를 생성한다.
@@ -283,4 +285,6 @@ void FViewportToolbar::Release()
 	ViewModeIconsId = {};
 	RenderSystem.DestroyTexture(CoordinateSpaceIcons);
 	CoordinateSpaceIconsId = {};
+	RenderSystem.DestroyTexture(LayoutIcons);
+	LayoutIconsId = {};
 }
