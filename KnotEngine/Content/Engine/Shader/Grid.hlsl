@@ -1,4 +1,4 @@
-// 화면 전체 삼각형에서 광선을 복원하여 World Z=0 평면에 편집용 Grid를 그린다.
+// 화면 전체 삼각형에서 광선을 복원하여 View가 선택한 World 원점 평면에 편집용 Grid를 그린다.
 struct VS_OUTPUT
 {
     float4 Position : SV_POSITION;
@@ -28,7 +28,7 @@ cbuffer OverlayConstants : register(b1)
     uint HasSelection;
     float GridSpacing;
     float MajorGridInterval;
-    uint Padding;
+    uint GridPlane;
 
     float4 MinorColor;
     float4 MajorColor;
@@ -36,9 +36,10 @@ cbuffer OverlayConstants : register(b1)
     row_major float4x4 Projection;
     row_major float4x4 InverseProjection;
     row_major float4x4 InverseViewRotation;
+
     float2 GridOriginPhase;
-    float CameraHeight;
-    float Padding2;
+    float CameraPlaneDistance;
+    uint IsOrthographic;
 };
 
 static const float GridLineWidth = 1.0f;
@@ -66,14 +67,33 @@ PS_OUTPUT PS(VS_OUTPUT Input)
     float3 NearRelativePosition = mul(float4(NearViewPosition.xyz, 0.0f), InverseViewRotation).xyz;
     float3 RayRelativePosition = mul(float4(RayViewPosition.xyz, 0.0f), InverseViewRotation).xyz;
 
-    // World Z=0 평면과 평행하거나 View 앞에서 평면과 만나지 않는 광선은 버린다.
+    // 선택한 World 원점 평면과 평행하거나 View 앞에서 평면과 만나지 않는 광선은 버린다.
     float3 RayDirection = RayRelativePosition - NearRelativePosition;
-    if (abs(RayDirection.z) < 0.00001f)
+    float NearPlanePosition;
+    float RayPlaneDirection;
+
+    switch (GridPlane)
+    {
+    case 1: // XZ, Y=0
+        NearPlanePosition = NearRelativePosition.y;
+        RayPlaneDirection = RayDirection.y;
+        break;
+    case 2: // YZ, X=0
+        NearPlanePosition = NearRelativePosition.x;
+        RayPlaneDirection = RayDirection.x;
+        break;
+    default: // XY, Z=0
+        NearPlanePosition = NearRelativePosition.z;
+        RayPlaneDirection = RayDirection.z;
+        break;
+    }
+
+    if (abs(RayPlaneDirection) < 0.00001f)
     {
         discard;
     }
 
-    float RayDistance = (-CameraHeight - NearRelativePosition.z) / RayDirection.z;
+    float RayDistance = (-CameraPlaneDistance - NearPlanePosition) / RayPlaneDirection;
     if (RayDistance < 0.0f)
     {
         discard;
@@ -84,7 +104,19 @@ PS_OUTPUT PS(VS_OUTPUT Input)
     float MajorGridSpacing = GridSpacing * MajorGridInterval;
 
     // 카메라 위치의 작은 주기 위상만 더해 절대 World Grid와 정렬하면서 큰 좌표의 frac 정밀도 손실을 피한다.
-    float2 GridPosition = RelativeWorldPosition.xy + GridOriginPhase;
+    float2 GridPosition;
+    switch (GridPlane)
+    {
+    case 1: // XZ
+        GridPosition = RelativeWorldPosition.xz + GridOriginPhase;
+        break;
+    case 2: // YZ
+        GridPosition = RelativeWorldPosition.yz + GridOriginPhase;
+        break;
+    default: // XY
+        GridPosition = RelativeWorldPosition.xy + GridOriginPhase;
+        break;
+    }
     float2 MinorCoordinates = GridPosition / GridSpacing;
     float2 MinorDerivatives = max(fwidth(MinorCoordinates), 0.00001f);
     float2 MinorDistance = abs(frac(MinorCoordinates - 0.5f) - 0.5f) / MinorDerivatives;
@@ -96,11 +128,15 @@ PS_OUTPUT PS(VS_OUTPUT Input)
     float2 MajorDistance = abs(frac(MajorCoordinates - 0.5f) - 0.5f) / MajorDerivatives;
     float MajorAlpha = saturate(GridLineWidth - min(MajorDistance.x, MajorDistance.y));
 
-    // Far Plane에서 갑자기 잘리지 않도록 View와의 3차원 거리로 먼저 페이드한다.
-    float ViewDistance = length(RelativeWorldPosition);
-    float FadeStart = min(FadeDistance * 0.5f, FarClip * 0.8f);
-    float FadeEnd = min(FadeDistance, FarClip * 0.95f);
-    float Fade = 1.0f - smoothstep(FadeStart, FadeEnd, ViewDistance);
+    // Perspective Grid만 원거리에서 페이드한다. Orthographic Grid는 간격을 확대율에 맞춰 조절하므로 항상 유지한다.
+    float Fade = 1.0f;
+    if (IsOrthographic == 0)
+    {
+        float ViewDistance = length(RelativeWorldPosition);
+        float FadeStart = min(FadeDistance * 0.5f, FarClip * 0.8f);
+        float FadeEnd = min(FadeDistance, FarClip * 0.95f);
+        Fade = 1.0f - smoothstep(FadeStart, FadeEnd, ViewDistance);
+    }
     float4 GridColor = lerp(MinorColor, MajorColor, MajorAlpha);
     GridColor.a *= max(MinorAlpha, MajorAlpha) * Fade;
     if (GridColor.a <= 0.0f)

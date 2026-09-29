@@ -34,15 +34,16 @@ private:
 		uint32 HasSelection;
 		float GridSpacing;
 		float MajorGridInterval;
-		uint32 Padding;
+		uint32 GridPlane;
 		FVector4 MinorColor;
 		FVector4 MajorColor;
 		FMatrix Projection;
 		FMatrix InverseProjection;
 		FMatrix InverseViewRotation;
+
 		FVector2 GridOriginPhase;
-		float CameraHeight;
-		float Padding2;
+		float CameraPlaneDistance;
+		uint32 IsOrthographic;
 	};
 	static_assert(sizeof(FOverlayConstants) == 256);
 

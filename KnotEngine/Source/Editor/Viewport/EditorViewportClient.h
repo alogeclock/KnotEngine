@@ -41,7 +41,7 @@ public:
 	FInputReply OnInputEvent(const FInputEvent& Event) override;
 	void OnKeyboardFocusLost() override;
 	void OnMouseCaptureLost() override;
-	bool ShouldHideCursor() const override { return bRotatingCamera; }
+	bool ShouldHideCursor() const override { return IsCameraDragging(); }
 
 	// Camera
 	FEditorViewportCamera& GetCamera() { return Camera; }
@@ -49,7 +49,7 @@ public:
 	void OnCameraStateChanged();
 	void OnViewTransformChanged();
 
-	bool IsCameraDragging() const { return bRotatingCamera; }
+	bool IsCameraDragging() const { return bRotatingCamera || bPanningCamera; }
 
 protected:
 	FViewport& GetViewport() const { return Viewport; }
@@ -69,5 +69,8 @@ private:
 	FEditorViewportCamera Camera;
 	FVector2 InputRectPosition = FVector2::ZeroVector;
 	FVector2 InputRectSize = FVector2::ZeroVector;
+	EMouseButton CameraDragButton = EMouseButton::Invalid;
+
 	bool bRotatingCamera = false;
+	bool bPanningCamera = false;
 };

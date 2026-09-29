@@ -41,8 +41,23 @@ uint32 FOverlayPass::AddPass(
 		PipelineStateDesc.BlendState.RenderTarget.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 		PipelineStateDesc.RasterizerState.CullMode = ECullMode::None;
 		Parameters.GridPipeline = PipelineStateCache.GetOrCreate(PipelineStateDesc);
-		Parameters.OverlayConstants.GridSpacing = 20.0f;
+		static constexpr float BaseGridSpacing = 20.0f;
+		static constexpr float TargetGridLinePixels = 16.0f;
+		Parameters.OverlayConstants.GridSpacing = BaseGridSpacing;
 		Parameters.OverlayConstants.MajorGridInterval = 5.0f;
+		Parameters.OverlayConstants.GridPlane = static_cast<uint32>(View.GridPlane);
+		Parameters.OverlayConstants.IsOrthographic = View.OrthoWidth > 0.0f ? 1u : 0u;
+		if (View.OrthoWidth > 0.0f && View.Viewport.Width > 0.0f)
+		{
+			const float DesiredSpacing = View.OrthoWidth / View.Viewport.Width * TargetGridLinePixels;
+			if (DesiredSpacing > BaseGridSpacing)
+			{
+				const float Magnitude = std::pow(10.0f, std::floor(std::log10(DesiredSpacing)));
+				const float NormalizedSpacing = DesiredSpacing / Magnitude;
+				const float Step = NormalizedSpacing <= 1.0f ? 1.0f : NormalizedSpacing <= 2.0f ? 2.0f : NormalizedSpacing <= 5.0f ? 5.0f : 10.0f;
+				Parameters.OverlayConstants.GridSpacing = Step * Magnitude;
+			}
+		}
 		Parameters.OverlayConstants.MinorColor = FVector4(0.30f, 0.33f, 0.38f, 0.3f);
 		Parameters.OverlayConstants.MajorColor = FVector4(0.42f, 0.46f, 0.52f, 0.5f);
 		Parameters.OverlayConstants.Projection = View.ProjectionMatrix;
@@ -56,9 +71,24 @@ uint32 FOverlayPass::AddPass(
 		Parameters.OverlayConstants.InverseViewRotation.M[3][2] = 0.0f;
 		Parameters.OverlayConstants.InverseViewRotation.M[3][3] = 1.0f;
 		const float MajorGridSpacing = Parameters.OverlayConstants.GridSpacing * Parameters.OverlayConstants.MajorGridInterval;
-		Parameters.OverlayConstants.GridOriginPhase = FVector2(
-			std::fmod(View.ViewOrigin.X, MajorGridSpacing), std::fmod(View.ViewOrigin.Y, MajorGridSpacing));
-		Parameters.OverlayConstants.CameraHeight = View.ViewOrigin.Z;
+		switch (View.GridPlane)
+		{
+		case EGridPlane::XZ:
+			Parameters.OverlayConstants.GridOriginPhase = FVector2(
+				std::fmod(View.ViewOrigin.X, MajorGridSpacing), std::fmod(View.ViewOrigin.Z, MajorGridSpacing));
+			Parameters.OverlayConstants.CameraPlaneDistance = View.ViewOrigin.Y;
+			break;
+		case EGridPlane::YZ:
+			Parameters.OverlayConstants.GridOriginPhase = FVector2(
+				std::fmod(View.ViewOrigin.Y, MajorGridSpacing), std::fmod(View.ViewOrigin.Z, MajorGridSpacing));
+			Parameters.OverlayConstants.CameraPlaneDistance = View.ViewOrigin.X;
+			break;
+		case EGridPlane::XY:
+			Parameters.OverlayConstants.GridOriginPhase = FVector2(
+				std::fmod(View.ViewOrigin.X, MajorGridSpacing), std::fmod(View.ViewOrigin.Y, MajorGridSpacing));
+			Parameters.OverlayConstants.CameraPlaneDistance = View.ViewOrigin.Z;
+			break;
+		}
 	}
 
 	if (ShowFlags.bAxis)

@@ -130,22 +130,41 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 		if (PointerEvent->Button == EMouseButton::Right && Camera.ViewMode == EEditorViewportViewMode::Perspective)
 		{
 			bRotatingCamera = true;
+			CameraDragButton = PointerEvent->Button;
+			Reply.CaptureMouse();
+		}
+		else if (Camera.ViewMode != EEditorViewportViewMode::Perspective &&
+		         (PointerEvent->Button == EMouseButton::Right || PointerEvent->Button == EMouseButton::Middle))
+		{
+			bPanningCamera = true;
+			CameraDragButton = PointerEvent->Button;
 			Reply.CaptureMouse();
 		}
 		return Reply;
 	}
-	if (PointerEvent->Type == EPointerInputEventType::ButtonUp && PointerEvent->Button == EMouseButton::Right)
+	if (PointerEvent->Type == EPointerInputEventType::ButtonUp && PointerEvent->Button == CameraDragButton)
 	{
 		bRotatingCamera = false;
+		bPanningCamera = false;
+		CameraDragButton = EMouseButton::Invalid;
 		return FInputReply::Handled().ReleaseMouse();
 	}
-	if (PointerEvent->Type == EPointerInputEventType::MouseMoved && bRotatingCamera)
+	if (PointerEvent->Type == EPointerInputEventType::MouseMoved && IsCameraDragging())
 	{
-		static constexpr float LookSensitivity = 0.15f;
-		Camera.ViewTransform.Rotate(PointerEvent->Delta.X * LookSensitivity, -PointerEvent->Delta.Y * LookSensitivity);
+		if (bRotatingCamera)
+		{
+			static constexpr float LookSensitivity = 0.15f;
+			Camera.ViewTransform.Rotate(PointerEvent->Delta.X * LookSensitivity, -PointerEvent->Delta.Y * LookSensitivity);
+		}
+		else if (InputRectSize.X > 0.0f)
+		{
+			const float UnitsPerPixel = Camera.ViewTransform.OrthoZoom / InputRectSize.X;
+			const FVector PanDelta(0.0f, -PointerEvent->Delta.X * UnitsPerPixel, PointerEvent->Delta.Y * UnitsPerPixel);
+			Camera.ViewTransform.TranslateLocal(PanDelta * Camera.Sensitivity);
+		}
 		return FInputReply::Handled();
 	}
-	if (PointerEvent->Type == EPointerInputEventType::CursorMoved && bRotatingCamera)
+	if (PointerEvent->Type == EPointerInputEventType::CursorMoved && IsCameraDragging())
 	{
 		return FInputReply::Handled();
 	}
@@ -156,7 +175,7 @@ FInputReply FEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 		{
 			static constexpr float Step = 0.85f;
 			static constexpr float MinOrthoZoom = 0.1f;
-			static constexpr float MaxOrthoZoom = 10000.0f;
+			static constexpr float MaxOrthoZoom = 1000000.0f;
 			Camera.ViewTransform.OrthoZoom = std::clamp(Camera.ViewTransform.OrthoZoom * std::pow(Step, WheelDelta), MinOrthoZoom, MaxOrthoZoom);
 		}
 		else
@@ -174,11 +193,15 @@ void FEditorViewportClient::OnKeyboardFocusLost()
 {
 	KeysDown.reset();
 	bRotatingCamera = false;
+	bPanningCamera = false;
+	CameraDragButton = EMouseButton::Invalid;
 }
 
 void FEditorViewportClient::OnMouseCaptureLost()
 {
 	bRotatingCamera = false;
+	bPanningCamera = false;
+	CameraDragButton = EMouseButton::Invalid;
 }
 
 void FEditorViewportClient::OnCameraStateChanged()
@@ -222,6 +245,8 @@ void FEditorViewportClient::OnCameraStateChanged()
 		break;
 	}
 	bRotatingCamera = false;
+	bPanningCamera = false;
+	CameraDragButton = EMouseButton::Invalid;
 }
 
 void FEditorViewportClient::OnViewTransformChanged()
@@ -259,7 +284,22 @@ FSceneView FEditorViewportClient::BuildSceneView()
 	SceneView.ViewOrigin = Transform.ViewLocation;
 	SceneView.FarClip = Transform.FarClip;
 	SceneView.Viewport = ViewportInfo;
+	SceneView.OrthoWidth = Transform.bIsOrtho ? Transform.OrthoZoom : 0.0f;
 	SceneView.Frustum.UpdateFromCamera(SceneView.ViewProjectionMatrix);
+	switch (Camera.ViewMode)
+	{
+	case EEditorViewportViewMode::Left:
+	case EEditorViewportViewMode::Right:
+		SceneView.GridPlane = EGridPlane::XZ;
+		break;
+	case EEditorViewportViewMode::Front:
+	case EEditorViewportViewMode::Back:
+		SceneView.GridPlane = EGridPlane::YZ;
+		break;
+	default:
+		SceneView.GridPlane = EGridPlane::XY;
+		break;
+	}
 	return SceneView;
 }
 

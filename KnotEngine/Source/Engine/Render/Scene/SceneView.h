@@ -14,6 +14,14 @@ enum class EViewMode : uint8
 	ShadedWireframe,
 };
 
+// Editor Grid가 놓이는 World 원점 평면이다.
+enum class EGridPlane : uint8
+{
+	XY,
+	XZ,
+	YZ,
+};
+
 // Editor Transform Gizmo가 View별로 Render Thread에 전달하는 값 복사본이다.
 enum class EGizmoViewMode : uint8
 {
@@ -42,9 +50,11 @@ struct FSceneView
 	FMatrix ViewProjectionMatrix;
 	FVector ViewOrigin;
 	float FarClip = 0.0f;
+	float OrthoWidth = 0.0f;
 	FFrustum Frustum;
 	FRenderViewport Viewport;
 	EViewMode ViewMode = EViewMode::Unlit;
+	EGridPlane GridPlane = EGridPlane::XY;
 	FGizmoView Gizmo;
 	
 	int32 ForcedLODIndex = -1;
