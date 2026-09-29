@@ -37,14 +37,22 @@ class FLevelViewportLayout final
 public:
 	FLevelViewportLayout();
 
-	uint32 CalculatePaneRects(const FVector2& Position, const FVector2& Size, TStaticArray<FLevelViewportPaneRect, 4>& OutPaneRects);
+	uint32 CalculatePaneRects(
+		const FVector2& Position,
+		const FVector2& Size,
+		float DeltaTime,
+		TStaticArray<FLevelViewportPaneRect, 4>& OutPaneRects,
+		TStaticArray<SIZE_T, 4>& OutSlotIndices);
 	void DrawSplitters();
 	void DrawToolbarButtons(SIZE_T SlotIndex, ImTextureID LayoutIconsId);
 
 	ELevelViewportLayout GetLayout() const { return Layout; }
 	uint32 GetPaneCount() const;
 	SIZE_T GetSlotIndex(SIZE_T PaneIndex) const;
+	bool GetTargetPaneRect(SIZE_T SlotIndex, FLevelViewportPaneRect& OutPaneRect) const;
+
 	bool IsSlotVisible(SIZE_T SlotIndex) const;
+	bool IsTransitioning() const { return bTransitioning || bTransitionPending; }
 
 private:
 	struct FLayoutState
@@ -87,14 +95,17 @@ private:
 		TStaticArray<FLevelViewportPaneRect, 4>& OutPaneRects,
 		TStaticArray<FSplitter, 3>& OutSplitters,
 		uint32& OutSplitterCount);
+	static FLevelViewportPaneRect InterpolateRect(const FLevelViewportPaneRect& Start, const FLevelViewportPaneRect& End, float Alpha);
 
 	bool DrawLayoutOption(ELevelViewportLayout LayoutType, const char* Tooltip, ImTextureID LayoutIconsId);
 	void DrawLayoutGroup(const char* Label, const ELevelViewportLayout* Layouts, const char* const* Tooltips, SIZE_T Count, ImTextureID LayoutIconsId);
 	void DrawLayoutMenu(ImTextureID LayoutIconsId);
 	void ToggleMaximize(SIZE_T SlotIndex);
+	void RequestTransition();
 
 	static constexpr float SplitterThickness = 5.0f;
 	static constexpr float MinimumPaneSize = 48.0f;
+	static constexpr float TransitionDuration = 0.2f;
 
 	TStaticArray<FLayoutState, static_cast<SIZE_T>(ELevelViewportLayout::Count)> LayoutStates = {};
 	TStaticArray<FSplitter, 3> Splitters = {};
@@ -104,5 +115,18 @@ private:
 
 	SIZE_T MaximizedSlotIndex = 0;
 	uint32 SplitterCount = 0;
+
+	TStaticArray<FLevelViewportPaneRect, 4> CurrentRects = {};
+	TStaticArray<FLevelViewportPaneRect, 4> TransitionStartRects = {};
+	TStaticArray<FLevelViewportPaneRect, 4> TransitionTargetRects = {};
+	TStaticArray<FLevelViewportPaneRect, 4> TargetRects = {};
+	TStaticArray<bool, 4> CurrentVisibleSlots = {};
+	TStaticArray<bool, 4> TransitionSlots = {};
+	TStaticArray<bool, 4> TransitionAnimatedSlots = {};
+	TStaticArray<bool, 4> TargetVisibleSlots = {};
+	float TransitionElapsed = 0.0f;
+	bool bHasCalculatedLayout = false;
+	bool bTransitionPending = false;
+	bool bTransitioning = false;
 	bool bMaximized = false;
 };

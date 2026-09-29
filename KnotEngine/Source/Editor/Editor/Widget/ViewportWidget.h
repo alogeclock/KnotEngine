@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Math/Vector2.h"
 #include "Viewport/Viewport.h"
 
 class FEditorViewportClient;
@@ -12,7 +13,8 @@ class FViewportWidget final
 public:
 	FViewportWidget(FRenderSystem& InRenderSystem, FInputRouter& InInputRouter);
 
-	bool Draw(FEditorViewportClient& ViewportClient, bool bFocused = true);
+	bool Draw(FEditorViewportClient& ViewportClient, bool bFocused = true, bool bResize = true);
+	void Resize(const FVector2& Size);
 	void Release(FEditorViewportClient& ViewportClient);
 
 	FViewport& GetViewport() { return Viewport; }

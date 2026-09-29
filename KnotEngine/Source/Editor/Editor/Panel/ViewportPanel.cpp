@@ -127,13 +127,13 @@ void FViewportPanel::Draw(bool bVisible, float DeltaTime, FViewportToolbar& Tool
 		VisibleViewportCount = ViewportLayout.CalculatePaneRects(
 			FVector2(LayoutPosition.x, LayoutPosition.y),
 			FVector2(LayoutSize.x, LayoutSize.y),
-			PaneRects);
+			DeltaTime,
+			PaneRects,
+			VisibleViewportIndices);
 		TStaticArray<bool, 4> bVisibleSlots = {};
 		for (SIZE_T PaneIndex = 0; PaneIndex < VisibleViewportCount; ++PaneIndex)
 		{
-			const SIZE_T SlotIndex = ViewportLayout.GetSlotIndex(PaneIndex);
-			VisibleViewportIndices[PaneIndex] = SlotIndex;
-			bVisibleSlots[SlotIndex] = true;
+			bVisibleSlots[VisibleViewportIndices[PaneIndex]] = true;
 		}
 		for (SIZE_T PaneIndex = 0; PaneIndex < VisibleViewportCount; ++PaneIndex)
 		{
@@ -206,7 +206,18 @@ void FViewportPanel::DrawViewportSlot(SIZE_T SlotIndex, const FLevelViewportPane
 			});
 		const float ToolbarBottom = ImGui::GetItemRectMax().y;
 		ImGui::SetCursorScreenPos(ImVec2(PaneRect.Position.X, ToolbarBottom));
-		if (Slot.Widget.Draw(Slot.Client, bActive))
+		const bool bTransitioning = ViewportLayout.IsTransitioning();
+		if (bTransitioning)
+		{
+			FLevelViewportPaneRect TargetPaneRect;
+			const float ToolbarHeight = ToolbarBottom - PaneRect.Position.Y;
+			const float CurrentImageHeight = PaneRect.Size.Y - ToolbarHeight;
+			if (CurrentImageHeight > 0.0f && ViewportLayout.GetTargetPaneRect(SlotIndex, TargetPaneRect))
+			{
+				Slot.Widget.Resize(FVector2(TargetPaneRect.Size.X, std::max(0.0f, TargetPaneRect.Size.Y - ToolbarHeight)));
+			}
+		}
+		if (Slot.Widget.Draw(Slot.Client, bActive, !bTransitioning))
 		{
 			const ImVec2 ImageMinimum = ImGui::GetItemRectMin();
 			const ImVec2 ImageMaximum = ImGui::GetItemRectMax();

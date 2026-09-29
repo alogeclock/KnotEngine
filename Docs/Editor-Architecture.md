@@ -206,7 +206,7 @@ Viewport Panel은 ImGui 창 안에 `FViewport`의 offscreen texture를 표시한
 
 `FViewportPanel`은 주소가 유지되는 네 Slot을 소유한다. Slot 하나는 `FViewportWidget`, `FViewport`와 `FLevelEditorViewportClient` 한 세트이며 독립된 Camera, ViewFamily와 Render Target을 사용한다. Layout을 바꿀 때 Slot을 다시 만들지 않으므로 `UEditorEngine`과 `FInputRouter`가 보관한 non-owning Client 주소도 유효하게 유지된다.
 
-`FLevelViewportLayout`은 1~4분할 배치, Layout별 Splitter 비율과 일시적인 Viewport 최대화 상태를 관리한다. Splitter는 사용자가 드래그할 수 있고 Layout을 전환해도 각 분할 비율을 유지한다. 최대화는 선택한 Slot만 전체 영역에 연결하며 원래 Layout, Camera와 분할 상태를 바꾸지 않는다.
+`FLevelViewportLayout`은 1~4분할 배치, Layout별 Splitter 비율과 일시적인 Viewport 최대화 상태를 관리한다. Splitter는 사용자가 드래그할 수 있고 Layout을 전환해도 각 분할 비율을 유지한다. Layout 전환과 최대화·복원은 전환 전·후에 공통으로 표시되는 Slot Rect만 0.2초 동안 보간하며 투명도는 바꾸지 않는다. 새로 표시되는 Slot은 목표 크기로, 사라지는 Slot은 기존 크기로 뒤에 유지하여 전경 Slot이 확대될 때 가려지고 축소될 때 드러난다. 전환 시작 시 표시할 Slot의 Render Target을 최종 크기로 한 번만 조정하고 애니메이션 중에는 ImGui 표시 Rect만 변경한다. 최대화는 선택한 Slot만 전체 영역에 연결하며 원래 Layout, Camera와 분할 상태를 바꾸지 않는다.
 
 표시 중인 각 이미지 영역은 별도의 `FInputRouter` target이다. Mouse Capture Owner, Keyboard Focus Owner와 마지막으로 클릭한 Pane을 기준으로 Active Slot을 정하고, Active Slot만 논리적으로 Focus된 target과 Overlay를 가진다. Capture 중인 입력은 포인터가 다른 Pane으로 이동해도 시작한 Client가 완료하며, Layout 변경으로 숨겨지는 Slot은 기존 Focus/Capture Lost 경로로 진행 중인 조작을 끝낸다.
 

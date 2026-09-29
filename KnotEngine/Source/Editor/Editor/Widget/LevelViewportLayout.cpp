@@ -72,17 +72,141 @@ bool FLevelViewportLayout::IsSlotVisible(SIZE_T SlotIndex) const
 	return false;
 }
 
-// 현재 Layout과 Splitter 비율로 이번 Frame의 Pane 사각형을 계산한다.
-uint32 FLevelViewportLayout::CalculatePaneRects(const FVector2& Position, const FVector2& Size, TStaticArray<FLevelViewportPaneRect, 4>& OutPaneRects)
+// 목표 Layout의 Slot별 Rect를 계산하고 전환 중이면 이전 Rect와 보간한다.
+uint32 FLevelViewportLayout::CalculatePaneRects(
+	const FVector2& Position,
+	const FVector2& Size,
+	float DeltaTime,
+	TStaticArray<FLevelViewportPaneRect, 4>& OutPaneRects,
+	TStaticArray<SIZE_T, 4>& OutSlotIndices)
 {
+	TStaticArray<FLevelViewportPaneRect, 4> TargetPaneRects = {};
+	uint32 TargetPaneCount = 0;
 	if (bMaximized)
 	{
 		SplitterCount = 0;
-		OutPaneRects[0] = { Position, Size };
-		return 1;
+		TargetPaneRects[0] = { Position, Size };
+		TargetPaneCount = 1;
 	}
-	FLayoutState& State = LayoutStates[static_cast<SIZE_T>(Layout)];
-	return BuildLayout(Layout, State, Position, Size, OutPaneRects, Splitters, SplitterCount);
+	else
+	{
+		FLayoutState& State = LayoutStates[static_cast<SIZE_T>(Layout)];
+		TargetPaneCount = BuildLayout(Layout, State, Position, Size, TargetPaneRects, Splitters, SplitterCount);
+	}
+
+	TargetRects = {};
+	TargetVisibleSlots.fill(false);
+	for (SIZE_T PaneIndex = 0; PaneIndex < TargetPaneCount; ++PaneIndex)
+	{
+		const SIZE_T SlotIndex = GetSlotIndex(PaneIndex);
+		TargetRects[SlotIndex] = TargetPaneRects[PaneIndex];
+		TargetVisibleSlots[SlotIndex] = true;
+	}
+
+	if (!bHasCalculatedLayout)
+	{
+		CurrentRects = TargetRects;
+		CurrentVisibleSlots = TargetVisibleSlots;
+		bHasCalculatedLayout = true;
+		bTransitionPending = false;
+	}
+	else if (bTransitionPending)
+	{
+		TransitionElapsed = 0.0f;
+		bTransitioning = true;
+		for (SIZE_T SlotIndex = 0; SlotIndex < CurrentRects.size(); ++SlotIndex)
+		{
+			const bool bStartVisible = CurrentVisibleSlots[SlotIndex];
+			const bool bTargetVisible = TargetVisibleSlots[SlotIndex];
+			TransitionSlots[SlotIndex] = bStartVisible || bTargetVisible;
+			TransitionAnimatedSlots[SlotIndex] = bStartVisible && bTargetVisible;
+			TransitionStartRects[SlotIndex] = bStartVisible ? CurrentRects[SlotIndex] : TargetRects[SlotIndex];
+			TransitionTargetRects[SlotIndex] = bTargetVisible ? TargetRects[SlotIndex] : CurrentRects[SlotIndex];
+			CurrentRects[SlotIndex] = TransitionStartRects[SlotIndex];
+			CurrentVisibleSlots[SlotIndex] = TransitionSlots[SlotIndex];
+		}
+		bTransitionPending = false;
+	}
+
+	if (bTransitioning)
+	{
+		TransitionElapsed = std::min(TransitionElapsed + std::max(DeltaTime, 0.0f), TransitionDuration);
+		const float Progress = TransitionDuration > 0.0f ? TransitionElapsed / TransitionDuration : 1.0f;
+		const float Alpha = Progress * Progress * (3.0f - 2.0f * Progress);
+		for (SIZE_T SlotIndex = 0; SlotIndex < CurrentRects.size(); ++SlotIndex)
+		{
+			if (TransitionAnimatedSlots[SlotIndex])
+			{
+				TransitionTargetRects[SlotIndex] = TargetRects[SlotIndex];
+				CurrentRects[SlotIndex] = InterpolateRect(TransitionStartRects[SlotIndex], TransitionTargetRects[SlotIndex], Alpha);
+			}
+			else if (TargetVisibleSlots[SlotIndex])
+			{
+				CurrentRects[SlotIndex] = TargetRects[SlotIndex];
+			}
+		}
+		if (TransitionElapsed >= TransitionDuration)
+		{
+			CurrentRects = TargetRects;
+			CurrentVisibleSlots = TargetVisibleSlots;
+			TransitionSlots.fill(false);
+			TransitionAnimatedSlots.fill(false);
+			bTransitioning = false;
+		}
+	}
+	else
+	{
+		CurrentRects = TargetRects;
+		CurrentVisibleSlots = TargetVisibleSlots;
+	}
+
+	uint32 OutputCount = 0;
+	const auto AppendSlots = [&](bool bAnimated)
+	{
+		for (SIZE_T SlotIndex = 0; SlotIndex < CurrentRects.size(); ++SlotIndex)
+		{
+			if (!CurrentVisibleSlots[SlotIndex] || (bTransitioning && TransitionAnimatedSlots[SlotIndex] != bAnimated))
+			{
+				continue;
+			}
+			OutPaneRects[OutputCount] = CurrentRects[SlotIndex];
+			OutSlotIndices[OutputCount] = SlotIndex;
+			++OutputCount;
+		}
+	};
+	if (bTransitioning)
+	{
+		AppendSlots(false);
+	}
+	AppendSlots(true);
+	return OutputCount;
+}
+
+// 주어진 Alpha로 Pane 위치와 크기를 선형 보간한다.
+FLevelViewportPaneRect FLevelViewportLayout::InterpolateRect(const FLevelViewportPaneRect& Start, const FLevelViewportPaneRect& End, float Alpha)
+{
+	return {
+		Start.Position + (End.Position - Start.Position) * Alpha,
+		Start.Size + (End.Size - Start.Size) * Alpha
+	};
+}
+
+// 지정한 Slot이 목표 Layout에서 차지할 최종 Rect를 반환한다.
+bool FLevelViewportLayout::GetTargetPaneRect(SIZE_T SlotIndex, FLevelViewportPaneRect& OutPaneRect) const
+{
+	check(SlotIndex < TargetRects.size());
+	if (!TargetVisibleSlots[SlotIndex])
+	{
+		return false;
+	}
+	OutPaneRect = TargetRects[SlotIndex];
+	return true;
+}
+
+// 다음 Rect 계산에서 현재 표시 상태를 시작으로 새 Layout 전환을 시작하도록 표시한다.
+void FLevelViewportLayout::RequestTransition()
+{
+	bTransitionPending = bHasCalculatedLayout;
 }
 
 // 주어진 영역을 좌우 Pane으로 나누고 수직 Splitter 정보를 기록한다.
@@ -240,6 +364,10 @@ uint32 FLevelViewportLayout::BuildLayout(
 // 계산된 Splitter를 그리고 Drag 입력으로 해당 Layout의 분할 비율을 갱신한다.
 void FLevelViewportLayout::DrawSplitters()
 {
+	if (bTransitioning || bTransitionPending)
+	{
+		return;
+	}
 	for (uint32 Index = 0; Index < SplitterCount; ++Index)
 	{
 		FSplitter& Splitter = Splitters[Index];
@@ -307,11 +435,16 @@ bool FLevelViewportLayout::DrawLayoutOption(ELevelViewportLayout LayoutType, con
 	}
 	if (bClicked)
 	{
+		const bool bChanged = bMaximized || Layout != LayoutType;
 		bMaximized = false;
 		Layout = LayoutType;
 		if (LayoutType != ELevelViewportLayout::OnePane)
 		{
 			LastMultiPaneLayout = LayoutType;
+		}
+		if (bChanged)
+		{
+			RequestTransition();
 		}
 		ImGui::CloseCurrentPopup();
 	}
@@ -396,17 +529,20 @@ void FLevelViewportLayout::ToggleMaximize(SIZE_T SlotIndex)
 	if (bMaximized)
 	{
 		bMaximized = false;
+		RequestTransition();
 		return;
 	}
 	if (Layout == ELevelViewportLayout::OnePane)
 	{
 		Layout = LastMultiPaneLayout;
+		RequestTransition();
 		return;
 	}
 
 	LastMultiPaneLayout = Layout;
 	MaximizedSlotIndex = SlotIndex;
 	bMaximized = true;
+	RequestTransition();
 }
 
 // Toolbar에 Layout Popup 버튼과 최대화·복원 상태 아이콘을 그린다.
