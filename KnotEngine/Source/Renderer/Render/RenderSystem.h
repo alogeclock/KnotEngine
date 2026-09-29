@@ -57,10 +57,7 @@ public:
 
 private:
 	bool ReloadShaders(const FString& SourcePath, FString& Diagnostics, std::span<const uint8> SourceSnapshot);
-	
-	void PublishShaderSourcePaths();
-	TArray<FString> GetShaderSourcePaths();
-	
+	void PublishShaderPaths();
 	void PollShaderChanges();
 
 	struct FSceneCommandBatch
@@ -80,8 +77,8 @@ private:
 	uint64 CompletedRenderFrames = 0;
 	static constexpr uint64 MaxFramesInFlight = 2;
 
-	mutable std::mutex ShaderSourcesMutex;
-	TArray<FString> ShaderSourcePaths;
+	std::mutex ShaderSourcePathsMutex;
+	TArray<FString> PendingShaderSourcePaths;
 	SIZE_T PublishedShaderCount = 0; // RT 전용. 등록된 Key 수가 바뀔 때에만 경로 스냅샷을 갱신한다.
 	
 	mutable std::mutex FrameStatisticsMutex;

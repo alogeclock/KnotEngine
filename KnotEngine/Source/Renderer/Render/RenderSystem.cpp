@@ -35,7 +35,7 @@ void FRenderSystem::Startup(void* NativeWindowHandle)
 	RenderThread.EnqueueAndWait([this, NativeWindowHandle]
 	{
 		Renderer->Create(NativeWindowHandle);
-		PublishShaderSourcePaths();
+		PublishShaderPaths();
 	});
 	
 	if (!DirectoryWatcher.Start(FPaths::ContentDir()))
@@ -57,8 +57,8 @@ void FRenderSystem::Shutdown()
 	RenderThread.EnqueueAndWait([this] { Renderer->Release(); });
 	RenderThread.Shutdown();
 	{
-		std::lock_guard Lock(ShaderSourcesMutex);
-		ShaderSourcePaths.clear();
+		std::lock_guard Lock(ShaderSourcePathsMutex);
+		PendingShaderSourcePaths.clear();
 	}
 	PublishedShaderCount = 0;
 	bStarted = false;
@@ -69,7 +69,7 @@ void FRenderSystem::Flush()
 	RenderThread.Flush();
 }
 
-// 변경된 Shader Key를 컴파일하고 Material 후보와 함께 RT에서 동기 교체한다.
+// 변경된 소스를 사용하는 Shader를 컴파일하고 Material 후보와 함께 RT에서 동기 교체한다.
 bool FRenderSystem::ReloadShaders(const FString& SourcePath, FString& Diagnostics, std::span<const uint8> SourceSnapshot)
 {
 	check(bStarted);
@@ -88,9 +88,10 @@ bool FRenderSystem::ReloadShaders(const FString& SourcePath, FString& Diagnostic
 	TMap<FString, TArray<uint8>> Sources;
 	Compiled.reserve(Keys.size());
 	
+	// 주어진 Shader Key 목록을 순회하며 셰이더 소스 바이트코드를 로드하고, 컴파일하여 저장한다.
 	for (const FShaderKey& Key : Keys)
 	{
-		auto Source = Sources.find(Key.SourcePath);
+		TMap<FString, TArray<uint8>>::iterator Source = Sources.find(Key.SourcePath);
 		if (Source == Sources.end())
 		{
 			TArray<uint8> Bytes;
@@ -128,17 +129,15 @@ bool FRenderSystem::ReloadShaders(const FString& SourcePath, FString& Diagnostic
 	return bSucceeded;
 }
 
-// Render Thread가 발행한 Shader 소스 경로 목록을 잠금 아래 복사한다.
-TArray<FString> FRenderSystem::GetShaderSourcePaths()
-{
-	std::lock_guard Lock(ShaderSourcesMutex);
-	return ShaderSourcePaths;
-}
-
-// Directory Watcher가 실제 내용 변경을 확정한 Shader만 다시 컴파일한다.
+// 새 Shader 소스를 감시 목록에 반영하고 실제 내용이 변경된 소스를 다시 컴파일한다.
 void FRenderSystem::PollShaderChanges()
 {
-	for (const FString& SourcePath : GetShaderSourcePaths())
+	TArray<FString> NewSourcePaths;
+	{
+		std::lock_guard Lock(ShaderSourcePathsMutex);
+		NewSourcePaths.swap(PendingShaderSourcePaths);
+	}
+	for (const FString& SourcePath : NewSourcePaths)
 	{
 		DirectoryWatcher.Watch(FPaths::ResolveContentPath(SourcePath));
 	}
@@ -163,7 +162,7 @@ void FRenderSystem::PollShaderChanges()
 }
 
 // Registry에 새 Shader Key가 등록되면 감시할 소스 경로 목록을 갱신한다.
-void FRenderSystem::PublishShaderSourcePaths()
+void FRenderSystem::PublishShaderPaths()
 {
 	const SIZE_T Count = Renderer->GetShaderRegistry().GetEntryCount();
 	if (Count == PublishedShaderCount)
@@ -184,8 +183,8 @@ void FRenderSystem::PublishShaderSourcePaths()
 	
 	std::sort(Paths.begin(), Paths.end());
 	{
-		std::lock_guard Lock(ShaderSourcesMutex);
-		ShaderSourcePaths = std::move(Paths);
+		std::lock_guard Lock(ShaderSourcePathsMutex);
+		PendingShaderSourcePaths = std::move(Paths);
 	}
 	
 	PublishedShaderCount = Count;
@@ -276,7 +275,7 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 			LastGPUFrameStatistics = RenderBackend->GetRenderDevice().GetLastFrameStatistics();
 			LastInstancedDrawStatistics = InstancedDrawStatistics;
 		}
-		PublishShaderSourcePaths();
+		PublishShaderPaths();
 
 #if KNOT_CPU_PROFILER_ENABLED
 		FCPUProfiler::EndFrame();
