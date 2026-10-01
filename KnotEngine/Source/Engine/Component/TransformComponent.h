@@ -24,6 +24,7 @@ public:
 	void PostEditUndo() override;
 
 	FMatrix GetWorldMatrix() const;
+	FMatrix GetWorldInverseMatrix() const;
 	FVector GetWorldLocation() const;
 
 	UTransformComponent* GetParent() const { return Parent; }
@@ -55,6 +56,12 @@ private:
 
 	/// Rotation에 대응하는 정규화된 실제 회전 캐시이다.
 	FQuat CachedRotation = FQuat::Identity;
+
+	/// GT에서 변경 시 무효화하고 조회할 때 다시 계산하는 World 행렬 캐시이다.
+	mutable FMatrix CachedWorldMatrix;
+	mutable FMatrix CachedWorldInverseMatrix;
+	mutable bool bWorldMatrixDirty = true;
+	mutable bool bWorldInverseMatrixDirty = true;
 
 	/// 계층 구조에서 연결된 부모 Transform이다.
 	UPROPERTY(NoEdit, Transient) TObjectPtr<UTransformComponent> Parent;

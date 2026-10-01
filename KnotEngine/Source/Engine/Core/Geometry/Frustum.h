@@ -21,8 +21,7 @@ struct ENGINE_API FFrustum
 	};
 
 	// 인스턴스 유틸리티 함수 (Instance Utility Functions)
-	void UpdateFromCamera(const FMatrix& View, const FMatrix& Projection);
-	void UpdateFromCamera(const FMatrix& ViewProjection);
+	void UpdateFromViewProjection(const FMatrix& ViewProjection, const FMatrix& InverseViewProjection);
 	EFrustumIntersectResult Intersects(const FAABB& Box) const;
 	bool IsOutside(const FAABB& Box) const;
 	bool Contains(const FVector& Point) const;

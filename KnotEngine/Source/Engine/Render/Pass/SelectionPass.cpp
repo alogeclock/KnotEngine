@@ -57,7 +57,7 @@ uint32 FSelectionPass::AddPass(
 	IRenderDevice* RenderDevice = &Renderer.GetRenderDevice();
 	const FViewConstants ViewConstants = {
 		View.ViewProjectionMatrix,
-		View.ViewProjectionMatrix.GetInverse(),
+		View.InverseViewProjectionMatrix,
 		View.ViewOrigin,
 		View.FarClip,
 	};

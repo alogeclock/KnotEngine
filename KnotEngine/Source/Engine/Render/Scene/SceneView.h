@@ -48,6 +48,9 @@ struct FSceneView
 	FMatrix ViewMatrix;
 	FMatrix ProjectionMatrix;
 	FMatrix ViewProjectionMatrix;
+	FMatrix InverseViewMatrix;
+	FMatrix InverseProjectionMatrix;
+	FMatrix InverseViewProjectionMatrix;
 	FVector ViewOrigin;
 	float FarClip = 0.0f;
 	float OrthoWidth = 0.0f;

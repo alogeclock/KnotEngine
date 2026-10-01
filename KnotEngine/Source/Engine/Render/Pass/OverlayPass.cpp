@@ -61,7 +61,7 @@ uint32 FOverlayPass::AddPass(
 		Parameters.OverlayConstants.MinorColor = FVector4(0.30f, 0.33f, 0.38f, 0.3f);
 		Parameters.OverlayConstants.MajorColor = FVector4(0.42f, 0.46f, 0.52f, 0.5f);
 		Parameters.OverlayConstants.Projection = View.ProjectionMatrix;
-		Parameters.OverlayConstants.InverseProjection = View.ProjectionMatrix.GetInverse();
+		Parameters.OverlayConstants.InverseProjection = View.InverseProjectionMatrix;
 		Parameters.OverlayConstants.InverseViewRotation = View.ViewMatrix.GetTransposed();
 		Parameters.OverlayConstants.InverseViewRotation.M[0][3] = 0.0f;
 		Parameters.OverlayConstants.InverseViewRotation.M[1][3] = 0.0f;
@@ -112,7 +112,7 @@ uint32 FOverlayPass::AddPass(
 
 	const FViewConstants ViewConstants = {
 		View.ViewProjectionMatrix,
-		View.ViewProjectionMatrix.GetInverse(),
+		View.InverseViewProjectionMatrix,
 		View.ViewOrigin,
 		View.FarClip,
 	};

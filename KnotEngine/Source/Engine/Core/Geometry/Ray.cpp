@@ -18,9 +18,9 @@ void FRay::SetDirection(const FVector& NewDirection)
 	Direction = NewDirection;
 
 	// 0으로 나누면 IEEE 754에 의해 ±infinity가 되어 slab 테스트에서 평행 케이스를 자동 처리
-	InvD.X = 1.0f / Direction.X;
-	InvD.Y = 1.0f / Direction.Y;
-	InvD.Z = 1.0f / Direction.Z;
+	InvDirection.X = 1.0f / Direction.X;
+	InvDirection.Y = 1.0f / Direction.Y;
+	InvDirection.Z = 1.0f / Direction.Z;
 }
 
 // Moller-Trumbore 알고리즘으로 양면 Triangle과의 교차 거리를 계산한다.
@@ -60,8 +60,8 @@ bool FRay::Intersect(const FVector& Vertex0, const FVector& Vertex1, const FVect
 	return true;
 }
 
-// 입력값으로 BuildRay 결과를 생성합니다.
-FRay FRay::BuildRay(float MouseX, float MouseY, const FMatrix& ViewProjection, float ViewportWidth, float ViewportHeight)
+// 이미 계산된 ViewProjection 역행렬로 화면 위치를 Reversed-Z Picking Ray로 변환한다.
+FRay FRay::BuildRay(float MouseX, float MouseY, const FMatrix& InverseViewProjection, float ViewportWidth, float ViewportHeight)
 {
 	if (ViewportWidth <= 0 || ViewportHeight <= 0)
 	{
@@ -72,9 +72,8 @@ FRay FRay::BuildRay(float MouseX, float MouseY, const FMatrix& ViewProjection, f
 	const float NDCY = 1.0f - 2.0f * MouseY / ViewportHeight;
 	const FVector NearPointNDC(NDCX, NDCY, 1.0f); // Reversed-Z Projection은 Near = 1, Far = 0을 사용한다.
 	const FVector FarPointNDC(NDCX, NDCY, 0.0f);
-	const FMatrix InvViewProjection = ViewProjection.GetInverse();
-	const FVector NearWorld = InvViewProjection.TransformPosition(NearPointNDC);
-	const FVector FarWorld = InvViewProjection.TransformPosition(FarPointNDC);
+	const FVector NearWorld = InverseViewProjection.TransformPosition(NearPointNDC);
+	const FVector FarWorld = InverseViewProjection.TransformPosition(FarPointNDC);
 	const FVector Direction = (FarWorld - NearWorld).GetSafeNormal();
 
 	return FRay{ NearWorld, Direction };

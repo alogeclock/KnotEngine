@@ -33,6 +33,7 @@ void UTransformComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
 	CachedRotation = Rotation.Quaternion().GetNormalized();
+	OnTransformChanged();
 }
 
 // 복제된 Euler 회전과 생성자에서 만든 Quaternion 캐시를 다시 일치시킨다.
@@ -40,6 +41,7 @@ void UTransformComponent::PostDuplicate()
 {
 	Super::PostDuplicate();
 	CachedRotation = Rotation.Quaternion().GetNormalized();
+	OnTransformChanged();
 }
 
 void UTransformComponent::PostEditProperty(const FProperty& Property)
@@ -87,6 +89,8 @@ void UTransformComponent::SetRelativeRotation(const FQuat& InRotation)
 
 void UTransformComponent::OnTransformChanged()
 {
+	bWorldMatrixDirty = true;
+	bWorldInverseMatrixDirty = true;
 	// Node 파괴 시 Transform은 마지막에 제거된다. 이미 파괴된 형제 Component를 조회하지 않는다.
 	if (IsRegistered())
 	{
@@ -104,15 +108,30 @@ void UTransformComponent::OnTransformChanged()
 	}
 }
 
+// Relative 행렬과 부모의 World 캐시를 합성하여 비균일 Scale에 따른 shear를 유지한다.
 FMatrix UTransformComponent::GetWorldMatrix() const
 {
-	// 행벡터 규약. 행렬로 합성하여 비균일 스케일과 회전에서 생기는 shear도 유지한다.
-	FMatrix Result = GetRelativeTransform().ToMatrix();
-	for (const UTransformComponent* Ancestor = Parent; Ancestor; Ancestor = Ancestor->Parent)
+	if (bWorldMatrixDirty)
 	{
-		Result *= Ancestor->GetRelativeTransform().ToMatrix();
+		CachedWorldMatrix = GetRelativeTransform().ToMatrix();
+		if (Parent)
+		{
+			CachedWorldMatrix *= Parent->GetWorldMatrix();
+		}
+		bWorldMatrixDirty = false;
 	}
-	return Result;
+	return CachedWorldMatrix;
+}
+
+// World 역행렬은 실제 요청된 경우에만 계산하고 다음 Transform 변경까지 재사용한다.
+FMatrix UTransformComponent::GetWorldInverseMatrix() const
+{
+	if (bWorldInverseMatrixDirty)
+	{
+		CachedWorldInverseMatrix = GetWorldMatrix().GetInverse();
+		bWorldInverseMatrixDirty = false;
+	}
+	return CachedWorldInverseMatrix;
 }
 
 FVector UTransformComponent::GetWorldLocation() const
@@ -202,7 +221,7 @@ bool UTransformComponent::SetParentAbsolute(UTransformComponent* NewParent, SIZE
 		{
 			return false;
 		}
-		RelativeMatrix *= ParentWorldMatrix.GetInverse();
+		RelativeMatrix *= NewParent->GetWorldInverseMatrix();
 	}
 
 	FVector Translation;
@@ -251,6 +270,7 @@ void UTransformComponent::Detach()
 		}
 		Parent = nullptr;
 		SiblingIndex = InvalidIndex;
+		OnTransformChanged();
 		return;
 	}
 	GetOwner().GetLevel().RemoveRootNode(GetOwner());

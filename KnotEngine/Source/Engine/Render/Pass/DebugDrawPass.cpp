@@ -79,7 +79,7 @@ uint32 FDebugDrawPass::AddPass(
 
 	const FViewConstants ViewConstants = {
 		View.ViewProjectionMatrix,
-		View.ViewProjectionMatrix.GetInverse(),
+		View.InverseViewProjectionMatrix,
 		View.ViewOrigin,
 		View.FarClip,
 	};

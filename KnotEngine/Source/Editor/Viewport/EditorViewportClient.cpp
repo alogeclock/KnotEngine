@@ -281,11 +281,14 @@ FSceneView FEditorViewportClient::BuildSceneView()
 	SceneView.ViewMatrix = View;
 	SceneView.ProjectionMatrix = Projection;
 	SceneView.ViewProjectionMatrix = View * Projection;
+	SceneView.InverseViewMatrix = View.GetInverse();
+	SceneView.InverseProjectionMatrix = Projection.GetInverse();
+	SceneView.InverseViewProjectionMatrix = SceneView.ViewProjectionMatrix.GetInverse();
 	SceneView.ViewOrigin = Transform.ViewLocation;
 	SceneView.FarClip = Transform.FarClip;
 	SceneView.Viewport = ViewportInfo;
 	SceneView.OrthoWidth = Transform.bIsOrtho ? Transform.OrthoZoom : 0.0f;
-	SceneView.Frustum.UpdateFromCamera(SceneView.ViewProjectionMatrix);
+	SceneView.Frustum.UpdateFromViewProjection(SceneView.ViewProjectionMatrix, SceneView.InverseViewProjectionMatrix);
 	switch (Camera.ViewMode)
 	{
 	case EEditorViewportViewMode::Left:

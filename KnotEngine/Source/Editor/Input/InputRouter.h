@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Input/InputSnapshot.h"
+
 // 에디터 입력 대상이 이벤트 처리 결과와 함께 포커스 및 캡처 변경을 요청한다.
 class FInputReply
 {

@@ -80,8 +80,8 @@ bool FAABB::IntersectRay(const FRay& Ray, float& OutTMin, float& OutTMax) const 
 			continue;
 		}
 
-		float T1 = (Min[Axis] - Origin) * Ray.InvD[Axis];
-		float T2 = (Max[Axis] - Origin) * Ray.InvD[Axis];
+		float T1 = (Min[Axis] - Origin) * Ray.InvDirection[Axis];
+		float T2 = (Max[Axis] - Origin) * Ray.InvDirection[Axis];
 		if (T1 > T2)
 		{
 			std::swap(T1, T2);

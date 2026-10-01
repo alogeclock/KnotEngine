@@ -248,7 +248,7 @@ uint32 FOpaquePass::AddPass(FRenderGraph& Graph, FRenderer& Renderer, const FSce
 
 	const FViewConstants ViewConstants = {
 		View.ViewProjectionMatrix,
-		View.ViewProjectionMatrix.GetInverse(),
+		View.InverseViewProjectionMatrix,
 		View.ViewOrigin,
 		View.FarClip,
 	};

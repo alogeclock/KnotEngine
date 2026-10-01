@@ -264,7 +264,7 @@ void FLevelEditorViewportClient::FocusSelectedNode()
 	const FVector Center = Bounds.IsValid() ? Bounds.GetCenter() : Node->GetTransform().GetWorldLocation();
 	const float Radius = (Bounds.IsValid() ? std::max(Bounds.GetExtent().Size(), 0.01f) : FocusRadius) * FocusMargin;
 	const FSceneView View = FEditorViewportClient::BuildSceneView();
-	const FVector Forward = View.ViewMatrix.GetInverse().TransformVector(FVector(0.0f, 0.0f, 1.0f)).GetSafeNormal();
+	const FVector Forward = View.InverseViewMatrix.TransformVector(FVector(0.0f, 0.0f, 1.0f)).GetSafeNormal();
 	const FEditorViewportCameraTransform& Transform = GetCamera().ViewTransform;
 	FocusTargetOrthoZoom = Transform.OrthoZoom;
 	float Distance = Radius + Transform.NearClip;
@@ -335,7 +335,7 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 	}
 
 	const FSceneView View = FEditorViewportClient::BuildSceneView();
-	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 	if (WorldRay.Direction.IsNearlyZero())
 	{
 		return nullptr;
@@ -371,7 +371,7 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 				{
 					continue;
 				}
-				const FMatrix InverseWorld = WorldMatrix.GetInverse();
+				const FMatrix InverseWorld = StaticMeshComponent->GetTransform().GetWorldInverseMatrix();
 				const FRay LocalRay(InverseWorld.TransformPosition(WorldRay.Origin), InverseWorld.TransformVector(WorldRay.Direction));
 				const FStaticMeshLOD& LOD = StaticMesh->GetMeshData().GetLOD(0);
 				const TArray<FStaticMeshVertex>& Vertices = LOD.GetVertices();
@@ -476,7 +476,7 @@ FVector FLevelEditorViewportClient::FindPlacementLocation(const FVector2& InputP
 		return FVector::ZeroVector;
 	}
 	const FSceneView View = FEditorViewportClient::BuildSceneView();
-	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 	if (std::fabs(WorldRay.Direction.Z) > KMath::Epsilon)
 	{
 		const float Distance = -WorldRay.Origin.Z / WorldRay.Direction.Z;

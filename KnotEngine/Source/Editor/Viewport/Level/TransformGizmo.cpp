@@ -194,7 +194,7 @@ FVector FTransformGizmo::MapTrackballVector(const FSceneView& View, const FVecto
 		Z = std::sqrt(1.0f - LengthSquared);
 	}
 
-	const FMatrix InverseView = View.ViewMatrix.GetInverse();
+	const FMatrix InverseView = View.InverseViewMatrix;
 	const FVector ViewRight = InverseView.GetScaledAxis(EAxis::X).GetSafeNormal();
 	const FVector ViewUp = InverseView.GetScaledAxis(EAxis::Y).GetSafeNormal();
 	const FVector ViewForward = GetViewRotationAxis(View, Origin);
@@ -287,7 +287,7 @@ ETransformGizmoAxis FTransformGizmo::HitTest(const FSceneView& View, const FVect
 	ETransformGizmoAxis ClosestAxis = ETransformGizmoAxis::None;
 	FVector2 CenterPixel;
 	const bool bHasCenterPixel = WorldToScreen(View, Origin, CenterPixel);
-	const FMatrix InverseView = View.ViewMatrix.GetInverse();
+	const FMatrix InverseView = View.InverseViewMatrix;
 	const FVector ViewRight = InverseView.GetScaledAxis(EAxis::X).GetSafeNormal();
 	const FVector ViewUp = InverseView.GetScaledAxis(EAxis::Y).GetSafeNormal();
 	FVector2 RotationRightDelta = FVector2::ZeroVector;
@@ -396,7 +396,7 @@ ETransformGizmoAxis FTransformGizmo::HitTest(const FSceneView& View, const FVect
 // 축 위의 시작 교차점부터 현재 교차점까지의 월드 이동량을 적용한다.
 void FTransformGizmo::ApplyTranslation(const FSceneView& View, const FVector2& PixelPosition)
 {
-	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 	FVector WorldPosition;
 	if (ActiveAxis == ETransformGizmoAxis::Center)
 	{
@@ -435,7 +435,7 @@ void FTransformGizmo::ApplyRotation(const FSceneView& View, const FVector2& Pixe
 	}
 	else
 	{
-		const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+		const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 		FVector Position;
 		if (!IntersectPlane(Ray, StartWorldOrigin, RotationAxis, Position))
 		{
@@ -474,7 +474,7 @@ void FTransformGizmo::ApplyScale(const FSceneView& View, const FVector2& PixelPo
 	else
 	{
 		const FVector Axis = GetAxisVector(ActiveAxis);
-		const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+		const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 		float AxisParameter = 0.0f;
 		if (!IntersectAxis(Ray, StartWorldOrigin, Axis, AxisParameter))
 		{
@@ -580,7 +580,7 @@ bool FTransformGizmo::BeginDrag(const FEditorSelection& Selection, ETransformGiz
 	ActiveAxis = Axis;
 	HoveredAxis = Axis;
 
-	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.ViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 	if (Mode == EGizmoViewMode::Rotate)
 	{
 		if (Axis == ETransformGizmoAxis::Trackball)
@@ -665,7 +665,7 @@ bool FTransformGizmo::BeginDrag(const FEditorSelection& Selection, ETransformGiz
 				DragPivotUUID = 0;
 				return false;
 			}
-			Target.StartParentWorldInverse = ParentWorldMatrix.GetInverse();
+			Target.StartParentWorldInverse = Parent->GetWorldInverseMatrix();
 		}
 		DragTargets.push_back(Target);
 	}

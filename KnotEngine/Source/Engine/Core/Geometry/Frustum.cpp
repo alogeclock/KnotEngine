@@ -7,14 +7,8 @@
 
 #include <cmath>
 
-// 입력값을 기준으로 상태를 갱신합니다.
-void FFrustum::UpdateFromCamera(const FMatrix& View, const FMatrix& Projection)
-{
-	UpdateFromCamera(View * Projection);
-}
-
-// 입력값을 기준으로 상태를 갱신합니다.
-void FFrustum::UpdateFromCamera(const FMatrix& ViewProjection)
+// 이미 계산된 역행렬로 Frustum 내부 기준점을 구하고 평면을 갱신한다.
+void FFrustum::UpdateFromViewProjection(const FMatrix& ViewProjection, const FMatrix& InverseViewProjection)
 {
 	const float(&M)[4][4] = ViewProjection.M;
 	const FVector4 C0(M[0][0], M[1][0], M[2][0], M[3][0]);
@@ -37,7 +31,7 @@ void FFrustum::UpdateFromCamera(const FMatrix& ViewProjection)
 		Planes[Index].Normalize(KMath::Epsilon);
 	}
 
-	const FVector TestPoint = ViewProjection.GetInverse().TransformPosition(FVector(0.0f, 0.0f, 0.5f));
+	const FVector TestPoint = InverseViewProjection.TransformPosition(FVector(0.0f, 0.0f, 0.5f));
 	for (FPlane& Plane : Planes)
 	{
 		if (Plane.GetSignedDistance(TestPoint) < 0.0f)

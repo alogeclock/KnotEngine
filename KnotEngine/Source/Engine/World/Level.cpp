@@ -289,10 +289,12 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 	{
 		return true;
 	}
+
 	if (NewParent && (&NewParent->GetLevel() != this || !NewParent->IsInLevel()))
 	{
 		return false;
 	}
+
 	UTransformComponent* ParentTransform = NewParent ? &NewParent->GetTransform() : nullptr;
 	const SIZE_T DestinationCount = ParentTransform ? ParentTransform->Children.size() : RootNodes.size();
 	if (SiblingIndex > DestinationCount)
@@ -303,6 +305,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 	TSet<UTransformComponent*> MovingTransforms;
 	MovingTransforms.reserve(NodesToMove.size());
 	bool bChangesParent = false;
+
 	for (UNode* Node : NodesToMove)
 	{
 		if (!Node || &Node->GetLevel() != this || !Node->IsInLevel())
@@ -316,6 +319,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 		}
 		bChangesParent |= Transform.Parent.Get() != ParentTransform;
 	}
+
 	for (UTransformComponent* Transform : MovingTransforms)
 	{
 		for (UTransformComponent* Ancestor = Transform->Parent; Ancestor; Ancestor = Ancestor->Parent)
@@ -326,6 +330,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			}
 		}
 	}
+
 	for (UTransformComponent* Ancestor = ParentTransform; Ancestor; Ancestor = Ancestor->Parent)
 	{
 		if (MovingTransforms.contains(Ancestor))
@@ -343,7 +348,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 		{
 			return false;
 		}
-		ParentInverse = ParentWorld.GetInverse();
+		ParentInverse = ParentTransform->GetWorldInverseMatrix();
 	}
 	TArray<FTransform> RelativeTransforms;
 	TArray<bool> ParentChanges;
@@ -398,6 +403,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			bRootAffected = true;
 		}
 	}
+
 	if (!bChangesParent)
 	{
 		bool bAlreadyPlaced = true;
@@ -414,6 +420,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			return true;
 		}
 	}
+
 	// 각 원본 형제 배열에서 이동 대상을 한 번에 제거하고 목적지에 입력 순서로 삽입한다.
 	if (bRootAffected)
 	{
@@ -422,6 +429,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			return MovingTransforms.contains(&Node->GetTransform());
 		});
 	}
+
 	for (UTransformComponent* Parent : AffectedParents)
 	{
 		std::erase_if(Parent->Children, [&MovingTransforms](const TObjectPtr<UTransformComponent>& Child)
@@ -429,10 +437,12 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			return MovingTransforms.contains(Child.Get());
 		});
 	}
+
 	for (UNode* Node : NodesToMove)
 	{
 		Node->GetTransform().Parent = ParentTransform;
 	}
+
 	if (ParentTransform)
 	{
 		TArray<TObjectPtr<UTransformComponent>> InsertedTransforms;
@@ -447,6 +457,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 	{
 		RootNodes.insert(RootNodes.begin() + DestinationIndex, NodesToMove.begin(), NodesToMove.end());
 	}
+
 	// 영향받은 배열의 SiblingIndex를 한 번씩 갱신한 뒤 변경된 Transform을 전파한다.
 	if (bRootAffected)
 	{
@@ -455,6 +466,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			RootNodes[Index]->GetTransform().SiblingIndex = Index;
 		}
 	}
+
 	for (UTransformComponent* Parent : AffectedParents)
 	{
 		for (SIZE_T Index = 0; Index < Parent->Children.size(); ++Index)
@@ -462,6 +474,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 			Parent->Children[Index]->SiblingIndex = Index;
 		}
 	}
+
 	for (SIZE_T Index = 0; Index < NodesToMove.size(); ++Index)
 	{
 		if (!ParentChanges[Index])
@@ -470,6 +483,7 @@ bool ULevel::ReparentNodesAbsolute(const TArray<UNode*>& NodesToMove, UNode* New
 		}
 		NodesToMove[Index]->GetTransform().SetRelativeTransform(RelativeTransforms[Index]);
 	}
+
 	return true;
 }
 

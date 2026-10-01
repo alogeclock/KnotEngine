@@ -33,7 +33,7 @@ uint32 FGizmoPass::AddPass(FRenderGraph& Graph, FRenderer& Renderer, const FScen
 	Constants.AxisY = View.Gizmo.AxisY;
 	Constants.AxisZ = View.Gizmo.AxisZ;
 	Constants.WorldScale = View.Gizmo.WorldScale;
-	const FMatrix InverseView = View.ViewMatrix.GetInverse();
+	const FMatrix InverseView = View.InverseViewMatrix;
 	Constants.ViewRight = InverseView.GetScaledAxis(EAxis::X).GetSafeNormal();
 	Constants.Mode = static_cast<uint32>(View.Gizmo.Mode);
 	Constants.ViewUp = InverseView.GetScaledAxis(EAxis::Y).GetSafeNormal();
