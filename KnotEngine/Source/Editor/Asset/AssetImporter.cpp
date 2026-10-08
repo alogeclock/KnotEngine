@@ -1,4 +1,5 @@
 #include "Asset/AssetImporter.h"
+#include "Asset/MeshOptimizer.h"
 #include "Asset/MeshSimplifier.h"
 
 #include "Asset/Asset/EngineAssetIds.h"
@@ -16,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -581,12 +583,46 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 			Normalize(Mesh.Vertices, ImportOptions.UniformScale);
 		}
 		GenerateTangents(Mesh.Vertices, Mesh.Indices);
+		
+		const auto SimplificationStart = std::chrono::steady_clock::now();
 		TArray<FStaticMeshLODBuildData> GeneratedLODs = FMeshSimplifier::GenerateLODs(
 			{ Mesh.Vertices, Mesh.Indices, Mesh.Sections, ImportOptions.LODTriangleRatios });
+		const double SimplificationMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - SimplificationStart).count();
+		
+		KE_LOG(LogAssetImporter, Display, "LOD 간소화 완료. Mesh={}, SourceVertices={}, SourceTriangles={}, LODs={}, CPU={}ms",
+			Mesh.Name, Mesh.Vertices.size(), Mesh.Indices.size() / 3, GeneratedLODs.size(), SimplificationMilliseconds);
+
+		if (GeneratedLODs.size() < ImportOptions.LODTriangleRatios.size())
+		{
+			Result.Warnings.push_back("LOD 생성이 경계 또는 삼각형 뒤집힘 검사로 조기 종료됐다: " + Mesh.Name);
+		}
+
+		bool bReorderTriangles = true;
+		for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.materials_count; ++MaterialIndex)
+		{
+			if (GLTF.materials[MaterialIndex].alpha_mode == cgltf_alpha_mode_blend) bReorderTriangles = false;
+		}
+
 		for (FStaticMeshLODBuildData& LOD : GeneratedLODs)
 		{
+			const auto OptimizationStart = std::chrono::steady_clock::now();
 			GenerateTangents(LOD.Vertices, LOD.Indices);
+			const FMeshOptimizationStatistics Statistics = FMeshOptimizer::Optimize(LOD.Vertices, LOD.Indices, LOD.Sections, bReorderTriangles);
+			const double OptimizationMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - OptimizationStart).count();
+			KE_LOG(LogAssetImporter, Display, "LOD 통계. Mesh={}, Ratio={}, Triangles={}, Vertices={}, Indices={}, FIFO={}/{}/{}, CPU={}ms",
+				Mesh.Name, LOD.AchievedTriangleRatio, LOD.Indices.size() / 3, LOD.Vertices.size(), LOD.Indices.size(),
+				Statistics.CacheMissesBefore, Statistics.CacheMissesAfterCache, Statistics.CacheMissesAfterOverdraw, OptimizationMilliseconds);
 		}
+
+		for (SIZE_T LODIndex = 0; LODIndex < GeneratedLODs.size(); ++LODIndex)
+		{
+			if (GeneratedLODs[LODIndex].AchievedTriangleRatio > ImportOptions.LODTriangleRatios[LODIndex] + 0.005f)
+			{
+				Result.Warnings.push_back("LOD 목표 삼각형 비율에 도달하지 못했다: " + Mesh.Name + " LOD " + std::to_string(LODIndex + 1));
+			}
+		}
+
+		FMeshOptimizer::Optimize(Mesh.Vertices, Mesh.Indices, Mesh.Sections, bReorderTriangles);
 
 		TArray<uint8> PayloadBytes;
 		FMemoryWriter Payload(PayloadBytes);
@@ -686,6 +722,18 @@ FAssetImportResult FAssetImporter::ImportGLB(
 		Result.Error = "Uniform Scale은 0보다 큰 유한한 값이어야 한다.";
 		return Result;
 	}
+
+	float PreviousRatio = 1.0f;
+	for (const float Ratio : ImportOptions.LODTriangleRatios)
+	{
+		if (!std::isfinite(Ratio) || Ratio <= 0.0f || Ratio >= PreviousRatio)
+		{
+			Result.Error = "LOD 삼각형 비율은 0보다 크고 이전 LOD보다 작아야 한다.";
+			return Result;
+		}
+		PreviousRatio = Ratio;
+	}
+
 	const FString SourcePathUtf8 = FPaths::ToUtf8(SourceFilePath.wstring());
 	cgltf_options GLTFOptions = {};
 	FGLTFGuard GLTF;

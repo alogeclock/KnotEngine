@@ -70,10 +70,10 @@ FRay FRay::BuildRay(float MouseX, float MouseY, const FMatrix& InverseViewProjec
 
 	const float NDCX = 2.0f * MouseX / ViewportWidth - 1.0f;
 	const float NDCY = 1.0f - 2.0f * MouseY / ViewportHeight;
-	const FVector NearPointNDC(NDCX, NDCY, 1.0f); // Reversed-Z Projection은 Near = 1, Far = 0을 사용한다.
-	const FVector FarPointNDC(NDCX, NDCY, 0.0f);
-	const FVector NearWorld = InverseViewProjection.TransformPosition(NearPointNDC);
-	const FVector FarWorld = InverseViewProjection.TransformPosition(FarPointNDC);
+	const FVector NearNDC{ NDCX, NDCY, 1.0f }; // Reversed-Z Projection은 Near = 1, Far = 0을 사용한다.
+	const FVector FarNDC{ NDCX, NDCY, 0.0f };
+	const FVector NearWorld = InverseViewProjection.TransformPosition(NearNDC);
+	const FVector FarWorld = InverseViewProjection.TransformPosition(FarNDC);
 	const FVector Direction = (FarWorld - NearWorld).GetSafeNormal();
 
 	return FRay{ NearWorld, Direction };

@@ -37,7 +37,7 @@ struct FGLBImportOptions
 	inline static constexpr SIZE_T MaxGeneratedLODCount = 4;
 
 	float UniformScale = 1.0f;
-	TArray<float> LODTriangleRatios = { 0.5f, 0.2f, 0.1f, 0.05f };
+	TArray<float> LODTriangleRatios = { 0.2f, 0.15f, 0.1f, 0.05f };
 	bool bCombineMeshes = true;
 };
 
