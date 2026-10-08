@@ -151,6 +151,12 @@ FAssetImporter
 
 Importer는 표준 `.glb`만으로도 동작해야 한다. Knot 확장이 없으면 표준 PBR Material과 glTF Animation 규칙을 사용한다.
 
+현재 Texture Import는 원본 Image Byte와 변환 설정의 SHA-256을 Key로 사용해 압축 Payload를 `Saved/ImportCache/Texture`에 보관한다. Key에는 디코딩·Mip·BC7 설정, Color Space, Payload Version, DirectXTex Version과 수동 Cache Version을 포함한다. 이미지 이름, 출력 경로와 Mesh LOD 설정은 Key에 포함하지 않는다.
+
+캐시 적중 시 디코딩·Mip 생성·BC7 압축을 건너뛰고 기존 `SaveAsset()` 경로로 Texture를 저장한다. 캐시는 Asset ID를 소유하지 않으며, 같은 출력 경로의 기존 Asset ID는 그대로 유지된다. 파일 크기와 Payload SHA-256 검증에 실패한 캐시는 다시 생성한다. 캐시 저장 실패는 경고로 처리하고 Import는 정상 압축 결과로 계속 진행한다. 캐시 저장은 임시 파일의 원자적 교체를 사용한다.
+
+캐시는 Runtime Asset과 별개인 삭제 가능한 Editor 데이터다. 이미지 변환 알고리즘이나 인코더 구현을 변경할 때는 `CacheVersion`을 올려야 한다. 현재 CPU BC7 Quick 압축 방식과 해상도는 변경하지 않는다.
+
 Import 실패 시 기존의 정상 `.kasset`을 덮어쓰지 않는다. 모든 임시 결과를 검증한 뒤 한 번에 반영한다.
 
 ## Blender Knot Engine Add-on

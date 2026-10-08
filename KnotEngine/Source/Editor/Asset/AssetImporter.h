@@ -4,6 +4,7 @@
 #include "Core/CoreTypes.h"
 
 #include <filesystem>
+#include <span>
 
 struct FVector;
 struct FMatrix;
@@ -95,6 +96,10 @@ private:
 	static FAssetImportResult ImportStaticMeshes(const FStaticMeshImportDesc& Desc);
 
 	static bool SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& AssetId);
+
+	static bool HashTextureData(std::span<const uint8> Bytes, TStaticArray<uint8, 32>& Hash, std::span<const uint8> Settings = {});
+	static bool LoadTextureCache(const std::filesystem::path& CachePath, TArray<uint8>& PayloadBytes);
+	static bool SaveTextureCache(const std::filesystem::path& CachePath, const TArray<uint8>& PayloadBytes);
 
 	static void GenerateTangents(TArray<FStaticMeshVertex>& Vertices, const TArray<uint32>& Indices);
 	static void Normalize(TArray<FStaticMeshVertex>& Vertices, float MaximumSize);

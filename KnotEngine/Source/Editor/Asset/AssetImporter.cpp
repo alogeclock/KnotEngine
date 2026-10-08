@@ -12,10 +12,12 @@
 #include "Core/Archive/MemoryArchive.h"
 
 #include <DirectXTex.h>
+#include <bcrypt.h>
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <chrono>
 #include <cstring>
@@ -276,12 +278,128 @@ FSamplerDesc FAssetImporter::ConvertSampler(const cgltf_sampler* Sampler)
 	return Result;
 }
 
-// GLB에 포함된 Image를 Texture2D .kasset으로 변환하고 Material 연결에 사용할 Asset ID를 반환한다.
+// 이미지와 변환 설정 또는 압축 Payload의 SHA-256을 계산한다.
+bool FAssetImporter::HashTextureData(std::span<const uint8> Bytes, TStaticArray<uint8, 32>& Hash, std::span<const uint8> Settings)
+{
+	BCRYPT_ALG_HANDLE Algorithm = nullptr;
+	if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&Algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0)))
+	{
+		return false;
+	}
+
+	BCRYPT_HASH_HANDLE HashHandle = nullptr;
+	bool bSucceeded = BCRYPT_SUCCESS(BCryptCreateHash(Algorithm, &HashHandle, nullptr, 0, nullptr, 0, 0));
+	for (const std::span<const uint8> Data : { Settings, Bytes })
+	{
+		for (SIZE_T Offset = 0; bSucceeded && Offset < Data.size();)
+		{
+			const ULONG Size = static_cast<ULONG>(std::min(Data.size() - Offset, static_cast<SIZE_T>((std::numeric_limits<ULONG>::max)())));
+			bSucceeded = BCRYPT_SUCCESS(BCryptHashData(HashHandle, const_cast<uint8*>(Data.data() + Offset), Size, 0));
+			Offset += Size;
+		}
+	}
+
+	if (bSucceeded)
+	{
+		bSucceeded = BCRYPT_SUCCESS(BCryptFinishHash(HashHandle, Hash.data(), static_cast<ULONG>(Hash.size()), 0));
+	}
+
+	if (HashHandle)
+	{
+		BCryptDestroyHash(HashHandle);
+	}
+
+	BCryptCloseAlgorithmProvider(Algorithm, 0);
+	return bSucceeded;
+}
+
+// 크기와 SHA-256이 유효한 캐시에서 Texture Payload를 읽는다.
+bool FAssetImporter::LoadTextureCache(const std::filesystem::path& CachePath, TArray<uint8>& PayloadBytes)
+{
+	static constexpr uint64 MaxPayloadSize = 512ull * 1024 * 1024;
+	TStaticArray<uint8, 32> StoredHash;
+	std::ifstream Stream(CachePath, std::ios::binary | std::ios::ate);
+	
+	if (!Stream)
+	{
+		return false;
+	}
+
+	const std::streamoff FileSize = Stream.tellg();
+	if (FileSize < static_cast<std::streamoff>(sizeof(FTexture2DPayloadHeader) + StoredHash.size()) ||
+		FileSize > static_cast<std::streamoff>(MaxPayloadSize + StoredHash.size()))
+	{
+		return false;
+	}
+
+	TArray<uint8> CachedBytes(static_cast<SIZE_T>(FileSize) - StoredHash.size());
+	Stream.seekg(0);
+	if (!Stream.read(reinterpret_cast<char*>(CachedBytes.data()), static_cast<std::streamsize>(CachedBytes.size())) ||
+		!Stream.read(reinterpret_cast<char*>(StoredHash.data()), static_cast<std::streamsize>(StoredHash.size())))
+	{
+		return false;
+	}
+
+	TStaticArray<uint8, 32> PayloadHash;
+	if (!HashTextureData(CachedBytes, PayloadHash) || PayloadHash != StoredHash)
+	{
+		return false;
+	}
+
+	PayloadBytes = std::move(CachedBytes);
+	return true;
+}
+
+// 압축 Payload와 SHA-256을 임시 파일에 저장한 뒤 기존 캐시를 원자적으로 교체한다.
+bool FAssetImporter::SaveTextureCache(const std::filesystem::path& CachePath, const TArray<uint8>& PayloadBytes)
+{
+	TStaticArray<uint8, 32> PayloadHash;
+	if (!HashTextureData(PayloadBytes, PayloadHash))
+	{
+		return false;
+	}
+
+	std::error_code Error;
+	std::filesystem::create_directories(CachePath.parent_path(), Error);
+	if (Error)
+	{
+		return false;
+	}
+
+	const std::filesystem::path TemporaryPath = CachePath.wstring() + L".tmp";
+	std::ofstream Stream(TemporaryPath, std::ios::binary | std::ios::trunc);
+	Stream.write(reinterpret_cast<const char*>(PayloadBytes.data()), static_cast<std::streamsize>(PayloadBytes.size()));
+	Stream.write(reinterpret_cast<const char*>(PayloadHash.data()), static_cast<std::streamsize>(PayloadHash.size()));
+	Stream.close();
+	const bool bSucceeded = Stream && MoveFileExW(TemporaryPath.c_str(), CachePath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+	
+	if (!bSucceeded)
+	{
+		std::filesystem::remove(TemporaryPath, Error);
+	}
+
+	return bSucceeded;
+}
+
+// 압축 캐시를 재사용하거나 Image를 Texture2D .kasset으로 변환하고 Material 연결용 Asset ID를 반환한다.
 FAssetImportResult FAssetImporter::ImportTextures(const FTextureImportDesc& Desc)
 {
 	const cgltf_data& GLTF = Desc.GLTF;
 	const FString& TextureRoot = Desc.AssetRoot;
 	FAssetImportResult Result;
+	// 이미지 변환 방식 또는 인코더를 변경하면 CacheVersion도 올려 기존 결과를 무효화한다.
+	static constexpr uint32 CacheVersion = 1;
+	static constexpr DirectX::WIC_FLAGS DecodeFlags = DirectX::WIC_FLAGS_FORCE_RGB;
+	static constexpr DirectX::TEX_FILTER_FLAGS MipFlags = DirectX::TEX_FILTER_DEFAULT;
+	static constexpr DirectX::TEX_COMPRESS_FLAGS CompressFlags = DirectX::TEX_COMPRESS_PARALLEL | DirectX::TEX_COMPRESS_BC7_QUICK;
+	static constexpr uint32 CacheSettings[] = {
+		CacheVersion, DIRECTX_TEX_VERSION, FTexture2DPayloadHeader::CurrentVersion,
+		static_cast<uint32>(DecodeFlags), static_cast<uint32>(MipFlags), 0,
+		static_cast<uint32>(DXGI_FORMAT_BC7_UNORM), static_cast<uint32>(CompressFlags),
+		std::bit_cast<uint32>(DirectX::TEX_THRESHOLD_DEFAULT), static_cast<uint32>(ETextureColorSpace::SRGB)
+	};
+
+	uint32 CachedImageCount = 0;
 	for (cgltf_size ImageIndex = 0; ImageIndex < GLTF.images_count; ++ImageIndex)
 	{
 		const cgltf_image& Image = GLTF.images[ImageIndex];
@@ -291,48 +409,88 @@ FAssetImportResult FAssetImporter::ImportTextures(const FTextureImportDesc& Desc
 			return Result;
 		}
 		const uint8* ImageBytes = static_cast<const uint8*>(Image.buffer_view->buffer->data) + Image.buffer_view->offset;
-		DirectX::ScratchImage Decoded;
-		DirectX::ScratchImage MipChain;
-		DirectX::ScratchImage Compressed;
-		DirectX::TexMetadata Metadata;
-		if (FAILED(DirectX::LoadFromWICMemory(ImageBytes, Image.buffer_view->size, DirectX::WIC_FLAGS_FORCE_RGB, &Metadata, Decoded)) ||
-		    FAILED(DirectX::GenerateMipMaps(Decoded.GetImages(), Decoded.GetImageCount(), Decoded.GetMetadata(), DirectX::TEX_FILTER_DEFAULT, 0, MipChain)) ||
-		    FAILED(DirectX::Compress(MipChain.GetImages(), MipChain.GetImageCount(), MipChain.GetMetadata(), DXGI_FORMAT_BC7_UNORM,
-		                             DirectX::TEX_COMPRESS_PARALLEL | DirectX::TEX_COMPRESS_BC7_QUICK, DirectX::TEX_THRESHOLD_DEFAULT, Compressed)))
-		{
-			Result.Error = "Texture decode, mip 생성 또는 BC7 압축에 실패했다.";
-			return Result;
-		}
-
 		const FString TextureName = Sanitize(Image.name, "Texture_" + std::to_string(ImageIndex));
 		const FString AssetPath = Combine(TextureRoot, TextureName);
-		TArray<uint8> PayloadBytes;
-		FMemoryWriter Payload(PayloadBytes);
-		FTexture2DPayloadHeader Header = {};
-		Header.Width = static_cast<uint32>(Compressed.GetMetadata().width);
-		Header.Height = static_cast<uint32>(Compressed.GetMetadata().height);
-		Header.MipCount = static_cast<uint32>(Compressed.GetMetadata().mipLevels);
-		Header.Format = ETextureFormat::BC7UNorm;
-		Header.ColorSpace = ETextureColorSpace::SRGB;
-		Payload << Header;
-		for (SIZE_T MipIndex = 0; MipIndex < Compressed.GetImageCount(); ++MipIndex)
+		std::filesystem::path CachePath;
+		TStaticArray<uint8, 32> SourceHash;
+
+		if (HashTextureData(std::span<const uint8>(ImageBytes, Image.buffer_view->size), SourceHash,
+			std::span<const uint8>(reinterpret_cast<const uint8*>(CacheSettings), sizeof(CacheSettings))))
 		{
-			const DirectX::Image& Mip = Compressed.GetImages()[MipIndex];
-			FTextureMipPayloadHeader MipHeader;
-			MipHeader.DataSize = static_cast<uint32>(Mip.slicePitch);
-			MipHeader.RowPitch = static_cast<uint32>(Mip.rowPitch);
-			MipHeader.SlicePitch = static_cast<uint32>(Mip.slicePitch);
-			Payload << MipHeader;
-			Payload.Serialize(Mip.pixels, static_cast<int64>(Mip.slicePitch));
+			static constexpr char HexDigits[] = "0123456789abcdef";
+			FString CacheKey;
+			CacheKey.reserve(SourceHash.size() * 2);
+			for (const uint8 Byte : SourceHash)
+			{
+				CacheKey.push_back(HexDigits[Byte >> 4]);
+				CacheKey.push_back(HexDigits[Byte & 15]);
+			}
+			CachePath = std::filesystem::path(FPaths::SavedDir()) / L"ImportCache" / L"Texture" / (CacheKey + ".bin");
+		}
+		else
+		{
+			Result.Warnings.push_back("Texture 캐시 Key 생성에 실패해 기존 압축 경로를 사용한다: " + AssetPath);
+		}
+
+		TArray<uint8> PayloadBytes;
+		const bool bCached = !CachePath.empty() && LoadTextureCache(CachePath, PayloadBytes);
+		
+		if (bCached)
+		{
+			++CachedImageCount;
+		}
+		else
+		{
+			DirectX::ScratchImage Decoded;
+			DirectX::ScratchImage MipChain;
+			DirectX::ScratchImage Compressed;
+			DirectX::TexMetadata Metadata;
+			if (FAILED(DirectX::LoadFromWICMemory(ImageBytes, Image.buffer_view->size, DecodeFlags, &Metadata, Decoded)) ||
+			    FAILED(DirectX::GenerateMipMaps(Decoded.GetImages(), Decoded.GetImageCount(), Decoded.GetMetadata(), MipFlags, 0, MipChain)) ||
+			    FAILED(DirectX::Compress(MipChain.GetImages(), MipChain.GetImageCount(), MipChain.GetMetadata(), DXGI_FORMAT_BC7_UNORM,
+			                             CompressFlags, DirectX::TEX_THRESHOLD_DEFAULT, Compressed)))
+			{
+				Result.Error = "Texture decode, mip 생성 또는 BC7 압축에 실패했다.";
+				return Result;
+			}
+
+			FMemoryWriter Payload(PayloadBytes);
+			FTexture2DPayloadHeader Header = {};
+			Header.Width = static_cast<uint32>(Compressed.GetMetadata().width);
+			Header.Height = static_cast<uint32>(Compressed.GetMetadata().height);
+			Header.MipCount = static_cast<uint32>(Compressed.GetMetadata().mipLevels);
+			Header.Format = ETextureFormat::BC7UNorm;
+			Header.ColorSpace = ETextureColorSpace::SRGB;
+			Payload << Header;
+			for (SIZE_T MipIndex = 0; MipIndex < Compressed.GetImageCount(); ++MipIndex)
+			{
+				const DirectX::Image& Mip = Compressed.GetImages()[MipIndex];
+				FTextureMipPayloadHeader MipHeader;
+				MipHeader.DataSize = static_cast<uint32>(Mip.slicePitch);
+				MipHeader.RowPitch = static_cast<uint32>(Mip.rowPitch);
+				MipHeader.SlicePitch = static_cast<uint32>(Mip.slicePitch);
+				Payload << MipHeader;
+				Payload.Serialize(Mip.pixels, static_cast<int64>(Mip.slicePitch));
+			}
+			if (Payload.HasError())
+			{
+				Result.Error = "Texture Payload 생성에 실패했다: " + AssetPath;
+				return Result;
+			}
+			if (!CachePath.empty() && !SaveTextureCache(CachePath, PayloadBytes))
+			{
+				Result.Warnings.push_back("Texture 압축 캐시 저장에 실패했다: " + AssetPath);
+			}
 		}
 		FAssetId TextureId;
-		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, PayloadBytes, TextureId))
+		if (!SaveAsset(AssetPath, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, PayloadBytes, TextureId))
 		{
 			Result.Error = "Texture .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
 		}
 		Result.ImportedAssets.push_back({ AssetPath, EAssetType::Texture2D, TextureId });
 	}
+	KE_LOG(LogAssetImporter, Display, "Texture Import 완료. Images={}, CacheHits={}, Compressed={}", GLTF.images_count, CachedImageCount, GLTF.images_count - CachedImageCount);
 	Result.bSucceeded = true;
 	return Result;
 }
