@@ -36,6 +36,7 @@ void FMeshSimplifier::FQuadric::AddPlane(const FVector& Normal, float Distance, 
 	}
 }
 
+// 원본 배열을 복사하고 원본 삼각형 개수로 간소화 상태를 초기화한다.
 FMeshSimplifier::FMeshSimplifier(const FMeshSimplificationDesc& Desc)
 	: Vertices(Desc.Vertices), SourceIndices(Desc.Indices), SourceSections(Desc.Sections), TriangleCount(static_cast<int32>(Desc.Indices.size() / 3))
 {
@@ -65,7 +66,7 @@ TArray<FStaticMeshLODBuildData> FMeshSimplifier::GenerateLODs(const FMeshSimplif
 	Simplifier.BuildQuadricsAndEdges();
 
 	// 모든 Edge의 Collapse Error를 계산해 가장 손실이 작은 후보부터 꺼낼 수 있도록 구성한다.
-	const int32 SourceTriangleCount = Simplifier.TriangleCount;
+	const int32 SourceTriangleCount = static_cast<int32>(Desc.Indices.size() / 3);
 	SIZE_T TargetLODIndex = 0;
 	int32 TargetTriangleCount = std::max(1, static_cast<int32>(SourceTriangleCount * Desc.TriangleRatios[TargetLODIndex]));
 	std::priority_queue<FCollapseCandidate> Candidates;
@@ -76,8 +77,26 @@ TArray<FStaticMeshLODBuildData> FMeshSimplifier::GenerateLODs(const FMeshSimplif
 
 	// 최저 Error Edge를 반복해서 Collapse하고 목표 삼각형 수에 도달할 때마다 현재 Mesh를 LOD로 저장한다.
 	TArray<uint32> Neighbors;
-	while (!Candidates.empty() && TargetLODIndex < Desc.TriangleRatios.size())
+	while (TargetLODIndex < Desc.TriangleRatios.size() && Simplifier.TriangleCount > 0)
 	{
+		// 초기 퇴화 삼각형 제거도 반영하되 목표 비율은 원본 LOD 0을 기준으로 유지한다.
+		if (Simplifier.TriangleCount <= TargetTriangleCount)
+		{
+			LODs.push_back(Simplifier.BuildCurrentLOD());
+			++TargetLODIndex;
+			if (TargetLODIndex == Desc.TriangleRatios.size())
+			{
+				break;
+			}
+			TargetTriangleCount = std::max(1, static_cast<int32>(SourceTriangleCount * Desc.TriangleRatios[TargetLODIndex]));
+			continue;
+		}
+
+		if (Candidates.empty())
+		{
+			break;
+		}
+
 		const FCollapseCandidate Candidate = Candidates.top();
 		Candidates.pop();
 		const FTopologicalVertex& VertexA = Simplifier.TopologicalVertices[Candidate.Edge.A];
@@ -108,17 +127,6 @@ TArray<FStaticMeshLODBuildData> FMeshSimplifier::GenerateLODs(const FMeshSimplif
 		{
 			Candidates.push(Simplifier.BuildCollapseCandidate(CurrentCandidate.Edge.A, Neighbor));
 		}
-
-		if (Simplifier.TriangleCount <= TargetTriangleCount)
-		{
-			LODs.push_back(Simplifier.BuildCurrentLOD());
-			++TargetLODIndex;
-			if (TargetLODIndex == Desc.TriangleRatios.size())
-			{
-				break;
-			}
-			TargetTriangleCount = std::max(1, static_cast<int32>(SourceTriangleCount * Desc.TriangleRatios[TargetLODIndex]));
-		}
 	}
 	return LODs;
 }
@@ -126,7 +134,7 @@ TArray<FStaticMeshLODBuildData> FMeshSimplifier::GenerateLODs(const FMeshSimplif
 // 위치가 같은 Render Vertex를 하나의 Topological Vertex로 묶되 UV Seam 등의 원본 정점은 따로 보존한다.
 void FMeshSimplifier::BuildTopology()
 {
-	static constexpr float PositionTolerance = 0.001f;
+	static constexpr float PositionTolerance = 0.00001f;
 	static constexpr float InverseTolerance = 1.0f / PositionTolerance;
 	TMap<uint64, TArray<uint32>> VerticesByCell;
 	TArray<uint32> RenderToTopological;
@@ -183,8 +191,19 @@ void FMeshSimplifier::BuildQuadricsAndEdges()
 		if (A == B || B == C || A == C)
 		{
 			AliveTriangles[TriangleIndex] = false;
+			--TriangleCount;
 			continue;
 		}
+		const FVector& PositionA = TopologicalVertices[A].Position;
+		const FVector Cross = (TopologicalVertices[B].Position - PositionA) ^ (TopologicalVertices[C].Position - PositionA);
+		const float DoubleArea = Cross.Size();
+		if (DoubleArea <= 1.e-12f)
+		{
+			AliveTriangles[TriangleIndex] = false;
+			--TriangleCount;
+			continue;
+		}
+
 		TopologicalVertices[A].Triangles.push_back(TriangleIndex);
 		TopologicalVertices[B].Triangles.push_back(TriangleIndex);
 		TopologicalVertices[C].Triangles.push_back(TriangleIndex);
@@ -195,9 +214,6 @@ void FMeshSimplifier::BuildQuadricsAndEdges()
 			++EdgeUsage[Edge];
 		}
 
-		const FVector& PositionA = TopologicalVertices[A].Position;
-		const FVector Cross = (TopologicalVertices[B].Position - PositionA) ^ (TopologicalVertices[C].Position - PositionA);
-		const float DoubleArea = Cross.Size();
 		if (DoubleArea <= KMath::Epsilon)
 		{
 			continue;
@@ -271,6 +287,7 @@ FMeshSimplifier::FCollapseCandidate FMeshSimplifier::BuildCollapseCandidate(uint
 // Edge Collapse 이후 인접 삼각형이 뒤집히거나 면적을 잃는지 검사한다.
 bool FMeshSimplifier::WouldInvertTriangle(uint32 VertexA, uint32 VertexB, const FVector& Position) const
 {
+	// Edge를 공유해 제거될 삼각형을 제외하고 병합 전후 방향과 면적을 비교한다.
 	const auto CheckTriangles = [&](const TArray<uint32>& Triangles)
 	{
 		for (const uint32 TriangleIndex : Triangles)
@@ -279,29 +296,29 @@ bool FMeshSimplifier::WouldInvertTriangle(uint32 VertexA, uint32 VertexB, const 
 			{
 				continue;
 			}
-			const uint32 IndicesValue[3] = {
+			const uint32 TriangleVertices[3] = {
 				TopologicalIndices[TriangleIndex * 3],
 				TopologicalIndices[TriangleIndex * 3 + 1],
 				TopologicalIndices[TriangleIndex * 3 + 2]
 			};
-			const bool bHasA = IndicesValue[0] == VertexA || IndicesValue[1] == VertexA || IndicesValue[2] == VertexA;
-			const bool bHasB = IndicesValue[0] == VertexB || IndicesValue[1] == VertexB || IndicesValue[2] == VertexB;
+			const bool bHasA = TriangleVertices[0] == VertexA || TriangleVertices[1] == VertexA || TriangleVertices[2] == VertexA;
+			const bool bHasB = TriangleVertices[0] == VertexB || TriangleVertices[1] == VertexB || TriangleVertices[2] == VertexB;
 			if (bHasA && bHasB)
 			{
 				continue;
 			}
-			const FVector Old[3] = {
-				TopologicalVertices[IndicesValue[0]].Position,
-				TopologicalVertices[IndicesValue[1]].Position,
-				TopologicalVertices[IndicesValue[2]].Position
+			const FVector OldPositions[3] = {
+				TopologicalVertices[TriangleVertices[0]].Position,
+				TopologicalVertices[TriangleVertices[1]].Position,
+				TopologicalVertices[TriangleVertices[2]].Position
 			};
-			const FVector New[3] = {
-				IndicesValue[0] == VertexA || IndicesValue[0] == VertexB ? Position : Old[0],
-				IndicesValue[1] == VertexA || IndicesValue[1] == VertexB ? Position : Old[1],
-				IndicesValue[2] == VertexA || IndicesValue[2] == VertexB ? Position : Old[2]
+			const FVector NewPositions[3] = {
+				TriangleVertices[0] == VertexA || TriangleVertices[0] == VertexB ? Position : OldPositions[0],
+				TriangleVertices[1] == VertexA || TriangleVertices[1] == VertexB ? Position : OldPositions[1],
+				TriangleVertices[2] == VertexA || TriangleVertices[2] == VertexB ? Position : OldPositions[2]
 			};
-			const FVector OldNormal = (Old[1] - Old[0]) ^ (Old[2] - Old[0]);
-			const FVector NewNormal = (New[1] - New[0]) ^ (New[2] - New[0]);
+			const FVector OldNormal = (OldPositions[1] - OldPositions[0]) ^ (OldPositions[2] - OldPositions[0]);
+			const FVector NewNormal = (NewPositions[1] - NewPositions[0]) ^ (NewPositions[2] - NewPositions[0]);
 			if (NewNormal.SizeSquared() <= 0.0000000000000001f || (OldNormal | NewNormal) <= 0.0f)
 			{
 				return true;
@@ -428,5 +445,6 @@ FStaticMeshLODBuildData FMeshSimplifier::BuildCurrentLOD() const
 			AppendSection(SourceSection);
 		}
 	}
+	Result.AchievedTriangleRatio = static_cast<float>(Result.Indices.size()) / SourceIndices.size();
 	return Result;
 }

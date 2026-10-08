@@ -305,6 +305,47 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 
 ## 현재 구현과 목표
 
+### Static Mesh 최적화
+
+간소화와 GPU 데이터 순서 최적화는 별도 도구로 유지한다.
+두 단계는 Import Worker의 일반 CPU 배열만 사용한다.
+
+`FMeshSimplifier::GenerateLODs()`는 기존 QEM Edge Collapse를 사용한다.
+Quadric 최적 위치를 구하고 계산할 수 없으면 끝점·중점 중 오차가 작은 위치를 선택한다.
+열린 경계는 고정하고 인접 삼각형의 뒤집힘·면적 손실을 검사한다.
+같은 위치의 Render Vertex는 함께 이동하되 UV·Normal·Tangent·Handedness는 보간하지 않는다.
+최종 Tangent는 기존처럼 Importer에서 재생성한다.
+
+미터 전환에 따른 Weld 허용치는 0.00001m로 수정했다.
+반복 인덱스·공선 삼각형은 유효 개수에서 제외하고, 목표 비율은 원본 LOD 0 개수를 기준으로 계산한다.
+초기 퇴화 삼각형 제거만으로 목표에 도달한 경우에도 LOD를 반환한다.
+이외에 후보 선택·비용·경계 정책·이웃 후보 갱신은 기존 알고리즘을 유지한다.
+
+Import 기본 비율은 10%, 5%, 3%, 2%다. 기존 조건에서 더 줄일 수 없으면 생성 가능한 LOD만 반환하고
+조기 종료 경고를 남긴다. 목표를 강제로 맞추는 제약 완화, Attribute Gradient 비용,
+방향별 Seam 분류 및 품질 제한 옵션은 제거했다.
+
+`FMeshOptimizer::Optimize()`는 LOD 0과 생성 LOD의 삼각형 형상·속성을 변경하지 않는 후처리다.
+
+1. Vertex Cache: Section별 16정점 FIFO 모델로 삼각형을 재배치한다.
+   미스 수가 원본보다 증가하면 기존 순서를 유지한다.
+2. Overdraw: Cache 순서의 32·64·128·256 Face Cluster를 면적 가중 중심·법선 기준으로 정렬한다.
+   Cache 단계보다 FIFO 비용이 5% 넘게 증가하면 채택하지 않는다.
+3. Vertex Fetch: 전체 정점을 최초 참조 순서로 재배치하고 미사용 정점을 제거한다.
+   모든 속성이 바이트 단위로 같은 Render Vertex만 합친다.
+
+각 삼각형의 위치·속성·Winding, Section 범위와 Material Index는 유지한다.
+Alpha Blend Material이 있으면 Cache·Overdraw의 삼각형 재배치를 생략하고 Fetch만 적용한다.
+Opaque에서도 동일 깊이의 겹친 Face처럼 제출 순서에 민감한 경우는 시각 검증이 필요하다.
+후처리 전후의 Face를 속성 전체로 비교하는 회귀 검사로 형상 보존을 검증한다.
+
+Import 로그에 원본과 각 LOD의 정점·인덱스·삼각형 개수, 달성 비율,
+간소화·후처리 CPU 시간과 Cache → Overdraw 전후 FIFO 미스 수를 출력한다.
+`AchievedTriangleRatio`는 Import 중에만 유지하고 .kasset에는 저장하지 않는다.
+샘플 표면 오차·완화 단계·누적 속성 비용 계측은 제거했다.
+FIFO 모델은 실제 GPU 시간을 대체하지 않으며 GPU 성능 개선은 아직 미측정이다.
+Vertex 양자화·압축·Meshlet 생성은 미구현이다.
+
 ### 현재 구현
 
 - `FAssetRegistry`의 `.glb`와 타입별 `.kasset` 검색
@@ -336,6 +377,8 @@ Importer는 glTF 데이터를 Knot Engine 규칙으로 변환한다.
 ## 관련 파일
 
 - [AssetImporter.h](../KnotEngine/Source/Editor/Asset/AssetImporter.h)
+- [MeshSimplifier.h](../KnotEngine/Source/Editor/Asset/MeshSimplifier.h)
+- [MeshOptimizer.h](../KnotEngine/Source/Editor/Asset/MeshOptimizer.h)
 - [AssetId.h](../KnotEngine/Source/Engine/Asset/Asset/AssetId.h)
 - [AssetRegistry.h](../KnotEngine/Source/Engine/Asset/AssetRegistry.h)
 - [AssetManager.h](../KnotEngine/Source/Engine/Asset/AssetManager.h)

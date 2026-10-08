@@ -1,8 +1,8 @@
 #pragma once
 
+#include "Asset/Mesh/StaticMesh.h"
 #include "Core/CoreTypes.h"
 #include "Core/Geometry/Edge.h"
-#include "Asset/Mesh/StaticMesh.h"
 
 #include <limits>
 
@@ -12,6 +12,7 @@ struct FStaticMeshLODBuildData
 	TArray<FStaticMeshVertex> Vertices;
 	TArray<uint32> Indices;
 	TArray<FStaticMeshSection> Sections;
+	float AchievedTriangleRatio = 1.0f;
 };
 
 // 원본 LOD와 생성할 하위 LOD의 삼각형 비율을 지정한다.
@@ -30,15 +31,17 @@ public:
 	static TArray<FStaticMeshLODBuildData> GenerateLODs(const FMeshSimplificationDesc& Desc);
 
 private:
+	// 대칭 Quadric 행렬의 독립 성분을 저장하고 평면 오차를 누적한다.
 	struct FQuadric
 	{
-		float Values[10] = {};
-
 		FQuadric& operator+=(const FQuadric& Other);
 		float Evaluate(const FVector& Position) const;
 		void AddPlane(const FVector& Normal, float Distance, float Weight);
+
+		float Values[10] = {};
 	};
 
+	// 위치를 공유하는 Render Vertex와 인접 삼각형의 간소화 상태다.
 	struct FTopologicalVertex
 	{
 		FVector Position;
@@ -50,17 +53,20 @@ private:
 		bool bDeleted = false;
 	};
 
+	// Edge 병합 위치와 오차, 후보 생성 당시 정점의 변경 버전이다.
 	struct FCollapseCandidate
 	{
+		bool operator<(const FCollapseCandidate& Other) const { return Error > Other.Error; }
+
+
 		FIndexEdge Edge;
 		FVector Position;
 		float Error = (std::numeric_limits<float>::max)();
 		uint32 VersionA = 0;
 		uint32 VersionB = 0;
-
-		bool operator<(const FCollapseCandidate& Other) const { return Error > Other.Error; }
 	};
 
+	// 방향이 다른 동일 Edge를 같은 Key로 취급한다.
 	struct FIndexEdgeHasher
 	{
 		SIZE_T operator()(const FIndexEdge& Edge) const noexcept
