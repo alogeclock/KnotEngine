@@ -78,6 +78,19 @@ void FSceneBVH::Prepare()
 	bTopologyDirty = false;
 }
 
+// RT에서 부모가 먼저 저장된 노드 배열을 순회해 전체 Bounds와 깊이를 수집하며 Query 통계에는 포함하지 않는다.
+void FSceneBVH::CollectDebugBounds(TArray<FSceneBVHDebugBounds>& OutBounds)
+{
+	Prepare();
+	OutBounds.clear();
+	OutBounds.reserve(Nodes.size());
+	for (const FNode& Node : Nodes)
+	{
+		const uint32 Depth = Node.Parent == -1 ? 0 : OutBounds[Node.Parent].Depth + 1;
+		OutBounds.push_back({ Node.Bounds, Depth });
+	}
+}
+
 // 중심 좌표가 가장 넓게 분포한 축을 골라 Primitive 개수를 반으로 나누며, Primitive 하나당 Leaf 하나를 만든다.
 int32 FSceneBVH::Build(TArray<int32>& Order, SIZE_T Begin, SIZE_T End, int32 Parent)
 {

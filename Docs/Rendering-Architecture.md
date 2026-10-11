@@ -318,7 +318,7 @@ Instanced Pipeline은 현재 기본 `StaticMesh.hlsl/MainVS`를 사용하는 비
 
 Knot Engine은 행벡터 규약을 사용한다. `ViewProjectionMatrix = ViewMatrix * ProjectionMatrix`이며 일반 Static Mesh Vertex Shader는 `Position * WorldMatrix * ViewProjectionMatrix` 순서로 변환한다.
 
-`FSceneViewFamily`는 하나의 `FScene`, 여러 View, `FSceneRenderTarget`, `FShowFlags`를 묶는다. 현재 Show Flag는 Primitive, Axis, Grid, Bounds다.
+`FSceneViewFamily`는 하나의 `FScene`, 여러 View, `FSceneRenderTarget`, `FShowFlags`를 묶는다. 현재 Show Flag는 Primitive, Axis, Grid, Bounds, Scene BVH다.
 
 ### FSceneRenderTarget
 
@@ -415,7 +415,7 @@ Pass는 장기 수명 객체나 공통 기반 클래스를 만들지 않는 정�
 | Selection | 선택된 Static Mesh를 SelectionDepth에 기록 |
 | PostProcess | SceneColor와 SelectionDepth를 읽고 Outline과 Gamma Correction을 DisplayColor에 기록 |
 | Overlay | Grid와 Axis를 DisplayColor에 합성 |
-| DebugDraw | 동적 Line, Wire Shape와 Bounds를 DisplayColor에 합성 |
+| DebugDraw | 동적 Line, Wire Shape, Primitive Bounds와 Scene BVH Bounds를 DisplayColor에 합성 |
 
 Family 시작 시 SceneColor, Depth와 SelectionDepth를 한 번 Clear한다. 각 Pass는 실행 직전에 자신의 Viewport와 필요한 Target을 바인딩한다. Family가 끝나면 Back Buffer를 복구하고, 모든 Family가 끝난 뒤 ImGui를 Back Buffer에 합성한다.
 

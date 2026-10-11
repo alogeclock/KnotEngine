@@ -7,14 +7,18 @@
 #include "Render/Resource/Mesh/Vertex.h"
 #include "Render/RHI/RenderDevice.h"
 #include "Render/Scene/SceneView.h"
+#include "Render/Scene/SceneBVH.h"
 
 #include <algorithm>
+#include <cmath>
 
+// View의 Debug 도형과 Primitive·BVH Bounds를 별도 Instance Batch로 복사해 Graph에 등록한다.
 uint32 FDebugDrawPass::AddPass(
 	FRenderGraph& Graph,
 	FRenderer& Renderer,
 	const FSceneView& View,
 	std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives,
+	std::span<const FSceneBVHDebugBounds> BVHBounds,
 	FTextureHandle ColorTarget,
 	FTextureHandle DepthTarget)
 {
@@ -75,6 +79,32 @@ uint32 FDebugDrawPass::AddPass(
 			BoundsBatch.Instances.push_back({ FMatrix::MakeScale(Extent) * FMatrix::MakeTranslation(Center), BoundsColor, FVector4() });
 		}
 		Parameters.ShapeBatches.push_back(std::move(BoundsBatch));
+	}
+
+	if (!BVHBounds.empty())
+	{
+		uint32 MaxDepth = 1;
+		for (const FSceneBVHDebugBounds& Node : BVHBounds)
+		{
+			MaxDepth = std::max(MaxDepth, Node.Depth);
+		}
+
+		FShapeBatch BVHBatch;
+		BVHBatch.MeshBuffer = &DebugDraw.CubeMesh.GetMeshBuffer();
+		BVHBatch.Instances.reserve(BVHBounds.size());
+		for (const FSceneBVHDebugBounds& Node : BVHBounds)
+		{
+			// 표시 중인 깊이를 붉은색에서 보라색까지의 스펙트럼에 순서대로 배치한다.
+			const float H = 4.5f * static_cast<float>(Node.Depth) / static_cast<float>(MaxDepth);
+			const FVector4 Color(
+				0.25f + 0.75f * std::clamp(std::fabs(H - 3.0f) - 1.0f, 0.0f, 1.0f),
+				0.25f + 0.75f * std::clamp(2.0f - std::fabs(H - 2.0f), 0.0f, 1.0f),
+				0.25f + 0.75f * std::clamp(2.0f - std::fabs(H - 4.0f), 0.0f, 1.0f),
+				1.0f);
+			const FMatrix Model = FMatrix::MakeScale(Node.Bounds.GetExtent()) * FMatrix::MakeTranslation(Node.Bounds.GetCenter());
+			BVHBatch.Instances.push_back({ Model, Color, FVector4() });
+		}
+		Parameters.ShapeBatches.push_back(std::move(BVHBatch));
 	}
 
 	const FViewConstants ViewConstants = {

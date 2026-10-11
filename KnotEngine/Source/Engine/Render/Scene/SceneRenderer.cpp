@@ -33,7 +33,12 @@ void FSceneRenderer::Render(FRenderer& Renderer)
 	// Family 전체를 한 번 Clear한다. 여러 View가 같은 타깃의 서로 다른 영역을 사용할 수 있다.
 	Renderer.BeginRenderTarget(Target.SceneColor, Target.Depth, TargetViewport);
 	Renderer.GetRenderDevice().ClearDepthStencil(CommandList, Target.SelectionDepth, 0.0f, 0);
-	if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
+	TArray<FSceneBVHDebugBounds> BVHBounds;
+	if (ViewFamily.ShowFlags.bSceneBVH)
+	{
+		ViewFamily.Scene->GetBVH().CollectDebugBounds(BVHBounds);
+	}
+	if (ViewFamily.ShowFlags.bBounds || ViewFamily.ShowFlags.bSceneBVH || !Renderer.GetDebugDraw().IsEmpty())
 	{
 		Renderer.GetDebugDraw().Prepare(Renderer.GetRenderDevice());
 	}
@@ -78,14 +83,14 @@ void FSceneRenderer::Render(FRenderer& Renderer)
 			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, Target.DisplayColor, Target.Depth, Target.SelectionDepth, bHasSelection));
 		}
 
-		if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
+		if (ViewFamily.ShowFlags.bBounds || ViewFamily.ShowFlags.bSceneBVH || !Renderer.GetDebugDraw().IsEmpty())
 		{
 			std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives;
 			if (ViewFamily.ShowFlags.bBounds)
 			{
 				BoundsPrimitives = VisiblePrimitives;
 			}
-			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives, Target.DisplayColor, Target.Depth));
+			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives, BVHBounds, Target.DisplayColor, Target.Depth));
 		}
 
 		if (View.Gizmo.bVisible)

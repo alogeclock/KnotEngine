@@ -327,6 +327,7 @@ void FLevelEditorViewportClient::RequestSelection(const FVector2& InputPosition,
 	{
 		return;
 	}
+
 	FPendingRayQuery Pending;
 	Pending.WorldUUID = World->GetUUID();
 	Pending.Generation = Selection.GetGeneration();
@@ -341,25 +342,31 @@ void FLevelEditorViewportClient::ApplySelectionResult()
 	while (!PendingRayQueries.empty())
 	{
 		const FPendingRayQuery& Front = PendingRayQueries.front();
+
 		UWorld* World = GetWorld();
 		if (!World || World->GetUUID() != Front.WorldUUID || Selection.GetGeneration() != Front.Generation)
 		{
 			PendingRayQueries.pop_front();
 			continue;
 		}
+
 		if (!Front.Query->bReady.load(std::memory_order_acquire))
 		{
 			break;
 		}
+
 		const FPendingRayQuery Pending = Front;
 		PendingRayQueries.pop_front();
 		const FSceneRayQuery& Query = *Pending.Query;
 		UPrimitiveComponent* Component = World->FindPrimitive(Query.PrimitiveId);
+
 		if (Query.PrimitiveId != 0 && !Component)
 		{
 			continue;
 		}
+
 		UNode* HitNode = Component ? &Component->GetOwner() : nullptr;
+
 		if (HasModifierKey(Pending.Modifiers, EModifierKeyMask::Control))
 		{
 			if (HitNode)

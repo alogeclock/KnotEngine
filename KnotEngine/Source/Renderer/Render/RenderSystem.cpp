@@ -232,6 +232,7 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 		check(Scene);
 		SceneBatches->push_back({ Scene, Scene->DrainRenderCommands(), Scene->DrainRayQueries() });
 	}
+
 	auto Families = std::make_shared<TArray<FSceneViewFamily>>(std::move(ViewFamilies));
 	auto DrawData = std::make_shared<FImGuiDrawDataCopy>(std::move(ImGuiDrawData));
 	RenderThread.Enqueue([this, FrameNumber, StaticMeshCommands, TextureCommands, MaterialCommands, SceneBatches, Families, DrawData]

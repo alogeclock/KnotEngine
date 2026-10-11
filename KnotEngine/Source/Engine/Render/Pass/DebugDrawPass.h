@@ -11,6 +11,7 @@ class IRenderDevice;
 class FRenderer;
 struct FPrimitiveSceneProxy;
 struct FSceneView;
+struct FSceneBVHDebugBounds;
 struct FViewConstants;
 
 // 수집된 Debug 선은 동적 Line Batch로, 기본 도형은 Indexed Instance Batch로 렌더링한다.
@@ -22,6 +23,7 @@ public:
 		FRenderer& Renderer,
 		const FSceneView& View,
 		std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives,
+		std::span<const FSceneBVHDebugBounds> BVHBounds,
 		FTextureHandle ColorTarget,
 		FTextureHandle DepthTarget);
 

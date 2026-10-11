@@ -43,6 +43,13 @@ struct FSceneBVHRayHit
 	float Distance = 0.0f; // Ray가 Bounds에 처음 들어가는 t 값이며, Origin + Direction * t가 교차 위치다. 메시 표면 교차는 별도로 검사한다.
 };
 
+// RT Debug Draw에 전달할 노드 Bounds와 Root부터의 깊이이며 같은 깊이는 같은 색으로 표시한다.
+struct FSceneBVHDebugBounds
+{
+	FAABB Bounds;
+	uint32 Depth = 0;
+};
+
 // RT에서 Primitive ID와 World AABB를 저장하고, Ray·Frustum·Sphere 등과 겹치는 Bounds를 찾는다. GT는 직접 접근하지 않는다.
 class ENGINE_API FSceneBVH
 {
@@ -50,6 +57,8 @@ public:
 	void Update(uint64 PrimitiveId, const FAABB& Bounds);
 	void Remove(uint64 PrimitiveId);
 	void Prepare();
+
+	void CollectDebugBounds(TArray<FSceneBVHDebugBounds>& OutBounds);
 
 	void RayQuery(const FRay& Ray, TArray<FSceneBVHRayHit>& OutHits, FSceneBVHQueryStatistics& Statistics);
 	void FrustumQuery(const FFrustum& Frustum, TArray<uint64>& OutIds, FSceneBVHQueryStatistics& Statistics, bool bInsideOnly = false);

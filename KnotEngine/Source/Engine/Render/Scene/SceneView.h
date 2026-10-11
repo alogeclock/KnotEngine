@@ -81,6 +81,7 @@ struct FShowFlags
 	bool bAxis = false;
 	bool bGrid = false;
 	bool bBounds = false;
+	bool bSceneBVH = false;
 };
 
 struct FSceneRenderTarget

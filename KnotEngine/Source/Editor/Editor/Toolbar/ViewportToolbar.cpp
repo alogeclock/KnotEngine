@@ -208,6 +208,7 @@ void FViewportToolbar::Draw(FEditorViewportClient& ViewportClient, const std::fu
 			ImGui::MenuItem("Grid", nullptr, &ShowFlags.bGrid);
 			ImGui::MenuItem("Axis", nullptr, &ShowFlags.bAxis);
 			ImGui::MenuItem("Bounds", nullptr, &ShowFlags.bBounds);
+			ImGui::MenuItem("Scene BVH", nullptr, &ShowFlags.bSceneBVH);
 			ImGui::EndPopup();
 		}
 		if (DrawExtension)
