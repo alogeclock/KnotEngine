@@ -188,7 +188,7 @@ void FScene::ExecuteRayQueries(const TArray<std::shared_ptr<FSceneRayQuery>>& Re
 			const FMatrix Inverse = Proxy.WorldMatrix.GetInverse();
 			// 축마다 Scale이 달라도 교차 거리를 World Ray와 비교할 수 있도록, 변환한 방향의 길이를 그대로 유지한다.
 			const FRay LocalRay(Inverse.TransformPosition(Query.Ray.Origin), Inverse.TransformVector(Query.Ray.Direction));
-			const FStaticMeshLOD& LOD = Proxy.MeshResource->GetMeshData().GetLOD(Proxy.SelectLOD(Query.View));
+			const FStaticMeshLOD& LOD = Proxy.MeshResource->GetMeshData()->GetLOD(Proxy.SelectLOD(Query.View));
 			const auto& Vertices = LOD.GetVertices();
 			const auto& Indices = LOD.GetIndices();
 			const SIZE_T Count = Indices.empty() ? Vertices.size() : Indices.size();

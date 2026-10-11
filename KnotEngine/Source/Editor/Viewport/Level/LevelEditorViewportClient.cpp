@@ -244,9 +244,9 @@ void FLevelEditorViewportClient::FocusSelectedNode()
 		}
 		const auto* MeshComponent = static_cast<const UStaticMeshComponent*>(Component.Get());
 		const UStaticMesh* Mesh = MeshComponent->GetStaticMesh();
-		if (MeshComponent->IsVisible() && Mesh && Mesh->GetMeshData().GetLocalBounds().IsValid())
+		if (MeshComponent->IsVisible() && Mesh && Mesh->GetMeshData()->GetLocalBounds().IsValid())
 		{
-			Bounds.Merge(Mesh->GetMeshData().GetLocalBounds().Transform(MeshComponent->GetTransform().GetWorldMatrix()));
+			Bounds.Merge(Mesh->GetMeshData()->GetLocalBounds().Transform(MeshComponent->GetTransform().GetWorldMatrix()));
 		}
 	}
 

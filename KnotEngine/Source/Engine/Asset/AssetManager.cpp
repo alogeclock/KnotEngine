@@ -224,7 +224,7 @@ void FAssetManager::RequestStaticMeshResource(const UStaticMesh& StaticMesh)
 	PendingStaticMeshResourceCommands.push_back({ AssetId, Revision, StaticMesh.GetMeshData() });
 }
 
-// Texture의 Revision이 달라졌을 때만 기술 정보와 Mip 데이터를 렌더 명령으로 복사한다.
+// Texture의 Revision이 달라졌을 때만 해당 버전의 불변 데이터 소유 참조를 렌더 명령에 담는다.
 void FAssetManager::RequestTextureResource(const UTexture2D& Texture)
 {
 	const FAssetId& AssetId = Texture.GetAssetId();
@@ -235,15 +235,8 @@ void FAssetManager::RequestTextureResource(const UTexture2D& Texture)
 		return;
 	}
 
-	FTextureDesc Desc;
-	Desc.Width = Texture.GetWidth();
-	Desc.Height = Texture.GetHeight();
-	Desc.MipCount = Texture.GetMipCount();
-	Desc.Format = Texture.GetFormat();
-	Desc.Usage = ETextureUsage::ShaderResource;
-	Desc.bSRGB = Texture.IsSRGB();
 	RequestedTextureRevisions[AssetId] = Revision;
-	PendingTextureResourceCommands.push_back({ AssetId, Revision, Desc, Texture.GetMips() });
+	PendingTextureResourceCommands.push_back({ AssetId, Revision, Texture.GetTextureData() });
 }
 
 // Material의 새 Revision만 렌더 명령으로 복사해 중복 제출을 막는다.

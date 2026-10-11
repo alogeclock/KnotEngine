@@ -5,17 +5,17 @@
 
 #include <utility>
 
-// Command의 CPU Mesh로 GPU Buffer를 생성하고 성공한 Mesh의 소유권을 이동받아 RT 삼각형 검사에도 사용한다.
-bool FStaticMeshResource::Initialize(IRenderDevice& RenderDevice, FStaticMesh&& StaticMesh, uint64 Revision)
+// Command가 참조하는 불변 Mesh로 GPU Buffer를 생성하고 같은 데이터의 소유 참조를 RT 삼각형 검사에도 유지한다.
+bool FStaticMeshResource::Initialize(IRenderDevice& RenderDevice, std::shared_ptr<const FStaticMesh> StaticMesh, uint64 Revision)
 {
 	Release();
-	if (!StaticMesh.IsValid() || Revision == 0)
+	if (!StaticMesh || !StaticMesh->IsValid() || Revision == 0)
 	{
 		return false;
 	}
 
-	LODResources.reserve(StaticMesh.GetLODCount());
-	for (const FStaticMeshLOD& LOD : StaticMesh.GetLODs())
+	LODResources.reserve(StaticMesh->GetLODCount());
+	for (const FStaticMeshLOD& LOD : StaticMesh->GetLODs())
 	{
 		const auto* VertexBytes = reinterpret_cast<const uint8*>(LOD.GetVertices().data());
 		const FMeshDataView DataView = {
@@ -42,11 +42,11 @@ bool FStaticMeshResource::Initialize(IRenderDevice& RenderDevice, FStaticMesh&& 
 	return true;
 }
 
-// RT가 소유한 GPU Buffer와 CPU Mesh 데이터를 함께 해제하고 적용 Revision을 초기화한다.
+// GPU Buffer를 해제하고 CPU Mesh의 소유 참조를 놓으며 적용 Revision을 초기화한다.
 void FStaticMeshResource::Release()
 {
 	LODResources.clear();
-	MeshData = FStaticMesh();
+	MeshData.reset();
 	SourceRevision = 0;
 }
 
@@ -58,7 +58,7 @@ const FStaticMeshLODResource& FStaticMeshResource::GetLOD(SIZE_T LODIndex) const
 
 bool FStaticMeshResource::IsValid() const
 {
-	if (SourceRevision == 0 || !MeshData.IsValid() || LODResources.empty() || MeshData.GetLODCount() != LODResources.size())
+	if (SourceRevision == 0 || !MeshData || !MeshData->IsValid() || LODResources.empty() || MeshData->GetLODCount() != LODResources.size())
 	{
 		return false;
 	}

@@ -4,7 +4,7 @@
 
 이 문서는 Knot Engine의 Game/Editor Thread 렌더 상태 추출, Render Thread 제출, Scene Proxy와 Asset Resource 관리, View별 컬링, Render Graph Pass 구성 및 D3D11 실행 경계를 정의한다.
 
-현재 렌더링은 전용 `FRenderThread`에서 실행한다. Component와 Asset은 GPU 객체를 직접 소유하거나 수정하지 않고, 값으로 구성된 Scene Command와 Resource Command를 제출한다. Render Thread는 이 명령을 적용한 뒤 ViewFamily마다 Render Graph를 만들고 Opaque, Selection, Post Process, Overlay와 Debug Draw를 실행한다.
+현재 렌더링은 전용 `FRenderThread`에서 실행한다. Component와 Asset은 GPU 객체를 직접 소유하거나 수정하지 않고, Scene Command의 값 복사본과 Asset별 Resource Command를 제출한다. Render Thread는 이 명령을 적용한 뒤 ViewFamily마다 Render Graph를 만들고 Opaque, Selection, Post Process, Overlay와 Debug Draw를 실행한다.
 
 ## 설계 원칙
 
@@ -267,9 +267,9 @@ Ray·View와 결과는 하나의 `FSceneRayQuery`에 보관한다. GT는 RT가 �
 
 #### CPU Mesh 보관
 
-GT는 기존 Resource Command로 CPU Mesh를 복사해 전달한다. RT의 `FStaticMeshResource`는 GPU Buffer를 생성한 뒤 Command의 Mesh를 이동받아 보관한다.
+GT의 `UStaticMesh`와 RT의 `FStaticMeshResource`는 `shared_ptr<const FStaticMesh>`로 같은 CPU Mesh를 공유한다. Resource Command에는 해당 Revision의 소유 참조만 전달하며 정점·Index 배열을 복사하지 않는다.
 
-Ray Query는 이 Mesh의 정점·Index를 직접 읽는다. 별도의 피킹 배열이나 추가 복사는 없지만, 모든 LOD의 CPU Mesh는 Resource가 해제될 때까지 RT 메모리에 유지된다. 이 구조는 추후 메모리 최적화를 위해 개선할 수 있다.
+Ray Query는 공유 Mesh의 정점·Index를 직접 읽는다. 재임포트는 새 불변 Mesh를 게시하며, 이전 Command와 Resource는 이전 버전을 계속 유지한다. 모든 LOD의 CPU 데이터는 마지막 소유 참조가 해제될 때 정리된다.
 
 ## Asset Resource Command
 
@@ -277,13 +277,17 @@ Asset Resource는 Primitive와 분리하여 Asset별 Revision 단위로 갱신�
 
 | 명령 | 주요 데이터 | RT 결과 |
 |---|---|---|
-| `FStaticMeshResourceCommand` | AssetId, Revision, LOD Mesh 데이터 | `FStaticMeshResource`와 LOD별 Vertex/Index Buffer |
-| `FTextureResourceCommand` | AssetId, Revision, Desc, 전체 Mip | `FTextureResource`와 Texture Handle |
+| `FStaticMeshResourceCommand` | AssetId, Revision, `shared_ptr<const FStaticMesh>` | `FStaticMeshResource`와 LOD별 Vertex/Index Buffer |
+| `FTextureResourceCommand` | AssetId, Revision, `shared_ptr<const FTexture>` | `FTextureResource`와 Texture Handle |
 | `FMaterialResourceCommand` | AssetId, Revision, Material 값, Parameter, Texture AssetId, Sampler | `FMaterialResource`와 Pipeline·binding |
 
-`FAssetManager`는 요청한 `AssetId + Revision`을 기억한다. 같은 Revision은 다시 전송하지 않고, 최초 요청이나 Revision 변경만 Pending Resource Command에 추가한다. Primitive 수와 관계없이 Mesh Vertex/Index와 Texture Mip은 한 번만 전달된다. Material Revision은 CPU 값의 변경만 나타내며 Shader Hot Reload는 같은 Revision의 현재 값을 별도 후보 명령으로 전달한다.
+`FAssetManager`는 요청한 `AssetId + Revision`을 기억한다. 같은 Revision은 다시 전송하지 않고, 최초 요청이나 Revision 변경만 Pending Resource Command에 추가한다. Mesh Vertex/Index와 Texture Mip은 불변 버전의 소유 참조로 전달하고, Material 상태·파라미터는 기존처럼 Command에 값 복사한다. Material Revision은 CPU 값의 변경만 나타내며 Shader Hot Reload는 같은 Revision의 현재 값을 별도 후보 명령으로 전달한다.
 
 `FRenderer`는 `FAssetId`를 키로 Resource를 `unique_ptr`로 소유한다. Map 재해시에도 Resource 주소가 유지되므로 Proxy와 Material binding의 비소유 포인터가 안정적이다.
+
+`UTexture2D`는 Desc와 Mip을 묶은 불변 `FTexture`를 소유한다. Texture Command는 같은 데이터의 소유 참조를 유지하고 RT는 업로드 후 CPU Mip을 Resource에 보관하지 않는다. 현재 D3D11은 생성 호출 안에서 초기 데이터를 소비한다.
+
+Mesh·Texture 공유 객체에는 UObject나 GPU 자원을 넣지 않는다. 게시 후 데이터를 수정하지 않으며 마지막 참조는 어느 스레드에서 해제되어도 CPU 메모리만 정리한다. GPU 자원 생성·파괴는 기존 RT 경로를 유지한다.
 
 ### Material Resource
 

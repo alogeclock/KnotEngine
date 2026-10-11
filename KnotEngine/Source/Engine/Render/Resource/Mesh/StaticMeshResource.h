@@ -27,7 +27,7 @@ private:
 	TArray<FStaticMeshSectionResource> Sections;
 };
 
-// Resource Command에서 이동받은 CPU Mesh와 GPU Buffer를 Renderer의 Static Mesh Resource Cache가 소유한다.
+// GT Asset과 불변 CPU Mesh를 공유하고 GPU Buffer는 RT의 Resource Cache에서만 소유한다.
 class ENGINE_API FStaticMeshResource final
 {
 public:
@@ -37,7 +37,7 @@ public:
 	FStaticMeshResource(const FStaticMeshResource&) = delete;
 	FStaticMeshResource& operator=(const FStaticMeshResource&) = delete;
 
-	bool Initialize(IRenderDevice& RenderDevice, FStaticMesh&& StaticMesh, uint64 Revision);
+	bool Initialize(IRenderDevice& RenderDevice, std::shared_ptr<const FStaticMesh> StaticMesh, uint64 Revision);
 	void Release();
 
 	const FStaticMeshLODResource& GetLOD(SIZE_T LODIndex) const;
@@ -45,10 +45,10 @@ public:
 	uint64 GetSourceRevision() const { return SourceRevision; }
 	bool IsValid() const;
 
-	const FStaticMesh& GetMeshData() const { return MeshData; }
+	const std::shared_ptr<const FStaticMesh>& GetMeshData() const { return MeshData; }
 
 private:
 	TArray<FStaticMeshLODResource> LODResources;
-	FStaticMesh MeshData;
+	std::shared_ptr<const FStaticMesh> MeshData;
 	uint64 SourceRevision = 0;
 };

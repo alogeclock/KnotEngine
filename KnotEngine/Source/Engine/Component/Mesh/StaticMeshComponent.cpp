@@ -103,7 +103,7 @@ FPrimitiveRenderData UStaticMeshComponent::BuildPrimitiveRenderData(ERenderComma
 		check(GAssetManager);
 		GAssetManager->RequestStaticMeshResource(*MeshAsset);
 		RenderData.MeshAssetId = MeshAsset->GetAssetId();
-		RenderData.LocalBounds = MeshAsset->GetMeshData().GetLocalBounds();
+		RenderData.LocalBounds = MeshAsset->GetMeshData()->GetLocalBounds();
 		RenderData.bLODEnable = bLODEnable;
 	}
 

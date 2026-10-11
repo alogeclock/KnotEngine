@@ -89,7 +89,7 @@ FAssetManager
    ├─ AssetPath
    ├─ AssetId
 	├─ Revision
-	└─ FStaticMesh CPU Data
+	└─ shared_ptr<const FStaticMesh>
       ├─ FStaticMeshLOD[0]
       │  ├─ Vertex 배열
       │  ├─ Index 배열
@@ -101,12 +101,13 @@ FAssetManager
 FRenderer
 └─ Static Mesh Resource Cache
    └─ FStaticMeshResource
+      ├─ 동일한 불변 CPU Mesh의 소유 참조
 	  └─ FStaticMeshLODResource[]
 	     ├─ FMeshBuffer
 	     └─ Section 복사본
 ```
 
-`UStaticMesh`는 Asset 식별, CPU Mesh 데이터와 Revision을 소유한다. `FStaticMeshResource`는 Renderer Cache에서 CPU LOD에 대응하는 GPU `FMeshBuffer`와 Draw Section 복사본을 소유한다. 재임포트로 Revision이 변경되면 AssetManager가 다음 Static Mesh Resource Command를 한 번 제출해 기존 Resource를 제자리에서 재생성한다.
+`UStaticMesh`는 Asset 식별과 Revision을 관리하고 불변 CPU Mesh의 소유 참조를 유지한다. `FStaticMeshResourceCommand`는 `shared_ptr<const FStaticMesh>`를 전달하며 GT Asset과 RT Resource는 같은 정점·Index를 읽는다. `FStaticMeshResource`는 Renderer Cache에서 CPU LOD에 대응하는 GPU `FMeshBuffer`와 Draw Section 복사본을 소유한다. 재임포트는 새 불변 Mesh를 게시하고 Revision을 올린다. AssetManager가 새 버전의 소유 참조를 제출하면 RT Resource를 갱신하며, 이전 버전은 남은 Command·Resource의 마지막 참조가 해제될 때 정리된다.
 
 `UStaticMeshComponent`는 `UStaticMesh`를 참조한다. Primitive Command에는 Mesh Asset ID만 복사하고, Vertex/Index/LOD는 Asset별 Resource Command로 분리한다. `FStaticMeshSceneProxy`에는 Renderer 소유 `FStaticMeshResource`의 비소유 참조만 남는다. Draw Pass와 LOD 선택은 CPU Asset을 다시 조회하지 않는다.
 
@@ -128,7 +129,7 @@ UMaterialInterface
 UTexture
 └─ UTexture2D
    ├─ 크기, Format과 sRGB 정보
-	└─ CPU Mip Payload
+	└─ shared_ptr<const FTexture> (Desc + Mip)
 
 FRenderer
 └─ Texture Resource Cache
@@ -145,7 +146,9 @@ FRenderer
 
 Texture는 다음 계층으로 관리한다.
 
-Texture의 원본 PNG 같은 Source 파일은 Editor Import 입력이다. Runtime은 플랫폼에 맞게 변환된 `.kasset` Mip Payload를 읽는다. `UTexture2D`는 CPU Mip과 Revision을 소유하고 Renderer가 최초 Material Resource 생성 시 GPU `FTextureResource`를 생성한다. Material은 Texture UObject나 복사된 GPU Handle 대신 Renderer가 안정적으로 소유하는 `FTextureResource`를 참조한다.
+Texture의 원본 PNG 같은 Source 파일은 Editor Import 입력이다. Runtime은 플랫폼에 맞게 변환된 `.kasset` Mip Payload를 읽는다. `UTexture2D`는 불변 `FTexture`의 소유 참조와 Revision을 유지한다. `FTextureResourceCommand`는 Desc와 Mip을 같은 버전의 `shared_ptr<const FTexture>`로 전달한다. Renderer가 GPU `FTextureResource`를 생성하면 RT는 CPU Mip을 Resource에 보관하지 않는다. Material은 Texture UObject나 복사된 GPU Handle 대신 Renderer가 안정적으로 소유하는 `FTextureResource`를 참조한다.
+
+공유하는 `FStaticMesh`와 `FTexture`에는 GPU 자원과 UObject 참조를 넣지 않는다. 게시 이후의 수정 가능한 접근은 허용하지 않으며, 데이터 변경은 새 버전으로 교체한다. UObject의 수명은 기존 GT·GC 규칙을 따르고 CPU 데이터는 마지막 `shared_ptr`가 해제될 때 정리된다.
 
 ## Skeletal Mesh와 Skeleton
 
@@ -225,7 +228,7 @@ GPU Resource
 
 Static Mesh, Texture, Material의 GPU 대응 객체는 각각 `FStaticMeshResource`, `FTextureResource`, `FMaterialResource`로 통일한다. 세 Cache는 모두 영속 `FAssetId`를 Key로 사용하고 Resource가 기록한 `SourceRevision`과 Asset Revision이 다를 때 같은 Resource 인스턴스를 갱신한다. GPU Resource의 생성과 해제는 Render Thread에서만 수행한다.
 
-Resource Cache는 Asset 주소를 Key로 사용하지 않으며 Resource도 UObject를 소유하지 않는다. `FAssetManager`는 Asset ID와 Revision별 Resource Command를 한 번만 만들고, Mesh Vertex/Index와 Texture Mip은 이 명령에서만 복사한다. Primitive Command는 Mesh와 Material Asset ID만 전달한다. 기본 Material과 White Texture는 유효하지 않은 Asset ID를 Cache Key로 사용하는 대신 Renderer의 명시적인 기본 Resource로 소유한다.
+Resource Cache는 Asset 주소를 Key로 사용하지 않으며 Resource도 UObject를 소유하지 않는다. `FAssetManager`는 Asset ID와 Revision별 Resource Command를 한 번만 만들고, Mesh Vertex/Index와 Texture Mip은 이 명령에 불변 버전의 소유 참조로 담고, Material 상태·파라미터만 값 복사한다. Primitive Command는 Mesh와 Material Asset ID만 전달한다. 기본 Material과 White Texture는 유효하지 않은 Asset ID를 Cache Key로 사용하는 대신 Renderer의 명시적인 기본 Resource로 소유한다.
 
 GPU Handle은 Asset UObject의 생존만으로 안전해지는 것이 아니다. Renderer Cache는 Asset UObject와 Render Device보다 먼저 비워야 하며, D3D12 도입 후에는 GPU 작업 완료를 확인한 뒤 지연 해제해야 한다.
 

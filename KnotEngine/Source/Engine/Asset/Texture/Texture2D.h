@@ -1,17 +1,11 @@
 #pragma once
 
 #include "Asset/Texture/Texture.h"
+#include <memory>
 
 class FAssetBinaryLoader;
 
-// Texture2D Mip 하나의 연속 Pixel/Block 데이터와 행 간격을 소유한다.
-struct ENGINE_API FTextureMipData
-{
-	TArray<uint8> Bytes;
-	uint32 RowPitch = 0;
-};
-
-// 2차원 Texture의 CPU Mip 데이터를 소유한다. GPU Resource는 Renderer가 별도로 관리한다.
+// 불변 Texture 데이터의 소유 참조를 유지한다. GPU Resource는 Renderer가 별도로 관리한다.
 UCLASS()
 class ENGINE_API UTexture2D final : public UTexture
 {
@@ -19,7 +13,7 @@ class ENGINE_API UTexture2D final : public UTexture
 
 public:
 	EAssetType GetAssetType() const override { return EAssetType::Texture2D; }
-	const TArray<FTextureMipData>& GetMips() const { return Mips; }
+	const std::shared_ptr<const FTexture>& GetTextureData() const { return TextureData; }
 
 private:
 	friend class FAssetBinaryLoader;
@@ -32,5 +26,5 @@ private:
 		ETextureColorSpace InColorSpace,
 		TArray<FTextureMipData>&& InMips);
 
-	TArray<FTextureMipData> Mips;
+	std::shared_ptr<const FTexture> TextureData;
 };

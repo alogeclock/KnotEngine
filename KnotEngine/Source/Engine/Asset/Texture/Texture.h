@@ -12,6 +12,20 @@ enum class ETextureColorSpace : uint8
 	SRGB,
 };
 
+// Texture Mip 하나의 연속 Pixel/Block 데이터와 행 간격을 소유한다.
+struct ENGINE_API FTextureMipData
+{
+	TArray<uint8> Bytes;
+	uint32 RowPitch = 0;
+};
+
+// GPU 생성 정보와 CPU Mip을 함께 보관하며 게시 후에는 데이터를 변경하지 않는다.
+struct ENGINE_API FTexture
+{
+	FTextureDesc Desc;
+	TArray<FTextureMipData> Mips;
+};
+
 // Texture2D .kasset Payload 전체에 한 번 저장되는 고정 크기 헤더다.
 struct FTexture2DPayloadHeader
 {

@@ -47,7 +47,7 @@ void FStaticMeshEditor::DrawAssetDetails()
 	ImGui::TextWrapped("Path: %s", StaticMesh.GetAssetPath().c_str());
 	ImGui::TextWrapped("ID: %s", StaticMesh.GetAssetId().ToString().c_str());
 
-	const FStaticMesh& MeshData = StaticMesh.GetMeshData();
+	const FStaticMesh& MeshData = *StaticMesh.GetMeshData();
 	const FAABB& Bounds = MeshData.GetLocalBounds();
 	ImGui::Spacing();
 	ImGui::TextUnformatted("Bounds");
@@ -101,7 +101,7 @@ void FStaticMeshEditor::DrawAssetDetails()
 
 void FStaticMeshEditor::ResetCamera()
 {
-	const FAABB& Bounds = StaticMesh.GetMeshData().GetLocalBounds();
+	const FAABB& Bounds = StaticMesh.GetMeshData()->GetLocalBounds();
 	const FVector Center = Bounds.GetCenter();
 	const FVector Extent = Bounds.GetExtent();
 	const float Radius = (std::max)({ Extent.X, Extent.Y, Extent.Z, 0.25f });

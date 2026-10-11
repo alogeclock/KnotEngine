@@ -2,7 +2,7 @@
 
 #include <limits>
 
-// Texture 메타데이터와 각 Mip의 CPU Payload를 검증하고 Asset에 저장한다.
+// Texture 메타데이터와 Mip을 검증하고 하나의 불변 버전으로 게시한다.
 bool UTexture2D::Initialize(
 	const FAssetId& InAssetId,
 	FString InAssetPath,
@@ -28,6 +28,14 @@ bool UTexture2D::Initialize(
 		return false;
 	}
 
-	Mips = std::move(InMips);
+	FTexture Texture;
+	Texture.Desc.Width = InWidth;
+	Texture.Desc.Height = InHeight;
+	Texture.Desc.MipCount = static_cast<uint32>(InMips.size());
+	Texture.Desc.Format = InFormat;
+	Texture.Desc.Usage = ETextureUsage::ShaderResource;
+	Texture.Desc.bSRGB = InColorSpace == ETextureColorSpace::SRGB;
+	Texture.Mips = std::move(InMips);
+	TextureData = std::make_shared<const FTexture>(std::move(Texture));
 	return true;
 }

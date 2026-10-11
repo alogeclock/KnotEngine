@@ -143,9 +143,10 @@ void FRenderer::ReleaseAssetReferences()
 	StaticMeshResources.clear();
 }
 
+// Command의 불변 Texture를 업로드하며 CPU Mip은 Resource에 보관하지 않고 Command가 소비될 때 소유 참조를 놓는다.
 void FRenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
 {
-	check(Command.AssetId.IsValid() && Command.Revision != 0);
+	check(Command.AssetId.IsValid() && Command.Revision != 0 && Command.Texture);
 	std::unique_ptr<FTextureResource>& Resource = TextureResources[Command.AssetId];
 	if (!Resource)
 	{
@@ -156,17 +157,18 @@ void FRenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
 		return;
 	}
 
+	const FTexture& Texture = *Command.Texture;
 	TArray<FTextureSubresourceData> Subresources;
-	Subresources.reserve(Command.Mips.size());
-	for (const FTextureMipData& Mip : Command.Mips)
+	Subresources.reserve(Texture.Mips.size());
+	for (const FTextureMipData& Mip : Texture.Mips)
 	{
 		Subresources.push_back({ Mip.Bytes, Mip.RowPitch, static_cast<uint32>(Mip.Bytes.size()) });
 	}
-	panicf(Resource->Initialize(RenderDevice, Command.Desc, Subresources, Command.Revision),
+	panicf(Resource->Initialize(RenderDevice, Texture.Desc, Subresources, Command.Revision),
 	       "Texture Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
 }
 
-// Revision이 달라진 Mesh Command의 CPU 데이터를 RT Resource로 이동해 GPU Buffer와 Ray 검사 데이터를 갱신한다.
+// Revision이 달라진 Mesh의 소유 참조를 RT Resource로 이동해 GPU Buffer와 Ray 검사 데이터를 갱신한다.
 void FRenderer::UpdateStaticMeshResource(FStaticMeshResourceCommand&& Command)
 {
 	check(Command.AssetId.IsValid() && Command.Revision != 0);

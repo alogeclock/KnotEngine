@@ -11,6 +11,7 @@
 #include "Render/Resource/Mesh/Vertex.h"
 
 #include <span>
+#include <memory>
 
 class FAssetBinaryLoader;
 class FReferenceCollector;
@@ -129,8 +130,7 @@ class ENGINE_API UStaticMesh final : public UAsset
 
 public:
 	EAssetType GetAssetType() const override { return EAssetType::StaticMesh; }
-	FStaticMesh& GetMeshData() { return MeshData; }
-	const FStaticMesh& GetMeshData() const { return MeshData; }
+	const std::shared_ptr<const FStaticMesh>& GetMeshData() const;
 	uint64 GetRevision() const { return Revision; }
 
 	SIZE_T GetMaterialCount() const { return StaticMaterials.size(); }
@@ -147,9 +147,9 @@ private:
 		FString InAssetPath,
 		FStaticMesh&& InMeshData,
 		TArray<FStaticMaterial>&& InStaticMaterials = {});
-	bool Reload(FStaticMesh&& InMeshData, TArray<FStaticMaterial>&& InStaticMaterials);
+	bool Reload(std::shared_ptr<const FStaticMesh> InMeshData, TArray<FStaticMaterial>&& InStaticMaterials);
 
-	FStaticMesh MeshData;
+	std::shared_ptr<const FStaticMesh> MeshData;
 	TArray<FStaticMaterial> StaticMaterials;
 	uint64 Revision = 0;
 };

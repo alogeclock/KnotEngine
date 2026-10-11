@@ -71,18 +71,14 @@ const FStaticMeshLOD& FStaticMesh::GetLOD(SIZE_T LODIndex) const
 	return LODs[LODIndex];
 }
 
-bool UStaticMesh::Initialize(
-	const FAssetId& InAssetId,
-	FString InAssetPath,
-	FStaticMesh&& InMeshData,
-	TArray<FStaticMaterial>&& InStaticMaterials)
+bool UStaticMesh::Initialize(const FAssetId& InAssetId, FString InAssetPath, FStaticMesh&& InMeshData, TArray<FStaticMaterial>&& InStaticMaterials)
 {
 	if (!InMeshData.IsValid() || !InitializeAsset(InAssetId, std::move(InAssetPath)))
 	{
 		return false;
 	}
 
-	MeshData = std::move(InMeshData);
+	MeshData = std::make_shared<const FStaticMesh>(std::move(InMeshData));
 	StaticMaterials = std::move(InStaticMaterials);
 	Revision = 1;
 
@@ -94,10 +90,10 @@ bool UStaticMesh::Initialize(
 	return true;
 }
 
-// UObject와 영속 AssetId는 유지한 채 재임포트된 CPU Mesh 데이터와 Material Slot을 교체한다.
-bool UStaticMesh::Reload(FStaticMesh&& InMeshData, TArray<FStaticMaterial>&& InStaticMaterials)
+// UObject와 AssetId는 유지하고 새 불변 Mesh 버전과 Material Slot을 게시하며 이전 버전은 남은 소유 참조가 유지한다.
+bool UStaticMesh::Reload(std::shared_ptr<const FStaticMesh> InMeshData, TArray<FStaticMaterial>&& InStaticMaterials)
 {
-	if (!InMeshData.IsValid())
+	if (!InMeshData || !InMeshData->IsValid())
 	{
 		return false;
 	}
@@ -110,6 +106,13 @@ bool UStaticMesh::Reload(FStaticMesh&& InMeshData, TArray<FStaticMaterial>&& InS
 	}
 	++Revision;
 	return true;
+}
+
+// 불변 CPU Mesh의 공유 포인터를 반환하며 호출자가 복사하면 해당 버전의 수명을 유지할 수 있다.
+const std::shared_ptr<const FStaticMesh>& UStaticMesh::GetMeshData() const
+{
+	check(MeshData);
+	return MeshData;
 }
 
 UMaterialInterface* UStaticMesh::GetMaterial(SIZE_T MaterialIndex) const
