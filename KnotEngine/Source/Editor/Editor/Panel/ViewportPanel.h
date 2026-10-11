@@ -23,6 +23,7 @@ public:
 	void Draw(bool bVisible, float DeltaTime, FViewportToolbar& Toolbar);
 	void Release();
 	TStaticArray<FLevelEditorViewportClient*, 4> GetViewportClients();
+	const FLevelEditorViewportClient& GetActiveViewportClient() const { return ViewportSlots[ActiveViewportIndex]->Client; }
 
 private:
 	struct FLevelViewportSlot

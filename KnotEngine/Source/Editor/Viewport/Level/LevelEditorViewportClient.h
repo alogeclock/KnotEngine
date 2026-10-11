@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Viewport/EditorViewportClient.h"
+#include "Core/Profiling/PickingStatistics.h"
 #include "TransformGizmo.h"
 
 class FRenderer;
@@ -20,6 +21,7 @@ public:
 	UWorld* GetWorld() const override;
 
 	FSceneView BuildSceneView() override;
+	const FPickingStatistics& GetPickingStatistics() const { return PickingStatistics; }
 	bool IsGizmoLocalSpace() const { return TransformGizmo.IsLocalSpace(); }
 	void SetGizmoLocalSpace(bool bLocalSpace) { TransformGizmo.SetLocalSpace(bLocalSpace); }
 	bool ConsumeContextMenuRequest(FVector& OutPlacementLocation);
@@ -35,6 +37,7 @@ private:
 	void UpdateFocusAnimation(float DeltaTime);
 
 	FEditorSelection& Selection;
+	FPickingStatistics PickingStatistics;
 	FTransformGizmo TransformGizmo;
 
 	static constexpr float FocusAnimationDuration = 0.25f;

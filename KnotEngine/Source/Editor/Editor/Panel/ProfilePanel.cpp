@@ -1,6 +1,7 @@
 #include "Editor/Panel/ProfilePanel.h"
 
 #include "Render/RenderSystem.h"
+#include "Runtime/EditorEngine.h"
 
 #include <algorithm>
 #include <imgui.h>
@@ -10,8 +11,8 @@ FProfilePanel::FProfilePanel(FRenderSystem& InRenderSystem)
 {
 }
 
-// 최신 완료 프레임을 샘플링하고 갱신 주기에 맞춰 Profile Panel을 그린다.
-void FProfilePanel::Draw(float DeltaTime)
+// 완료된 Frame과 Editor 작업을 샘플링하고 선택한 통계 탭을 그린다.
+void FProfilePanel::Draw(float DeltaTime, const FPickingStatistics& PickingStatistics)
 {
 	RefreshTimer -= DeltaTime;
 	const FCPUProfileFrame GameFrame = FCPUProfiler::GetLastFrame(ECPUProfileThread::Game);
@@ -61,6 +62,20 @@ void FProfilePanel::Draw(float DeltaTime)
 		}
 	}
 
+	const FTransactionStatistics& TransactionStatistics = GetEditor().GetEditorTransaction().GetStatistics();
+	const bool bFirstPicking = DisplayedPickingStats.QueryCount == 0 && PickingStatistics.QueryCount != 0;
+	const bool bFirstTransaction = DisplayedTransactionStats.Undo.OperationCount + DisplayedTransactionStats.Redo.OperationCount == 0 &&
+		TransactionStatistics.Undo.OperationCount + TransactionStatistics.Redo.OperationCount != 0;
+	if (!bPaused && (RefreshTimer <= 0.0f || bRefreshed || bFirstPicking || bFirstTransaction))
+	{
+		DisplayedPickingStats = PickingStatistics;
+		DisplayedTransactionStats = TransactionStatistics;
+		if (!bRefreshed)
+		{
+			RefreshTimer = RefreshInterval;
+		}
+	}
+
 	if (!ImGui::Begin("Profile", nullptr, ImGuiWindowFlags_HorizontalScrollbar))
 	{
 		ImGui::End();
@@ -73,30 +88,159 @@ void FProfilePanel::Draw(float DeltaTime)
 		RefreshTimer = 0.0f;
 	}
 	ImGui::SameLine();
-	ImGui::TextDisabled(bPaused ? "CPU/GPU/Draw sampling paused" : "CPU/GPU/Draw sampling active");
+	ImGui::TextDisabled(bPaused ? "Profile display paused" : "Profile display active");
 	ImGui::Separator();
 
-	if (DisplayedGameFrame.FrameNumber == 0 && DisplayedRenderFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid &&
-		!DisplayedInstancedDrawStats.bValid)
+	if (ImGui::BeginTabBar("ProfileTabs"))
 	{
-		ImGui::TextDisabled("Waiting for CPU/GPU profile data...");
-		ImGui::End();
+		if (ImGui::BeginTabItem("Frame"))
+		{
+			if (DisplayedGameFrame.FrameNumber == 0 && DisplayedRenderFrame.FrameNumber == 0 && !DisplayedGPUStats.bValid &&
+				!DisplayedInstancedDrawStats.bValid)
+			{
+				ImGui::TextDisabled("Waiting for CPU/GPU profile data...");
+			}
+			else
+			{
+				DrawGPUStats();
+				if (DisplayedGameFrame.FrameNumber != 0)
+				{
+					DrawCPUStats(ECPUProfileThread::Game, "CPU Stats (Game Thread)", "GameThreadCPUProfileStats");
+				}
+				if (DisplayedRenderFrame.FrameNumber != 0)
+				{
+					DrawCPUStats(ECPUProfileThread::Render, "CPU Stats (Render Thread)", "RenderThreadCPUProfileStats");
+				}
+				DrawInstancedDrawStats();
+			}
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Editor"))
+		{
+			DrawPickingStats();
+			DrawTransactionStats();
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
+	ImGui::End();
+}
+
+// 마지막 Picking의 시간과 검사량을 실제 질의 기준의 누적 통계와 함께 표시한다.
+void FProfilePanel::DrawPickingStats() const
+{
+	if (!ImGui::CollapsingHeader("Picking Stats", ImGuiTreeNodeFlags_DefaultOpen))
+	{
 		return;
 	}
+	if (DisplayedPickingStats.QueryCount == 0)
+	{
+		ImGui::TextUnformatted("Queries: - | Result: -");
+	}
+	else
+	{
+		ImGui::Text("Queries: %llu | Result: %s", static_cast<unsigned long long>(DisplayedPickingStats.QueryCount),
+			DisplayedPickingStats.bHit ? "Hit" : "Miss");
+	}
+	ImGui::TextDisabled("Last CPU raycast (LOD 0). Average and maximum cover all completed queries.");
+	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame
+		| ImGuiTableFlags_NoSavedSettings;
+	const float TableWidth = std::max(1100.0f, ImGui::GetContentRegionAvail().x);
+	if (ImGui::BeginTable("PickingStats", 8, TableFlags, ImVec2(TableWidth, 0.0f)))
+	{
+		ImGui::TableSetupColumn("Last Time");
+		ImGui::TableSetupColumn("Scene Query");
+		ImGui::TableSetupColumn("Mesh Query");
+		ImGui::TableSetupColumn("Average Time");
+		ImGui::TableSetupColumn("Max Time");
+		ImGui::TableSetupColumn("Bounds Tests");
+		ImGui::TableSetupColumn("Candidate Meshes");
+		ImGui::TableSetupColumn("Triangle Tests");
+		ImGui::TableHeadersRow();
+		ImGui::TableNextRow();
+		if (DisplayedPickingStats.QueryCount == 0)
+		{
+			for (int32 Column = 0; Column < 8; ++Column)
+			{
+				ImGui::TableSetColumnIndex(Column);
+				ImGui::TextDisabled("-");
+			}
+			ImGui::EndTable();
+			return;
+		}
+		ImGui::TableSetColumnIndex(0);
+		ImGui::Text("%.3f ms", DisplayedPickingStats.TotalTimeMs);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::Text("%.3f ms", DisplayedPickingStats.SceneQueryTimeMs);
+		ImGui::TableSetColumnIndex(2);
+		ImGui::Text("%.3f ms", DisplayedPickingStats.MeshQueryTimeMs);
+		ImGui::TableSetColumnIndex(3);
+		ImGui::Text("%.3f ms", DisplayedPickingStats.AccumulatedTimeMs / static_cast<double>(DisplayedPickingStats.QueryCount));
+		ImGui::TableSetColumnIndex(4);
+		ImGui::Text("%.3f ms", DisplayedPickingStats.MaxTimeMs);
+		ImGui::TableSetColumnIndex(5);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedPickingStats.BoundsTests));
+		ImGui::TableSetColumnIndex(6);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedPickingStats.CandidateMeshes));
+		ImGui::TableSetColumnIndex(7);
+		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedPickingStats.TriangleTests));
+		ImGui::EndTable();
+	}
+}
 
-	DrawGPUStats();
-	const bool bHasGameStats = DisplayedGameFrame.FrameNumber != 0;
-	const bool bHasRenderStats = DisplayedRenderFrame.FrameNumber != 0;
-	if (bHasGameStats)
+// Undo와 Redo의 마지막 작업 이름 및 적용량과 누적 실행 시간을 각각 표시한다.
+void FProfilePanel::DrawTransactionStats() const
+{
+	if (!ImGui::CollapsingHeader("Transaction Stats", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		DrawCPUStats(ECPUProfileThread::Game, "CPU Stats (Game Thread)", "GameThreadCPUProfileStats");
+		return;
 	}
-	if (bHasRenderStats)
+	ImGui::TextDisabled("Completed Undo/Redo only. Records and description refer to the last operation in each row.");
+	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame
+		| ImGuiTableFlags_NoSavedSettings;
+	const float TableWidth = std::max(1000.0f, ImGui::GetContentRegionAvail().x);
+	if (ImGui::BeginTable("TransactionStats", 7, TableFlags, ImVec2(TableWidth, 0.0f)))
 	{
-		DrawCPUStats(ECPUProfileThread::Render, "CPU Stats (Render Thread)", "RenderThreadCPUProfileStats");
+		ImGui::TableSetupColumn("Operation");
+		ImGui::TableSetupColumn("Calls");
+		ImGui::TableSetupColumn("Records");
+		ImGui::TableSetupColumn("Last Time");
+		ImGui::TableSetupColumn("Average Time");
+		ImGui::TableSetupColumn("Max Time");
+		ImGui::TableSetupColumn("Description");
+		ImGui::TableHeadersRow();
+		const FTransactionOperationStatistics* Operations[] = { &DisplayedTransactionStats.Undo, &DisplayedTransactionStats.Redo };
+		const char* Names[] = { "Undo", "Redo" };
+		for (SIZE_T Index = 0; Index < 2; ++Index)
+		{
+			const FTransactionOperationStatistics& Stat = *Operations[Index];
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::TextUnformatted(Names[Index]);
+			if (Stat.OperationCount == 0)
+			{
+				for (int32 Column = 1; Column < 7; ++Column)
+				{
+					ImGui::TableSetColumnIndex(Column);
+					ImGui::TextDisabled("-");
+				}
+				continue;
+			}
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Text("%llu", static_cast<unsigned long long>(Stat.OperationCount));
+			ImGui::TableSetColumnIndex(2);
+			ImGui::Text("%llu", static_cast<unsigned long long>(Stat.RecordCount));
+			ImGui::TableSetColumnIndex(3);
+			ImGui::Text("%.3f ms", Stat.TotalTimeMs);
+			ImGui::TableSetColumnIndex(4);
+			ImGui::Text("%.3f ms", Stat.AccumulatedTimeMs / static_cast<double>(Stat.OperationCount));
+			ImGui::TableSetColumnIndex(5);
+			ImGui::Text("%.3f ms", Stat.MaxTimeMs);
+			ImGui::TableSetColumnIndex(6);
+			ImGui::TextUnformatted(Stat.Description.c_str());
+		}
+		ImGui::EndTable();
 	}
-	DrawInstancedDrawStats();
-	ImGui::End();
 }
 
 // 가장 최근에 완료된 비동기 GPU 프레임 시간과 Pipeline 호출 수를 표시한다.

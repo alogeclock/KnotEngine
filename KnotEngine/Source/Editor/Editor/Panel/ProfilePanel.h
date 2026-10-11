@@ -1,16 +1,18 @@
 #pragma once
 
 #include "Core/Profiling/CPUProfiler.h"
+#include "Core/Profiling/PickingStatistics.h"
+#include "Core/Profiling/TransactionStatistics.h"
 #include "Render/RHI/RenderTypes.h"
 
 class FRenderSystem;
 
-// 완료된 CPU Profile Frame을 주기적으로 집계하고 CPU 통계를 ImGui 표로 표시한다.
+// 완료된 Frame과 Editor 작업 통계를 주기적으로 집계하고 탭별로 표시한다.
 class FProfilePanel
 {
 public:
 	explicit FProfilePanel(FRenderSystem& InRenderSystem);
-	void Draw(float DeltaTime);
+	void Draw(float DeltaTime, const FPickingStatistics& PickingStatistics);
 
 private:
 	// 동일한 Profile ID의 Scope를 프레임에 걸쳐 누적하여 표시용 평균과 최대·최소를 보관한다.
@@ -38,6 +40,8 @@ private:
 	FCPUProfileFrame DisplayedRenderFrame;
 	FGPUFrameStatistics DisplayedGPUStats;
 	FInstancedDrawStatistics DisplayedInstancedDrawStats;
+	FPickingStatistics DisplayedPickingStats;
+	FTransactionStatistics DisplayedTransactionStats;
 
 	FRenderSystem& RenderSystem;
 
@@ -54,4 +58,6 @@ private:
 	void DrawGPUStats() const;
 	void DrawCPUStats(ECPUProfileThread Thread, const char* HeaderName, const char* TableName) const;
 	void DrawInstancedDrawStats() const;
+	void DrawPickingStats() const;
+	void DrawTransactionStats() const;
 };

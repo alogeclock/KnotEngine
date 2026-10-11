@@ -2,6 +2,7 @@
 
 #include "Core/Geometry/Ray.h"
 #include "Core/Math/Matrix.h"
+#include "Core/Profiling/CPUProfiler.h"
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
 #include "Editor/Context/EditorSelection.h"
@@ -12,6 +13,7 @@
 #include "World/Node.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <variant>
@@ -320,7 +322,7 @@ void FLevelEditorViewportClient::UpdateFocusAnimation(float DeltaTime)
 	LastFocusTransform = Transform;
 }
 
-// 입력 위치에서 만든 World Ray로 모든 LOD0 Triangle을 순회하여 가장 가까운 Node를 반환한다.
+// Bounds와 삼각형 교차로 가장 가까운 Node를 찾고 완료된 Picking 통계를 게시한다.
 UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVector* OutHitPosition)
 {
 	if (OutHitPosition)
@@ -334,6 +336,9 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 		return nullptr;
 	}
 
+	KNOT_PROFILE_SCOPE("Picking", "Raycast");
+	const auto QueryStart = std::chrono::steady_clock::now();
+	FPickingStatistics QueryStatistics;
 	const FSceneView View = FEditorViewportClient::BuildSceneView();
 	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
 	if (WorldRay.Direction.IsNearlyZero())
@@ -343,6 +348,7 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 
 	UNode* ClosestNode = nullptr;
 	float ClosestDistance = (std::numeric_limits<float>::max)();
+	const auto SceneQueryStart = std::chrono::steady_clock::now();
 	for (const TObjectPtr<ULevel>& Level : World->GetLevels())
 	{
 		for (const TObjectPtr<UNode>& Node : Level->GetNodes())
@@ -367,10 +373,13 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 				const FAABB WorldBounds = StaticMesh->GetMeshData().GetLocalBounds().Transform(WorldMatrix);
 				float Near = 0.0f;
 				float Far = 0.0f;
+				++QueryStatistics.BoundsTests;
 				if (!WorldBounds.IntersectRay(WorldRay, Near, Far) || Near > ClosestDistance)
 				{
 					continue;
 				}
+				++QueryStatistics.CandidateMeshes;
+				const auto MeshQueryStart = std::chrono::steady_clock::now();
 				const FMatrix InverseWorld = StaticMeshComponent->GetTransform().GetWorldInverseMatrix();
 				const FRay LocalRay(InverseWorld.TransformPosition(WorldRay.Origin), InverseWorld.TransformVector(WorldRay.Direction));
 				const FStaticMeshLOD& LOD = StaticMesh->GetMeshData().GetLOD(0);
@@ -387,19 +396,29 @@ UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVecto
 						continue;
 					}
 					float Distance = 0.0f;
+					++QueryStatistics.TriangleTests;
 					if (LocalRay.Intersect(Vertices[Index0].Position, Vertices[Index1].Position, Vertices[Index2].Position, Distance) && Distance < ClosestDistance)
 					{
 						ClosestDistance = Distance;
 						ClosestNode = Node.Get();
 					}
 				}
+				QueryStatistics.MeshQueryTimeMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - MeshQueryStart).count();
 			}
 		}
 	}
+	QueryStatistics.SceneQueryTimeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - SceneQueryStart).count()
+		- QueryStatistics.MeshQueryTimeMs;
 	if (ClosestNode && OutHitPosition)
 	{
 		*OutHitPosition = WorldRay.Origin + WorldRay.Direction * ClosestDistance;
 	}
+	QueryStatistics.TotalTimeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - QueryStart).count();
+	QueryStatistics.QueryCount = PickingStatistics.QueryCount + 1;
+	QueryStatistics.AccumulatedTimeMs = PickingStatistics.AccumulatedTimeMs + QueryStatistics.TotalTimeMs;
+	QueryStatistics.MaxTimeMs = std::max(PickingStatistics.MaxTimeMs, QueryStatistics.TotalTimeMs);
+	QueryStatistics.bHit = ClosestNode != nullptr;
+	PickingStatistics = QueryStatistics;
 	return ClosestNode;
 }
 

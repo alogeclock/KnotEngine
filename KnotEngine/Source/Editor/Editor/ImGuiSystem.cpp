@@ -174,7 +174,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 #if KNOT_CPU_PROFILER_ENABLED
 	if (bShowProfile)
 	{
-		ProfilePanel.Draw(DeltaTime);
+		ProfilePanel.Draw(DeltaTime, ViewportPanel.GetActiveViewportClient().GetPickingStatistics());
 		if (bFocusProfileRequested)
 		{
 			ImGui::SetWindowFocus("Profile");
@@ -278,11 +278,12 @@ FInputReply FImGuiSystem::OnInputEvent(const FInputEvent& Event)
 		HierarchyPanel.RemoveSelectedNodes(Selection);
 		return FInputReply::Handled();
 	}
-	if (!GetEditor().GetInputRouter().IsImGuiCapturingKeyboard() && KeyEvent->Key == EKeyboardKey::Z &&
+	if (!GetEditor().GetInputRouter().IsImGuiCapturingKeyboard() &&
+	    (KeyEvent->Key == EKeyboardKey::Z || KeyEvent->Key == EKeyboardKey::Y) &&
 	    HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Control))
 	{
 		bool bApplied = false;
-		if (HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
+		if (KeyEvent->Key == EKeyboardKey::Y || HasModifierKey(KeyEvent->Modifiers, EModifierKeyMask::Shift))
 		{
 			bApplied = GetEditor().GetEditorTransaction().Redo();
 		}
