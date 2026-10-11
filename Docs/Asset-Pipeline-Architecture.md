@@ -341,7 +341,8 @@ Import 기본 비율은 10%, 5%, 3%, 2%다. 기존 조건에서 더 줄일 수 �
    모든 속성이 바이트 단위로 같은 Render Vertex만 합친다.
 
 각 삼각형의 위치·속성·Winding, Section 범위와 Material Index는 유지한다.
-Alpha Blend Material이 있으면 Cache·Overdraw의 삼각형 재배치를 생략하고 Fetch만 적용한다.
+Section의 Material이 Alpha Blend일 때만 해당 Section의 Cache·Overdraw 삼각형 재배치를 생략한다.
+Opaque·Masked Section은 같은 GLB에 Alpha Blend Material이 있어도 최적화하며, Fetch와 동일 속성 정점 통합은 모든 Section에 적용한다.
 Opaque에서도 동일 깊이의 겹친 Face처럼 제출 순서에 민감한 경우는 시각 검증이 필요하다.
 후처리 전후의 Face를 속성 전체로 비교하는 회귀 검사로 형상 보존을 검증한다.
 

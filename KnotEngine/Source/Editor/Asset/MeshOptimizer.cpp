@@ -4,7 +4,7 @@
 #include <cstring>
 
 // Section 안의 삼각형을 FIFO 캐시와 남은 인접 Face 수 기준으로 재배치한다.
-void FMeshOptimizer::OptimizeVertexCache(std::span<uint32> Indices, SIZE_T VertexCount)
+void FMeshOptimizer::OptimizeCache(std::span<uint32> Indices, SIZE_T VertexCount)
 {
 	if (Indices.empty())
 	{
@@ -233,7 +233,7 @@ FMeshOptimizationStatistics FMeshOptimizer::Optimize(
 	TArray<FStaticMeshVertex>& Vertices,
 	TArray<uint32>& Indices,
 	const TArray<FStaticMeshSection>& Sections,
-	bool bReorderTriangles)
+	std::span<const uint8> ReorderTriangles)
 {
 	FMeshOptimizationStatistics Statistics;
 	Statistics.VertexCountBefore = Vertices.size();
@@ -292,34 +292,46 @@ FMeshOptimizationStatistics FMeshOptimizer::Optimize(
 		Index = Destination;
 	}
 
-	// Material 경계를 유지하며 Section별 Vertex Cache 순서를 최적화한다.
-	if (bReorderTriangles && Sections.empty())
+	// 삼각형 재배치가 허용된 Material의 Section만 Vertex Cache 순서를 최적화한다.
+	if (Sections.empty())
 	{
-		OptimizeVertexCache(Indices, Vertices.size());
+		OptimizeCache(Indices, Vertices.size());
 	}
 
-	else if (bReorderTriangles)
+	else
 	{
 		for (const FStaticMeshSection& Section : Sections)
 		{
 			check(Section.FirstIndex % 3 == 0 && Section.IndexCount % 3 == 0);
 			check(static_cast<SIZE_T>(Section.FirstIndex) + Section.IndexCount <= Indices.size());
-			OptimizeVertexCache(std::span<uint32>(Indices).subspan(Section.FirstIndex, Section.IndexCount), Vertices.size());
+			if (!ReorderTriangles.empty())
+			{
+				check(Section.MaterialIndex < ReorderTriangles.size());
+				if (!ReorderTriangles[Section.MaterialIndex])
+				{
+					continue;
+				}
+			}
+			OptimizeCache(std::span<uint32>(Indices).subspan(Section.FirstIndex, Section.IndexCount), Vertices.size());
 		}
 	}
 
 	Statistics.CacheMissesAfterCache = CountSectionMisses();
 
-	// 순서 보존이 필요한 메시를 제외하고 Section별 Overdraw 순서를 최적화한다.
-	if (bReorderTriangles && Sections.empty())
+	// 반투명 Section의 삼각형 순서는 유지하고 나머지 Section만 Overdraw를 최적화한다.
+	if (Sections.empty())
 	{
 		OptimizeOverdraw(Indices, Vertices);
 	}
 
-	else if (bReorderTriangles)
+	else
 	{
 		for (const FStaticMeshSection& Section : Sections)
 		{
+			if (!ReorderTriangles.empty() && !ReorderTriangles[Section.MaterialIndex])
+			{
+				continue;
+			}
 			OptimizeOverdraw(std::span<uint32>(Indices).subspan(Section.FirstIndex, Section.IndexCount), Vertices);
 		}
 	}

@@ -36,7 +36,7 @@ bool FOBB::IsValid() const
 }
 
 // 교차 여부와 필요한 결과를 계산합니다.
-bool FOBB::IntersectOBBAABB(const FAABB& AABB) const
+bool FOBB::Intersect(const FAABB& AABB) const
 {
 	const FVector AABBCenter = AABB.GetCenter();
 	const FVector AABBExtent = AABB.GetExtent();

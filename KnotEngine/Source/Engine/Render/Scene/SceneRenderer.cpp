@@ -54,6 +54,7 @@ void FSceneRenderer::Render(FRenderer& Renderer)
 		{
 			CullView(View);
 		}
+
 		if (ViewFamily.ShowFlags.bPrimitive)
 		{
 			const uint32 OpaqueNode = FOpaquePass::AddPass(RenderGraph, Renderer, View, VisiblePrimitives);
@@ -71,10 +72,12 @@ void FSceneRenderer::Render(FRenderer& Renderer)
 				PreviousNode = SelectionNode;
 			}
 		}
+
 		if (ViewFamily.ShowFlags.bGrid || ViewFamily.ShowFlags.bAxis)
 		{
 			OverlayNodes.push_back(FOverlayPass::AddPass(RenderGraph, Renderer, View, ViewFamily.ShowFlags, Target.DisplayColor, Target.Depth, Target.SelectionDepth, bHasSelection));
 		}
+
 		if (ViewFamily.ShowFlags.bBounds || !Renderer.GetDebugDraw().IsEmpty())
 		{
 			std::span<const FPrimitiveSceneProxy* const> BoundsPrimitives;
@@ -84,22 +87,26 @@ void FSceneRenderer::Render(FRenderer& Renderer)
 			}
 			OverlayNodes.push_back(FDebugDrawPass::AddPass(RenderGraph, Renderer, View, BoundsPrimitives, Target.DisplayColor, Target.Depth));
 		}
+
 		if (View.Gizmo.bVisible)
 		{
 			OverlayNodes.push_back(FGizmoPass::AddPass(RenderGraph, Renderer, View, Target.DisplayColor, Target.Depth));
 		}
 	}
+
 	const uint32 PostProcessNode = FPostProcessPass::AddPass(RenderGraph, Renderer, Target.SceneColor, Target.DisplayColor, Target.SelectionDepth, Target.Depth, TargetViewport);
 	if (PreviousNode != FRenderGraph::InvalidIndex)
 	{
 		RenderGraph.AddDependency(PostProcessNode, PreviousNode);
 	}
 	PreviousNode = PostProcessNode;
+
 	for (const uint32 OverlayNode : OverlayNodes)
 	{
 		RenderGraph.AddDependency(OverlayNode, PreviousNode);
 		PreviousNode = OverlayNode;
 	}
+
 	Renderer.Execute(RenderGraph);
 
 	Renderer.EndRenderTarget();

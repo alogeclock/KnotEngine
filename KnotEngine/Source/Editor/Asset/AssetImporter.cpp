@@ -729,6 +729,13 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 		}
 	}
 
+	// 반투명 Material만 삼각형 순서를 보존하며 사용하지 않는 Material은 다른 Section에 영향을 주지 않는다.
+	TArray<uint8> ReorderTrianglesByMaterial(GLTF.materials_count, 1);
+	for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.materials_count; ++MaterialIndex)
+	{
+		ReorderTrianglesByMaterial[MaterialIndex] = GLTF.materials[MaterialIndex].alpha_mode != cgltf_alpha_mode_blend;
+	}
+
 	for (FMeshBuildData& Mesh : Meshes)
 	{
 		if (Mesh.Vertices.empty())
@@ -755,17 +762,11 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 			Result.Warnings.push_back("LOD 생성이 경계 또는 삼각형 뒤집힘 검사로 조기 종료됐다: " + Mesh.Name);
 		}
 
-		bool bReorderTriangles = true;
-		for (cgltf_size MaterialIndex = 0; MaterialIndex < GLTF.materials_count; ++MaterialIndex)
-		{
-			if (GLTF.materials[MaterialIndex].alpha_mode == cgltf_alpha_mode_blend) bReorderTriangles = false;
-		}
-
 		for (FStaticMeshLODBuildData& LOD : GeneratedLODs)
 		{
 			const auto OptimizationStart = std::chrono::steady_clock::now();
 			GenerateTangents(LOD.Vertices, LOD.Indices);
-			const FMeshOptimizationStatistics Statistics = FMeshOptimizer::Optimize(LOD.Vertices, LOD.Indices, LOD.Sections, bReorderTriangles);
+			const FMeshOptimizationStatistics Statistics = FMeshOptimizer::Optimize(LOD.Vertices, LOD.Indices, LOD.Sections, ReorderTrianglesByMaterial);
 			const double OptimizationMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - OptimizationStart).count();
 			KE_LOG(LogAssetImporter, Display, "LOD 통계. Mesh={}, Ratio={}, Triangles={}, Vertices={}, Indices={}, FIFO={}/{}/{}, CPU={}ms",
 				Mesh.Name, LOD.AchievedTriangleRatio, LOD.Indices.size() / 3, LOD.Vertices.size(), LOD.Indices.size(),
@@ -780,7 +781,7 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 			}
 		}
 
-		FMeshOptimizer::Optimize(Mesh.Vertices, Mesh.Indices, Mesh.Sections, bReorderTriangles);
+		FMeshOptimizer::Optimize(Mesh.Vertices, Mesh.Indices, Mesh.Sections, ReorderTrianglesByMaterial);
 
 		TArray<uint8> PayloadBytes;
 		FMemoryWriter Payload(PayloadBytes);

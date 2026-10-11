@@ -23,7 +23,7 @@ struct ENGINE_API FOBB
 	// 인스턴스 유틸리티 함수 (Instance Utility Functions)
 	void Reset();
 	bool IsValid() const;
-	bool IntersectOBBAABB(const FAABB& AABB) const;
+	bool Intersect(const FAABB& AABB) const;
 
 	// 공용 기하 계산기 (Static Geometry Functions)
 	static FOBB FromAABB(const FAABB& InAABB, const FMatrix& InTransform);

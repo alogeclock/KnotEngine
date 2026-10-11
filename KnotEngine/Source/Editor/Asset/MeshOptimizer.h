@@ -23,7 +23,7 @@ public:
 		TArray<FStaticMeshVertex>& Vertices,
 		TArray<uint32>& Indices,
 		const TArray<FStaticMeshSection>& Sections,
-		bool bReorderTriangles = true);
+		std::span<const uint8> ReorderTriangles = {});
 
 private:
 	// Overdraw 정렬에 사용하는 연속 삼각형 클러스터와 바깥쪽 방향 점수다.
@@ -34,7 +34,7 @@ private:
 		float Score;
 	};
 
-	static void OptimizeVertexCache(std::span<uint32> Indices, SIZE_T VertexCount);
+	static void OptimizeCache(std::span<uint32> Indices, SIZE_T VertexCount);
 	static void OptimizeOverdraw(std::span<uint32> Indices, const TArray<FStaticMeshVertex>& Vertices);
 	static uint64 CountCacheMisses(std::span<const uint32> Indices, SIZE_T VertexCount);
 };
