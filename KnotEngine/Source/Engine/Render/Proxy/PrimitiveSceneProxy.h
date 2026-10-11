@@ -38,6 +38,7 @@ struct ENGINE_API FPrimitiveSceneProxy
 	FMatrix WorldMatrix;
 	FAABB LocalBounds;
 	FAABB WorldBounds;
+	uint64 PrimitiveId = 0;
 	float WorldBoundsRadius = 0.0f;
 	bool bVisible = false;
 	bool bSelected = false; // 선택 변경 시 Component가 갱신하며 렌더 경로는 UObject Owner를 조회하지 않는다.

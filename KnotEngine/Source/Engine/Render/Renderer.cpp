@@ -166,7 +166,8 @@ void FRenderer::UpdateTextureResource(const FTextureResourceCommand& Command)
 	       "Texture Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
 }
 
-void FRenderer::UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command)
+// Revision이 달라진 Mesh Command의 CPU 데이터를 RT Resource로 이동해 GPU Buffer와 Ray 검사 데이터를 갱신한다.
+void FRenderer::UpdateStaticMeshResource(FStaticMeshResourceCommand&& Command)
 {
 	check(Command.AssetId.IsValid() && Command.Revision != 0);
 	std::unique_ptr<FStaticMeshResource>& Resource = StaticMeshResources[Command.AssetId];
@@ -176,8 +177,7 @@ void FRenderer::UpdateStaticMeshResource(const FStaticMeshResourceCommand& Comma
 	}
 	if (Resource->GetSourceRevision() != Command.Revision)
 	{
-		panicf(Resource->Initialize(RenderDevice, Command.Mesh, Command.Revision),
-		       "Static Mesh Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
+		panicf(Resource->Initialize(RenderDevice, std::move(Command.Mesh), Command.Revision), "Static Mesh Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
 	}
 }
 

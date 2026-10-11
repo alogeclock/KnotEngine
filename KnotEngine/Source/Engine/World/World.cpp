@@ -10,6 +10,26 @@ UWorld::UWorld()
 {
 }
 
+// GT에서 Primitive ID에 해당하는 등록된 Component를 반환하며, 등록 해제된 ID면 nullptr를 반환한다.
+UPrimitiveComponent* UWorld::FindPrimitive(uint64 PrimitiveId) const
+{
+	const auto Iterator = PrimitiveComponents.find(PrimitiveId);
+	return Iterator == PrimitiveComponents.end() ? nullptr : Iterator->second;
+}
+
+// GT에서 Scene이 발급한 Primitive ID로 원본 Component를 찾을 수 있도록 Map에 추가한다.
+void UWorld::RegisterPrimitive(uint64 PrimitiveId, UPrimitiveComponent& Component)
+{
+	check(PrimitiveId != 0 && !PrimitiveComponents.contains(PrimitiveId));
+	PrimitiveComponents.emplace(PrimitiveId, &Component);
+}
+
+// Component 등록 해제 시 ID를 Map에서 지워, 늦게 도착한 Ray 결과로 해당 Component를 찾지 못하게 한다.
+void UWorld::UnregisterPrimitive(uint64 PrimitiveId)
+{
+	PrimitiveComponents.erase(PrimitiveId);
+}
+
 // CDO가 아닌 실제 World에만 런타임 Persistent Level을 생성한다.
 void UWorld::PostInitProperties()
 {

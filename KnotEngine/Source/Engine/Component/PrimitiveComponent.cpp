@@ -8,12 +8,14 @@ void UPrimitiveComponent::OnRegister()
 	check(PrimitiveId == InvalidPrimitiveId);
 	FPrimitiveRenderData RenderData = BuildPrimitiveRenderData(ERenderCommandType::All);
 	PrimitiveId = GetWorld().GetScene().AddPrimitive(CreatePrimitiveSceneProxy(RenderData), std::move(RenderData));
+	GetWorld().RegisterPrimitive(PrimitiveId, *this);
 }
 
 void UPrimitiveComponent::OnUnregister()
 {
 	check(PrimitiveId != InvalidPrimitiveId);
 	GetWorld().GetScene().RemovePrimitive(PrimitiveId);
+	GetWorld().UnregisterPrimitive(PrimitiveId);
 	PrimitiveId = InvalidPrimitiveId;
 }
 

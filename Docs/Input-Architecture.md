@@ -444,6 +444,10 @@ ImGui DockSpace
 
 패널 도킹은 ImGui Docking이 담당하고, 패널 내부의 월드 뷰포트 분할만 구체 타입 `FLevelViewportLayout`이 계산한다. 마우스 캡처 대상, 키보드 포커스 대상 또는 마지막으로 클릭한 slot을 Active Viewport로 유지한다. 각 `FViewportWidget`은 자기 이미지 영역을 target으로 등록하며 Active Viewport만 논리적 Focus를 등록한다. Splitter는 ImGui `InvisibleButton`으로 비율을 변경하므로 Viewport target으로 라우팅하지 않는다.
 
+### 비동기 단일 선택
+
+단일 클릭은 ViewportClient가 입력 시점의 Ray·View와 Modifier를 저장해 RT Scene에 비동기 제출한다. 렌더링과 같은 기준으로 요청 View에서 선택한 LOD의 삼각형 Hit는 GT Tick에서 요청 순서대로 Selection에 적용하며 그동안 입력 라우팅은 계속된다. 외부 선택 변경, World 교체·대상 등록 해제 또는 Escape 취소로 오래된 결과를 무효화한다.
+
 ### 선택 포커스 애니메이션
 
 `F` 포커스는 0.25초 동안 시작 위치와 목표 위치, 직교 줌을 Smoothstep으로 보간한다. 진행 중 다시 `F`를 누르면 현재 위치에서 새 전환을 시작한다. 카메라 직접 조작, 마우스 버튼 누름·휠, Escape, 선택 변경 및 포커스·캡처 상실 시 현재 위치에서 중단한다. 일반 Viewport Tick은 계속 실행한다.

@@ -237,11 +237,23 @@ Render Thread
 
 Viewport 입력은 실제 Scene 이미지 영역만 대상으로 한다. Camera, 기즈모와 PIE 입력의 소유권 및 ImGui capture와의 관계는 [Input-Architecture.md](Input-Architecture.md)를 따른다.
 
+### 비동기 단일 선택과 GT 박스 선택
+
+단일 클릭은 입력 시점 카메라로 Ray를 생성하고 Ray와 View를 해당 World의 Scene 제출에 포함한다. RT는 Scene BVH로 후보를 찾고 렌더링과 같은 `SelectLOD()`에 요청 View를 전달하여 선택한 LOD의 삼각형을 검사한다. 우클릭 표면 배치도 같은 LOD 기준을 사용한다. GT의 ViewportClient Tick은 완료 여부만 확인하고 Primitive ID를 UWorld의 Component 등록 매핑으로 해석한 뒤 Replace / Shift Add / Ctrl Toggle을 적용한다. GT에서 Scene 트리를 읽거나 RT 완료를 동기 대기하지 않는다.
+
+같은 Client의 연속 클릭은 발행 순서대로 적용한다. 자신의 결과를 적용하면서 뒤따르는 유효한 요청은 유지하지만, Hierarchy·다른 Viewport·박스 선택 등 외부 선택 동작으로 Selection의 Generation이 바뀌면 이전 요청은 폐기한다. World UUID가 다르거나 Hit Component가 등록 해제된 경우에도 결과를 버린다. Escape·Gizmo 조작 시작은 해당 Client의 대기 요청을 취소한다. 키보드 포커스 상실은 카메라·Gizmo 조작만 중단하며, 클릭을 놓아 이미 제출한 선택·배치 요청은 유지한다. ImGui의 일시적인 키보드 점유로 마우스 클릭 결과까지 취소하지 않는다. 요청과 결과에는 Client나 UObject 주소를 캡처하지 않는다.
+
+박스 선택은 기존처럼 GT에서 Node의 World 원점을 화면에 투영해 사각형 안에 있는지 검사한다. Scene BVH의 Frustum Query로 박스 선택 정책을 바꾸지 않는다. 우클릭 Context Menu의 표면 배치 위치도 RT의 비동기 Ray 검사로 구하지만, 단일 선택 큐와 별도로 최신 배치 요청 하나만 보관하고 완료를 확인한다. 배치 요청은 Selection의 Generation에 영향받지 않으며 선택 결과 적용을 기다리지 않는다. Miss이면 입력 시점에 계산한 Grid 교차점 또는 Camera 전방 위치를 사용한다. World 변경·Hit Component 등록 해제·Escape·Gizmo 조작 시작 시에는 배치 요청도 취소한다.
+
+Query는 입력 View와 요청이 제출된 Scene 갱신 상태를 검사하며 이미 표시된 과거 프레임의 Scene Snapshot을 보존하지 않는다. 선택 결과를 기다리는 동안 다른 편집 작업은 현재 적용된 Selection을 사용한다. 이후 렌더 제출에서 선택 하이라이트가 반영되므로 결과 적용과 실제 화면 표시 시점은 다르다.
+
 ## Console, Profile과 Overlay
 
 Console은 Engine log sink가 전달한 메시지를 보관하고 표시한다. 로그 생산자는 Editor Panel을 알지 않으며, 다른 스레드에서 들어오는 메시지는 공유 저장소를 보호한 뒤 UI 스레드에서 읽는다.
 
 Profile Panel은 Game Thread와 Render Thread별 CPU Profiler 완료 Snapshot 및 Render Thread가 발행한 GPU 통계를 읽는다. 수집 중인 profiler 상태나 Render Device를 UI가 직접 조회하지 않는다.
+
+Frame 탭의 Scene Query Stats는 완료된 렌더 프레임 안에서 모든 Scene·View가 호출한 Frustum·Sphere·OBB·Segment Query를 종류별로 합산해 표시한다. 호출 수, Bounds 검사 횟수, 후보 수, 총 CPU 시간과 호출당 평균 시간을 표시하며 호출하지 않은 종류는 0으로 표시한다. 시간에는 BVH 검사와 Proxy 조회가 포함되며 GT 요청 대기나 GPU 실행 시간은 포함되지 않는다. 다른 Profile 통계와 동일하게 갱신 주기와 Pause를 적용한다.
 
 Viewport Overlay는 Viewport에 종속된 간단한 정보를 표시한다. Console은 표시 상태를 변경할 수 있지만 Overlay의 렌더링 자체를 담당하지 않는다. 통계 수집은 Engine/Core에 남고 Editor는 결과만 표현한다.
 

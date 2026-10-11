@@ -194,7 +194,12 @@ void FRenderSystem::PublishShaderPaths()
 void FRenderSystem::Flush(FScene& Scene)
 {
 	auto Commands = std::make_shared<TArray<FPrimitiveRenderCommand>>(Scene.DrainRenderCommands());
-	RenderThread.EnqueueAndWait([this, &Scene, Commands] { Scene.ApplyRenderCommands(*Renderer, std::move(*Commands)); });
+	auto Queries = std::make_shared<TArray<std::shared_ptr<FSceneRayQuery>>>(Scene.DrainRayQueries());
+	RenderThread.EnqueueAndWait([this, &Scene, Commands, Queries]
+	{
+		Scene.ApplyRenderCommands(*Renderer, std::move(*Commands));
+		Scene.ExecuteRayQueries(*Queries);
+	});
 }
 
 void FRenderSystem::ResizeWindow(uint32 Width, uint32 Height)
@@ -225,7 +230,7 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 	for (FScene* Scene : Scenes)
 	{
 		check(Scene);
-		SceneBatches->push_back({ Scene, Scene->DrainRenderCommands() });
+		SceneBatches->push_back({ Scene, Scene->DrainRenderCommands(), Scene->DrainRayQueries() });
 	}
 	auto Families = std::make_shared<TArray<FSceneViewFamily>>(std::move(ViewFamilies));
 	auto DrawData = std::make_shared<FImGuiDrawDataCopy>(std::move(ImGuiDrawData));
@@ -239,9 +244,9 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 			Renderer->UpdateTextureResource(Command);
 		}
 
-		for (const FStaticMeshResourceCommand& Command : *StaticMeshCommands)
+		for (FStaticMeshResourceCommand& Command : *StaticMeshCommands)
 		{
-			Renderer->UpdateStaticMeshResource(Command);
+			Renderer->UpdateStaticMeshResource(std::move(Command));
 		}
 
 		for (const FMaterialResourceCommand& Command : *MaterialCommands)
@@ -252,6 +257,7 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 		for (FSceneCommandBatch& Batch : *SceneBatches)
 		{
 			Batch.Scene->ApplyRenderCommands(*Renderer, std::move(Batch.Commands));
+			Batch.Scene->ExecuteRayQueries(Batch.RayQueries);
 		}
 
 		const FRenderViewport OutputViewport = Renderer->GetViewport();
@@ -274,6 +280,28 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 			std::lock_guard Lock(FrameStatisticsMutex);
 			LastGPUFrameStatistics = RenderBackend->GetRenderDevice().GetLastFrameStatistics();
 			LastInstancedDrawStatistics = InstancedDrawStatistics;
+		}
+
+		FSceneQueryStatistics SceneQueryStatistics;
+		for (FSceneCommandBatch& Batch : *SceneBatches)
+		{
+			const FSceneQueryStatistics Statistics = Batch.Scene->DrainQueryStatistics();
+			const FSceneBVHQueryStatistics* Sources[] = { &Statistics.Frustum, &Statistics.Sphere, &Statistics.OBB, &Statistics.Segment };
+			FSceneBVHQueryStatistics* Targets[] =
+			{
+				&SceneQueryStatistics.Frustum, &SceneQueryStatistics.Sphere, &SceneQueryStatistics.OBB, &SceneQueryStatistics.Segment
+			};
+			for (SIZE_T Index = 0; Index < 4; ++Index)
+			{
+				Targets[Index]->QueryCount += Sources[Index]->QueryCount;
+				Targets[Index]->BoundsTests += Sources[Index]->BoundsTests;
+				Targets[Index]->Candidates += Sources[Index]->Candidates;
+				Targets[Index]->TimeMs += Sources[Index]->TimeMs;
+			}
+		}
+		{
+			std::lock_guard Lock(FrameStatisticsMutex);
+			LastSceneQueryStatistics = SceneQueryStatistics;
 		}
 		PublishShaderPaths();
 
@@ -380,6 +408,13 @@ FInstancedDrawStatistics FRenderSystem::GetLastInstancedDrawStatistics() const
 {
 	std::lock_guard Lock(FrameStatisticsMutex);
 	return LastInstancedDrawStatistics;
+}
+
+// GT가 RT의 Scene을 읽지 않고 마지막으로 완료된 렌더 프레임의 Query 통계 복사본을 받는다.
+FSceneQueryStatistics FRenderSystem::GetLastSceneQueryStatistics() const
+{
+	std::lock_guard Lock(FrameStatisticsMutex);
+	return LastSceneQueryStatistics;
 }
 
 ImTextureID FRenderSystem::StartupImGui(std::span<const uint8> FontPixels, uint32 FontWidth, uint32 FontHeight)

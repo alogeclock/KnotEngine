@@ -2,7 +2,6 @@
 
 #include "Core/Geometry/Ray.h"
 #include "Core/Math/Matrix.h"
-#include "Core/Profiling/CPUProfiler.h"
 #include "Component/Mesh/StaticMeshComponent.h"
 #include "Component/TransformComponent.h"
 #include "Editor/Context/EditorSelection.h"
@@ -15,7 +14,6 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <limits>
 #include <variant>
 
 FLevelEditorViewportClient::FLevelEditorViewportClient(FViewport& InViewport)
@@ -33,6 +31,8 @@ UWorld* FLevelEditorViewportClient::GetWorld() const
 // 입력 이벤트가 없는 프레임에도 선택 변경과 대상 제거를 반영하고 일반 Viewport Tick을 수행한다.
 void FLevelEditorViewportClient::Tick(float DeltaTime)
 {
+	ApplySelectionResult();
+	ApplyPlacementResult();
 	TransformGizmo.UpdateSelection(Selection);
 	FEditorViewportClient::Tick(DeltaTime);
 	UpdateFocusAnimation(DeltaTime);
@@ -92,25 +92,7 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 			}
 			else
 			{
-				UNode* HitNode = Raycast(BoxSelectionStart);
-				if (HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Control))
-				{
-					if (HitNode)
-					{
-						Selection.Toggle(*HitNode);
-					}
-				}
-				else if (HasModifierKey(BoxSelectionModifiers, EModifierKeyMask::Shift))
-				{
-					if (HitNode)
-					{
-						Selection.Add(*HitNode);
-					}
-				}
-				else
-				{
-					Selection.Select(HitNode);
-				}
+				RequestSelection(BoxSelectionStart, BoxSelectionModifiers);
 			}
 			bTrackingBoxSelection = false;
 			bBoxSelecting = false;
@@ -133,6 +115,11 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	const FInputReply GizmoReply = TransformGizmo.OnInputEvent(Event, Selection, BuildSceneView(), PixelPosition);
 	if (GizmoReply.IsHandled())
 	{
+		if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown)
+		{
+			PendingRayQueries.clear();
+			PendingPlacementQuery.reset();
+		}
 		return GizmoReply;
 	}
 	if (PointerEvent && PointerEvent->Type == EPointerInputEventType::ButtonDown && PointerEvent->Button == EMouseButton::Right)
@@ -154,9 +141,11 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 
 	if (const FKeyInputEvent* KeyEvent = std::get_if<FKeyInputEvent>(&Event))
 	{
-		if (KeyEvent->Key == EKeyboardKey::Escape && KeyEvent->bDown && bFocusAnimating)
+		if (KeyEvent->Key == EKeyboardKey::Escape && KeyEvent->bDown && (bFocusAnimating || !PendingRayQueries.empty() || PendingPlacementQuery))
 		{
 			bFocusAnimating = false;
+			PendingRayQueries.clear();
+			PendingPlacementQuery.reset();
 			return FInputReply::Handled();
 		}
 		if (KeyEvent->Key == EKeyboardKey::F && KeyEvent->Modifiers == EModifierKeyMask::None)
@@ -182,7 +171,7 @@ FInputReply FLevelEditorViewportClient::OnInputEvent(const FInputEvent& Event)
 	return FEditorViewportClient::OnInputEvent(Event);
 }
 
-// 키보드 포커스 상실을 카메라와 진행 중인 Gizmo 조작에 함께 전달한다.
+// 키보드 포커스를 잃으면 카메라와 Gizmo 조작을 중단하되, 이미 클릭을 놓아 제출한 선택·배치 요청은 유지한다.
 void FLevelEditorViewportClient::OnKeyboardFocusLost()
 {
 	bFocusAnimating = false;
@@ -322,104 +311,116 @@ void FLevelEditorViewportClient::UpdateFocusAnimation(float DeltaTime)
 	LastFocusTransform = Transform;
 }
 
-// Bounds와 삼각형 교차로 가장 가까운 Node를 찾고 완료된 Picking 통계를 게시한다.
-UNode* FLevelEditorViewportClient::Raycast(const FVector2& InputPosition, FVector* OutHitPosition)
+// 현재 카메라와 클릭 위치로 Ray를 만들고 Ctrl/Shift 상태를 저장한 뒤 다음 렌더 프레임에서 RT가 검사하도록 요청한다.
+void FLevelEditorViewportClient::RequestSelection(const FVector2& InputPosition, EModifierKeyMask Modifiers)
 {
-	if (OutHitPosition)
-	{
-		*OutHitPosition = FVector::ZeroVector;
-	}
 	FVector2 PixelPosition;
 	UWorld* World = GetWorld();
 	if (!World || !ContainsInputPosition(InputPosition) || !GetViewportPixelPosition(InputPosition, PixelPosition))
 	{
-		return nullptr;
+		return;
 	}
 
-	KNOT_PROFILE_SCOPE("Picking", "Raycast");
-	const auto QueryStart = std::chrono::steady_clock::now();
-	FPickingStatistics QueryStatistics;
 	const FSceneView View = FEditorViewportClient::BuildSceneView();
-	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
-	if (WorldRay.Direction.IsNearlyZero())
+	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	if (Ray.Direction.IsNearlyZero())
 	{
-		return nullptr;
+		return;
 	}
+	FPendingRayQuery Pending;
+	Pending.WorldUUID = World->GetUUID();
+	Pending.Generation = Selection.GetGeneration();
+	Pending.Modifiers = Modifiers;
+	Pending.Query = World->GetScene().EnqueueRayQuery(Ray, View);
+	PendingRayQueries.push_back(std::move(Pending));
+}
 
-	UNode* ClosestNode = nullptr;
-	float ClosestDistance = (std::numeric_limits<float>::max)();
-	const auto SceneQueryStart = std::chrono::steady_clock::now();
-	for (const TObjectPtr<ULevel>& Level : World->GetLevels())
+// RT 검사가 끝난 요청부터 제출 순서대로 선택에 반영하고, World가 바뀌거나 다른 선택 동작이 있었다면 결과를 버린다.
+void FLevelEditorViewportClient::ApplySelectionResult()
+{
+	while (!PendingRayQueries.empty())
 	{
-		for (const TObjectPtr<UNode>& Node : Level->GetNodes())
+		const FPendingRayQuery& Front = PendingRayQueries.front();
+		UWorld* World = GetWorld();
+		if (!World || World->GetUUID() != Front.WorldUUID || Selection.GetGeneration() != Front.Generation)
 		{
-			for (const TObjectPtr<UComponent>& Component : Node->GetComponents())
+			PendingRayQueries.pop_front();
+			continue;
+		}
+		if (!Front.Query->bReady.load(std::memory_order_acquire))
+		{
+			break;
+		}
+		const FPendingRayQuery Pending = Front;
+		PendingRayQueries.pop_front();
+		const FSceneRayQuery& Query = *Pending.Query;
+		UPrimitiveComponent* Component = World->FindPrimitive(Query.PrimitiveId);
+		if (Query.PrimitiveId != 0 && !Component)
+		{
+			continue;
+		}
+		UNode* HitNode = Component ? &Component->GetOwner() : nullptr;
+		if (HasModifierKey(Pending.Modifiers, EModifierKeyMask::Control))
+		{
+			if (HitNode)
 			{
-				if (!Component->IsA(UStaticMeshComponent::StaticClass()))
-				{
-					continue;
-				}
-				auto* StaticMeshComponent = static_cast<UStaticMeshComponent*>(Component.Get());
-				UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-				if (!StaticMeshComponent->IsVisible() || !StaticMesh || StaticMesh->GetMeshData().GetLODCount() == 0)
-				{
-					continue;
-				}
-				const FMatrix WorldMatrix = StaticMeshComponent->GetTransform().GetWorldMatrix();
-				if (std::fabs(WorldMatrix.GetDeterminant()) <= KMath::Epsilon)
-				{
-					continue;
-				}
-				const FAABB WorldBounds = StaticMesh->GetMeshData().GetLocalBounds().Transform(WorldMatrix);
-				float Near = 0.0f;
-				float Far = 0.0f;
-				++QueryStatistics.BoundsTests;
-				if (!WorldBounds.IntersectRay(WorldRay, Near, Far) || Near > ClosestDistance)
-				{
-					continue;
-				}
-				++QueryStatistics.CandidateMeshes;
-				const auto MeshQueryStart = std::chrono::steady_clock::now();
-				const FMatrix InverseWorld = StaticMeshComponent->GetTransform().GetWorldInverseMatrix();
-				const FRay LocalRay(InverseWorld.TransformPosition(WorldRay.Origin), InverseWorld.TransformVector(WorldRay.Direction));
-				const FStaticMeshLOD& LOD = StaticMesh->GetMeshData().GetLOD(0);
-				const TArray<FStaticMeshVertex>& Vertices = LOD.GetVertices();
-				const TArray<uint32>& Indices = LOD.GetIndices();
-				const SIZE_T ElementCount = Indices.empty() ? Vertices.size() : Indices.size();
-				for (SIZE_T ElementIndex = 0; ElementIndex + 2 < ElementCount; ElementIndex += 3)
-				{
-					const uint32 Index0 = Indices.empty() ? static_cast<uint32>(ElementIndex) : Indices[ElementIndex];
-					const uint32 Index1 = Indices.empty() ? static_cast<uint32>(ElementIndex + 1) : Indices[ElementIndex + 1];
-					const uint32 Index2 = Indices.empty() ? static_cast<uint32>(ElementIndex + 2) : Indices[ElementIndex + 2];
-					if (Index0 >= Vertices.size() || Index1 >= Vertices.size() || Index2 >= Vertices.size())
-					{
-						continue;
-					}
-					float Distance = 0.0f;
-					++QueryStatistics.TriangleTests;
-					if (LocalRay.Intersect(Vertices[Index0].Position, Vertices[Index1].Position, Vertices[Index2].Position, Distance) && Distance < ClosestDistance)
-					{
-						ClosestDistance = Distance;
-						ClosestNode = Node.Get();
-					}
-				}
-				QueryStatistics.MeshQueryTimeMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - MeshQueryStart).count();
+				Selection.Toggle(*HitNode);
 			}
 		}
+		else if (HasModifierKey(Pending.Modifiers, EModifierKeyMask::Shift))
+		{
+			if (HitNode)
+			{
+				Selection.Add(*HitNode);
+			}
+		}
+		else
+		{
+			Selection.Select(HitNode);
+		}
+
+		// 앞선 클릭의 선택 적용으로 뒤따르는 Ctrl/Shift 클릭 결과까지 버리지 않도록, 같은 번호로 대기하던 요청의 번호를 갱신한다.
+		for (FPendingRayQuery& Next : PendingRayQueries)
+		{
+			if (Next.Generation == Pending.Generation)
+			{
+				Next.Generation = Selection.GetGeneration();
+			}
+		}
+
 	}
-	QueryStatistics.SceneQueryTimeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - SceneQueryStart).count()
-		- QueryStatistics.MeshQueryTimeMs;
-	if (ClosestNode && OutHitPosition)
+}
+
+// 우클릭 Ray의 완료를 확인하고 메시 교차점 또는 입력 시점의 대체 위치로 Context Menu를 연다.
+void FLevelEditorViewportClient::ApplyPlacementResult()
+{
+	if (!PendingPlacementQuery)
 	{
-		*OutHitPosition = WorldRay.Origin + WorldRay.Direction * ClosestDistance;
+		return;
 	}
-	QueryStatistics.TotalTimeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - QueryStart).count();
-	QueryStatistics.QueryCount = PickingStatistics.QueryCount + 1;
-	QueryStatistics.AccumulatedTimeMs = PickingStatistics.AccumulatedTimeMs + QueryStatistics.TotalTimeMs;
-	QueryStatistics.MaxTimeMs = std::max(PickingStatistics.MaxTimeMs, QueryStatistics.TotalTimeMs);
-	QueryStatistics.bHit = ClosestNode != nullptr;
-	PickingStatistics = QueryStatistics;
-	return ClosestNode;
+
+	UWorld* World = GetWorld();
+	if (!World || World->GetUUID() != PendingPlacementQuery->WorldUUID)
+	{
+		PendingPlacementQuery.reset();
+		return;
+	}
+	if (!PendingPlacementQuery->Query->bReady.load(std::memory_order_acquire))
+	{
+		return;
+	}
+
+	const FPendingPlacementQuery Pending = std::move(*PendingPlacementQuery);
+	PendingPlacementQuery.reset();
+	const FSceneRayQuery& Query = *Pending.Query;
+	if (Query.PrimitiveId != 0 && !World->FindPrimitive(Query.PrimitiveId))
+	{
+		return;
+	}
+
+	const bool bHit = Query.PrimitiveId != 0;
+	ContextMenuPlacementLocation = bHit ? Query.HitPosition : Pending.FallbackPosition;
+	bContextMenuRequested = true;
 }
 
 // Node의 World 원점을 화면에 투영하여 선택 사각형 안의 Node를 선택 집합에 반영한다.
@@ -480,37 +481,43 @@ void FLevelEditorViewportClient::ApplyBoxSelection()
 	}
 }
 
-// 실제 Mesh 교차점, World Grid, Camera 전방 순서로 Node 배치 위치를 결정한다.
-FVector FLevelEditorViewportClient::FindPlacementLocation(const FVector2& InputPosition)
+// Ray가 메시를 맞히지 못했을 때 사용할 Z=0 평면 교차점 또는 카메라 전방 10m 위치를 클릭 시점에 계산한다.
+FVector FLevelEditorViewportClient::FindPlacementLocation(const FRay& Ray)
 {
-	FVector HitPosition;
-	if (Raycast(InputPosition, &HitPosition))
+	if (std::fabs(Ray.Direction.Z) > KMath::Epsilon)
 	{
-		return HitPosition;
-	}
-
-	FVector2 PixelPosition;
-	if (!GetViewportPixelPosition(InputPosition, PixelPosition) || !GetViewport().IsValid())
-	{
-		return FVector::ZeroVector;
-	}
-	const FSceneView View = FEditorViewportClient::BuildSceneView();
-	const FRay WorldRay = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
-	if (std::fabs(WorldRay.Direction.Z) > KMath::Epsilon)
-	{
-		const float Distance = -WorldRay.Origin.Z / WorldRay.Direction.Z;
+		const float Distance = -Ray.Origin.Z / Ray.Direction.Z;
 		if (Distance > 0.0f)
 		{
-			return WorldRay.Origin + WorldRay.Direction * Distance;
+			return Ray.Origin + Ray.Direction * Distance;
 		}
 	}
 	static constexpr float DefaultPlacementDistance = 10.0f;
-	return WorldRay.Origin + WorldRay.Direction * DefaultPlacementDistance;
+	return Ray.Origin + Ray.Direction * DefaultPlacementDistance;
 }
 
-// 우클릭 시작 위치에서 배치 지점을 계산하고 다음 UI Frame에 Context Menu를 요청한다.
+// 이전 우클릭 요청을 취소하고 새 Ray 검사를 요청하며, 검사 결과를 받은 뒤 배치 위치를 정해 Context Menu를 연다.
 void FLevelEditorViewportClient::RequestContextMenu(const FVector2& InputPosition)
 {
-	ContextMenuPlacementLocation = FindPlacementLocation(InputPosition);
-	bContextMenuRequested = true;
+	PendingPlacementQuery.reset();
+	bContextMenuRequested = false;
+	FVector2 PixelPosition;
+	UWorld* World = GetWorld();
+	if (!World || !ContainsInputPosition(InputPosition) || !GetViewportPixelPosition(InputPosition, PixelPosition))
+	{
+		return;
+	}
+
+	const FSceneView View = FEditorViewportClient::BuildSceneView();
+	const FRay Ray = FRay::BuildRay(PixelPosition.X, PixelPosition.Y, View.InverseViewProjectionMatrix, View.Viewport.Width, View.Viewport.Height);
+	if (Ray.Direction.IsNearlyZero())
+	{
+		return;
+	}
+
+	FPendingPlacementQuery Pending;
+	Pending.WorldUUID = World->GetUUID();
+	Pending.FallbackPosition = FindPlacementLocation(Ray);
+	Pending.Query = World->GetScene().EnqueueRayQuery(Ray, View);
+	PendingPlacementQuery = std::move(Pending);
 }

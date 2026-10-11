@@ -7,6 +7,7 @@
 // 기존 선택을 해제하고 단일 Node를 활성 선택으로 지정한다.
 void FEditorSelection::Select(UNode* Node)
 {
+	++Generation;
 	if (SelectedNodes.size() == 1 && SelectedNode == Node)
 	{
 		return;
@@ -39,6 +40,7 @@ void FEditorSelection::Select(const TArray<UNode*>& Nodes, UNode* ActiveNode)
 // 기존 선택을 유지하면서 Node를 선택 집합과 활성 선택에 추가한다.
 void FEditorSelection::Add(UNode& Node)
 {
+	++Generation;
 	if (!IsSelected(&Node))
 	{
 		SelectedNodes.push_back(&Node);
@@ -50,6 +52,7 @@ void FEditorSelection::Add(UNode& Node)
 // Node의 선택 여부를 반전하고 남은 선택 중 마지막 Node를 활성화한다.
 void FEditorSelection::Toggle(UNode& Node)
 {
+	++Generation;
 	const auto Iterator = std::find(SelectedNodes.begin(), SelectedNodes.end(), &Node);
 	if (Iterator == SelectedNodes.end())
 	{
@@ -65,6 +68,7 @@ void FEditorSelection::Toggle(UNode& Node)
 // 모든 Node의 선택 상태를 해제한다.
 void FEditorSelection::Deselect()
 {
+	++Generation;
 	for (UNode* Node : SelectedNodes)
 	{
 		Node->SetSelected(false);

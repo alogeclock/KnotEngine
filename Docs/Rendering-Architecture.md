@@ -172,6 +172,8 @@ Material Resource 갱신
     ↓
 Scene Proxy Add / Update / Remove 적용
     ↓
+Scene BVH 갱신 → 비동기 Ray Query 실행·결과 게시
+    ↓
 BeginFrame
     ↓
 ViewFamily별 SceneRenderer 실행
@@ -233,6 +235,42 @@ Render Thread의 `FScene::ApplyRenderCommands()`가 Proxy를 밀집 `TArray`에 
 
 `FStaticMeshSceneProxy`는 여기에 `FStaticMeshResource*`, Section Material에 대응하는 `FMaterialResource*` 배열, LOD 활성화 상태를 추가한다. 모두 Renderer Cache가 소유하는 객체에 대한 비소유 참조이며 Component나 Asset UObject 포인터를 보관하지 않는다.
 
+### RT Scene BVH와 비동기 Ray Query
+
+`FScene`은 RT 전용 `FSceneBVH`를 소유한다. BVH에는 표시 가능한 Primitive의 ID와 World Bounds만 저장하며, GT에 트리를 복사하지 않는다. GT에서 ID를 Component로 변환하는 작업은 `UWorld`가 담당한다.
+
+Primitive 추가·제거·Visibility 변경 시에는 Scene 갱신 배치가 끝난 뒤 트리를 재구성한다. 위치나 크기만 바뀌면 해당 Leaf와 조상의 Bounds만 갱신한다(refit).
+
+#### Bounds Query
+
+`FScene`은 RT에서 Frustum·Sphere·OBB·Segment Query를 제공한다. 이 함수들은 **World Bounds 기준의 Proxy 후보 목록**을 반환하며, 정확한 메시 표면을 검사하지 않는다.
+
+- Frustum은 교차 또는 완전 포함을 검사한다.
+- Segment는 Bounds를 Extent만큼 확장하여 선분 교차를 검사한다.
+- 반환된 Proxy는 현재 RT 작업 안에서만 사용한다.
+
+각 Query의 호출 수·Bounds 검사 횟수·후보 수·처리 시간은 Profile Panel의 Scene Query Stats에 표시한다.
+
+#### 비동기 Ray Query
+
+단일 선택과 우클릭 표면 배치는 다음 순서로 처리한다.
+
+```text
+GT: 입력 시점의 Ray·View 제출
+ → RT: Scene 갱신 → BVH 후보 검색 → 선택 LOD의 삼각형 검사
+ → GT: 완료 확인 → Primitive ID를 Component로 변환 → 결과 적용
+```
+
+RT는 렌더링과 같은 `SelectLOD()`로 검사할 LOD를 선택하고, 가장 가까운 삼각형 교차점을 반환한다. Mesh BVH는 사용하지 않는다. 비균일 Scale에서도 거리를 비교할 수 있도록 Local Ray 방향은 정규화하지 않는다.
+
+Ray·View와 결과는 하나의 `FSceneRayQuery`에 보관한다. GT는 RT가 완료 표시를 설정한 뒤에만 결과를 읽으며, 검사가 끝날 때까지 기다리지 않는다. 다만 RT 큐 처리와 다음 GT Tick까지의 지연은 발생한다. 검사는 입력 시점의 View와 RT에 반영된 Scene을 사용하므로, 이미 화면에 표시된 과거 프레임과 정확히 일치하지는 않을 수 있다.
+
+#### CPU Mesh 보관
+
+GT는 기존 Resource Command로 CPU Mesh를 복사해 전달한다. RT의 `FStaticMeshResource`는 GPU Buffer를 생성한 뒤 Command의 Mesh를 이동받아 보관한다.
+
+Ray Query는 이 Mesh의 정점·Index를 직접 읽는다. 별도의 피킹 배열이나 추가 복사는 없지만, 모든 LOD의 CPU Mesh는 Resource가 해제될 때까지 RT 메모리에 유지된다. 이 구조는 추후 메모리 최적화를 위해 개선할 수 있다.
+
 ## Asset Resource Command
 
 Asset Resource는 Primitive와 분리하여 Asset별 Revision 단위로 갱신한다.
@@ -291,7 +329,7 @@ Viewport Target 생성과 Resize는 Render Thread의 동기 명령으로 처리�
 
 ### Frustum Culling과 LOD
 
-`FSceneRenderer::CullView()`는 View마다 Scene Proxy를 순회하고 다음 조건을 모두 만족한 Primitive만 수집한다.
+`FSceneRenderer::CullView()`는 RT Scene BVH의 Frustum Query로 다음 조건을 모두 만족한 Primitive만 수집한다.
 
 - Visible 상태
 - 유효한 WorldBounds

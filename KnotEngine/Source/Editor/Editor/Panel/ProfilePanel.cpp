@@ -1,7 +1,6 @@
 #include "Editor/Panel/ProfilePanel.h"
 
 #include "Render/RenderSystem.h"
-#include "Runtime/EditorEngine.h"
 
 #include <algorithm>
 #include <imgui.h>
@@ -11,10 +10,11 @@ FProfilePanel::FProfilePanel(FRenderSystem& InRenderSystem)
 {
 }
 
-// 완료된 Frame과 Editor 작업을 샘플링하고 선택한 통계 탭을 그린다.
-void FProfilePanel::Draw(float DeltaTime, const FPickingStatistics& PickingStatistics)
+// 완료된 Frame과 Scene Query 통계를 샘플링하고 표시한다.
+void FProfilePanel::Draw(float DeltaTime)
 {
 	RefreshTimer -= DeltaTime;
+	const bool bRefreshSceneQueries = RefreshTimer <= 0.0f;
 	const FCPUProfileFrame GameFrame = FCPUProfiler::GetLastFrame(ECPUProfileThread::Game);
 	const FCPUProfileFrame RenderFrame = FCPUProfiler::GetLastFrame(ECPUProfileThread::Render);
 	bool bRefreshed = false;
@@ -62,14 +62,10 @@ void FProfilePanel::Draw(float DeltaTime, const FPickingStatistics& PickingStati
 		}
 	}
 
-	const FTransactionStatistics& TransactionStatistics = GetEditor().GetEditorTransaction().GetStatistics();
-	const bool bFirstPicking = DisplayedPickingStats.QueryCount == 0 && PickingStatistics.QueryCount != 0;
-	const bool bFirstTransaction = DisplayedTransactionStats.Undo.OperationCount + DisplayedTransactionStats.Redo.OperationCount == 0 &&
-		TransactionStatistics.Undo.OperationCount + TransactionStatistics.Redo.OperationCount != 0;
-	if (!bPaused && (RefreshTimer <= 0.0f || bRefreshed || bFirstPicking || bFirstTransaction))
+	const FSceneQueryStatistics SceneQueryStatistics = RenderSystem.GetLastSceneQueryStatistics();
+	if (!bPaused && (RefreshTimer <= 0.0f || bRefreshed || bRefreshSceneQueries))
 	{
-		DisplayedPickingStats = PickingStatistics;
-		DisplayedTransactionStats = TransactionStatistics;
+		DisplayedSceneQueryStats = SceneQueryStatistics;
 		if (!bRefreshed)
 		{
 			RefreshTimer = RefreshInterval;
@@ -113,12 +109,7 @@ void FProfilePanel::Draw(float DeltaTime, const FPickingStatistics& PickingStati
 				}
 				DrawInstancedDrawStats();
 			}
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem("Editor"))
-		{
-			DrawPickingStats();
-			DrawTransactionStats();
+			DrawSceneQueryStats();
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -126,118 +117,46 @@ void FProfilePanel::Draw(float DeltaTime, const FPickingStatistics& PickingStati
 	ImGui::End();
 }
 
-// 마지막 Picking의 시간과 검사량을 실제 질의 기준의 누적 통계와 함께 표시한다.
-void FProfilePanel::DrawPickingStats() const
+// 완료된 렌더 프레임의 Query 호출 수, Bounds 검사량, 후보 수와 Proxy 변환을 포함한 CPU 시간을 종류별로 표시한다.
+void FProfilePanel::DrawSceneQueryStats() const
 {
-	if (!ImGui::CollapsingHeader("Picking Stats", ImGuiTreeNodeFlags_DefaultOpen))
+	if (!ImGui::CollapsingHeader("Scene Query Stats", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		return;
 	}
-	if (DisplayedPickingStats.QueryCount == 0)
+	ImGui::TextDisabled("Per-frame totals across all scenes and views. Bounds candidates, not triangle hits. Includes proxy lookup.");
+	constexpr ImGuiTableFlags Flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
+	if (ImGui::BeginTable("SceneQueryStats", 6, Flags))
 	{
-		ImGui::TextUnformatted("Queries: - | Result: -");
-	}
-	else
-	{
-		ImGui::Text("Queries: %llu | Result: %s", static_cast<unsigned long long>(DisplayedPickingStats.QueryCount),
-			DisplayedPickingStats.bHit ? "Hit" : "Miss");
-	}
-	ImGui::TextDisabled("Last CPU raycast (LOD 0). Average and maximum cover all completed queries.");
-	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame
-		| ImGuiTableFlags_NoSavedSettings;
-	const float TableWidth = std::max(1100.0f, ImGui::GetContentRegionAvail().x);
-	if (ImGui::BeginTable("PickingStats", 8, TableFlags, ImVec2(TableWidth, 0.0f)))
-	{
-		ImGui::TableSetupColumn("Last Time");
-		ImGui::TableSetupColumn("Scene Query");
-		ImGui::TableSetupColumn("Mesh Query");
-		ImGui::TableSetupColumn("Average Time");
-		ImGui::TableSetupColumn("Max Time");
-		ImGui::TableSetupColumn("Bounds Tests");
-		ImGui::TableSetupColumn("Candidate Meshes");
-		ImGui::TableSetupColumn("Triangle Tests");
-		ImGui::TableHeadersRow();
-		ImGui::TableNextRow();
-		if (DisplayedPickingStats.QueryCount == 0)
-		{
-			for (int32 Column = 0; Column < 8; ++Column)
-			{
-				ImGui::TableSetColumnIndex(Column);
-				ImGui::TextDisabled("-");
-			}
-			ImGui::EndTable();
-			return;
-		}
-		ImGui::TableSetColumnIndex(0);
-		ImGui::Text("%.3f ms", DisplayedPickingStats.TotalTimeMs);
-		ImGui::TableSetColumnIndex(1);
-		ImGui::Text("%.3f ms", DisplayedPickingStats.SceneQueryTimeMs);
-		ImGui::TableSetColumnIndex(2);
-		ImGui::Text("%.3f ms", DisplayedPickingStats.MeshQueryTimeMs);
-		ImGui::TableSetColumnIndex(3);
-		ImGui::Text("%.3f ms", DisplayedPickingStats.AccumulatedTimeMs / static_cast<double>(DisplayedPickingStats.QueryCount));
-		ImGui::TableSetColumnIndex(4);
-		ImGui::Text("%.3f ms", DisplayedPickingStats.MaxTimeMs);
-		ImGui::TableSetColumnIndex(5);
-		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedPickingStats.BoundsTests));
-		ImGui::TableSetColumnIndex(6);
-		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedPickingStats.CandidateMeshes));
-		ImGui::TableSetColumnIndex(7);
-		ImGui::Text("%llu", static_cast<unsigned long long>(DisplayedPickingStats.TriangleTests));
-		ImGui::EndTable();
-	}
-}
-
-// Undo와 Redo의 마지막 작업 이름 및 적용량과 누적 실행 시간을 각각 표시한다.
-void FProfilePanel::DrawTransactionStats() const
-{
-	if (!ImGui::CollapsingHeader("Transaction Stats", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		return;
-	}
-	ImGui::TextDisabled("Completed Undo/Redo only. Records and description refer to the last operation in each row.");
-	constexpr ImGuiTableFlags TableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame
-		| ImGuiTableFlags_NoSavedSettings;
-	const float TableWidth = std::max(1000.0f, ImGui::GetContentRegionAvail().x);
-	if (ImGui::BeginTable("TransactionStats", 7, TableFlags, ImVec2(TableWidth, 0.0f)))
-	{
-		ImGui::TableSetupColumn("Operation");
+		ImGui::TableSetupColumn("Query");
 		ImGui::TableSetupColumn("Calls");
-		ImGui::TableSetupColumn("Records");
-		ImGui::TableSetupColumn("Last Time");
-		ImGui::TableSetupColumn("Average Time");
-		ImGui::TableSetupColumn("Max Time");
-		ImGui::TableSetupColumn("Description");
+		ImGui::TableSetupColumn("Bounds Tests");
+		ImGui::TableSetupColumn("Candidates");
+		ImGui::TableSetupColumn("Total (ms)");
+		ImGui::TableSetupColumn("Average (ms)");
 		ImGui::TableHeadersRow();
-		const FTransactionOperationStatistics* Operations[] = { &DisplayedTransactionStats.Undo, &DisplayedTransactionStats.Redo };
-		const char* Names[] = { "Undo", "Redo" };
-		for (SIZE_T Index = 0; Index < 2; ++Index)
+
+		const char* Names[] = { "Frustum", "Sphere", "OBB", "Segment" };
+		const FSceneBVHQueryStatistics* Queries[] =
 		{
-			const FTransactionOperationStatistics& Stat = *Operations[Index];
+			&DisplayedSceneQueryStats.Frustum, &DisplayedSceneQueryStats.Sphere, &DisplayedSceneQueryStats.OBB, &DisplayedSceneQueryStats.Segment
+		};
+		for (SIZE_T Index = 0; Index < 4; ++Index)
+		{
+			const FSceneBVHQueryStatistics& Statistics = *Queries[Index];
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
 			ImGui::TextUnformatted(Names[Index]);
-			if (Stat.OperationCount == 0)
-			{
-				for (int32 Column = 1; Column < 7; ++Column)
-				{
-					ImGui::TableSetColumnIndex(Column);
-					ImGui::TextDisabled("-");
-				}
-				continue;
-			}
 			ImGui::TableSetColumnIndex(1);
-			ImGui::Text("%llu", static_cast<unsigned long long>(Stat.OperationCount));
+			ImGui::Text("%llu", static_cast<unsigned long long>(Statistics.QueryCount));
 			ImGui::TableSetColumnIndex(2);
-			ImGui::Text("%llu", static_cast<unsigned long long>(Stat.RecordCount));
+			ImGui::Text("%llu", static_cast<unsigned long long>(Statistics.BoundsTests));
 			ImGui::TableSetColumnIndex(3);
-			ImGui::Text("%.3f ms", Stat.TotalTimeMs);
+			ImGui::Text("%llu", static_cast<unsigned long long>(Statistics.Candidates));
 			ImGui::TableSetColumnIndex(4);
-			ImGui::Text("%.3f ms", Stat.AccumulatedTimeMs / static_cast<double>(Stat.OperationCount));
+			ImGui::Text("%.3f", Statistics.TimeMs);
 			ImGui::TableSetColumnIndex(5);
-			ImGui::Text("%.3f ms", Stat.MaxTimeMs);
-			ImGui::TableSetColumnIndex(6);
-			ImGui::TextUnformatted(Stat.Description.c_str());
+			ImGui::Text("%.3f", Statistics.QueryCount == 0 ? 0.0 : Statistics.TimeMs / static_cast<double>(Statistics.QueryCount));
 		}
 		ImGui::EndTable();
 	}

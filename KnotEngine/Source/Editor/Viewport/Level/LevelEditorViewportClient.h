@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Viewport/EditorViewportClient.h"
-#include "Core/Profiling/PickingStatistics.h"
 #include "TransformGizmo.h"
+#include "Render/Scene/SceneBVH.h"
+#include <deque>
+#include <optional>
 
 class FRenderer;
 class UNode;
@@ -21,23 +23,42 @@ public:
 	UWorld* GetWorld() const override;
 
 	FSceneView BuildSceneView() override;
-	const FPickingStatistics& GetPickingStatistics() const { return PickingStatistics; }
 	bool IsGizmoLocalSpace() const { return TransformGizmo.IsLocalSpace(); }
 	void SetGizmoLocalSpace(bool bLocalSpace) { TransformGizmo.SetLocalSpace(bLocalSpace); }
 	bool ConsumeContextMenuRequest(FVector& OutPlacementLocation);
 	bool GetBoxSelection(FVector2& OutStart, FVector2& OutEnd, bool& bOutAdditive) const;
 
 private:
-	UNode* Raycast(const FVector2& InputPosition, FVector* OutHitPosition = nullptr);
+	void RequestSelection(const FVector2& InputPosition, EModifierKeyMask Modifiers);
+	void ApplySelectionResult();
 	void ApplyBoxSelection();
-	FVector FindPlacementLocation(const FVector2& InputPosition);
+
 	void RequestContextMenu(const FVector2& InputPosition);
+	void ApplyPlacementResult();
+	FVector FindPlacementLocation(const FRay& Ray);
 
 	void FocusSelectedNode();
 	void UpdateFocusAnimation(float DeltaTime);
 
 	FEditorSelection& Selection;
-	FPickingStatistics PickingStatistics;
+
+	struct FPendingRayQuery
+	{
+		std::shared_ptr<FSceneRayQuery> Query;
+		uint32 WorldUUID = 0;
+		uint64 Generation = 0;
+		EModifierKeyMask Modifiers = EModifierKeyMask::None;
+	};
+	std::deque<FPendingRayQuery> PendingRayQueries; // GT가 아직 적용하지 않은 Ray 요청을 보관한다. 다른 선택 동작이 없었다면 제출 순서대로 적용한다.
+
+	struct FPendingPlacementQuery
+	{
+		std::shared_ptr<FSceneRayQuery> Query;
+		uint32 WorldUUID = 0;
+		FVector FallbackPosition = FVector::ZeroVector;
+	};
+	std::optional<FPendingPlacementQuery> PendingPlacementQuery; // 우클릭 배치 위치를 구하는 최신 요청 하나만 보관한다.
+
 	FTransformGizmo TransformGizmo;
 
 	static constexpr float FocusAnimationDuration = 0.25f;

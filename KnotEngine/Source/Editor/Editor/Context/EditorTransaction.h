@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Editor/Context/Transaction.h"
-#include "Core/Profiling/TransactionStatistics.h"
 
 class FEditorTransaction final
 {
@@ -26,7 +25,6 @@ public:
 
 	bool IsActive() const { return ActiveDepth > 0; }
 	bool IsApplying() const { return bApplying; }
-	const FTransactionStatistics& GetStatistics() const { return Statistics; }
 
 private:
 	static constexpr SIZE_T MaxTransactionCount = 128;
@@ -52,7 +50,6 @@ private:
 	SIZE_T NextTransactionIndex = 0;
 	uint32 ActiveDepth = 0;
 	bool bApplying = false;
-	FTransactionStatistics Statistics;
 
 	TSet<UNode*> DetachedNodes; // Level에서 분리됐지만, Undo/Redo를 위해 아직 파괴하지 않은 노드
 	TSet<UComponent*> DetachedComponents; // Node에서 분리됐지만, Undo/Redo를 위해 아직 파괴하지 않은 컴포넌트

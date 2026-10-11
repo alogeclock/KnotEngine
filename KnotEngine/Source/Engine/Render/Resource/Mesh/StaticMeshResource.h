@@ -1,9 +1,9 @@
 #pragma once
 
 #include "EngineAPI.h"
+#include "Asset/Mesh/StaticMesh.h"
 #include "Render/Resource/Mesh/MeshBuffer.h"
 
-class FStaticMesh;
 class IRenderDevice;
 
 struct ENGINE_API FStaticMeshSectionResource
@@ -27,7 +27,7 @@ private:
 	TArray<FStaticMeshSectionResource> Sections;
 };
 
-// Static Mesh의 CPU LOD로 생성한 GPU Buffer를 Renderer의 Static Mesh Resource Cache가 소유한다.
+// Resource Command에서 이동받은 CPU Mesh와 GPU Buffer를 Renderer의 Static Mesh Resource Cache가 소유한다.
 class ENGINE_API FStaticMeshResource final
 {
 public:
@@ -37,7 +37,7 @@ public:
 	FStaticMeshResource(const FStaticMeshResource&) = delete;
 	FStaticMeshResource& operator=(const FStaticMeshResource&) = delete;
 
-	bool Initialize(IRenderDevice& RenderDevice, const FStaticMesh& StaticMesh, uint64 Revision);
+	bool Initialize(IRenderDevice& RenderDevice, FStaticMesh&& StaticMesh, uint64 Revision);
 	void Release();
 
 	const FStaticMeshLODResource& GetLOD(SIZE_T LODIndex) const;
@@ -45,7 +45,10 @@ public:
 	uint64 GetSourceRevision() const { return SourceRevision; }
 	bool IsValid() const;
 
+	const FStaticMesh& GetMeshData() const { return MeshData; }
+
 private:
 	TArray<FStaticMeshLODResource> LODResources;
+	FStaticMesh MeshData;
 	uint64 SourceRevision = 0;
 };

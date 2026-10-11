@@ -8,6 +8,7 @@
 class FRenderer;
 class FMapSerializer;
 class UEditorEngine;
+class UPrimitiveComponent;
 
 UENUM()
 enum class EPlayState : uint8
@@ -41,6 +42,10 @@ public:
 	FScene& GetScene() { return Scene; }
 	const FScene& GetScene() const { return Scene; }
 
+	UPrimitiveComponent* FindPrimitive(uint64 PrimitiveId) const;
+	void RegisterPrimitive(uint64 PrimitiveId, UPrimitiveComponent& Component);
+	void UnregisterPrimitive(uint64 PrimitiveId);
+
 	FName GetNodeName(const FString& BaseName);
 
 	EPlayState GetPlayState() const { return PlayState; }
@@ -62,6 +67,7 @@ private:
 	static void ParseNodeName(const FString& Name, FString& OutBaseName, uint64& OutNextSuffix);
 
 	FScene Scene;
+	TMap<uint64, UPrimitiveComponent*> PrimitiveComponents; // GT가 Ray 결과의 ID로 Component를 찾는 Map이며, 등록 해제 시 해당 ID를 지운다.
 	TMap<FString, uint64> NameCounters;
 
 	UPROPERTY(NoEdit, Transient) TArray<TObjectPtr<ULevel>> Levels;

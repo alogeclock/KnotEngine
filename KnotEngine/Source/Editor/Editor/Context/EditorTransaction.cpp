@@ -9,7 +9,6 @@
 #include "World/Node.h"
 
 #include <algorithm>
-#include <chrono>
 
 // 새 편집 작업을 시작하고 중첩 작업은 최상위 Transaction에 합친다.
 void FEditorTransaction::Begin(FName Description)
@@ -162,7 +161,7 @@ void FEditorTransaction::DeleteComponent(UComponent& Component)
 	DetachedComponents.emplace(&Component);
 }
 
-// 직전 Transaction을 역방향으로 적용하고 실제 Undo의 시간과 레코드 수를 기록한다.
+// 직전 Transaction을 역방향으로 적용한다.
 bool FEditorTransaction::Undo()
 {
 	if (IsActive() || bApplying || NextTransactionIndex == 0)
@@ -170,19 +169,12 @@ bool FEditorTransaction::Undo()
 		return false;
 	}
 	KNOT_PROFILE_SCOPE("Editor Transaction", "Undo");
-	const auto StartTime = std::chrono::steady_clock::now();
 	FTransaction& Transaction = History[--NextTransactionIndex];
 	Apply(Transaction, true);
-	Statistics.Undo.TotalTimeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - StartTime).count();
-	++Statistics.Undo.OperationCount;
-	Statistics.Undo.RecordCount = Transaction.Records.size();
-	Statistics.Undo.AccumulatedTimeMs += Statistics.Undo.TotalTimeMs;
-	Statistics.Undo.MaxTimeMs = std::max(Statistics.Undo.MaxTimeMs, Statistics.Undo.TotalTimeMs);
-	Statistics.Undo.Description = Transaction.Description.ToString();
 	return true;
 }
 
-// 다음 Transaction을 정방향으로 적용하고 실제 Redo의 시간과 레코드 수를 기록한다.
+// 다음 Transaction을 정방향으로 적용한다.
 bool FEditorTransaction::Redo()
 {
 	if (IsActive() || bApplying || NextTransactionIndex >= History.size())
@@ -190,15 +182,8 @@ bool FEditorTransaction::Redo()
 		return false;
 	}
 	KNOT_PROFILE_SCOPE("Editor Transaction", "Redo");
-	const auto StartTime = std::chrono::steady_clock::now();
 	FTransaction& Transaction = History[NextTransactionIndex++];
 	Apply(Transaction, false);
-	Statistics.Redo.TotalTimeMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - StartTime).count();
-	++Statistics.Redo.OperationCount;
-	Statistics.Redo.RecordCount = Transaction.Records.size();
-	Statistics.Redo.AccumulatedTimeMs += Statistics.Redo.TotalTimeMs;
-	Statistics.Redo.MaxTimeMs = std::max(Statistics.Redo.MaxTimeMs, Statistics.Redo.TotalTimeMs);
-	Statistics.Redo.Description = Transaction.Description.ToString();
 	return true;
 }
 

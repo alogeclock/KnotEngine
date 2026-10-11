@@ -174,7 +174,7 @@ void FImGuiSystem::Draw(float DeltaTime)
 #if KNOT_CPU_PROFILER_ENABLED
 	if (bShowProfile)
 	{
-		ProfilePanel.Draw(DeltaTime, ViewportPanel.GetActiveViewportClient().GetPickingStatistics());
+		ProfilePanel.Draw(DeltaTime);
 		if (bFocusProfileRequested)
 		{
 			ImGui::SetWindowFocus("Profile");

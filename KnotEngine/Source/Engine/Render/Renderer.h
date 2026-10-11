@@ -59,7 +59,7 @@ public:
 	bool ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const TArray<FMaterialResourceCommand>& MaterialCommands, FString& Diagnostics);
 	
 	void UpdateMaterialResource(const FMaterialResourceCommand& Command);
-	void UpdateStaticMeshResource(const FStaticMeshResourceCommand& Command);
+	void UpdateStaticMeshResource(FStaticMeshResourceCommand&& Command);
 	void UpdateTextureResource(const FTextureResourceCommand& Command);
 
 	FMaterialResource* FindMaterialResource(const FAssetId& AssetId) const;

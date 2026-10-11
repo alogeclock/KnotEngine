@@ -15,9 +15,11 @@ struct FEditorSelection
 
 	bool IsSelected(const UNode* Node) const;
 	const TArray<UNode*>& GetSelectedNodes() const { return SelectedNodes; }
+	uint64 GetGeneration() const { return Generation; }
 
 	UNode* SelectedNode = nullptr;
 
 private:
 	TArray<UNode*> SelectedNodes;
+	uint64 Generation = 0; // 선택 함수 호출 시 증가하며, Ray 요청 뒤 Hierarchy·박스 선택 등으로 다시 선택했는지 확인해 이전 결과를 버린다.
 };

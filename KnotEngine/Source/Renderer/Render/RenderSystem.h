@@ -49,6 +49,7 @@ public:
 	ImTextureID GetImGuiTextureID(FTextureHandle Texture);
 	FGPUFrameStatistics GetLastGPUFrameStatistics() const;
 	FInstancedDrawStatistics GetLastInstancedDrawStatistics() const;
+	FSceneQueryStatistics GetLastSceneQueryStatistics() const;
 
 	ImTextureID StartupImGui(std::span<const uint8> FontPixels, uint32 FontWidth, uint32 FontHeight);
 	void ShutdownImGui();
@@ -64,6 +65,7 @@ private:
 	{
 		FScene* Scene = nullptr;
 		TArray<FPrimitiveRenderCommand> Commands;
+		TArray<std::shared_ptr<FSceneRayQuery>> RayQueries;
 	};
 
 	std::unique_ptr<IRenderBackend> RenderBackend;
@@ -84,6 +86,7 @@ private:
 	mutable std::mutex FrameStatisticsMutex;
 	FGPUFrameStatistics LastGPUFrameStatistics;
 	FInstancedDrawStatistics LastInstancedDrawStatistics;
+	FSceneQueryStatistics LastSceneQueryStatistics;
 
 	bool bStarted = false;
 };
