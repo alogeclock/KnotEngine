@@ -35,7 +35,8 @@ PointerAlignment: Left
 # 정렬 관련 (불편함을 유발하는 과도한 정렬 해제)
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Right
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Left
 AlignTrailingComments: true
 
 # 인클루드 설정 (요청 사항)
