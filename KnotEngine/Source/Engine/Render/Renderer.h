@@ -56,7 +56,7 @@ public:
 	FDebugDraw& GetDebugDraw() { return DebugDraw; }
 	
 	TArray<FShaderKey> GetShaderKeysForSource(const FString& SourcePath) const;
-	bool ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const TArray<FMaterialResourceCommand>& MaterialCommands, FString& Diagnostics);
+	bool ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, FString& Diagnostics);
 	
 	void UpdateMaterialResource(const FMaterialResourceCommand& Command);
 	void UpdateStaticMeshResource(FStaticMeshResourceCommand&& Command);

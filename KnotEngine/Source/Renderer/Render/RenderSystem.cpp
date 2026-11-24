@@ -113,18 +113,10 @@ bool FRenderSystem::ReloadShaders(const FString& SourcePath, FString& Diagnostic
 		Compiled.push_back({ Key, std::move(Output) });
 	}
 	
-	check(GAssetManager);
-	TArray<FMaterialResourceCommand> MaterialCommands;
-	if (!GAssetManager->PrepareMaterialShaderReload(Keys, MaterialCommands))
-	{
-		Diagnostics = "Shader 변경 대상 Material의 렌더 데이터를 준비하지 못했다.";
-		return false;
-	}
-
 	bool bSucceeded = false;
-	RenderThread.EnqueueAndWait([this, &Compiled, &MaterialCommands, &Diagnostics, &bSucceeded]
+	RenderThread.EnqueueAndWait([this, &Compiled, &Diagnostics, &bSucceeded]
 	{
-		bSucceeded = Renderer->ReloadShaders(Compiled, MaterialCommands, Diagnostics);
+		bSucceeded = Renderer->ReloadShaders(Compiled, Diagnostics);
 	});
 	return bSucceeded;
 }
@@ -314,7 +306,7 @@ void FRenderSystem::Render(TArray<FScene*>&& Scenes, TArray<FSceneViewFamily>&& 
 			CompletedRenderFrames = FrameNumber;
 		}
 		FrameCondition.notify_one();
-	});
+	}, "RenderFrame");
 }
 
 FTextureHandle FRenderSystem::CreateTexture(const FTextureDesc& Desc, std::span<const FTextureSubresourceData> InitialData)
@@ -332,7 +324,7 @@ void FRenderSystem::DestroyTexture(FTextureHandle& Texture)
 	}
 	FTextureHandle ReleasedTexture = Texture;
 	Texture.Reset();
-	RenderThread.Enqueue([this, ReleasedTexture]() mutable { RenderBackend->GetRenderDevice().DestroyTexture(ReleasedTexture); });
+	RenderThread.Enqueue([this, ReleasedTexture]() mutable { RenderBackend->GetRenderDevice().DestroyTexture(ReleasedTexture); }, "DestroyTexture");
 }
 
 FViewportRenderTargets FRenderSystem::ResizeViewportTargets(FViewportRenderTargets&& CurrentTargets, uint32 Width, uint32 Height)
@@ -385,7 +377,7 @@ void FRenderSystem::ReleaseViewportTargets(FViewportRenderTargets& Targets)
 		RenderDevice.DestroyTexture(ReleasedTargets.RenderTarget.SelectionDepth);
 		RenderDevice.DestroyTexture(ReleasedTargets.RenderTarget.DisplayColor);
 		RenderDevice.DestroyTexture(ReleasedTargets.RenderTarget.SceneColor);
-	});
+	}, "ReleaseViewportTargets");
 }
 
 ImTextureID FRenderSystem::GetImGuiTextureID(FTextureHandle Texture)

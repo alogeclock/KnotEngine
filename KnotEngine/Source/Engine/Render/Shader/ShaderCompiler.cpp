@@ -2,6 +2,7 @@
 
 #include "Core/Assert.h"
 #include "Core/IO/Paths.h"
+#include "Core/Log.h"
 
 #include <format>
 #include <fstream>
@@ -14,23 +15,36 @@ FShaderCompiler::FShaderCompiler(IShaderFormat& InShaderFormat)
 
 FShaderCompilerOutput FShaderCompiler::GetOrCompile(const FShaderKey& Key)
 {
+	FShaderCompilerOutput Output;
+	FString Diagnostics;
+	panicf(TryGetOrCompile(Key, Output, Diagnostics), "Shader 컴파일 실패. Path={}, EntryPoint={}\n{}", Key.SourcePath, Key.EntryPoint, Diagnostics);
+	return Output;
+}
+
+bool FShaderCompiler::TryGetOrCompile(const FShaderKey& Key, FShaderCompilerOutput& Output, FString& Diagnostics)
+{
 	checkf(!Key.SourcePath.empty() && !Key.EntryPoint.empty(), "Shader Compiler Key가 비어 있다.");
+	TArray<uint8> Source;
+	if (!TryLoadSource(Key, Source, Diagnostics))
+	{
+		return false;
+	}
 	const uint64 KeyHash = HashKey(Key);
-	const TArray<uint8> Source = LoadFile(FPaths::ResolveContentPath(Key.SourcePath));
-	panicf(!Source.empty(), "Shader 소스 파일이 비어 있다. Path={}", Key.SourcePath);
 	const uint64 SourceHash = HashSource(Key, Source);
 	const std::filesystem::path CachePath = GetShaderCachePath(Key);
 
-	FShaderCompilerOutput Output;
-	if (LoadCookedShader(CachePath, KeyHash, SourceHash, Output))
+	FShaderCompilerOutput Compiled;
+	if (!LoadCookedShader(CachePath, KeyHash, SourceHash, Compiled))
 	{
-		return Output;
+		if (!TryCompile(Key, Source, Compiled, Diagnostics))
+		{
+			return false;
+		}
+		SaveCookedShader(CachePath, KeyHash, SourceHash, Compiled);
 	}
-
-	Output = ShaderFormat.Compile({ Key, Source });
-	panicf(!Output.Bytecode.empty(), "Shader Format이 빈 Bytecode를 반환했다. Path={}, EntryPoint={}", Key.SourcePath, Key.EntryPoint);
-	SaveCookedShader(CachePath, KeyHash, SourceHash, Output);
-	return Output;
+	Output = std::move(Compiled);
+	Diagnostics.clear();
+	return true;
 }
 
 // 편집 중인 소스를 캐시 없이 다시 컴파일한다. 실패한 결과는 cooked cache에 기록하지 않는다.
@@ -80,22 +94,6 @@ bool FShaderCompiler::TryCompile(const FShaderKey& Key, std::span<const uint8> S
 	}
 	Output = std::move(Compiled);
 	return true;
-}
-
-TArray<uint8> FShaderCompiler::LoadFile(const std::filesystem::path& FilePath)
-{
-	std::ifstream Stream(FilePath, std::ios::binary | std::ios::ate);
-	panicf(Stream, "파일을 찾지 못했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
-
-	const std::streamoff FileSize = Stream.tellg();
-	panicf(FileSize >= 0 && static_cast<uint64>(FileSize) <= (std::numeric_limits<SIZE_T>::max)(),
-		"파일 크기가 유효하지 않다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
-
-	TArray<uint8> Bytes(static_cast<SIZE_T>(FileSize));
-	Stream.seekg(0, std::ios::beg);
-	panicf(Bytes.empty() || Stream.read(reinterpret_cast<char*>(Bytes.data()), FileSize),
-		"파일을 읽지 못했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
-	return Bytes;
 }
 
 uint64 FShaderCompiler::HashKey(const FShaderKey& Key) const
@@ -275,9 +273,19 @@ void FShaderCompiler::SaveCookedShader(
 	panicf(Output.Reflection.ConstantBuffers.size() <= (std::numeric_limits<uint32>::max)() &&
 		Output.Reflection.Resources.size() <= (std::numeric_limits<uint32>::max)(), "Shader Reflection이 .kasset 개수 범위를 초과했다.");
 
-	std::filesystem::create_directories(FilePath.parent_path());
+	std::error_code DirectoryError;
+	std::filesystem::create_directories(FilePath.parent_path(), DirectoryError);
+	if (DirectoryError)
+	{
+		KE_LOG(LogShader, Warning, "Shader 캐시 디렉터리 생성 실패. Path={}, Error={}", FPaths::ToUtf8(FilePath.generic_wstring()), DirectoryError.message());
+		return;
+	}
 	std::ofstream Stream(FilePath, std::ios::binary | std::ios::trunc);
-	panicf(Stream, "cooked Shader Asset을 생성하지 못했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+	if (!Stream)
+	{
+		KE_LOG(LogShader, Warning, "Shader 캐시 파일을 열 수 없다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+		return;
+	}
 	const auto Write = [&Stream](const auto& Value)
 	{
 		Stream.write(reinterpret_cast<const char*>(&Value), sizeof(Value));
@@ -330,5 +338,9 @@ void FShaderCompiler::SaveCookedShader(
 		Write(Resource.Slot);
 		Write(Resource.Count);
 	}
-	panicf(Stream.good(), "cooked Shader Asset 저장에 실패했다. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+	Stream.close();
+	if (!Stream)
+	{
+		KE_LOG(LogShader, Warning, "Shader 캐시 파일 저장 실패. Path={}", FPaths::ToUtf8(FilePath.generic_wstring()));
+	}
 }

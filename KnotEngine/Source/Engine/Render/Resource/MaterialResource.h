@@ -3,13 +3,13 @@
 #include "EngineAPI.h"
 
 #include "Asset/Material/MaterialParameters.h"
+#include "Render/Resource/ResourceCommand.h"
 #include "Render/Shader/ShaderTypes.h"
 
 class FMaterial;
 class FTextureResource;
 class FRenderer;
 class FShaderRegistry;
-struct FMaterialResourceCommand;
 
 // MaterialConstants를 Shader Stage의 b Register에 바인딩하는 위치다.
 struct FMaterialConstantBufferBinding
@@ -62,8 +62,9 @@ public:
 	const TArray<FTextureBinding>& GetTextures() const { return Textures; }
 
 	uint32 GetSortId() const { return SortId; }
-	uint64 GetSourceRevision() const { return SourceRevision; }
-	bool IsValid() const { return PipelineState.IsValid() && SourceRevision != 0; }
+	const FMaterialResourceCommand& GetSourceCommand() const { return SourceCommand; }
+	uint64 GetSourceRevision() const { return SourceCommand.Revision; }
+	bool IsValid() const { return PipelineState.IsValid() && GetSourceRevision() != 0; }
 
 private:
 	bool Build(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics);
@@ -71,7 +72,7 @@ private:
 	static bool AppendShaderReflection(FMaterialParameterLayout& Layout, const FShaderReflection& Reflection, FString* Diagnostics);
 
 	uint32 SortId = 0;
-	uint64 SourceRevision = 0;
+	FMaterialResourceCommand SourceCommand;
 	FPipelineStateHandle PipelineState;
 	FPipelineStateHandle InstancedPipelineState;
 	FPipelineStateDesc PipelineStateDesc;

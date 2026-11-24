@@ -32,7 +32,7 @@ struct ENGINE_API FMaterialTextureData
 	FSamplerDesc Sampler;
 };
 
-// Material의 현재 값과 Revision을 RT에 전달하며 Shader Reload 시에도 같은 Revision의 후보 데이터로 사용한다.
+// Material의 값과 Revision을 RT에 전달한다. RT는 마지막으로 적용한 명령을 Shader Reload에 사용한다.
 struct ENGINE_API FMaterialResourceCommand
 {
 	FAssetId AssetId;

@@ -1,6 +1,7 @@
 #include "Render/Renderer.h"
 
 #include "Core/Assert.h"
+#include "Core/Log.h"
 #include "Core/Profiling/CPUProfiler.h"
 #include "Render/Graph/RenderGraph.h"
 #include "Render/RHI/RenderContext.h"
@@ -9,6 +10,7 @@
 #include "Render/Resource/Mesh/Vertex.h"
 
 #include <algorithm>
+#include <format>
 #include <limits>
 
 FRenderer::FRenderer(IRenderDevice& InRenderDevice, IRenderContext& InRenderContext, IShaderFormat& InShaderFormat)
@@ -74,7 +76,8 @@ void FRenderer::Create(void* NativeWindowHandle)
 	panicf(DefaultTextureResource.Initialize(RenderDevice, WhiteTextureDesc, std::span(&WhiteTextureData, 1), 1), "기본 White Texture 생성에 실패했다.");
 	FMaterialResourceCommand DefaultMaterialCommand;
 	DefaultMaterialCommand.Revision = 1;
-	panicf(DefaultMaterialResource.Initialize(*this, DefaultMaterialCommand, 0), "기본 Material Resource 생성에 실패했다.");
+	FString Diagnostics;
+	panicf(DefaultMaterialResource.Initialize(*this, DefaultMaterialCommand, 0, &Diagnostics), "기본 Material Resource 생성에 실패했다. Error={}", Diagnostics);
 	DebugDraw.Create();
 }
 
@@ -194,8 +197,15 @@ void FRenderer::UpdateMaterialResource(const FMaterialResourceCommand& Command)
 	if (Resource->GetSourceRevision() != Command.Revision)
 	{
 		panicf(MaterialResources.size() < (std::numeric_limits<uint32>::max)(), "Material Resource Sort ID가 uint32 범위를 초과했다.");
-		const uint32 SortId = Resource->IsValid() ? Resource->GetSortId() : static_cast<uint32>(MaterialResources.size());
-		panicf(Resource->Initialize(*this, Command, SortId), "Material Resource 생성에 실패했다. AssetId={}", Command.AssetId.ToString());
+		const bool bHasExistingResource = Resource->IsValid();
+		const uint32 SortId = bHasExistingResource ? Resource->GetSortId() : static_cast<uint32>(MaterialResources.size());
+		FString Diagnostics;
+		if (!Resource->Initialize(*this, Command, SortId, &Diagnostics))
+		{
+			panicf(bHasExistingResource, "Material Resource 생성 실패. AssetId={}, Revision={}, Error={}", Command.AssetId.ToString(), Command.Revision, Diagnostics);
+			KE_LOG(LogRenderer, Error, "Material Resource 갱신 실패. AssetId={}, Revision={}, ActiveRevision={}, Error={}",
+			       Command.AssetId.ToString(), Command.Revision, Resource->GetSourceRevision(), Diagnostics);
+		}
 	}
 }
 
@@ -206,7 +216,7 @@ TArray<FShaderKey> FRenderer::GetShaderKeysForSource(const FString& SourcePath) 
 }
 
 // 컴파일된 Shader로 GPU Shader와 영향받는 PSO를 준비하고, 필요하면 Material 바인딩까지 Frame 경계에서 교체한다.
-bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const TArray<FMaterialResourceCommand>& MaterialCommands, FString& Diagnostics)
+bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, FString& Diagnostics)
 {
 	checkf(!CommandList.IsValid(), "열린 Render Command List에서 Shader를 교체할 수 없다.");
 	if (!ShaderRegistry.StageReload(Compiled, Diagnostics))
@@ -297,9 +307,7 @@ bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const 
 	const bool bRebuildDefaultBindings = bDefaultAffected && NeedsBindingRebuild(DefaultMaterialResource);
 	if (bRebuildDefaultBindings)
 	{
-		FMaterialResourceCommand DefaultCommand;
-		DefaultCommand.Revision = DefaultMaterialResource.GetSourceRevision();
-		if (!NewDefault.Initialize(*this, DefaultCommand, 0, &Diagnostics))
+		if (!NewDefault.Initialize(*this, DefaultMaterialResource.GetSourceCommand(), 0, &Diagnostics))
 		{
 			PipelineStateCache.CancelReload();
 			ShaderRegistry.CancelReload();
@@ -314,14 +322,16 @@ bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const 
 	}
 
 	TMap<FAssetId, std::unique_ptr<FMaterialResource>, FAssetIdHash> PreparedMaterials;
-	for (const FMaterialResourceCommand& Command : MaterialCommands)
+	for (const auto& [AssetId, Existing] : MaterialResources)
 	{
-		const auto Existing = MaterialResources.find(Command.AssetId);
-		check(Existing != MaterialResources.end() && Existing->second);
-		check(Command.Revision == Existing->second->GetSourceRevision());
-		if (!NeedsBindingRebuild(*Existing->second))
+		check(Existing && Existing->IsValid());
+		if (!UsesReplacedShader(*Existing))
 		{
-			if (!StagePipelineUpdates(*Existing->second))
+			continue;
+		}
+		if (!NeedsBindingRebuild(*Existing))
+		{
+			if (!StagePipelineUpdates(*Existing))
 			{
 				PipelineStateCache.CancelReload();
 				ShaderRegistry.CancelReload();
@@ -330,13 +340,14 @@ bool FRenderer::ReloadShaders(const TArray<FShaderReloadEntry>& Compiled, const 
 			continue;
 		}
 		auto Candidate = std::make_unique<FMaterialResource>();
-		if (!Candidate->Initialize(*this, Command, Existing->second->GetSortId(), &Diagnostics))
+		if (!Candidate->Initialize(*this, Existing->GetSourceCommand(), Existing->GetSortId(), &Diagnostics))
 		{
+			Diagnostics = std::format("Material Resource 준비 실패. AssetId={}, Revision={}, Error={}", AssetId.ToString(), Existing->GetSourceRevision(), Diagnostics);
 			PipelineStateCache.CancelReload();
 			ShaderRegistry.CancelReload();
 			return false;
 		}
-		PreparedMaterials.emplace(Command.AssetId, std::move(Candidate));
+		PreparedMaterials.emplace(AssetId, std::move(Candidate));
 	}
 
 	// D3D11 EVENT Query로 이전 프레임의 실제 GPU 완료를 확인한다. RT CPU Flush만으로는 자원 폐기가 안전하지 않다.

@@ -281,7 +281,7 @@ Asset Resource는 Primitive와 분리하여 Asset별 Revision 단위로 갱신�
 | `FTextureResourceCommand` | AssetId, Revision, `shared_ptr<const FTexture>` | `FTextureResource`와 Texture Handle |
 | `FMaterialResourceCommand` | AssetId, Revision, Material 값, Parameter, Texture AssetId, Sampler | `FMaterialResource`와 Pipeline·binding |
 
-`FAssetManager`는 요청한 `AssetId + Revision`을 기억한다. 같은 Revision은 다시 전송하지 않고, 최초 요청이나 Revision 변경만 Pending Resource Command에 추가한다. Mesh Vertex/Index와 Texture Mip은 불변 버전의 소유 참조로 전달하고, Material 상태·파라미터는 기존처럼 Command에 값 복사한다. Material Revision은 CPU 값의 변경만 나타내며 Shader Hot Reload는 같은 Revision의 현재 값을 별도 후보 명령으로 전달한다.
+`FAssetManager`는 요청한 `AssetId + Revision`을 기억한다. 같은 Revision은 다시 전송하지 않고, 최초 요청이나 Revision 변경만 Pending Resource Command에 추가한다. Mesh Vertex/Index와 Texture Mip은 불변 버전의 소유 참조로 전달하고, Material 상태·파라미터는 기존처럼 Command에 값 복사한다. Material Revision은 CPU 값의 변경을 나타내며, Shader Hot Reload는 RT에서 마지막으로 적용한 Material 명령을 사용한다.
 
 `FRenderer`는 `FAssetId`를 키로 Resource를 `unique_ptr`로 소유한다. Map 재해시에도 Resource 주소가 유지되므로 Proxy와 Material binding의 비소유 포인터가 안정적이다.
 
@@ -467,7 +467,7 @@ Static Mesh 일반 Vertex Shader는 `b0`과 `b3`을 사용한다. Instanced Vert
 
 `FDirectoryWatcher`는 Windows 변경 알림 API를 직접 사용하여 Content 디렉터리의 변경을 감지한다. 등록된 Shader 소스만 현재 바이트와 비교하며, 변경된 내용이 0.5초 동안 유지됐을 때 확정된 변경으로 보고한다. Windows 알림 수신은 운영체제가 Push하지만, 확정된 변경의 소비는 GT의 `FRenderSystem`이 `PollChanges()`로 가져가는 Pull 방식이다.
 
-현재 `FRenderSystem::Render()` 시작에서 Shader 변경을 확인한다. 따라서 렌더 호출이 중단된 동안에는 변경 확정과 Reload도 진행되지 않는다. 파일 감시를 렌더 제출과 분리할 필요가 생기면 별도 GT `Tick()`에서 변경 Queue를 Drain하도록 옮긴다. Watcher Thread를 추가하더라도 Worker는 파일 변경만 Queue에 넣고, UObject와 `FAssetManager`를 사용하는 Reload 준비는 GT에서 수행한다.
+현재 `FRenderSystem::Render()` 시작에서 Shader 변경을 확인한다. 따라서 렌더 호출이 중단된 동안에는 변경 확정과 Reload도 진행되지 않는다. 파일 감시를 렌더 제출과 분리할 필요가 생기면 별도 GT `Tick()`에서 변경 Queue를 Drain하도록 옮긴다. Watcher Thread를 추가하더라도 Worker는 파일 변경만 Queue에 넣고, GT가 변경을 소비하고 컴파일한다.
 
 Shader Hot Reload는 다음 순서로 동기 실행한다.
 
@@ -478,9 +478,9 @@ Directory Watcher가 안정된 파일 변경 확정 [GT]
     ↓
 모든 Entry Point와 Stage 컴파일 [GT]
     ↓
-영향받는 Material의 현재 값 Command 준비 [GT]
-    ↓
 Shader와 PSO 후보 생성 [RT]
+    ↓
+활성 Material의 PSO로 교체 영향 확인 [RT]
     ↓
 Material Layout 비교: 같으면 PSO 후보만 연결, 다르면 Material Resource 후보 생성 [RT]
     ↓
@@ -498,7 +498,7 @@ Shader, PSO와 필요한 Material 바인딩을 일괄 교체 [RT]
 
 실패한 HLSL 파일 자체는 복원하지 않는다. 오류를 로그에 기록하고 런타임은 마지막으로 성공한 렌더 상태를 계속 사용하며, 다음 파일 변경에서 다시 시도한다.
 
-`FAssetManager::PrepareMaterialShaderReload()`는 이미 Resource가 요청된 Material 중 변경된 Shader Key를 사용하는 대상만 선별하고 현재 Revision의 값 명령을 만든다. `FRenderer::ReloadShaders()`는 전체 Reflection이 아니라 `MaterialConstants`와 Texture/Sampler 배치만 비교한다. Material Layout이 동일하면 Material Resource의 PSO Handle과 Descriptor만 교체하고, 달라지면 새 상수 배치와 Texture/Sampler 바인딩까지 후보 Resource에 다시 구성한다. View/Pass Constant처럼 Material Resource가 소비하지 않는 Reflection 변경은 재패킹 조건에 포함하지 않는다. Shader 변경만으로 UObject Revision이나 요청 기록은 증가하지 않는다.
+`FRenderer::ReloadShaders()`는 RT의 활성 Material이 사용하는 일반·Instanced PSO에서 교체 대상 Shader를 찾는다. `MaterialConstants`와 Texture/Sampler 배치가 동일하면 PSO Handle과 Descriptor만 교체한다. 배치가 달라지면 마지막으로 적용한 Material 명령으로 후보 Resource의 상수와 Texture/Sampler 바인딩을 다시 구성한다. View/Pass Constant처럼 Material Resource가 소비하지 않는 Reflection 변경은 재패킹 조건에 포함하지 않는다. 새 Material Revision의 적용은 일반 리소스 갱신 경로에서 처리한다.
 
 기존 `FMaterialResource` 객체의 주소는 유지한다. Material Layout이 같으면 PSO 참조만 갱신하고, 달라지면 후보와 내부 Pipeline·상수·Texture 바인딩을 `Swap()`한다. 따라서 `FStaticMeshSceneProxy`가 가진 비소유 `FMaterialResource*`를 다시 제출할 필요가 없으며 Shader Hot Reload는 `FScene`의 Primitive Command 경로를 사용하지 않는다.
 

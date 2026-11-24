@@ -5,6 +5,7 @@
 #include "Render/Shader/ShaderCompiler.h"
 
 #include <algorithm>
+#include <format>
 
 FShaderRegistry::FShaderRegistry(IRenderDevice& InRenderDevice, FShaderCompiler& InShaderCompiler)
 	: RenderDevice(InRenderDevice), ShaderCompiler(InShaderCompiler)
@@ -24,6 +25,17 @@ void FShaderRegistry::Create()
 FShaderHandle FShaderRegistry::GetOrCreate(const FShaderKey& Key)
 {
 	return GetOrCreateEntry(Key).Handle;
+}
+
+bool FShaderRegistry::TryGetOrCreate(const FShaderKey& Key, FShaderHandle& Handle, FString& Diagnostics)
+{
+	const FEntry* Entry = TryGetOrCreateEntry(Key, Diagnostics);
+	if (!Entry)
+	{
+		return false;
+	}
+	Handle = Entry->Handle;
+	return true;
 }
 
 const FShaderReflection& FShaderRegistry::GetReflection(const FShaderKey& Key)
@@ -257,27 +269,41 @@ void FShaderRegistry::ReleaseReplacedShaders()
 // Reload 중에는 준비된 Entry를 우선 조회해 새 Shader와 Reflection을 사용한다.
 FShaderRegistry::FEntry& FShaderRegistry::GetOrCreateEntry(const FShaderKey& Key)
 {
+	FString Diagnostics;
+	FEntry* Entry = TryGetOrCreateEntry(Key, Diagnostics);
+	panicf(Entry, "Shader 등록 실패. {}", Diagnostics);
+	return *Entry;
+}
+
+FShaderRegistry::FEntry* FShaderRegistry::TryGetOrCreateEntry(const FShaderKey& Key, FString& Diagnostics)
+{
 	checkf(!Key.SourcePath.empty() && !Key.EntryPoint.empty(), "Shader Registry Key가 비어 있다.");
 	for (FEntry& Entry : StagedEntries)
 	{
 		if (Entry.Key == Key)
 		{
-			return Entry;
+			return &Entry;
 		}
 	}
 	for (FEntry& Entry : Entries) // 교체해야 할 셰이더 수가 늘 경우 해시 맵으로 변경한다.
 	{
 		if (Entry.Key == Key)
 		{
-			return Entry;
+			return &Entry;
 		}
 	}
 
-	FShaderCompilerOutput Output = ShaderCompiler.GetOrCompile(Key);
-	FShaderHandle Handle = RenderDevice.CreateShader({ Output.Bytecode, Key.SourcePath + ":" + Key.EntryPoint, Key.Stage });
+	FShaderCompilerOutput Output;
+	FShaderHandle Handle;
+	if (!ShaderCompiler.TryGetOrCompile(Key, Output, Diagnostics) ||
+		!RenderDevice.TryCreateShader({ Output.Bytecode, Key.SourcePath + ":" + Key.EntryPoint, Key.Stage }, Handle, Diagnostics))
+	{
+		Diagnostics = std::format("Path={}, EntryPoint={}, Error={}", Key.SourcePath, Key.EntryPoint, Diagnostics);
+		return nullptr;
+	}
 	panicf(Handle.IsValid(), "Shader Registry가 유효한 Shader Handle을 생성하지 못했다. Path={}, EntryPoint={}", Key.SourcePath, Key.EntryPoint);
 	Entries.push_back({ Key, Handle, std::move(Output.Reflection) });
-	return Entries.back();
+	return &Entries.back();
 }
 
 // 준비·교체·등록 단계에 남아 있는 모든 Shader Handle을 해제한다.

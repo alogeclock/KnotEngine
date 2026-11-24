@@ -2,6 +2,7 @@
 
 #include "Core/Assert.h"
 
+#include <exception>
 #include <future>
 
 FRenderThread::~FRenderThread()
@@ -16,12 +17,12 @@ void FRenderThread::Startup()
 	Thread = std::thread(&FRenderThread::Run, this);
 }
 
-void FRenderThread::Enqueue(std::function<void()>&& Command)
+void FRenderThread::Enqueue(std::function<void()>&& Command, std::string_view CommandName)
 {
 	check(Thread.joinable());
 	{
 		std::lock_guard Lock(QueueMutex);
-		Commands.push(std::move(Command));
+		Commands.push({ std::move(Command), std::string(CommandName) });
 	}
 	QueueCondition.notify_one();
 }
@@ -41,7 +42,7 @@ void FRenderThread::EnqueueAndWait(std::function<void()>&& Command)
 		{
 			Completion->set_exception(std::current_exception());
 		}
-	});
+	}, "EnqueueAndWait");
 	Future.get();
 }
 
@@ -74,7 +75,7 @@ void FRenderThread::Run()
 	RenderThreadId = std::this_thread::get_id();
 	while (true)
 	{
-		std::function<void()> Command;
+		FQueuedCommand Command;
 		{
 			std::unique_lock Lock(QueueMutex);
 			QueueCondition.wait(Lock, [this] { return bStopRequested || !Commands.empty(); });
@@ -85,6 +86,17 @@ void FRenderThread::Run()
 			Command = std::move(Commands.front());
 			Commands.pop();
 		}
-		Command();
+		try
+		{
+			Command.Execute();
+		}
+		catch (const std::exception& Error)
+		{
+			panicf(false, "Render Command 실행 중 예외가 발생했다. Command={}, Error={}", Command.Name, Error.what());
+		}
+		catch (...)
+		{
+			panicf(false, "Render Command 실행 중 알 수 없는 예외가 발생했다. Command={}", Command.Name);
+		}
 	}
 }

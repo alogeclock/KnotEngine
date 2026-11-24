@@ -3,12 +3,12 @@
 #include "Asset/Material/Material.h"
 #include "Core/Assert.h"
 #include "Render/Renderer.h"
-#include "Render/Resource/ResourceCommand.h"
 #include "Render/Resource/Mesh/Vertex.h"
 #include "Render/Resource/TextureResource.h"
 
 #include <algorithm>
 #include <cstring>
+#include <format>
 
 // Material 후보를 완성한 뒤 기존 Resource의 내부 상태와 교체한다.
 bool FMaterialResource::Initialize(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics)
@@ -28,7 +28,7 @@ void FMaterialResource::Swap(FMaterialResource& Other)
 	using std::swap;
 	
 	swap(SortId, Other.SortId);
-	swap(SourceRevision, Other.SourceRevision);
+	swap(SourceCommand, Other.SourceCommand);
 	swap(PipelineState, Other.PipelineState);
 	swap(InstancedPipelineState, Other.InstancedPipelineState);
 	swap(PipelineStateDesc, Other.PipelineStateDesc);
@@ -57,8 +57,11 @@ void FMaterialResource::SetPipelineState(bool bInstanced, FPipelineStateDesc Des
 // Material 명령과 Shader Reflection으로 Pipeline, 상수 및 Texture 바인딩을 준비한다.
 bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceCommand& Command, uint32 InSortId, FString* Diagnostics)
 {
+	FString LocalDiagnostics;
+	FString& Error = Diagnostics ? *Diagnostics : LocalDiagnostics;
 	if (Command.Revision == 0)
 	{
+		Error = "Material Resource Revision이 0이다.";
 		return false;
 	}
 
@@ -73,8 +76,16 @@ bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceComman
 	FShaderRegistry& ShaderRegistry = Renderer.GetShaderRegistry();
 
 	FPipelineStateDesc SurfaceDesc;
-	SurfaceDesc.VertexShader = ShaderRegistry.GetOrCreate(Material.GetVertexShader());
-	SurfaceDesc.PixelShader = ShaderRegistry.GetOrCreate(Material.GetPixelShader());
+	if (!ShaderRegistry.TryGetOrCreate(Material.GetVertexShader(), SurfaceDesc.VertexShader, Error) ||
+		!ShaderRegistry.TryGetOrCreate(Material.GetPixelShader(), SurfaceDesc.PixelShader, Error))
+	{
+		return false;
+	}
+	FMaterialParameterLayout Layout;
+	if (!BuildParameterLayout(Layout, ShaderRegistry, Material, &Error))
+	{
+		return false;
+	}
 	SurfaceDesc.VertexLayout = FStaticMeshVertex::GetVertexLayout();
 	SurfaceDesc.RasterizerState.CullMode = Material.GetCullMode();
 	SurfaceDesc.DepthMode = Material.GetDepthMode();
@@ -88,8 +99,6 @@ bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceComman
 		Blend.DestinationAlphaBlend = EBlendFactor::InverseSourceAlpha;
 	}
 	PipelineStateDesc = SurfaceDesc;
-	FString LocalDiagnostics;
-	FString& Error = Diagnostics ? *Diagnostics : LocalDiagnostics;
 	if (!Renderer.GetPipelineStateCache().TryGetOrCreate(PipelineStateDesc, PipelineState, Error))
 	{
 		return false;
@@ -104,19 +113,14 @@ bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceComman
 			return Layout;
 		}();
 		InstancedPipelineStateDesc = SurfaceDesc;
-		InstancedPipelineStateDesc.VertexShader = ShaderRegistry.GetOrCreate(InstancedVertexShader);
 		InstancedPipelineStateDesc.VertexLayout = InstancedVertexLayout;
-		if (!Renderer.GetPipelineStateCache().TryGetOrCreate(InstancedPipelineStateDesc, InstancedPipelineState, Error))
+		if (!ShaderRegistry.TryGetOrCreate(InstancedVertexShader, InstancedPipelineStateDesc.VertexShader, Error) ||
+			!Renderer.GetPipelineStateCache().TryGetOrCreate(InstancedPipelineStateDesc, InstancedPipelineState, Error))
 		{
 			return false;
 		}
 	}
 
-	FMaterialParameterLayout Layout;
-	if (!BuildParameterLayout(Layout, ShaderRegistry, Material, Diagnostics))
-	{
-		return false;
-	}
 	ConstantBuffers = Layout.ConstantBuffers;
 	if (bHasMaterialAsset)
 	{
@@ -184,7 +188,11 @@ bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceComman
 					continue;
 				}
 				FTextureResource* TextureResource = Renderer.FindTextureResource(Texture.AssetId);
-				check(TextureResource && TextureResource->IsValid());
+				if (!TextureResource || !TextureResource->IsValid())
+				{
+					Error = std::format("Material Texture Resource가 준비되지 않았다. Parameter={}, TextureId={}", Binding.Name.ToString(), Texture.AssetId.ToString());
+					return false;
+				}
 				TextureBinding.TextureResource = TextureResource;
 				Sampler = Texture.Sampler;
 				break;
@@ -198,7 +206,8 @@ bool FMaterialResource::Build(FRenderer& Renderer, const FMaterialResourceComman
 	}
 
 	SortId = InSortId;
-	SourceRevision = Command.Revision;
+	SourceCommand = Command;
+	Error.clear();
 	return true;
 }
 
@@ -212,7 +221,7 @@ void FMaterialResource::Release()
 	PipelineStateDesc = {};
 	InstancedPipelineStateDesc = {};
 	SortId = 0;
-	SourceRevision = 0;
+	SourceCommand = {};
 }
 
 // Material의 Vertex/Pixel Shader Reflection을 하나의 Parameter Layout으로 합친다.

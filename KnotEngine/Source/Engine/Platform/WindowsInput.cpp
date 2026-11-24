@@ -279,11 +279,13 @@ void FWindowsInput::ProcessMouseButtonUp(EMouseButton Button, LPARAM LParam)
 void FWindowsInput::ProcessMouseWheel(UINT Message, WPARAM WParam, LPARAM LParam)
 {
 	POINT ClientPosition = { GET_X_LPARAM(LParam), GET_Y_LPARAM(LParam) };
-	const BOOL bConvertedToClient = ScreenToClient(WindowHandle, &ClientPosition);
-	verify(bConvertedToClient);
-	if (bConvertedToClient)
+	if (ScreenToClient(WindowHandle, &ClientPosition))
 	{
 		SetPointerPosition(FVector2(static_cast<float>(ClientPosition.x), static_cast<float>(ClientPosition.y)));
+	}
+	else
+	{
+		KE_LOG_ONCE(LogInput, Warning, "마우스 휠 메시지의 ScreenToClient 실패. 포인터 위치를 유지하고 휠 델타를 처리한다.");
 	}
 
 	const float Delta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(WParam)) / static_cast<float>(WHEEL_DELTA);

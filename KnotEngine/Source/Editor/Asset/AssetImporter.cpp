@@ -21,6 +21,7 @@
 #include <cmath>
 #include <chrono>
 #include <cstring>
+#include <format>
 #include <fstream>
 #include <limits>
 #include <utility>
@@ -53,14 +54,14 @@ FString FAssetImporter::Combine(const FString& Left, const FString& Right)
 }
 
 // 공통 Header와 Payload를 임시 파일에 기록한 뒤 최종 .kasset으로 교체한다.
-bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& SavedAssetId)
+bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32 PayloadVersion, const TArray<uint8>& PayloadBytes, FAssetId& SavedAssetId, FString& Error)
 {
 	const std::filesystem::path FinalPath = FPaths::ResolveContentPath(AssetPath + ".kasset");
-	const std::filesystem::path TemporaryPath = FinalPath.wstring() + L".tmp";
-	std::error_code Error;
-	std::filesystem::create_directories(FinalPath.parent_path(), Error);
-	if (Error)
+	std::error_code DirectoryError;
+	std::filesystem::create_directories(FinalPath.parent_path(), DirectoryError);
+	if (DirectoryError)
 	{
+		Error = std::format(".kasset 디렉터리 생성 실패. AssetPath={}, Error={} ({})", AssetPath, DirectoryError.value(), DirectoryError.message());
 		return false;
 	}
 
@@ -85,6 +86,7 @@ bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32
 	{
 		AssetId = FEngineAssetIds::Sphere;
 	}
+
 	std::ifstream ExistingStream(FinalPath, std::ios::binary);
 	FAssetFileHeader ExistingHeader = {};
 	if (!AssetId.IsValid() && ExistingStream.read(reinterpret_cast<char*>(&ExistingHeader), sizeof(ExistingHeader)) &&
@@ -106,27 +108,69 @@ bool FAssetImporter::SaveAsset(const FString& AssetPath, EAssetType Type, uint32
 	Header.PayloadVersion = PayloadVersion;
 	Header.PayloadSize = PayloadBytes.size();
 	Header.AssetId = AssetId;
+
 	TArray<uint8> FileBytes;
 	FMemoryWriter FileArchive(FileBytes);
 	FileArchive << Header;
 	FileArchive.Serialize(const_cast<uint8*>(PayloadBytes.data()), static_cast<int64>(PayloadBytes.size()));
 	if (FileArchive.HasError())
 	{
+		Error = std::format(".kasset 직렬화 실패. AssetPath={}", AssetPath);
 		return false;
 	}
-	std::ofstream Stream(TemporaryPath, std::ios::binary | std::ios::trunc);
-	if (!Stream || !Stream.write(reinterpret_cast<const char*>(FileBytes.data()), static_cast<std::streamsize>(FileBytes.size())))
+
+	const std::filesystem::path TemporaryPath = FinalPath.parent_path() / FPaths::ToWide(FAssetId::New().ToString() + ".tmp");
+	const HANDLE File = CreateFileW(TemporaryPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (File == INVALID_HANDLE_VALUE)
 	{
+		Error = std::format(".kasset 임시 파일 열기 실패. AssetPath={}, GetLastError()={}", AssetPath, GetLastError());
 		return false;
 	}
-	Stream.close();
-	std::filesystem::remove(FinalPath, Error);
-	Error.clear();
-	std::filesystem::rename(TemporaryPath, FinalPath, Error);
-	if (Error)
+
+	DWORD FileError = ERROR_SUCCESS;
+	const char* Operation = "WriteFile";
+	for (SIZE_T Offset = 0; Offset < FileBytes.size();)
 	{
+		const DWORD Size = static_cast<DWORD>(std::min<SIZE_T>(FileBytes.size() - Offset, (std::numeric_limits<DWORD>::max)()));
+		DWORD Written = 0;
+		if (!WriteFile(File, FileBytes.data() + Offset, Size, &Written, nullptr))
+		{
+			FileError = GetLastError();
+			break;
+		}
+		if (Written == 0)
+		{
+			FileError = ERROR_WRITE_FAULT;
+			break;
+		}
+		Offset += Written;
+	}
+
+	if (FileError == ERROR_SUCCESS && !FlushFileBuffers(File))
+	{
+		FileError = GetLastError();
+		Operation = "FlushFileBuffers";
+	}
+
+	if (!CloseHandle(File) && FileError == ERROR_SUCCESS)
+	{
+		FileError = GetLastError();
+		Operation = "CloseHandle";
+	}
+
+	if (FileError == ERROR_SUCCESS && !MoveFileExW(TemporaryPath.c_str(), FinalPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	{
+		FileError = GetLastError();
+		Operation = "MoveFileExW";
+	}
+
+	if (FileError != ERROR_SUCCESS)
+	{
+		DeleteFileW(TemporaryPath.c_str());
+		Error = std::format(".kasset 저장 실패. AssetPath={}, Operation={}, GetLastError()={}", AssetPath, Operation, FileError);
 		return false;
 	}
+
 	SavedAssetId = AssetId;
 	return true;
 }
@@ -319,7 +363,7 @@ bool FAssetImporter::LoadTextureCache(const std::filesystem::path& CachePath, TA
 	static constexpr uint64 MaxPayloadSize = 512ull * 1024 * 1024;
 	TStaticArray<uint8, 32> StoredHash;
 	std::ifstream Stream(CachePath, std::ios::binary | std::ios::ate);
-	
+
 	if (!Stream)
 	{
 		return false;
@@ -327,7 +371,7 @@ bool FAssetImporter::LoadTextureCache(const std::filesystem::path& CachePath, TA
 
 	const std::streamoff FileSize = Stream.tellg();
 	if (FileSize < static_cast<std::streamoff>(sizeof(FTexture2DPayloadHeader) + StoredHash.size()) ||
-		FileSize > static_cast<std::streamoff>(MaxPayloadSize + StoredHash.size()))
+	    FileSize > static_cast<std::streamoff>(MaxPayloadSize + StoredHash.size()))
 	{
 		return false;
 	}
@@ -335,7 +379,7 @@ bool FAssetImporter::LoadTextureCache(const std::filesystem::path& CachePath, TA
 	TArray<uint8> CachedBytes(static_cast<SIZE_T>(FileSize) - StoredHash.size());
 	Stream.seekg(0);
 	if (!Stream.read(reinterpret_cast<char*>(CachedBytes.data()), static_cast<std::streamsize>(CachedBytes.size())) ||
-		!Stream.read(reinterpret_cast<char*>(StoredHash.data()), static_cast<std::streamsize>(StoredHash.size())))
+	    !Stream.read(reinterpret_cast<char*>(StoredHash.data()), static_cast<std::streamsize>(StoredHash.size())))
 	{
 		return false;
 	}
@@ -372,7 +416,7 @@ bool FAssetImporter::SaveTextureCache(const std::filesystem::path& CachePath, co
 	Stream.write(reinterpret_cast<const char*>(PayloadHash.data()), static_cast<std::streamsize>(PayloadHash.size()));
 	Stream.close();
 	const bool bSucceeded = Stream && MoveFileExW(TemporaryPath.c_str(), CachePath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-	
+
 	if (!bSucceeded)
 	{
 		std::filesystem::remove(TemporaryPath, Error);
@@ -415,7 +459,7 @@ FAssetImportResult FAssetImporter::ImportTextures(const FTextureImportDesc& Desc
 		TStaticArray<uint8, 32> SourceHash;
 
 		if (HashTextureData(std::span<const uint8>(ImageBytes, Image.buffer_view->size), SourceHash,
-			std::span<const uint8>(reinterpret_cast<const uint8*>(CacheSettings), sizeof(CacheSettings))))
+		                    std::span<const uint8>(reinterpret_cast<const uint8*>(CacheSettings), sizeof(CacheSettings))))
 		{
 			static constexpr char HexDigits[] = "0123456789abcdef";
 			FString CacheKey;
@@ -434,7 +478,7 @@ FAssetImportResult FAssetImporter::ImportTextures(const FTextureImportDesc& Desc
 
 		TArray<uint8> PayloadBytes;
 		const bool bCached = !CachePath.empty() && LoadTextureCache(CachePath, PayloadBytes);
-		
+
 		if (bCached)
 		{
 			++CachedImageCount;
@@ -483,9 +527,8 @@ FAssetImportResult FAssetImporter::ImportTextures(const FTextureImportDesc& Desc
 			}
 		}
 		FAssetId TextureId;
-		if (!SaveAsset(AssetPath, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, PayloadBytes, TextureId))
+		if (!SaveAsset(AssetPath, EAssetType::Texture2D, FTexture2DPayloadHeader::CurrentVersion, PayloadBytes, TextureId, Result.Error))
 		{
-			Result.Error = "Texture .kasset 저장에 실패했다: " + AssetPath;
 			return Result;
 		}
 		Result.ImportedAssets.push_back({ AssetPath, EAssetType::Texture2D, TextureId });
@@ -550,9 +593,13 @@ FAssetImportResult FAssetImporter::ImportMaterials(const FMaterialImportDesc& De
 			Payload << Sampler;
 		}
 		FAssetId MaterialId;
-		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, PayloadBytes, MaterialId))
+		if (Payload.HasError())
 		{
-			Result.Error = "Material .kasset 저장에 실패했다: " + AssetPath;
+			Result.Error = "Material Payload 생성에 실패했다: " + AssetPath;
+			return Result;
+		}
+		if (!SaveAsset(AssetPath, EAssetType::Material, FMaterialPayloadHeader::CurrentVersion, PayloadBytes, MaterialId, Result.Error))
+		{
 			return Result;
 		}
 		Result.ImportedAssets.push_back({ AssetPath, EAssetType::Material, MaterialId });
@@ -691,7 +738,8 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 			}
 			return true;
 		};
-		const cgltf_scene* Scene = GLTF.scene ? GLTF.scene : GLTF.scenes_count > 0 ? &GLTF.scenes[0] : nullptr;
+		const cgltf_scene* Scene = GLTF.scene ? GLTF.scene : GLTF.scenes_count > 0 ? &GLTF.scenes[0]
+		                                                                           : nullptr;
 		if (Scene)
 		{
 			for (cgltf_size RootIndex = 0; RootIndex < Scene->nodes_count; ++RootIndex)
@@ -748,14 +796,14 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 			Normalize(Mesh.Vertices, ImportOptions.UniformScale);
 		}
 		GenerateTangents(Mesh.Vertices, Mesh.Indices);
-		
+
 		const auto SimplificationStart = std::chrono::steady_clock::now();
 		TArray<FStaticMeshLODBuildData> GeneratedLODs = FMeshSimplifier::GenerateLODs(
-			{ Mesh.Vertices, Mesh.Indices, Mesh.Sections, ImportOptions.LODTriangleRatios });
+		    { Mesh.Vertices, Mesh.Indices, Mesh.Sections, ImportOptions.LODTriangleRatios });
 		const double SimplificationMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - SimplificationStart).count();
-		
+
 		KE_LOG(LogAssetImporter, Display, "LOD 간소화 완료. Mesh={}, SourceVertices={}, SourceTriangles={}, LODs={}, CPU={}ms",
-			Mesh.Name, Mesh.Vertices.size(), Mesh.Indices.size() / 3, GeneratedLODs.size(), SimplificationMilliseconds);
+		       Mesh.Name, Mesh.Vertices.size(), Mesh.Indices.size() / 3, GeneratedLODs.size(), SimplificationMilliseconds);
 
 		if (GeneratedLODs.size() < ImportOptions.LODTriangleRatios.size())
 		{
@@ -769,8 +817,8 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 			const FMeshOptimizationStatistics Statistics = FMeshOptimizer::Optimize(LOD.Vertices, LOD.Indices, LOD.Sections, ReorderTrianglesByMaterial);
 			const double OptimizationMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - OptimizationStart).count();
 			KE_LOG(LogAssetImporter, Display, "LOD 통계. Mesh={}, Ratio={}, Triangles={}, Vertices={}, Indices={}, FIFO={}/{}/{}, CPU={}ms",
-				Mesh.Name, LOD.AchievedTriangleRatio, LOD.Indices.size() / 3, LOD.Vertices.size(), LOD.Indices.size(),
-				Statistics.CacheMissesBefore, Statistics.CacheMissesAfterCache, Statistics.CacheMissesAfterOverdraw, OptimizationMilliseconds);
+			       Mesh.Name, LOD.AchievedTriangleRatio, LOD.Indices.size() / 3, LOD.Vertices.size(), LOD.Indices.size(),
+			       Statistics.CacheMissesBefore, Statistics.CacheMissesAfterCache, Statistics.CacheMissesAfterOverdraw, OptimizationMilliseconds);
 		}
 
 		for (SIZE_T LODIndex = 0; LODIndex < GeneratedLODs.size(); ++LODIndex)
@@ -821,9 +869,13 @@ FAssetImportResult FAssetImporter::ImportStaticMeshes(const FStaticMeshImportDes
 		}
 		const FString AssetPath = Combine(MeshRoot, Mesh.Name);
 		FAssetId StaticMeshId;
-		if (Payload.HasError() || !SaveAsset(AssetPath, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, PayloadBytes, StaticMeshId))
+		if (Payload.HasError())
 		{
-			Result.Error = "Static Mesh .kasset 저장에 실패했다: " + AssetPath;
+			Result.Error = "Static Mesh Payload 생성에 실패했다: " + AssetPath;
+			return Result;
+		}
+		if (!SaveAsset(AssetPath, EAssetType::StaticMesh, FStaticMeshPayloadHeader::CurrentVersion, PayloadBytes, StaticMeshId, Result.Error))
+		{
 			return Result;
 		}
 		Result.ImportedAssets.push_back({ AssetPath, EAssetType::StaticMesh, StaticMeshId });

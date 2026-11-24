@@ -26,6 +26,7 @@ public:
 	void Release();
 
 	FShaderHandle GetOrCreate(const FShaderKey& Key);
+	bool TryGetOrCreate(const FShaderKey& Key, FShaderHandle& Handle, FString& Diagnostics);
 	const FShaderReflection& GetReflection(const FShaderKey& Key);
 	
 	TArray<FShaderKey> GetKeysForSource(const FString& SourcePath) const;
@@ -51,6 +52,7 @@ private:
 	};
 
 	FEntry& GetOrCreateEntry(const FShaderKey& Key);
+	FEntry* TryGetOrCreateEntry(const FShaderKey& Key, FString& Diagnostics);
 	static bool HasMaterialLayoutChange(const FShaderReflection& Existing, const FShaderReflection& Staged);
 
 	IRenderDevice& RenderDevice;

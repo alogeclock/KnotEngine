@@ -52,7 +52,6 @@ public:
 	void RequestStaticMeshResource(const UStaticMesh& StaticMesh);
 	void RequestMaterialResource(UMaterialInterface& Material);
 	
-	bool PrepareMaterialShaderReload(const TArray<FShaderKey>& ShaderKeys, TArray<FMaterialResourceCommand>& OutCommands);
 	
 	void DrainRenderResourceCommands(
 		TArray<FStaticMeshResourceCommand>& OutStaticMeshes,

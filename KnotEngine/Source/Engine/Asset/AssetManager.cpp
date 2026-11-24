@@ -4,7 +4,7 @@
 #include "Core/Assert.h"
 #include "Object/ReferenceCollector.h"
 
-#include <algorithm>
+#include <utility>
 
 FAssetManager* GAssetManager = nullptr;
 
@@ -286,44 +286,6 @@ bool FAssetManager::BuildMaterialResourceCommand(const UMaterialInterface& Mater
 		const auto& Texture = *static_cast<const UTexture2D*>(Parameter.Texture.Get());
 		RequestTextureResource(Texture);
 		OutCommand.Textures.push_back({ Parameter.Name, Texture.GetAssetId(), Parameter.Sampler });
-	}
-	return true;
-}
-
-// 사용 중인 Material 중 변경된 Shader Key에 의존하는 것만 현재 값의 후보 명령으로 준비한다.
-bool FAssetManager::PrepareMaterialShaderReload(const TArray<FShaderKey>& ShaderKeys, TArray<FMaterialResourceCommand>& OutCommands)
-{
-	check(GAssetManager == this);
-	for (const auto& [AssetId, Request] : RequestedMaterialResources)
-	{
-		UMaterialInterface* MaterialInterface = Request.Material.Get();
-		check(MaterialInterface && MaterialInterface->GetAssetId() == AssetId);
-		const FMaterial* Material = MaterialInterface->GetMaterial();
-		if (!Material || !Material->IsValid())
-		{
-			return false;
-		}
-		if (!std::any_of(ShaderKeys.begin(), ShaderKeys.end(), [Material](const FShaderKey& Key)
-		{
-			return Key == Material->GetVertexShader() || Key == Material->GetPixelShader();
-		}))
-		{
-			continue;
-		}
-		// 아직 RT에 전달하지 않은 Material은 Shader 교체 후 일반 명령으로 생성된다.
-		if (std::any_of(PendingMaterialResourceCommands.begin(), PendingMaterialResourceCommands.end(), [&AssetId](const FMaterialResourceCommand& Command)
-		{
-			return Command.AssetId == AssetId;
-		}))
-		{
-			continue;
-		}
-		FMaterialResourceCommand Command;
-		if (!BuildMaterialResourceCommand(*MaterialInterface, MaterialInterface->GetRevision(), Command))
-		{
-			return false;
-		}
-		OutCommands.push_back(std::move(Command));
 	}
 	return true;
 }
